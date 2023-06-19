@@ -18,5 +18,3 @@ incremental = true
 debug = 1
 codegen-units = 32
 
-[build]
-jobs = 32

@@ -10,7 +10,8 @@ pub struct FreezeOpts {
     pub max_concurrent_requests: Option<usize>,
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,
-    pub block_chunk_size: Option<u64>,
+    pub block_numbers: Option<Vec<u64>>,
+    pub chunk_size: u64,
 }
 
 pub async fn freeze(opts: FreezeOpts) {
