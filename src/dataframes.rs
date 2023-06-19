@@ -1,5 +1,6 @@
 use ethers::prelude::*;
 use polars::prelude::*;
+use crate::gather::SlimBlock;
 
 /// write polars dataframe to parquet file
 pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
@@ -8,6 +9,46 @@ pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
         .with_statistics(true)
         .finish(df)
         .unwrap();
+}
+
+
+pub fn preview_df(df: &DataFrame, name: &str) {
+    println!("{}", name);
+    println!("{:?}", df);
+    println!("{:?}", df.schema());
+}
+
+
+pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::error::Error>> {
+    let mut number: Vec<u64> = Vec::new();
+    let mut hash: Vec<Vec<u8>> = Vec::new();
+    let mut author: Vec<Vec<u8>> = Vec::new();
+    let mut gas_used: Vec<u64> = Vec::new();
+    let mut extra_data: Vec<Vec<u8>> = Vec::new();
+    let mut timestamp: Vec<u64> = Vec::new();
+    let mut base_fee_per_gas: Vec<Option<u64>> = Vec::new();
+
+    for block in blocks.iter() {
+        number.push(block.number);
+        hash.push(block.hash.clone());
+        author.push(block.author.clone());
+        gas_used.push(block.gas_used);
+        extra_data.push(block.extra_data.clone());
+        timestamp.push(block.timestamp);
+        base_fee_per_gas.push(block.base_fee_per_gas);
+    }
+
+    let df = df!(
+        "block_number" => number,
+        "block_hash" => hash,
+        "author" => author,
+        "gas_used" => gas_used,
+        "extra_data" => extra_data,
+        "timestamp" => timestamp,
+        "base_fee_per_gas" => base_fee_per_gas,
+    );
+
+    Ok(df?)
 }
 
 /// convert a Vec<Transaction> into polars dataframe
