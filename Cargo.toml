@@ -12,3 +12,11 @@ eyre = "0.6.8"
 futures = "0.3.28"
 polars = { version = "0.30.0", features = ["parquet"] }
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
+
+[profile.dev]
+incremental = true
+debug = 1
+codegen-units = 32
+
+[build]
+jobs = 32
