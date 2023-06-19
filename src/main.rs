@@ -4,28 +4,51 @@
 // - are most ethers functions async?
 // Next goals
 // - call from python, return result to python
+// - upload to s3 instead of saving to disk
 
+use clap::Parser;
 use ethers::prelude::*;
 use futures::future::join_all;
 use polars::prelude::*;
 use tokio::sync::Semaphore;
 
-// const RPC_URL: &str = "https://eth.llamarpc.com";
-const RPC_URL: &str = "http://34.105.67.70:8545";
-const N_BLOCKS: u64 = 100;
-const MAX_CONCURRENT_REQUESTS: usize = 100;
+/// Command line arguments
+#[derive(Parser, Debug)]
+#[command(author, version, about, long_about = None)]
+struct Args {
+    /// Name of the person to greet
+    #[arg(short, long, default_value_t = 200)]
+    max_concurrent_requests: usize,
+
+    /// Number of times to greet
+    #[arg(short, long, default_value_t = 100)]
+    n_blocks: u64,
+
+    /// RPC URL
+    #[arg(short, long, default_value = "http://34.105.67.70:8545")]
+    // #[arg(short, long, default_value = "http://185.209.178.178:8545")]
+    // #[arg(short, long, default_value = "http://45.250.253.66:8545")]
+    rpc: String,
+}
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let provider = Provider::<Http>::try_from(RPC_URL)?;
+    let args = Args::parse();
+
+    let provider = Provider::<Http>::try_from(args.rpc)?;
 
     // get current block number
     let block_number: U64 = provider.get_block_number().await?;
-    let start = block_number.as_u64().saturating_sub(N_BLOCKS - 1); // saturating_sub prevents underflow
+    let start = block_number.as_u64().saturating_sub(args.n_blocks - 1);
     let block_numbers_to_fetch: Vec<_> = (start..=block_number.as_u64()).collect();
 
     // get txs
-    let txs = get_blocks_txs(block_numbers_to_fetch, provider).await;
+    let txs = get_blocks_txs(
+        block_numbers_to_fetch,
+        provider,
+        args.max_concurrent_requests,
+    )
+    .await;
 
     // create dataframe
     let df: &mut DataFrame = &mut txs_to_df(txs.unwrap()).unwrap();
@@ -41,12 +64,13 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+/// fetch transactions of block_numbers from RPC node
 async fn get_blocks_txs(
     block_numbers: Vec<u64>,
     provider: Provider<Http>,
+    max_concurrent_requests: usize,
 ) -> Result<Vec<Transaction>, Box<dyn std::error::Error>> {
-    /// fetch transactions of block_numbers from RPC node
-    let semaphore = Arc::new(Semaphore::new(MAX_CONCURRENT_REQUESTS));
+    let semaphore = Arc::new(Semaphore::new(max_concurrent_requests));
 
     // prepare futures for concurrent execution
     let futures = block_numbers.into_iter().map(|block_number| {
@@ -79,8 +103,8 @@ async fn get_blocks_txs(
     Ok(all_txs)
 }
 
+/// convert a Vec<Transaction> into polars dataframe
 fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error::Error>> {
-    /// convert a Vec<Transaction> into polars dataframe
     // not recording: v, r, s, access_list
     let mut hashes: Vec<&[u8]> = Vec::new();
     let mut transaction_indices: Vec<Option<u64>> = Vec::new();
@@ -141,8 +165,8 @@ fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error::Err
     Ok(df?)
 }
 
+/// write polars dataframe to parquet file
 fn df_to_parquet(df: &mut DataFrame, filename: &str) {
-    /// write polars dataframe to parquet file
     let file = std::fs::File::create(filename).unwrap();
     ParquetWriter::new(file)
         .with_statistics(true)
