@@ -1,6 +1,6 @@
 use ethers::prelude::*;
 use polars::prelude::*;
-use crate::gather::SlimBlock;
+use crate::types::SlimBlock;
 
 /// write polars dataframe to parquet file
 pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
