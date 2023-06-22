@@ -1,4 +1,5 @@
 use ethers::prelude::*;
+use ring::digest::{self, Digest};
 
 use crate::types::{BlockChunk, FreezeOpts, SlimBlock};
 
@@ -50,7 +51,7 @@ pub fn get_chunks(opts: &FreezeOpts) -> Vec<BlockChunk> {
     }
 }
 
-pub fn get_chunk_block_numbers(block_chunk: BlockChunk) -> Vec<u64> {
+pub fn get_chunk_block_numbers(block_chunk: &BlockChunk) -> Vec<u64> {
     match block_chunk {
         BlockChunk {
             block_numbers: Some(block_numbers),
@@ -60,10 +61,43 @@ pub fn get_chunk_block_numbers(block_chunk: BlockChunk) -> Vec<u64> {
             start_block: Some(start_block),
             end_block: Some(end_block),
             ..
-        } => (*(start_block..=end_block).collect::<Vec<u64>>()).to_vec(),
+        } => (*start_block..=*end_block).collect(),
         _ => panic!("invalid block range"),
     }
 }
+
+pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
+    match chunk {
+        BlockChunk {
+            block_numbers: Some(block_numbers),
+            ..
+        } => {
+            let min = block_numbers.iter().min().unwrap();
+            let max = block_numbers.iter().max().unwrap();
+            let hash = compute_numbers_hash(block_numbers);
+            format!("mixed_{}_to_{}_{}", min, max, &hash[0..8].to_string())
+        }
+        BlockChunk {
+            start_block: Some(start_block),
+            end_block: Some(end_block),
+            ..
+        } => format!("{}_to_{}", start_block, end_block),
+        _ => panic!("invalid block range"),
+    }
+}
+
+fn compute_numbers_hash(numbers: &[u64]) -> String {
+    let joined_numbers = numbers
+        .iter()
+        .map(|num| num.to_string())
+        .collect::<Vec<String>>()
+        .join("");
+
+    let hash: Digest = digest::digest(&digest::SHA256, joined_numbers.as_bytes());
+
+    hex::encode(hash.as_ref())
+}
+
 
 #[derive(Debug)]
 pub enum BlockParseError {

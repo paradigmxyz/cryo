@@ -35,17 +35,26 @@ struct Args {
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let opts = parse_opts();
+    let opts = parse_opts().await;
     freeze::freeze(opts).await;
     Ok(())
 }
 
 /// parse options for running freeze
-fn parse_opts() -> FreezeOpts {
+async fn parse_opts() -> FreezeOpts {
     let args = Args::parse();
 
     // get block range
     let provider = Provider::<Http>::try_from(args.rpc).unwrap();
+    let network_name = match provider.get_chainid().await {
+        Ok(chain_id) => {
+            match chain_id.as_u64() {
+                1 => "ethereum".to_string(),
+                chain_id => "network_".to_string() + chain_id.to_string().as_str(),
+            }
+        },
+        _ => panic!("could not determine chain_id"),
+    };
     let (start_block, end_block, block_numbers) = block_utils::parse_block_inputs(&args.blocks).unwrap();
     FreezeOpts {
         datatype: args.datatype,
@@ -55,6 +64,7 @@ fn parse_opts() -> FreezeOpts {
         end_block: end_block,
         block_numbers: block_numbers,
         chunk_size: args.chunk_size,
+        network_name: network_name,
     }
 }
 

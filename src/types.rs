@@ -8,6 +8,7 @@ pub struct FreezeOpts {
     pub end_block: Option<u64>,
     pub block_numbers: Option<Vec<u64>>,
     pub chunk_size: u64,
+    pub network_name: String,
 }
 
 #[derive(Default)]

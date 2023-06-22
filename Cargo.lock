@@ -774,7 +774,9 @@ dependencies = [
  "ethers",
  "eyre",
  "futures",
+ "hex",
  "polars",
+ "ring",
  "tokio",
 ]
 
