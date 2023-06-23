@@ -46,7 +46,7 @@ pub fn get_chunks(opts: &FreezeOpts) -> Vec<BlockChunk> {
             }
 
             chunks
-        },
+        }
         _ => panic!("invalid block range"),
     }
 }
@@ -64,6 +64,51 @@ pub fn get_chunk_block_numbers(block_chunk: &BlockChunk) -> Vec<u64> {
         } => (*start_block..=*end_block).collect(),
         _ => panic!("invalid block range"),
     }
+}
+
+pub fn block_numbers_to_request_chunks(
+    block_chunk: &BlockChunk,
+    log_request_size: &u64,
+) -> Vec<FilterBlockOption> {
+    match block_chunk {
+        BlockChunk {
+            block_numbers: Some(block_numbers),
+            ..
+        } => {
+            block_numbers.iter().map(
+                |block| FilterBlockOption::Range {
+                    from_block: Some((*block).into()),
+                    to_block: Some((*block).into()),
+                }
+            ).collect()
+        },
+        BlockChunk {
+            start_block: Some(start_block),
+            end_block: Some(end_block),
+            ..
+        } => {
+            let chunks = to_chunks(&start_block, &end_block, &log_request_size);
+            chunks.iter().map(
+                |(start, end)|
+                FilterBlockOption::Range{
+                    from_block: Some((*start).into()),
+                    to_block: Some((*end).into()),
+                }
+            ).collect()
+        }
+        _ => panic!("invalid block range"),
+    }
+}
+
+fn to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
+    let mut chunks = Vec::new();
+    let mut chunk_start = *start;
+    while chunk_start < *end {
+        let chunk_end = (chunk_start + chunk_size).min(*end) - 1;
+        chunks.push((chunk_start, chunk_end));
+        chunk_start += chunk_size;
+    }
+    chunks
 }
 
 pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
@@ -98,7 +143,6 @@ fn compute_numbers_hash(numbers: &[u64]) -> String {
     hex::encode(hash.as_ref())
 }
 
-
 #[derive(Debug)]
 pub enum BlockParseError {
     InvalidInput(String),
@@ -106,7 +150,9 @@ pub enum BlockParseError {
 }
 
 /// parse block numbers to freeze
-pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
+pub fn parse_block_inputs(
+    inputs: &Vec<String>,
+) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
     // TODO: allow missing
     // TODO: allow 'latest'
     match inputs.len() {
@@ -122,7 +168,10 @@ pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<(Option<u64>, Option<u
     }
 }
 
-fn _process_block_input(s: &str, as_range: bool) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
+fn _process_block_input(
+    s: &str,
+    as_range: bool,
+) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
     let parts: Vec<&str> = s.split(':').collect();
     match parts.len() {
         1 => {
@@ -133,7 +182,7 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<(Option<u64>, Option<
                 .parse::<u64>()
                 .unwrap();
             Ok((None, None, Some(vec![block])))
-        },
+        }
         2 => {
             let start_block = parts
                 .get(0)
@@ -149,17 +198,14 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<(Option<u64>, Option<
                 .unwrap();
             if as_range {
                 Ok((Some(start_block), Some(end_block), None))
-            }
-            else {
+            } else {
                 Ok((None, None, Some((start_block..=end_block).collect())))
             }
-        },
+        }
         _ => {
             return Err(BlockParseError::InvalidInput(
-                "blocks must be in format block_number or start_block:end_block"
-                    .to_string(),
+                "blocks must be in format block_number or start_block:end_block".to_string(),
             ));
         }
     }
 }
-

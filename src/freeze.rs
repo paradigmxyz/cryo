@@ -13,6 +13,7 @@ pub async fn freeze(opts: FreezeOpts) {
             "blocks_and_transactions" => freeze_blocks_and_transactions_chunk(chunk, &opts).await,
             "blocks" => freeze_blocks_chunk(chunk, &opts).await,
             "transactions" => freeze_transactions_chunk(chunk, &opts).await,
+            "logs" => freeze_logs(chunk, &opts).await,
             _ => println!("invalid datatype"),
         }
     }
@@ -41,6 +42,13 @@ async fn freeze_transactions_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
     save_transactions(txs, &chunk, &opts);
 }
 
+async fn freeze_logs(chunk: BlockChunk, opts: &FreezeOpts) {
+    let logs = gather::get_logs(&chunk, None, [None, None, None, None], &opts)
+        .await
+        .unwrap();
+    save_logs(logs, &chunk, &opts);
+}
+
 // saving
 
 fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
@@ -50,14 +58,22 @@ fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
 
 fn save_blocks(blocks: Vec<SlimBlock>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("blocks", chunk, &opts);
-    let df_blocks: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
-    dataframes::preview_df(df_blocks, "blocks");
-    dataframes::df_to_parquet(df_blocks, &path);
+    let df: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
+    dataframes::preview_df(df, "blocks");
+    dataframes::df_to_parquet(df, &path);
 }
 
 fn save_transactions(txs: Vec<Transaction>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("transactions", chunk, &opts);
-    let df_txs: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
-    dataframes::preview_df(df_txs, "transactions");
-    dataframes::df_to_parquet(df_txs, &path);
+    let df: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
+    dataframes::preview_df(df, "transactions");
+    dataframes::df_to_parquet(df, &path);
 }
+
+fn save_logs(logs: Vec<Log>, chunk: &BlockChunk, opts: &FreezeOpts) {
+    let path = get_file_path("logs", chunk, &opts);
+    let df: &mut DataFrame = &mut dataframes::logs_to_df(logs).unwrap();
+    dataframes::preview_df(df, "logs");
+    dataframes::df_to_parquet(df, &path);
+}
+

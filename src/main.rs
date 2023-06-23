@@ -29,8 +29,11 @@ struct Args {
 
     /// RPC URL
     #[arg(short, long, default_value = "http://34.105.67.70:8545")]
-    // #[arg(short, long, default_value = "ws://34.105.67.70")]
     rpc: String,
+
+    /// Number of blocks per log request
+    #[arg(short, default_value_t = 10)]
+    log_request_size: u64,
 }
 
 #[tokio::main]
@@ -65,6 +68,7 @@ async fn parse_opts() -> FreezeOpts {
         block_numbers: block_numbers,
         chunk_size: args.chunk_size,
         network_name: network_name,
+        log_request_size: args.log_request_size,
     }
 }
 

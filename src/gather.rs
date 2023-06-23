@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 use crate::block_utils;
-use crate::types::{FreezeOpts, SlimBlock};
+use crate::types::{FreezeOpts, SlimBlock, BlockChunk};
 
 pub async fn get_blocks_and_transactions(
     block_numbers: Vec<u64>,
@@ -145,4 +145,95 @@ pub async fn fetch_blocks(
         Ok(blocks) => Ok(blocks),
         Err(e) => Err(e.into()), // Convert the error into a boxed dyn Error
     }
+}
+
+pub async fn get_logs(
+    block_chunk: &BlockChunk,
+    address: Option<ValueOrArray<H160>>,
+    topics: [Option<ValueOrArray<Option<H256>>>; 4],
+    opts: &FreezeOpts,
+) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
+    let request_chunks = block_utils::block_numbers_to_request_chunks(
+        &block_chunk,
+        &opts.log_request_size,
+    );
+    let results = fetch_logs(
+        request_chunks,
+        address,
+        topics,
+        &opts.provider,
+        &opts.max_concurrent_requests,
+    ).await.unwrap();
+
+    let mut logs: Vec<Log> = Vec::new();
+    for result in results {
+        for log in result.unwrap() {
+            logs.push(log);
+        }
+    }
+
+    Ok(logs)
+}
+
+pub async fn fetch_logs(
+    request_chunks: Vec<FilterBlockOption>,
+    address: Option<ValueOrArray<H160>>,
+    topics: [Option<ValueOrArray<Option<H256>>>; 4],
+    provider: &Provider<Http>,
+    max_concurrent_requests: &Option<usize>,
+) -> Result<Vec<Option<Vec<Log>>>, Box<dyn std::error::Error>> {
+    let semaphore = Arc::new(Semaphore::new(max_concurrent_requests.unwrap_or(100)));
+
+    // prepare futures for concurrent execution
+    let futures = request_chunks.into_iter().map(|request_chunk| {
+        let provider = provider.clone();
+        let semaphore = Arc::clone(&semaphore); // Cloning the Arc, not the Semaphore
+        let filter = Filter {
+            block_option: request_chunk,
+            address: address.clone(),
+            topics: topics.clone(),
+        };
+        tokio::spawn(async move {
+            let permit = Arc::clone(&semaphore).acquire_owned().await;
+            let result = provider.get_logs(&filter).await;
+            drop(permit); // release the permit when the task is done
+            result
+        })
+    });
+
+    let results: Result<Vec<Option<Vec<Log>>>, _> = join_all(futures)
+    .await
+    .into_iter()
+    .map(|r| match r {
+        Ok(Ok(block)) => Ok(Some(block)),
+        Ok(Err(e)) => {
+            println!("Failed to get block: {}", e);
+            Ok(None)
+        }
+        Err(e) => Err(format!("Task failed: {}", e)),
+    })
+    .collect();
+
+    match results {
+        Ok(blocks) => Ok(blocks),
+        Err(e) => Err(Box::from(e)), // Convert the error into a boxed dyn Error
+    }
+
+    // let results: Result<Vec<Option<Vec<Log>>>, _> = join_all(futures)
+    //     .await
+    //     .into_iter()
+    //     .map(|r| match r {
+    //         Ok(Ok(block)) => Ok(block),
+    //         Ok(Err(e)) => {
+    //             println!("Failed to get block: {}", e);
+    //             Err(Ok(None))
+    //         }
+    //         Err(e) => Err(Err(format!("Task failed: {}", e))),
+    //     })
+    //     .collect();
+
+    // match results {
+    //     Ok(blocks) => Ok(blocks),
+    //     Err(e) => Err(e.into()), // Convert the error into a boxed dyn Error
+    // }
 }

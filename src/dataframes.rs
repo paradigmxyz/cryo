@@ -112,3 +112,81 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error:
     );
     Ok(df?)
 }
+
+
+pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error>> {
+
+    // not recording: block_hash, transaction_log_index
+    let mut address: Vec<Vec<u8>> = Vec::new();
+    let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
+    let mut topic1: Vec<Option<Vec<u8>>> = Vec::new();
+    let mut topic2: Vec<Option<Vec<u8>>> = Vec::new();
+    let mut topic3: Vec<Option<Vec<u8>>> = Vec::new();
+    let mut data: Vec<Vec<u8>> = Vec::new();
+    let mut block_number: Vec<u64> = Vec::new();
+    let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
+    let mut transaction_index: Vec<u64> = Vec::new();
+    let mut log_index: Vec<u64> = Vec::new();
+    let mut log_type: Vec<Option<String>> = Vec::new();
+
+    for log in logs.iter() {
+        if log.removed.unwrap() { continue };
+
+        address.push(log.address.as_bytes().to_vec());
+        match log.topics.len() {
+            0 => {
+                topic0.push(None);
+                topic1.push(None);
+                topic2.push(None);
+                topic3.push(None);
+            },
+            1 => {
+                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                topic1.push(None);
+                topic2.push(None);
+                topic3.push(None);
+            },
+            2 => {
+                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                topic2.push(None);
+                topic3.push(None);
+            },
+            3 => {
+                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                topic3.push(None);
+            },
+            4 => {
+                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                topic3.push(Some(log.topics[3].as_bytes().to_vec()));
+            },
+            _ => { panic!("Invalid number of topics"); }
+        }
+        data.push(log.data.clone().to_vec());
+        block_number.push(log.block_number.unwrap().as_u64());
+        transaction_hash.push(log.transaction_hash.map(|hash| hash.as_bytes().to_vec()).unwrap());
+        transaction_index.push(log.transaction_index.unwrap().as_u64());
+        log_index.push(log.log_index.unwrap().as_u64());
+        log_type.push(log.log_type.clone());
+    }
+
+    let df = df!(
+        "address" => address,
+        "topic0" => topic0,
+        "topic1" => topic1,
+        "topic2" => topic2,
+        "topic3" => topic3,
+        "data" => data,
+        "block_number" => block_number,
+        "transaction_hash" => transaction_hash,
+        "transaction_index" => transaction_index,
+        "log_index" => log_index,
+        "log_type" => log_type,
+    );
+
+    Ok(df?)
+}
