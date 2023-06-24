@@ -1,7 +1,7 @@
 use ethers::prelude::*;
 use ring::digest::{self, Digest};
 
-use crate::types::{BlockChunk, FreezeOpts, SlimBlock};
+use crate::types::{BlockChunk, SlimBlock};
 
 pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
     SlimBlock {
@@ -15,42 +15,71 @@ pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
     }
 }
 
-pub fn get_chunks(opts: &FreezeOpts) -> Vec<BlockChunk> {
-    match opts {
-        FreezeOpts {
+// pub fn get_chunks(opts: &FreezeOpts) -> Vec<BlockChunk> {
+//     match opts {
+//         FreezeOpts {
+//             block_numbers: Some(block_numbers),
+//             ..
+//         } => block_numbers
+//             .chunks(opts.chunk_size as usize)
+//             .map(|chunk| BlockChunk {
+//                 block_numbers: Some(chunk.to_vec()),
+//                 ..Default::default()
+//             })
+//             .collect(),
+//         FreezeOpts {
+//             start_block: Some(start_block),
+//             end_block: Some(end_block),
+//             ..
+//         } => {
+//             let mut chunks = Vec::new();
+//             let mut chunk_start = *start_block;
+//             while chunk_start < *end_block {
+//                 let chunk_end = (chunk_start + opts.chunk_size).min(*end_block) - 1;
+//                 let chunk = BlockChunk {
+//                     start_block: Some(chunk_start),
+//                     end_block: Some(chunk_end),
+//                     ..Default::default()
+//                 };
+//                 chunks.push(chunk);
+//                 chunk_start += opts.chunk_size;
+//             }
+
+//             chunks
+//         }
+//         _ => panic!("invalid block range"),
+//     }
+// }
+
+pub fn get_subchunks(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
+    match block_chunk {
+        BlockChunk {
             block_numbers: Some(block_numbers),
             ..
         } => block_numbers
-            .chunks(opts.chunk_size as usize)
+            .chunks(*chunk_size as usize)
             .map(|chunk| BlockChunk {
                 block_numbers: Some(chunk.to_vec()),
                 ..Default::default()
             })
             .collect(),
-        FreezeOpts {
+        BlockChunk {
             start_block: Some(start_block),
             end_block: Some(end_block),
             ..
-        } => {
-            let mut chunks = Vec::new();
-            let mut chunk_start = *start_block;
-            while chunk_start < *end_block {
-                let chunk_end = (chunk_start + opts.chunk_size).min(*end_block) - 1;
-                let chunk = BlockChunk {
-                    start_block: Some(chunk_start),
-                    end_block: Some(chunk_end),
-                    ..Default::default()
-                };
-                chunks.push(chunk);
-                chunk_start += opts.chunk_size;
-            }
-
-            chunks
-        }
+        } => range_to_chunks(start_block, end_block, chunk_size)
+            .iter()
+            .map(|(start, end)| BlockChunk {
+                start_block: Some(*start),
+                end_block: Some(*end),
+                block_numbers: None,
+            })
+            .collect(),
         _ => panic!("invalid block range"),
     }
 }
 
+/// return a Vec of all blocks in chunk
 pub fn get_chunk_block_numbers(block_chunk: &BlockChunk) -> Vec<u64> {
     match block_chunk {
         BlockChunk {
@@ -66,7 +95,8 @@ pub fn get_chunk_block_numbers(block_chunk: &BlockChunk) -> Vec<u64> {
     }
 }
 
-pub fn block_numbers_to_request_chunks(
+/// break a block chunk into FilterBlockOption for log requests
+pub fn block_chunk_to_filter_options(
     block_chunk: &BlockChunk,
     log_request_size: &u64,
 ) -> Vec<FilterBlockOption> {
@@ -74,33 +104,33 @@ pub fn block_numbers_to_request_chunks(
         BlockChunk {
             block_numbers: Some(block_numbers),
             ..
-        } => {
-            block_numbers.iter().map(
-                |block| FilterBlockOption::Range {
-                    from_block: Some((*block).into()),
-                    to_block: Some((*block).into()),
-                }
-            ).collect()
-        },
+        } => block_numbers
+            .iter()
+            .map(|block| FilterBlockOption::Range {
+                from_block: Some((*block).into()),
+                to_block: Some((*block).into()),
+            })
+            .collect(),
         BlockChunk {
             start_block: Some(start_block),
             end_block: Some(end_block),
             ..
         } => {
-            let chunks = to_chunks(&start_block, &end_block, &log_request_size);
-            chunks.iter().map(
-                |(start, end)|
-                FilterBlockOption::Range{
+            let chunks = range_to_chunks(&start_block, &end_block, &log_request_size);
+            chunks
+                .iter()
+                .map(|(start, end)| FilterBlockOption::Range {
                     from_block: Some((*start).into()),
                     to_block: Some((*end).into()),
-                }
-            ).collect()
+                })
+                .collect()
         }
         _ => panic!("invalid block range"),
     }
 }
 
-fn to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
+/// convert a range of numbers into a Vec of (start, end) chunk tuples
+fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
     let mut chunks = Vec::new();
     let mut chunk_start = *start;
     while chunk_start < *end {
@@ -111,6 +141,20 @@ fn to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
     chunks
 }
 
+/// compute a hex hash of a slice of numbers
+fn compute_numbers_hash(numbers: &[u64]) -> String {
+    let joined_numbers = numbers
+        .iter()
+        .map(|num| num.to_string())
+        .collect::<Vec<String>>()
+        .join("");
+
+    let hash: Digest = digest::digest(&digest::SHA256, joined_numbers.as_bytes());
+
+    hex::encode(hash.as_ref())
+}
+
+/// convert a block chunk into a String representation
 pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
     match chunk {
         BlockChunk {
@@ -131,18 +175,6 @@ pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
     }
 }
 
-fn compute_numbers_hash(numbers: &[u64]) -> String {
-    let joined_numbers = numbers
-        .iter()
-        .map(|num| num.to_string())
-        .collect::<Vec<String>>()
-        .join("");
-
-    let hash: Digest = digest::digest(&digest::SHA256, joined_numbers.as_bytes());
-
-    hex::encode(hash.as_ref())
-}
-
 #[derive(Debug)]
 pub enum BlockParseError {
     InvalidInput(String),
@@ -150,28 +182,26 @@ pub enum BlockParseError {
 }
 
 /// parse block numbers to freeze
-pub fn parse_block_inputs(
-    inputs: &Vec<String>,
-) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
-    // TODO: allow missing
-    // TODO: allow 'latest'
+pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParseError> {
     match inputs.len() {
         1 => _process_block_input(inputs.get(0).unwrap(), true),
         _ => {
             let mut block_numbers: Vec<u64> = vec![];
             for input in inputs {
-                let (_s, _e, arg_block_numbers) = _process_block_input(&input, false).unwrap();
-                block_numbers.extend(arg_block_numbers.unwrap());
+                let subchunk = _process_block_input(&input, false).unwrap();
+                block_numbers.extend(subchunk.block_numbers.unwrap());
             }
-            Ok((None, None, Some(block_numbers)))
+            let block_chunk = BlockChunk {
+                start_block: None,
+                end_block: None,
+                block_numbers: Some(block_numbers),
+            };
+            Ok(block_chunk)
         }
     }
 }
 
-fn _process_block_input(
-    s: &str,
-    as_range: bool,
-) -> Result<(Option<u64>, Option<u64>, Option<Vec<u64>>), BlockParseError> {
+fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockParseError> {
     let parts: Vec<&str> = s.split(':').collect();
     match parts.len() {
         1 => {
@@ -181,7 +211,11 @@ fn _process_block_input(
                 .unwrap()
                 .parse::<u64>()
                 .unwrap();
-            Ok((None, None, Some(vec![block])))
+            Ok(BlockChunk {
+                start_block: None,
+                end_block: None,
+                block_numbers: Some(vec![block]),
+            })
         }
         2 => {
             let start_block = parts
@@ -197,9 +231,17 @@ fn _process_block_input(
                 .parse::<u64>()
                 .unwrap();
             if as_range {
-                Ok((Some(start_block), Some(end_block), None))
+                Ok(BlockChunk {
+                    start_block: Some(start_block),
+                    end_block: Some(end_block),
+                    block_numbers: None,
+                })
             } else {
-                Ok((None, None, Some((start_block..=end_block).collect())))
+                Ok(BlockChunk {
+                    start_block: None,
+                    end_block: None,
+                    block_numbers: Some((start_block..=end_block).collect()),
+                })
             }
         }
         _ => {

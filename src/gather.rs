@@ -11,7 +11,7 @@ pub async fn get_blocks_and_transactions(
     opts: &FreezeOpts,
 ) -> Result<(Vec<SlimBlock>, Vec<Transaction>), Box<dyn std::error::Error>> {
     let results =
-        fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_requests);
+        fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
 
     let mut blocks: Vec<SlimBlock> = Vec::new();
     let mut txs: Vec<Transaction> = Vec::new();
@@ -34,7 +34,7 @@ pub async fn get_blocks(
     block_numbers: Vec<u64>,
     opts: &FreezeOpts,
 ) -> Result<Vec<SlimBlock>, Box<dyn std::error::Error>> {
-    let results = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_requests);
+    let results = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
 
     let mut blocks: Vec<SlimBlock> = Vec::new();
     for result in results.await.unwrap() {
@@ -55,7 +55,7 @@ pub async fn get_transactions(
     opts: &FreezeOpts,
 ) -> Result<Vec<Transaction>, Box<dyn std::error::Error>> {
     let results =
-        fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_requests);
+        fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
 
     let mut txs: Vec<Transaction> = Vec::new();
     for result in results.await.unwrap() {
@@ -74,9 +74,9 @@ pub async fn get_transactions(
 pub async fn fetch_blocks_and_transactions(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
-    max_concurrent_requests: &Option<usize>,
+    max_concurrent_blocks: &u64
 ) -> Result<Vec<Option<Block<Transaction>>>, Box<dyn std::error::Error>> {
-    let semaphore = Arc::new(Semaphore::new(max_concurrent_requests.unwrap_or(100)));
+    let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
     // prepare futures for concurrent execution
     let futures = block_numbers.into_iter().map(|block_number| {
@@ -112,9 +112,9 @@ pub async fn fetch_blocks_and_transactions(
 pub async fn fetch_blocks(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
-    max_concurrent_requests: &Option<usize>,
+    max_concurrent_blocks: &u64,
 ) -> Result<Vec<Option<Block<TxHash>>>, Box<dyn std::error::Error>> {
-    let semaphore = Arc::new(Semaphore::new(max_concurrent_requests.unwrap_or(100)));
+    let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
     // prepare futures for concurrent execution
     let futures = block_numbers.into_iter().map(|block_number| {
@@ -153,7 +153,7 @@ pub async fn get_logs(
     topics: [Option<ValueOrArray<Option<H256>>>; 4],
     opts: &FreezeOpts,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
-    let request_chunks = block_utils::block_numbers_to_request_chunks(
+    let request_chunks = block_utils::block_chunk_to_filter_options(
         &block_chunk,
         &opts.log_request_size,
     );
@@ -162,7 +162,7 @@ pub async fn get_logs(
         address,
         topics,
         &opts.provider,
-        &opts.max_concurrent_requests,
+        &opts.max_concurrent_blocks,
     ).await.unwrap();
 
     let mut logs: Vec<Log> = Vec::new();
@@ -180,9 +180,9 @@ pub async fn fetch_logs(
     address: Option<ValueOrArray<H160>>,
     topics: [Option<ValueOrArray<Option<H256>>>; 4],
     provider: &Provider<Http>,
-    max_concurrent_requests: &Option<usize>,
+    max_concurrent_requests: &u64,
 ) -> Result<Vec<Option<Vec<Log>>>, Box<dyn std::error::Error>> {
-    let semaphore = Arc::new(Semaphore::new(max_concurrent_requests.unwrap_or(100)));
+    let semaphore = Arc::new(Semaphore::new(*max_concurrent_requests as usize));
 
     // prepare futures for concurrent execution
     let futures = request_chunks.into_iter().map(|request_chunk| {
@@ -218,22 +218,4 @@ pub async fn fetch_logs(
         Ok(blocks) => Ok(blocks),
         Err(e) => Err(Box::from(e)), // Convert the error into a boxed dyn Error
     }
-
-    // let results: Result<Vec<Option<Vec<Log>>>, _> = join_all(futures)
-    //     .await
-    //     .into_iter()
-    //     .map(|r| match r {
-    //         Ok(Ok(block)) => Ok(block),
-    //         Ok(Err(e)) => {
-    //             println!("Failed to get block: {}", e);
-    //             Err(Ok(None))
-    //         }
-    //         Err(e) => Err(Err(format!("Task failed: {}", e))),
-    //     })
-    //     .collect();
-
-    // match results {
-    //     Ok(blocks) => Ok(blocks),
-    //     Err(e) => Err(e.into()), // Convert the error into a boxed dyn Error
-    // }
 }

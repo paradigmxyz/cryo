@@ -12,11 +12,11 @@ pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
 }
 
 
-pub fn preview_df(df: &DataFrame, name: &str) {
-    println!("{}", name);
-    println!("{:?}", df);
-    println!("{:?}", df.schema());
-}
+// pub fn preview_df(df: &DataFrame, name: &str) {
+//     println!("{}", name);
+//     println!("{:?}", df);
+//     println!("{:?}", df.schema());
+// }
 
 
 pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::error::Error>> {

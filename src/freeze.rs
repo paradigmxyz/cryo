@@ -3,20 +3,37 @@ use crate::dataframes;
 use crate::gather;
 use crate::types::{BlockChunk, FreezeOpts, SlimBlock};
 
+use tokio::sync::Semaphore;
+use std::sync::Arc;
+
 use ethers::prelude::*;
 use polars::prelude::*;
+use futures::future::try_join_all;
+use std::error::Error;
 
-pub async fn freeze(opts: FreezeOpts) {
-    let chunks = block_utils::get_chunks(&opts);
-    for chunk in chunks {
-        match &opts.datatype[..] {
-            "blocks_and_transactions" => freeze_blocks_and_transactions_chunk(chunk, &opts).await,
-            "blocks" => freeze_blocks_chunk(chunk, &opts).await,
-            "transactions" => freeze_transactions_chunk(chunk, &opts).await,
-            "logs" => freeze_logs(chunk, &opts).await,
-            _ => println!("invalid datatype"),
-        }
-    }
+
+pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
+    let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
+    let opts = Arc::new(opts);
+
+    let tasks: Vec<_> = opts.block_chunks.clone().into_iter().map(|chunk| {
+        let sem = Arc::clone(&sem);
+        let opts = Arc::clone(&opts);
+        tokio::spawn(async move {
+            let _permit = sem.acquire().await.expect("Semaphore acquire");
+            match &opts.datatype[..] {
+                "blocks_and_transactions" => freeze_blocks_and_transactions_chunk(chunk, &opts).await,
+                "blocks" => freeze_blocks_chunk(chunk, &opts).await,
+                "transactions" => freeze_transactions_chunk(chunk, &opts).await,
+                "logs" => freeze_logs(chunk, &opts).await,
+                // "traces" => freeze_traces(chunk, &*opts).await,
+                _ => println!("invalid datatype"),
+            }
+        })
+    }).collect();
+
+    let _results = try_join_all(tasks).await?;
+    Ok(())
 }
 
 async fn freeze_blocks_and_transactions_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
@@ -49,6 +66,13 @@ async fn freeze_logs(chunk: BlockChunk, opts: &FreezeOpts) {
     save_logs(logs, &chunk, &opts);
 }
 
+// async fn freeze_traces(chunk: BlockChunk, opts: &FreezeOpts) {
+//     let logs = gather::freeze_traces(&chunk, None, [None, None, None, None], &opts)
+//         .await
+//         .unwrap();
+//     save_logs(logs, &chunk, &opts);
+// }
+
 // saving
 
 fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
@@ -59,21 +83,18 @@ fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
 fn save_blocks(blocks: Vec<SlimBlock>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("blocks", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
-    dataframes::preview_df(df, "blocks");
     dataframes::df_to_parquet(df, &path);
 }
 
 fn save_transactions(txs: Vec<Transaction>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("transactions", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
-    dataframes::preview_df(df, "transactions");
     dataframes::df_to_parquet(df, &path);
 }
 
 fn save_logs(logs: Vec<Log>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("logs", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::logs_to_df(logs).unwrap();
-    dataframes::preview_df(df, "logs");
     dataframes::df_to_parquet(df, &path);
 }
 
