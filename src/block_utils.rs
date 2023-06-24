@@ -15,42 +15,6 @@ pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
     }
 }
 
-// pub fn get_chunks(opts: &FreezeOpts) -> Vec<BlockChunk> {
-//     match opts {
-//         FreezeOpts {
-//             block_numbers: Some(block_numbers),
-//             ..
-//         } => block_numbers
-//             .chunks(opts.chunk_size as usize)
-//             .map(|chunk| BlockChunk {
-//                 block_numbers: Some(chunk.to_vec()),
-//                 ..Default::default()
-//             })
-//             .collect(),
-//         FreezeOpts {
-//             start_block: Some(start_block),
-//             end_block: Some(end_block),
-//             ..
-//         } => {
-//             let mut chunks = Vec::new();
-//             let mut chunk_start = *start_block;
-//             while chunk_start < *end_block {
-//                 let chunk_end = (chunk_start + opts.chunk_size).min(*end_block) - 1;
-//                 let chunk = BlockChunk {
-//                     start_block: Some(chunk_start),
-//                     end_block: Some(chunk_end),
-//                     ..Default::default()
-//                 };
-//                 chunks.push(chunk);
-//                 chunk_start += opts.chunk_size;
-//             }
-
-//             chunks
-//         }
-//         _ => panic!("invalid block range"),
-//     }
-// }
-
 pub fn get_subchunks(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
     match block_chunk {
         BlockChunk {
@@ -250,4 +214,23 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockPars
             ));
         }
     }
+}
+
+pub fn get_total_blocks(block_chunks: &Vec<BlockChunk>) -> u64 {
+    let mut total = 0;
+    block_chunks.iter().for_each(|chunk| {
+        total += match chunk {
+            BlockChunk {
+                block_numbers: Some(block_numbers),
+                ..
+            } => block_numbers.len() as u64,
+            BlockChunk {
+                start_block: Some(start_block),
+                end_block: Some(end_block),
+                ..
+            } => end_block - start_block + 1,
+            _ => panic!("invalid BlockChunk")
+        }
+    });
+    total
 }

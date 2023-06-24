@@ -1,7 +1,7 @@
 use crate::block_utils;
 use crate::dataframes;
 use crate::gather;
-use crate::types::{BlockChunk, FreezeOpts, SlimBlock};
+use crate::types::{BlockChunk, FreezeOpts, SlimBlock, Datatype};
 
 use std::sync::Arc;
 use tokio::sync::Semaphore;
@@ -23,17 +23,9 @@ pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
             let sem = Arc::clone(&sem);
             let opts = Arc::clone(&opts);
             tokio::spawn(async move {
-                let _permit = sem.acquire().await.expect("Semaphore acquire");
-                match &opts.datatype[..] {
-                    "blocks_and_transactions" => {
-                        freeze_blocks_and_transactions_chunk(chunk, &opts).await
-                    }
-                    "blocks" => freeze_blocks_chunk(chunk, &opts).await,
-                    "transactions" => freeze_transactions_chunk(chunk, &opts).await,
-                    "logs" => freeze_logs(chunk, &opts).await,
-                    // "traces" => freeze_traces(chunk, &*opts).await,
-                    _ => println!("invalid datatype"),
-                }
+                let permit = sem.acquire().await.expect("Semaphore acquire");
+                freeze_chunk(&chunk, &opts).await;
+                drop(permit);
             })
         })
         .collect();
@@ -42,7 +34,21 @@ pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-async fn freeze_blocks_and_transactions_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
+async fn freeze_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
+    let datatypes = &opts.datatypes;
+    if datatypes.contains(&Datatype::Blocks) & datatypes.contains(&Datatype::Transactions) {
+        freeze_blocks_and_transactions_chunk(chunk, &opts).await
+    } else if datatypes.contains(&Datatype::Blocks) {
+        freeze_blocks_chunk(chunk, &opts).await
+    } else if datatypes.contains(&Datatype::Transactions) {
+        freeze_transactions_chunk(chunk, &opts).await
+    }
+    if datatypes.contains(&Datatype::Logs) {
+        freeze_logs(chunk, &opts).await
+    }
+}
+
+async fn freeze_blocks_and_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
     let (blocks, txs) = gather::get_blocks_and_transactions(block_numbers, &opts)
         .await
@@ -51,13 +57,13 @@ async fn freeze_blocks_and_transactions_chunk(chunk: BlockChunk, opts: &FreezeOp
     save_transactions(txs, &chunk, &opts);
 }
 
-async fn freeze_blocks_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
+async fn freeze_blocks_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
     let blocks = gather::get_blocks(block_numbers, &opts).await.unwrap();
     save_blocks(blocks, &chunk, &opts);
 }
 
-async fn freeze_transactions_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
+async fn freeze_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
     let txs = gather::get_transactions(block_numbers, &opts)
         .await
@@ -65,7 +71,7 @@ async fn freeze_transactions_chunk(chunk: BlockChunk, opts: &FreezeOpts) {
     save_transactions(txs, &chunk, &opts);
 }
 
-async fn freeze_logs(chunk: BlockChunk, opts: &FreezeOpts) {
+async fn freeze_logs(chunk: &BlockChunk, opts: &FreezeOpts) {
     let logs = gather::get_logs(&chunk, None, [None, None, None, None], &opts)
         .await
         .unwrap();
@@ -85,7 +91,7 @@ fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
     let block_chunk_stub = block_utils::get_block_chunk_stub(chunk);
     let filename = format!(
         "{}__{}__{}.{}",
-        opts.network_name, name, block_chunk_stub, opts.output_format
+        opts.network_name, name, block_chunk_stub, opts.output_format.as_str()
     );
     match opts.output_dir.as_str() {
         "." => filename,
