@@ -2714,7 +2714,9 @@ checksum = "d63c31565b88f31457abafb224166fdc0824bf2954414f0c5c52b31c09189942"
 dependencies = [
  "argminmax",
  "arrow2",
+ "base64 0.21.2",
  "either",
+ "hex",
  "memchr",
  "polars-arrow",
  "polars-core",

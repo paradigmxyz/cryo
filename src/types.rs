@@ -9,6 +9,9 @@ pub struct FreezeOpts {
     pub max_concurrent_chunks: u64,
     pub max_concurrent_blocks: u64,
     pub log_request_size: u64,
+    pub output_dir: String,
+    pub output_format: String,
+    pub binary_column_format: String,
 }
 
 #[derive(Default)]

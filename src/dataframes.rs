@@ -2,6 +2,15 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use crate::types::SlimBlock;
 
+/// write polars dataframe to file
+pub fn df_to_file(df: &mut DataFrame, filename: &str) {
+    match filename {
+        _ if filename.ends_with(".parquet") => df_to_parquet(df, filename),
+        _ if filename.ends_with(".csv") => df_to_csv(df, filename),
+        _ => panic!("invalid file format")
+    }
+}
+
 /// write polars dataframe to parquet file
 pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
     let file = std::fs::File::create(filename).unwrap();
@@ -11,13 +20,53 @@ pub fn df_to_parquet(df: &mut DataFrame, filename: &str) {
         .unwrap();
 }
 
+/// write polars dataframe to csv file
+pub fn df_to_csv(df: &mut DataFrame, filename: &str) {
+    let file = std::fs::File::create(filename).unwrap();
+    CsvWriter::new(file)
+        .finish(df)
+        .unwrap();
+}
 
-// pub fn preview_df(df: &DataFrame, name: &str) {
-//     println!("{}", name);
-//     println!("{:?}", df);
-//     println!("{:?}", df.schema());
+//pub fn df_binary_columns_to_hex(df: &DataFrame) -> Result<DataFrame, PolarsError> {
+//    // let mut binary_columns: Vec<Series> = vec![];
+//    // let mut binary_columns: Vec<ChunkedArray<Utf8Type>> = vec![];
+//    // let mut binary_exprs: Vec<Expr> = vec![];
+//    let columns: &[Series] = &df.get_columns();
+//    let mut lazy = df.clone().lazy();
+//    // let mut df_hex = df.clone();
+//    columns.iter().for_each(|column| {
+//        match column.dtype() {
+//            polars::datatypes::DataType::Binary => {
+//                // binary_columns.push(column.binary().unwrap().encode("hex"));
+//                // binary_columns.push(column.binary().unwrap().encode("hex"));
+//                // let encoded = column.utf8().unwrap().hex_encode();
+//                // let encoded = col("hi").binary().encode();
+//                // binary_columns.push(encoded.into_series());
+//                // binary_exprs.push(column.encode_hex());
+//                // df_hex = df_hex.clone().with_column(encoded).unwrap().clone();
+//                //
+//                let expr = col(column.name()).bin().encode("hex");
+//                lazy = lazy.clone().with_column(expr);
+//            },
+//            _ => ()
+//        }
+//    });
+//    lazy.collect()
+//    // Ok(df_hex)
+//}
+
+// pub fn df_binary_columns_to_hex(df: &DataFrame) -> Result<DataFrame, PolarsError> {
+//     let columns: &[Series] = &df.get_columns();
+//     let mut lazy = df.clone().lazy();
+//     columns.iter().for_each(|column| {
+//         if column.dtype() == &polars::datatypes::DataType::Binary {
+//             let expr = lit("0x") + col(column.name()).binary().encode("hex");
+//             lazy = lazy.clone().with_column(expr);
+//         }
+//     });
+//     lazy.collect()
 // }
-
 
 pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::error::Error>> {
     let mut number: Vec<u64> = Vec::new();

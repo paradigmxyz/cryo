@@ -3,34 +3,40 @@ use crate::dataframes;
 use crate::gather;
 use crate::types::{BlockChunk, FreezeOpts, SlimBlock};
 
-use tokio::sync::Semaphore;
 use std::sync::Arc;
+use tokio::sync::Semaphore;
 
 use ethers::prelude::*;
-use polars::prelude::*;
 use futures::future::try_join_all;
+use polars::prelude::*;
 use std::error::Error;
-
 
 pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
     let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
     let opts = Arc::new(opts);
 
-    let tasks: Vec<_> = opts.block_chunks.clone().into_iter().map(|chunk| {
-        let sem = Arc::clone(&sem);
-        let opts = Arc::clone(&opts);
-        tokio::spawn(async move {
-            let _permit = sem.acquire().await.expect("Semaphore acquire");
-            match &opts.datatype[..] {
-                "blocks_and_transactions" => freeze_blocks_and_transactions_chunk(chunk, &opts).await,
-                "blocks" => freeze_blocks_chunk(chunk, &opts).await,
-                "transactions" => freeze_transactions_chunk(chunk, &opts).await,
-                "logs" => freeze_logs(chunk, &opts).await,
-                // "traces" => freeze_traces(chunk, &*opts).await,
-                _ => println!("invalid datatype"),
-            }
+    let tasks: Vec<_> = opts
+        .block_chunks
+        .clone()
+        .into_iter()
+        .map(|chunk| {
+            let sem = Arc::clone(&sem);
+            let opts = Arc::clone(&opts);
+            tokio::spawn(async move {
+                let _permit = sem.acquire().await.expect("Semaphore acquire");
+                match &opts.datatype[..] {
+                    "blocks_and_transactions" => {
+                        freeze_blocks_and_transactions_chunk(chunk, &opts).await
+                    }
+                    "blocks" => freeze_blocks_chunk(chunk, &opts).await,
+                    "transactions" => freeze_transactions_chunk(chunk, &opts).await,
+                    "logs" => freeze_logs(chunk, &opts).await,
+                    // "traces" => freeze_traces(chunk, &*opts).await,
+                    _ => println!("invalid datatype"),
+                }
+            })
         })
-    }).collect();
+        .collect();
 
     let _results = try_join_all(tasks).await?;
     Ok(())
@@ -77,24 +83,33 @@ async fn freeze_logs(chunk: BlockChunk, opts: &FreezeOpts) {
 
 fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
     let block_chunk_stub = block_utils::get_block_chunk_stub(chunk);
-    opts.network_name.as_str().to_owned() + "__" + name + "__" + block_chunk_stub.as_str() + ".parquet"
+    let filename = format!(
+        "{}__{}__{}.{}",
+        opts.network_name, name, block_chunk_stub, opts.output_format
+    );
+    match opts.output_dir.as_str() {
+        "." => filename,
+        output_dir => output_dir.to_string() + "/" + filename.as_str(),
+    }
 }
 
 fn save_blocks(blocks: Vec<SlimBlock>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("blocks", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
-    dataframes::df_to_parquet(df, &path);
+    dataframes::df_to_file(df, &path);
 }
 
 fn save_transactions(txs: Vec<Transaction>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("transactions", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
-    dataframes::df_to_parquet(df, &path);
+    dataframes::df_to_file(df, &path);
 }
 
 fn save_logs(logs: Vec<Log>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = get_file_path("logs", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::logs_to_df(logs).unwrap();
-    dataframes::df_to_parquet(df, &path);
+    // println!("{:?}", &df.dtypes());
+    // *df = dataframes::df_binary_columns_to_hex(&df).unwrap();
+    // println!("{:?}", &df.dtypes());
+    dataframes::df_to_file(df, &path);
 }
-
