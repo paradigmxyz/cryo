@@ -8,12 +8,14 @@ mod types;
 use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
 use clap::Parser;
 use ethers::prelude::*;
-use std::fs;
 use std::collections::HashMap;
+use std::fs;
+
+use anstyle;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None)]
+#[command(author, version, about, long_about = None, styles=get_styles())]
 struct Args {
     /// datatype(s) to collect, see above
     #[arg(required = true, num_args(1..))]
@@ -91,6 +93,27 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
+pub fn get_styles() -> clap::builder::Styles {
+    let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
+    let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
+    let grey = anstyle::Color::Rgb(anstyle::RgbColor(170, 170, 170));
+    let title = anstyle::Style::new()
+        .bold()
+        .underline()
+        .fg_color(Some(green));
+    let arg = anstyle::Style::new().bold().fg_color(Some(white));
+    let comment = anstyle::Style::new().fg_color(Some(grey));
+    clap::builder::Styles::styled()
+        .header(title)
+        .error(comment)
+        .usage(title)
+        .literal(arg)
+        .placeholder(comment)
+        .valid(title)
+        .invalid(comment)
+}
+
+
 fn parse_datatype(datatype: &str) -> Datatype {
     match datatype {
         "blocks" => Datatype::Blocks,
@@ -149,19 +172,15 @@ async fn parse_opts() -> (FreezeOpts, Args) {
     let (max_concurrent_chunks, max_concurrent_blocks) = parse_concurrency_args(&args);
 
     // process schemas
-    let schemas: HashMap<Datatype, Schema> = HashMap::from_iter(
-        datatypes
-            .iter()
-            .map(|datatype| {
-                let schema: Schema = datatype_utils::get_schema(
-                    &datatype,
-                    &binary_column_format,
-                    &args.include_columns,
-                    &args.exclude_columns,
-                );
-                (datatype.clone(), schema)
-            })
-    );
+    let schemas: HashMap<Datatype, Schema> = HashMap::from_iter(datatypes.iter().map(|datatype| {
+        let schema: Schema = datatype_utils::get_schema(
+            &datatype,
+            &binary_column_format,
+            &args.include_columns,
+            &args.exclude_columns,
+        );
+        (datatype.clone(), schema)
+    }));
 
     // compile opts
     let opts = FreezeOpts {
@@ -225,7 +244,7 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
 fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
     println!("cryo parameters:");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.as_str()).collect();
-    println!("- datatypes: {:?}", datatype_strs.join(", "));
+    println!("- datatypes: {}", datatype_strs.join(", "));
     println!("- network: {}", opts.network_name);
     println!("- provider: {}", args.rpc);
     println!(
@@ -249,7 +268,10 @@ fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
 }
 
 fn print_schemas(schemas: &HashMap<Datatype, Schema>) {
-    schemas.iter().for_each(|(name, schema)| { println!(""); print_schema(&name, &schema) })
+    schemas.iter().for_each(|(name, schema)| {
+        println!("");
+        print_schema(&name, &schema)
+    })
 }
 
 fn print_schema(name: &Datatype, schema: &Schema) {
@@ -258,4 +280,3 @@ fn print_schema(name: &Datatype, schema: &Schema) {
         println!("- {}: {}", name, column_type.as_str());
     })
 }
-
