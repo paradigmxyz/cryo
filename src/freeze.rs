@@ -18,7 +18,7 @@ pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
     let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
     bar.set_style(
         indicatif::ProgressStyle::default_bar()
-            .template("{wide_bar:.green} {human_pos} / {human_len} eta={eta_precise}")
+            .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
             .unwrap(),
     );
 
