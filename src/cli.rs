@@ -31,6 +31,10 @@ pub struct Args {
     #[arg(short, long, default_value_t = 1000)]
     pub chunk_size: u64,
 
+    /// Number of chunks (alternative to --chunk-size)
+    #[arg(long)]
+    pub n_chunks: Option<u64>,
+
     /// Directory for output files
     #[arg(short, long, default_value = ".")]
     output_dir: String,
@@ -133,7 +137,12 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     // parse block chunks
     let block_chunk = block_utils::parse_block_inputs(&args.blocks).unwrap();
-    let block_chunks = block_utils::get_subchunks(&block_chunk, &args.chunk_size);
+    let block_chunks = match args.n_chunks {
+        Some(n_chunks) => {
+            block_utils::get_subchunks_by_count(&block_chunk, &n_chunks)
+        },
+        None => block_utils::get_subchunks_by_size(&block_chunk, &args.chunk_size),
+    };
 
     // parse network info
     let provider = Provider::<Http>::try_from(args.rpc.clone()).unwrap();
@@ -165,7 +174,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         (_, true) => FileFormat::Json,
         (false, false) => FileFormat::Parquet,
     };
-    if output_format == FileFormat::Parquet {
+    if output_format != FileFormat::Parquet {
         panic!("non-parquet not supported until hex encoding implemented");
     };
     let binary_column_format = match args.hex {
@@ -183,7 +192,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,
-        );
+            );
         (datatype.clone(), schema)
     }));
 
@@ -215,13 +224,13 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 fn parse_sort(
     raw_sort: &Vec<String>,
     schemas: &HashMap<Datatype, Schema>,
-) -> HashMap<Datatype, Vec<String>> {
+    ) -> HashMap<Datatype, Vec<String>> {
     if raw_sort.len() == 0 {
         HashMap::from_iter(
             schemas
-                .iter()
-                .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
-        )
+            .iter()
+            .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
+            )
     } else if schemas.len() > 1 {
         panic!("custom sort not supported for multiple schemas")
     } else {
@@ -235,7 +244,7 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         args.max_concurrent_requests,
         args.max_concurrent_chunks,
         args.max_concurrent_blocks,
-    ) {
+        ) {
         (None, None, None) => (32, 3),
         (Some(max_concurrent_requests), None, None) => {
             (std::cmp::max(max_concurrent_requests / 3, 1), 3)
@@ -244,28 +253,28 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         (None, None, Some(max_concurrent_blocks)) => (
             std::cmp::max(100 / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-        ),
-        (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
-            max_concurrent_chunks,
-            std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
-        ),
-        (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
-            (max_concurrent_chunks, max_concurrent_blocks)
-        }
+            ),
+            (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
+                max_concurrent_chunks,
+                std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
+                ),
+                (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
+                    (max_concurrent_chunks, max_concurrent_blocks)
+                }
         (Some(max_concurrent_requests), None, Some(max_concurrent_blocks)) => (
             std::cmp::max(max_concurrent_requests / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-        ),
-        (
-            Some(max_concurrent_requests),
-            Some(max_concurrent_chunks),
-            Some(max_concurrent_blocks),
-        ) => {
-            assert!(
+            ),
+            (
+                Some(max_concurrent_requests),
+                Some(max_concurrent_chunks),
+                Some(max_concurrent_blocks),
+            ) => {
+                assert!(
                     max_concurrent_requests == max_concurrent_chunks * max_concurrent_blocks,
                     "max_concurrent_requests should equal max_concurrent_chunks * max_concurrent_blocks"
                     );
-            (max_concurrent_chunks, max_concurrent_blocks)
-        }
+                (max_concurrent_chunks, max_concurrent_blocks)
+            }
     }
 }

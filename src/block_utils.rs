@@ -15,7 +15,7 @@ pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
     }
 }
 
-pub fn get_subchunks(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
+pub fn get_subchunks_by_size(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
     match block_chunk {
         BlockChunk {
             block_numbers: Some(block_numbers),
@@ -41,6 +41,14 @@ pub fn get_subchunks(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChu
             .collect(),
         _ => panic!("invalid block range"),
     }
+}
+
+pub fn get_subchunks_by_count(block_chunk: &BlockChunk, n_chunks: &u64) -> Vec<BlockChunk> {
+    let total_blocks = get_total_blocks(&vec![block_chunk.clone()]);
+
+    // ceiling division
+    let chunk_size = (total_blocks + n_chunks - 1) / n_chunks;
+    get_subchunks_by_size(block_chunk, &chunk_size)
 }
 
 /// return a Vec of all blocks in chunk
@@ -229,7 +237,7 @@ pub fn get_total_blocks(block_chunks: &Vec<BlockChunk>) -> u64 {
                 end_block: Some(end_block),
                 ..
             } => end_block - start_block + 1,
-            _ => panic!("invalid BlockChunk")
+            _ => panic!("invalid BlockChunk"),
         }
     });
     total

@@ -20,7 +20,8 @@ pub fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
         "total blocks",
         block_utils::get_total_blocks(&opts.block_chunks).to_string(),
     );
-    generic_outputs::print_bullet("block chunk size", args.chunk_size.to_string());
+    let chunk_size = block_utils::get_total_blocks(&vec![opts.block_chunks.get(0).unwrap().clone()]);
+    generic_outputs::print_bullet("block chunk size", chunk_size.to_string());
     generic_outputs::print_bullet("total block chunks", opts.block_chunks.len().to_string());
     generic_outputs::print_bullet(
         "max concurrent chunks",
@@ -58,7 +59,7 @@ fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
 
 pub fn print_cryo_conclusion(
     t_start: SystemTime,
-    t_parse_done: SystemTime,
+    _t_parse_done: SystemTime,
     t_data_done: SystemTime,
     opts: &FreezeOpts,
 ) {
