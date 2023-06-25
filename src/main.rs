@@ -3,6 +3,7 @@ mod dataframes;
 mod datatype_utils;
 mod freeze;
 mod gather;
+mod output_utils;
 mod types;
 
 use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
@@ -45,9 +46,25 @@ struct Args {
     #[arg(long)]
     csv: bool,
 
-    /// Use hex string encoding for columns of binary data
+    /// Use hex string encoding for binary columns
     #[arg(long)]
     hex: bool,
+
+    /// Columns(s) to sort by
+    #[arg(short, long, num_args(0..))]
+    sort: Vec<String>,
+
+    /// Number of rows groups in parquet file
+    #[arg(long)]
+    row_groups: Option<u64>,
+
+    /// Number of rows per row group in parquet file
+    #[arg(long)]
+    row_group_size: Option<u64>,
+
+    /// Do not write statistics to parquet files
+    #[arg(long)]
+    no_stats: bool,
 
     /// Columns to include in output
     #[arg(short, long, num_args(0..))]
@@ -83,6 +100,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let (opts, args) = parse_opts().await;
     print_cryo_summary(&opts, &args);
     if opts.dry_run {
+        println!("");
         println!("[dry run, exiting]");
     } else {
         println!("");
@@ -97,10 +115,7 @@ pub fn get_styles() -> clap::builder::Styles {
     let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
     let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
     let grey = anstyle::Color::Rgb(anstyle::RgbColor(170, 170, 170));
-    let title = anstyle::Style::new()
-        .bold()
-        .underline()
-        .fg_color(Some(green));
+    let title = anstyle::Style::new().bold().fg_color(Some(green));
     let arg = anstyle::Style::new().bold().fg_color(Some(white));
     let comment = anstyle::Style::new().fg_color(Some(grey));
     clap::builder::Styles::styled()
@@ -113,12 +128,13 @@ pub fn get_styles() -> clap::builder::Styles {
         .invalid(comment)
 }
 
-
 fn parse_datatype(datatype: &str) -> Datatype {
     match datatype {
         "blocks" => Datatype::Blocks,
         "logs" => Datatype::Logs,
+        "events" => Datatype::Logs,
         "transactions" => Datatype::Transactions,
+        "txs" => Datatype::Transactions,
         _ => panic!("invalid datatype"),
     }
 }
@@ -242,28 +258,31 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
 }
 
 fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
-    println!("cryo parameters:");
+    output_utils::print_header("cryo parameters");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.as_str()).collect();
-    println!("- datatypes: {}", datatype_strs.join(", "));
-    println!("- network: {}", opts.network_name);
-    println!("- provider: {}", args.rpc);
-    println!(
-        "- total blocks: {}",
-        block_utils::get_total_blocks(&opts.block_chunks)
+    output_utils::print_bullet("datatypes", datatype_strs.join(", "));
+    output_utils::print_bullet("network", &opts.network_name);
+    output_utils::print_bullet("provider", &args.rpc);
+    output_utils::print_bullet(
+        "total blocks",
+        block_utils::get_total_blocks(&opts.block_chunks).to_string(),
     );
-    println!("- block chunk size: {}", args.chunk_size);
-    println!("- total block chunks: {}", opts.block_chunks.len());
-    println!("- max concurrent chunks: {}", opts.max_concurrent_chunks);
-    println!("- max concurrent blocks: {}", opts.max_concurrent_blocks);
+    output_utils::print_bullet("block chunk size", args.chunk_size.to_string());
+    output_utils::print_bullet("total block chunks", opts.block_chunks.len().to_string());
+    output_utils::print_bullet(
+        "max concurrent chunks",
+        opts.max_concurrent_chunks.to_string(),
+    );
+    output_utils::print_bullet(
+        "max concurrent blocks",
+        opts.max_concurrent_blocks.to_string(),
+    );
     if opts.datatypes.contains(&Datatype::Logs) {
-        println!("- log request size: {}", opts.log_request_size);
+        output_utils::print_bullet("log request size", opts.log_request_size.to_string());
     };
-    println!("- output format: {}", opts.output_format.as_str());
-    println!(
-        "- binary column format: {}",
-        opts.binary_column_format.as_str()
-    );
-    println!("- output dir: {}", opts.output_dir);
+    output_utils::print_bullet("output format", opts.output_format.as_str());
+    output_utils::print_bullet("binary column format", opts.binary_column_format.as_str());
+    output_utils::print_bullet("output dir", &opts.output_dir);
     print_schemas(&opts.schemas);
 }
 
@@ -275,8 +294,8 @@ fn print_schemas(schemas: &HashMap<Datatype, Schema>) {
 }
 
 fn print_schema(name: &Datatype, schema: &Schema) {
-    println!("schema for {}:", name.as_str());
+    output_utils::print_header("schema for ".to_string() + name.as_str());
     schema.iter().for_each(|(name, column_type)| {
-        println!("- {}: {}", name, column_type.as_str());
+        output_utils::print_bullet(name, column_type.as_str());
     })
 }
