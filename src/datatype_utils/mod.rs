@@ -25,7 +25,6 @@ pub fn get_schema(
             transaction_utils::get_transaction_column_types(),
             transaction_utils::get_default_transaction_columns(),
         ),
-        _ => panic!()
     };
 
     let used_columns = compute_used_columns(default_columns, include_columns, exclude_columns);

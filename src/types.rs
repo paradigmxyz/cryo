@@ -87,7 +87,7 @@ pub struct SlimBlock {
 pub enum ColumnType {
     Int32,
     Int64,
-    Float32,
+    Decimal128,
     Float64,
     String,
     Binary,
@@ -99,7 +99,7 @@ impl ColumnType {
         match *self {
             ColumnType::Int32 => "int32",
             ColumnType::Int64 => "int64",
-            ColumnType::Float32 => "float32",
+            ColumnType::Decimal128 => "decimal128",
             ColumnType::Float64 => "float64",
             ColumnType::String => "string",
             ColumnType::Binary => "binary",

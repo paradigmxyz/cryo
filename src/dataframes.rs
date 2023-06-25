@@ -90,10 +90,10 @@ pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::er
     let df = df!(
         "block_number" => number,
         "block_hash" => hash,
+        "timestamp" => timestamp,
         "author" => author,
         "gas_used" => gas_used,
         "extra_data" => extra_data,
-        "timestamp" => timestamp,
         "base_fee_per_gas" => base_fee_per_gas,
     );
 
@@ -146,13 +146,13 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error:
     let df = df!(
         "block_number" => block_numbers,
         "transaction_index" => transaction_indices,
-        "hash" => hashes,
+        "transaction_hash" => hashes,
         "nonce" => nonces,
-        "from_addresses" => from_addresses,
-        "to_addresses" => to_addresses,
+        "from_address" => from_addresses,
+        "to_address" => to_addresses,
         "value" => values,
-        "inputs" => inputs,
-        "gas" => gas,
+        "input" => inputs,
+        "gas_limit" => gas,
         "gas_price" => gas_price,
         "transaction_type" => transaction_type,
         "max_priority_fee_per_gas" => max_priority_fee_per_gas,
@@ -176,7 +176,7 @@ pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error
     let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
     let mut transaction_index: Vec<u64> = Vec::new();
     let mut log_index: Vec<u64> = Vec::new();
-    let mut log_type: Vec<Option<String>> = Vec::new();
+    // let mut log_type: Vec<Option<String>> = Vec::new();
 
     for log in logs.iter() {
         if log.removed.unwrap() { continue };
@@ -220,21 +220,21 @@ pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error
         transaction_hash.push(log.transaction_hash.map(|hash| hash.as_bytes().to_vec()).unwrap());
         transaction_index.push(log.transaction_index.unwrap().as_u64());
         log_index.push(log.log_index.unwrap().as_u64());
-        log_type.push(log.log_type.clone());
+        // log_type.push(log.log_type.clone());
     }
 
     let df = df!(
-        "address" => address,
+        "block_number" => block_number,
+        "transaction_index" => transaction_index,
+        "log_index" => log_index,
+        "transaction_hash" => transaction_hash,
+        "contract_address" => address,
         "topic0" => topic0,
         "topic1" => topic1,
         "topic2" => topic2,
         "topic3" => topic3,
         "data" => data,
-        "block_number" => block_number,
-        "transaction_hash" => transaction_hash,
-        "transaction_index" => transaction_index,
-        "log_index" => log_index,
-        "log_type" => log_type,
+        // "log_type" => log_type,
     );
 
     Ok(df?)
