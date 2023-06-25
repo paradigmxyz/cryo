@@ -16,7 +16,7 @@ futures = "0.3.28"
 hex = "0.4.3"
 indexmap = "2.0.0"
 indicatif = "0.17.5"
-polars = { version = "0.30.0", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding"] }
+polars = { version = "0.30.0", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding", "json"] }
 ring = "0.16.20"
 thousands = "0.2.0"
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }

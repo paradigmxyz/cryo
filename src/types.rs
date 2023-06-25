@@ -28,10 +28,11 @@ impl Datatype {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq)]
 pub enum FileFormat {
     Parquet,
     Csv,
+    Json,
 }
 
 impl FileFormat {
@@ -39,6 +40,7 @@ impl FileFormat {
         match *self {
             FileFormat::Parquet => "parquet",
             FileFormat::Csv => "csv",
+            FileFormat::Json => "json",
         }
     }
 }

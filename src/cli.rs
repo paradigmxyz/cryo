@@ -39,6 +39,10 @@ pub struct Args {
     #[arg(long)]
     csv: bool,
 
+    /// Save as json instead of parquet
+    #[arg(long)]
+    json: bool,
+
     /// Use hex string encoding for binary columns
     #[arg(long)]
     hex: bool,
@@ -155,9 +159,14 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     };
 
     // process output formats
-    let output_format = match args.csv {
-        true => FileFormat::Csv,
-        false => FileFormat::Parquet,
+    let output_format = match (args.csv, args.json) {
+        (true, true) => panic!("choose one of parquet, csv, or json"),
+        (true, _) => FileFormat::Csv,
+        (_, true) => FileFormat::Json,
+        (false, false) => FileFormat::Parquet,
+    };
+    if output_format == FileFormat::Parquet {
+        panic!("non-parquet not supported until hex encoding implemented");
     };
     let binary_column_format = match args.hex {
         true => ColumnEncoding::Hex,
