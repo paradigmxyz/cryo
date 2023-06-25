@@ -1,8 +1,9 @@
 use crate::block_utils;
 use crate::dataframes;
 use crate::gather;
-use crate::types::{BlockChunk, FreezeOpts, SlimBlock, Datatype};
+use crate::types::{BlockChunk, Datatype, FreezeOpts, SlimBlock};
 
+use indicatif::ProgressBar;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
@@ -14,6 +15,12 @@ use std::error::Error;
 pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
     let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
     let opts = Arc::new(opts);
+    let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
+    bar.set_style(
+        indicatif::ProgressStyle::default_bar()
+            .template("{wide_bar:.green} {human_pos} / {human_len} eta={eta_precise}")
+            .unwrap(),
+    );
 
     let tasks: Vec<_> = opts
         .block_chunks
@@ -22,10 +29,12 @@ pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
         .map(|chunk| {
             let sem = Arc::clone(&sem);
             let opts = Arc::clone(&opts);
+            let bar = Arc::clone(&bar);
             tokio::spawn(async move {
                 let permit = sem.acquire().await.expect("Semaphore acquire");
                 freeze_chunk(&chunk, &opts).await;
                 drop(permit);
+                bar.inc(1);
             })
         })
         .collect();
@@ -91,7 +100,10 @@ fn get_file_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
     let block_chunk_stub = block_utils::get_block_chunk_stub(chunk);
     let filename = format!(
         "{}__{}__{}.{}",
-        opts.network_name, name, block_chunk_stub, opts.output_format.as_str()
+        opts.network_name,
+        name,
+        block_chunk_stub,
+        opts.output_format.as_str()
     );
     match opts.output_dir.as_str() {
         "." => filename,
