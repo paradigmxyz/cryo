@@ -1,10 +1,10 @@
 use polars::prelude::*;
-use crate::block_utils;
+use crate::chunks;
 use crate::types::{BlockChunk,FreezeOpts};
 
 /// get file path of output chunk
 pub fn get_chunk_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> String {
-    let block_chunk_stub = block_utils::get_block_chunk_stub(chunk);
+    let block_chunk_stub = chunks::get_block_chunk_stub(chunk);
     let filename = format!(
         "{}__{}__{}.{}",
         opts.network_name,

@@ -1,14 +1,13 @@
 use std::collections::HashMap;
 
-use thousands::Separable;
-use std::time::SystemTime;
 use chrono::{DateTime, Local};
+use std::time::SystemTime;
+use thousands::Separable;
 
+use crate::chunks;
 use crate::cli::Args;
+use crate::outputs::generic_outputs;
 use crate::types::{Datatype, FreezeOpts, Schema};
-use crate::block_utils;
-use crate::output_utils::generic_outputs;
-
 
 pub fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
     generic_outputs::print_header("cryo parameters");
@@ -18,9 +17,9 @@ pub fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
     generic_outputs::print_bullet("provider", &args.rpc);
     generic_outputs::print_bullet(
         "total blocks",
-        block_utils::get_total_blocks(&opts.block_chunks).to_string(),
+        chunks::get_total_blocks(&opts.block_chunks).to_string(),
     );
-    let chunk_size = block_utils::get_total_blocks(&vec![opts.block_chunks.get(0).unwrap().clone()]);
+    let chunk_size = chunks::get_total_blocks(&vec![opts.block_chunks.get(0).unwrap().clone()]);
     generic_outputs::print_bullet("block chunk size", chunk_size.to_string());
     generic_outputs::print_bullet("total block chunks", opts.block_chunks.len().to_string());
     generic_outputs::print_bullet(
@@ -85,7 +84,7 @@ pub fn print_cryo_conclusion(
                 .as_str(),
     );
     generic_outputs::print_bullet("total duration", duration_string);
-    let total_blocks = block_utils::get_total_blocks(&opts.block_chunks) as f64;
+    let total_blocks = chunks::get_total_blocks(&opts.block_chunks) as f64;
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let blocks_per_second = total_blocks / total_time;
     let blocks_per_minute = blocks_per_second * 60.0;
@@ -93,8 +92,14 @@ pub fn print_cryo_conclusion(
     let blocks_per_day = blocks_per_hour * 24.0;
     generic_outputs::print_bullet("blocks per second", format_float(blocks_per_second));
     generic_outputs::print_bullet("blocks per minute", format_float(blocks_per_minute));
-    generic_outputs::print_bullet("blocks per hour", "  ".to_string() + format_float(blocks_per_hour).as_str());
-    generic_outputs::print_bullet("blocks per day", "   ".to_string() + format_float(blocks_per_day).as_str());
+    generic_outputs::print_bullet(
+        "blocks per hour",
+        "  ".to_string() + format_float(blocks_per_hour).as_str(),
+    );
+    generic_outputs::print_bullet(
+        "blocks per day",
+        "   ".to_string() + format_float(blocks_per_day).as_str(),
+    );
 }
 
 fn format_float(number: f64) -> String {

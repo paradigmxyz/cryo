@@ -1,7 +1,7 @@
-use crate::block_utils;
-use crate::output_utils;
+use crate::chunks;
 use crate::dataframes;
 use crate::gather;
+use crate::outputs;
 use crate::types::{BlockChunk, Datatype, FreezeOpts, SlimBlock};
 
 use indicatif::ProgressBar;
@@ -14,7 +14,6 @@ use polars::prelude::*;
 use std::error::Error;
 
 pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
-
     // create progress bar
     let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
     bar.set_style(
@@ -63,7 +62,7 @@ async fn freeze_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
 }
 
 async fn freeze_blocks_and_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
-    let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
+    let block_numbers = chunks::get_chunk_block_numbers(&chunk);
     let (blocks, txs) = gather::get_blocks_and_transactions(block_numbers, &opts)
         .await
         .unwrap();
@@ -72,13 +71,13 @@ async fn freeze_blocks_and_transactions_chunk(chunk: &BlockChunk, opts: &FreezeO
 }
 
 async fn freeze_blocks_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
-    let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
+    let block_numbers = chunks::get_chunk_block_numbers(&chunk);
     let blocks = gather::get_blocks(block_numbers, &opts).await.unwrap();
     save_blocks(blocks, &chunk, &opts);
 }
 
 async fn freeze_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
-    let block_numbers = block_utils::get_chunk_block_numbers(&chunk);
+    let block_numbers = chunks::get_chunk_block_numbers(&chunk);
     let txs = gather::get_transactions(block_numbers, &opts)
         .await
         .unwrap();
@@ -102,19 +101,19 @@ async fn freeze_logs(chunk: &BlockChunk, opts: &FreezeOpts) {
 // saving
 
 fn save_blocks(blocks: Vec<SlimBlock>, chunk: &BlockChunk, opts: &FreezeOpts) {
-    let path = output_utils::get_chunk_path("blocks", chunk, &opts);
+    let path = outputs::get_chunk_path("blocks", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
-    output_utils::df_to_file(df, &path);
+    outputs::df_to_file(df, &path);
 }
 
 fn save_transactions(txs: Vec<Transaction>, chunk: &BlockChunk, opts: &FreezeOpts) {
-    let path = output_utils::get_chunk_path("transactions", chunk, &opts);
+    let path = outputs::get_chunk_path("transactions", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
-    output_utils::df_to_file(df, &path);
+    outputs::df_to_file(df, &path);
 }
 
 fn save_logs(logs: Vec<Log>, chunk: &BlockChunk, opts: &FreezeOpts) {
-    let path = output_utils::get_chunk_path("logs", chunk, &opts);
+    let path = outputs::get_chunk_path("logs", chunk, &opts);
     let df: &mut DataFrame = &mut dataframes::logs_to_df(logs).unwrap();
-    output_utils::df_to_file(df, &path);
+    outputs::df_to_file(df, &path);
 }

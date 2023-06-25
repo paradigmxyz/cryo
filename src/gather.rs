@@ -3,7 +3,7 @@ use futures::future::join_all;
 use std::sync::Arc;
 use tokio::sync::Semaphore;
 
-use crate::block_utils;
+use crate::chunks;
 use crate::types::{FreezeOpts, SlimBlock, BlockChunk};
 
 pub async fn get_blocks_and_transactions(
@@ -18,7 +18,7 @@ pub async fn get_blocks_and_transactions(
     for result in results.await.unwrap() {
         match result {
             Some(block) => {
-                let slim_block = block_utils::block_to_slim_block(&block);
+                let slim_block = chunks::block_to_slim_block(&block);
                 blocks.push(slim_block);
                 let block_txs = block.transactions;
                 txs.extend(block_txs);
@@ -40,7 +40,7 @@ pub async fn get_blocks(
     for result in results.await.unwrap() {
         match result {
             Some(block) => {
-                let slim_block = block_utils::block_to_slim_block(&block);
+                let slim_block = chunks::block_to_slim_block(&block);
                 blocks.push(slim_block);
             }
             _ => {}
@@ -153,7 +153,7 @@ pub async fn get_logs(
     topics: [Option<ValueOrArray<Option<H256>>>; 4],
     opts: &FreezeOpts,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
-    let request_chunks = block_utils::block_chunk_to_filter_options(
+    let request_chunks = chunks::block_chunk_to_filter_options(
         &block_chunk,
         &opts.log_request_size,
     );
