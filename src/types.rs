@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use indexmap::IndexMap;
 use ethers::prelude::*;
 
-#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Datatype {
     Blocks,
     Logs,
@@ -16,6 +16,15 @@ impl Datatype {
             Datatype::Logs => "logs",
             Datatype::Transactions => "transactions",
         }
+    }
+
+    pub fn default_sort(&self) -> Vec<String> {
+        let columns = match *self {
+            Datatype::Blocks => vec!["block_number"],
+            Datatype::Logs => vec!["block_number", "log_index"],
+            Datatype::Transactions => vec!["block_nubmer", "transaction_index"],
+        };
+        columns.iter().map(|column| {column.to_string()}).collect()
     }
 }
 
@@ -63,6 +72,10 @@ pub struct FreezeOpts {
     pub output_dir: String,
     pub output_format: FileFormat,
     pub dry_run: bool,
+    pub sort: HashMap<Datatype, Vec<String>>,
+    pub row_groups: Option<u64>,
+    pub row_group_size: Option<u64>,
+    pub parquet_statistics: bool,
 }
 
 #[derive(Default, Clone)]

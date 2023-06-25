@@ -104,6 +104,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("[dry run, exiting]");
     } else {
         println!("");
+        println!("");
         println!("collecting data...");
         freeze::freeze(opts).await?;
         println!("...done");
@@ -198,6 +199,8 @@ async fn parse_opts() -> (FreezeOpts, Args) {
         (datatype.clone(), schema)
     }));
 
+    let sort = parse_sort(&args.sort, &schemas);
+
     // compile opts
     let opts = FreezeOpts {
         datatypes: datatypes,
@@ -212,9 +215,31 @@ async fn parse_opts() -> (FreezeOpts, Args) {
         log_request_size: args.log_request_size,
         dry_run: args.dry,
         schemas: schemas,
+        sort: sort,
+        row_groups: args.row_groups,
+        row_group_size: args.row_group_size,
+        parquet_statistics: !args.no_stats,
     };
 
     (opts, args)
+}
+
+fn parse_sort(
+    raw_sort: &Vec<String>,
+    schemas: &HashMap<Datatype, Schema>,
+) -> HashMap<Datatype, Vec<String>> {
+    if raw_sort.len() == 0 {
+        HashMap::from_iter(
+            schemas.iter().map(
+                |(datatype, _schema)| { (*datatype, datatype.default_sort()) }
+            )
+        )
+    } else if schemas.len() > 1 {
+        panic!("custom sort not supported for multiple schemas")
+    } else {
+        let datatype = *schemas.keys().next().unwrap();
+        HashMap::from_iter([(datatype, raw_sort.clone())])
+    }
 }
 
 fn parse_concurrency_args(args: &Args) -> (u64, u64) {
@@ -283,19 +308,22 @@ fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
     output_utils::print_bullet("output format", opts.output_format.as_str());
     output_utils::print_bullet("binary column format", opts.binary_column_format.as_str());
     output_utils::print_bullet("output dir", &opts.output_dir);
-    print_schemas(&opts.schemas);
+    print_schemas(&opts.schemas, &opts);
 }
 
-fn print_schemas(schemas: &HashMap<Datatype, Schema>) {
+fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
         println!("");
-        print_schema(&name, &schema)
+        println!("");
+        print_schema(&name, &schema, opts.sort.get(name).unwrap().to_vec())
     })
 }
 
-fn print_schema(name: &Datatype, schema: &Schema) {
+fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
     output_utils::print_header("schema for ".to_string() + name.as_str());
     schema.iter().for_each(|(name, column_type)| {
         output_utils::print_bullet(name, column_type.as_str());
-    })
+    });
+    println!("");
+    println!("sorting {} by: {}", name.as_str(), sort.join(", "));
 }
