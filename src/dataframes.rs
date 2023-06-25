@@ -3,44 +3,6 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use crate::types::SlimBlock;
 
-/// write polars dataframe to file
-pub fn df_to_file(df: &mut DataFrame, filename: &str) {
-    let binding = filename.to_string() + "_tmp";
-    let tmp_filename = binding.as_str();
-    match filename {
-        _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename),
-        _ if filename.ends_with(".csv") => df_to_csv(df, tmp_filename),
-        _ if filename.ends_with(".json") => df_to_json(df, tmp_filename),
-        _ => panic!("invalid file format")
-    }
-    std::fs::rename(tmp_filename, filename).unwrap();
-}
-
-/// write polars dataframe to parquet file
-fn df_to_parquet(df: &mut DataFrame, filename: &str) {
-    let file = std::fs::File::create(filename).unwrap();
-    ParquetWriter::new(file)
-        .with_statistics(true)
-        .finish(df)
-        .unwrap();
-}
-
-/// write polars dataframe to csv file
-fn df_to_csv(df: &mut DataFrame, filename: &str) {
-    let file = std::fs::File::create(filename).unwrap();
-    CsvWriter::new(file)
-        .finish(df)
-        .unwrap();
-}
-
-/// write polars dataframe to json file
-fn df_to_json(df: &mut DataFrame, filename: &str) {
-    let file = std::fs::File::create(filename).unwrap();
-    JsonWriter::new(file)
-        .finish(df)
-        .unwrap();
-}
-
 //pub fn df_binary_columns_to_hex(df: &DataFrame) -> Result<DataFrame, PolarsError> {
 //    // let mut binary_columns: Vec<Series> = vec![];
 //    // let mut binary_columns: Vec<ChunkedArray<Utf8Type>> = vec![];
