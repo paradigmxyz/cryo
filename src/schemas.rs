@@ -1,8 +1,8 @@
 use indexmap::{IndexMap};
 use std::collections::HashSet;
 
+use crate::datatypes;
 use crate::types::{ColumnEncoding, Datatype, ColumnType, Schema};
-use crate::datatype_utils::{block_utils,log_utils,transaction_utils};
 
 pub fn get_schema(
     datatype: &Datatype,
@@ -12,16 +12,16 @@ pub fn get_schema(
 ) -> Schema {
     let (column_types, default_columns) = match datatype {
         Datatype::Blocks => (
-            block_utils::get_block_column_types(),
-            block_utils::get_default_block_columns(),
+            datatypes::blocks::get_block_column_types(),
+            datatypes::blocks::get_default_block_columns(),
         ),
         Datatype::Logs => (
-            log_utils::get_log_column_types(),
-            log_utils::get_default_log_columns(),
+            datatypes::logs::get_log_column_types(),
+            datatypes::logs::get_default_log_columns(),
         ),
         Datatype::Transactions => (
-            transaction_utils::get_transaction_column_types(),
-            transaction_utils::get_default_transaction_columns(),
+            datatypes::transactions::get_transaction_column_types(),
+            datatypes::transactions::get_default_transaction_columns(),
         ),
     };
 

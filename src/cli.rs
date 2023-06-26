@@ -115,17 +115,6 @@ pub fn get_styles() -> clap::builder::Styles {
         .invalid(comment)
 }
 
-fn parse_datatype(datatype: &str) -> Datatype {
-    match datatype {
-        "blocks" => Datatype::Blocks,
-        "logs" => Datatype::Logs,
-        "events" => Datatype::Logs,
-        "transactions" => Datatype::Transactions,
-        "txs" => Datatype::Transactions,
-        _ => panic!("invalid datatype"),
-    }
-}
-
 /// parse options for running freeze
 pub async fn parse_opts() -> (FreezeOpts, Args) {
     // parse args
@@ -220,6 +209,17 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     };
 
     (opts, args)
+}
+
+fn parse_datatype(datatype: &str) -> Datatype {
+    match datatype {
+        "blocks" => Datatype::Blocks,
+        "logs" => Datatype::Logs,
+        "events" => Datatype::Logs,
+        "transactions" => Datatype::Transactions,
+        "txs" => Datatype::Transactions,
+        _ => panic!("invalid datatype"),
+    }
 }
 
 pub fn parse_rpc_url(args: &Args) -> String {

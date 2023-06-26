@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use crate::datatype_utils::block_utils;
+use crate::datatypes;
 use crate::types::ColumnType;
 use crate::types::FreezeOpts;
 
@@ -53,7 +53,7 @@ pub async fn get_transactions(
     opts: &FreezeOpts,
 ) -> Result<Vec<Transaction>, Box<dyn std::error::Error>> {
     let results =
-        block_utils::fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
+        datatypes::blocks::fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
 
     let mut txs: Vec<Transaction> = Vec::new();
     for result in results.await.unwrap() {

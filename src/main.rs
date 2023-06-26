@@ -1,6 +1,6 @@
 mod chunks;
 mod cli;
-mod datatype_utils;
+mod datatypes;
 mod freeze;
 mod outputs;
 mod schemas;
