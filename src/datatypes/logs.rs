@@ -7,39 +7,58 @@ use polars::prelude::*;
 use tokio::sync::Semaphore;
 
 use crate::chunks;
-use crate::types::ColumnType;
-use crate::types::FreezeOpts;
 use crate::types::BlockChunk;
+use crate::types::ColumnType;
+use crate::types::Dataset;
+use crate::types::FreezeOpts;
+use crate::types::Logs;
 
+#[async_trait::async_trait]
+impl Dataset for Logs {
+    fn name(&self) -> &'static str {
+        "logs"
+    }
 
-pub fn get_default_log_columns() -> Vec<&'static str> {
-    vec![
-        "block_number",
-        "transaction_index",
-        "log_index",
-        "transaction_hash",
-        "contract_address",
-        "topic0",
-        "topic1",
-        "topic2",
-        "topic3",
-        "data",
-    ]
-}
+    fn get_block_column_types(&self) -> HashMap<&'static str, ColumnType> {
+        HashMap::from_iter(vec![
+            ("block_number", ColumnType::Int32),
+            ("transaction_index", ColumnType::Int32),
+            ("log_index", ColumnType::Int32),
+            ("transaction_hash", ColumnType::Binary),
+            ("contract_address", ColumnType::Binary),
+            ("topic0", ColumnType::Binary),
+            ("topic1", ColumnType::Binary),
+            ("topic2", ColumnType::Binary),
+            ("topic3", ColumnType::Binary),
+            ("data", ColumnType::Binary),
+        ])
+    }
 
-pub fn get_log_column_types() -> HashMap<&'static str, ColumnType> {
-    HashMap::from_iter(vec![
-        ("block_number", ColumnType::Int32),
-        ("transaction_index", ColumnType::Int32),
-        ("log_index", ColumnType::Int32),
-        ("transaction_hash", ColumnType::Binary),
-        ("contract_address", ColumnType::Binary),
-        ("topic0", ColumnType::Binary),
-        ("topic1", ColumnType::Binary),
-        ("topic2", ColumnType::Binary),
-        ("topic3", ColumnType::Binary),
-        ("data", ColumnType::Binary),
-    ])
+    fn get_default_block_columns(&self) -> Vec<&'static str> {
+        vec![
+            "block_number",
+            "transaction_index",
+            "log_index",
+            "transaction_hash",
+            "contract_address",
+            "topic0",
+            "topic1",
+            "topic2",
+            "topic3",
+            "data",
+        ]
+    }
+
+    fn get_default_sort(&self) -> Vec<&'static str> {
+        vec!["block_number", "log_index"]
+    }
+
+    async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+        let logs = get_logs(&block_chunk, None, [None, None, None, None], &opts)
+            .await
+            .unwrap();
+        logs_to_df(logs).unwrap()
+    }
 }
 
 pub async fn get_logs(

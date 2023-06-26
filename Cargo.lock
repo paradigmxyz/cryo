@@ -830,6 +830,7 @@ name = "cryo"
 version = "0.1.0"
 dependencies = [
  "anstyle",
+ "async-trait",
  "chrono",
  "clap",
  "color-print",

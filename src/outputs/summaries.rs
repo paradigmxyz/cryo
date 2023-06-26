@@ -6,37 +6,37 @@ use thousands::Separable;
 
 use crate::chunks;
 use crate::cli;
-use crate::outputs::generic_outputs;
+use crate::outputs::generic;
 use crate::types::{Datatype, FreezeOpts, Schema};
 
 pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
-    generic_outputs::print_header("cryo parameters");
+    generic::print_header("cryo parameters");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.as_str()).collect();
-    generic_outputs::print_bullet("datatypes", datatype_strs.join(", "));
-    generic_outputs::print_bullet("network", &opts.network_name);
+    generic::print_bullet("datatypes", datatype_strs.join(", "));
+    generic::print_bullet("network", &opts.network_name);
     let rpc_url = cli::parse_rpc_url(&args);
-    generic_outputs::print_bullet("provider", &rpc_url);
-    generic_outputs::print_bullet(
+    generic::print_bullet("provider", &rpc_url);
+    generic::print_bullet(
         "total blocks",
         chunks::get_total_blocks(&opts.block_chunks).to_string(),
     );
     let chunk_size = chunks::get_total_blocks(&vec![opts.block_chunks.get(0).unwrap().clone()]);
-    generic_outputs::print_bullet("block chunk size", chunk_size.to_string());
-    generic_outputs::print_bullet("total block chunks", opts.block_chunks.len().to_string());
-    generic_outputs::print_bullet(
+    generic::print_bullet("block chunk size", chunk_size.to_string());
+    generic::print_bullet("total block chunks", opts.block_chunks.len().to_string());
+    generic::print_bullet(
         "max concurrent chunks",
         opts.max_concurrent_chunks.to_string(),
     );
-    generic_outputs::print_bullet(
+    generic::print_bullet(
         "max concurrent blocks",
         opts.max_concurrent_blocks.to_string(),
     );
     if opts.datatypes.contains(&Datatype::Logs) {
-        generic_outputs::print_bullet("log request size", opts.log_request_size.to_string());
+        generic::print_bullet("log request size", opts.log_request_size.to_string());
     };
-    generic_outputs::print_bullet("output format", opts.output_format.as_str());
-    generic_outputs::print_bullet("binary column format", opts.binary_column_format.as_str());
-    generic_outputs::print_bullet("output dir", &opts.output_dir);
+    generic::print_bullet("output format", opts.output_format.as_str());
+    generic::print_bullet("binary column format", opts.binary_column_format.as_str());
+    generic::print_bullet("output dir", &opts.output_dir);
     print_schemas(&opts.schemas, &opts);
 }
 
@@ -49,9 +49,9 @@ fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
 }
 
 fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
-    generic_outputs::print_header("schema for ".to_string() + name.as_str());
+    generic::print_header("schema for ".to_string() + name.as_str());
     schema.iter().for_each(|(name, column_type)| {
-        generic_outputs::print_bullet(name, column_type.as_str());
+        generic::print_bullet(name, column_type.as_str());
     });
     println!("");
     println!("sorting {} by: {}", name.as_str(), sort.join(", "));
@@ -71,12 +71,12 @@ pub fn print_cryo_conclusion(
     let millis = duration.subsec_millis();
     let duration_string = format!("{}.{:03} seconds", seconds, millis);
 
-    generic_outputs::print_header("collection summary");
-    generic_outputs::print_bullet(
+    generic::print_header("collection summary");
+    generic::print_bullet(
         "t_start",
         dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
     );
-    generic_outputs::print_bullet(
+    generic::print_bullet(
         "t_end",
         "  ".to_string()
             + dt_data_done
@@ -84,20 +84,20 @@ pub fn print_cryo_conclusion(
                 .to_string()
                 .as_str(),
     );
-    generic_outputs::print_bullet("total duration", duration_string);
+    generic::print_bullet("total duration", duration_string);
     let total_blocks = chunks::get_total_blocks(&opts.block_chunks) as f64;
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let blocks_per_second = total_blocks / total_time;
     let blocks_per_minute = blocks_per_second * 60.0;
     let blocks_per_hour = blocks_per_minute * 60.0;
     let blocks_per_day = blocks_per_hour * 24.0;
-    generic_outputs::print_bullet("blocks per second", format_float(blocks_per_second));
-    generic_outputs::print_bullet("blocks per minute", format_float(blocks_per_minute));
-    generic_outputs::print_bullet(
+    generic::print_bullet("blocks per second", format_float(blocks_per_second));
+    generic::print_bullet("blocks per minute", format_float(blocks_per_minute));
+    generic::print_bullet(
         "blocks per hour",
         "  ".to_string() + format_float(blocks_per_hour).as_str(),
     );
-    generic_outputs::print_bullet(
+    generic::print_bullet(
         "blocks per day",
         "   ".to_string() + format_float(blocks_per_day).as_str(),
     );

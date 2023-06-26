@@ -7,8 +7,12 @@ use clap::Parser;
 use color_print::cstr;
 use ethers::prelude::*;
 
-use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
-use crate::{chunks, schemas as schemas_mod};
+use crate::chunks;
+use crate::types::ColumnEncoding;
+use crate::types::Datatype;
+use crate::types::FileFormat;
+use crate::types::FreezeOpts;
+use crate::types::Schema;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -202,8 +206,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     // process schemas
     let schemas: HashMap<Datatype, Schema> = HashMap::from_iter(datatypes.iter().map(|datatype| {
-        let schema: Schema = schemas_mod::get_schema(
-            &datatype,
+        let schema: Schema = datatype.get_dataset().get_schema(
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,

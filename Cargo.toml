@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 anstyle = "1.0.1"
+async-trait = "0.1.68"
 chrono = "0.4.26"
 clap = { version = "4.3.4", features = ["derive", "color", "unstable-styles"] }
 color-print = "0.3.4"
