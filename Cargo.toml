@@ -9,6 +9,7 @@ edition = "2021"
 anstyle = "1.0.1"
 chrono = "0.4.26"
 clap = { version = "4.3.4", features = ["derive", "color", "unstable-styles"] }
+color-print = "0.3.4"
 colored = "2.0.0"
 ethers = { version = "2.0.7", features = ["rustls", "ws", "ipc"] }
 eyre = "0.6.8"

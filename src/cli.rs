@@ -4,6 +4,7 @@ use std::fs;
 
 use anstyle;
 use clap::Parser;
+use color_print::cstr;
 use ethers::prelude::*;
 
 use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
@@ -11,91 +12,95 @@ use crate::{chunks, schemas as schemas_mod};
 
 /// Command line arguments
 #[derive(Parser, Debug)]
-#[command(author, version, about, long_about = None, styles=get_styles())]
+#[command(author, version, about = get_about_str(), long_about = None, styles=get_styles())]
 pub struct Args {
-    /// datatype(s) to collect, see above
-    #[arg(required = true, num_args(1..))]
+    #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     datatype: Vec<String>,
 
-    /// Block numbers, either individually or start:end ranges
-    #[arg(short, long, default_value = "17000000:17000100", num_args(0..))]
+    /// Block numbers, either numbers or start:end ranges
+    #[arg(short, long, default_value = "17000000:17000100", num_args(0..), help_heading="Content Options")]
     blocks: Vec<String>,
 
-    /// RPC URL
-    #[arg(short, long)]
-    pub rpc: Option<String>,
-
-    /// Network name, by default will derive from eth_getChainId
-    #[arg(long)]
-    network_name: Option<String>,
-
-    /// Chunk size (blocks per chunk)
-    #[arg(short, long, default_value_t = 1000)]
-    pub chunk_size: u64,
-
-    /// Number of chunks (alternative to --chunk-size)
-    #[arg(long)]
-    pub n_chunks: Option<u64>,
-
-    /// Directory for output files
-    #[arg(short, long, default_value = ".")]
-    output_dir: String,
-
-    /// Save as csv instead of parquet
-    #[arg(long, help_heading="Output Options")]
-    csv: bool,
-
-    /// Save as json instead of parquet
-    #[arg(long)]
-    json: bool,
-
-    /// Use hex string encoding for binary columns
-    #[arg(long)]
-    hex: bool,
-
-    /// Columns(s) to sort by
-    #[arg(short, long, num_args(0..))]
-    sort: Vec<String>,
-
-    /// Number of rows groups in parquet file
-    #[arg(long)]
-    row_groups: Option<u64>,
-
-    /// Number of rows per row group in parquet file
-    #[arg(long)]
-    row_group_size: Option<u64>,
-
-    /// Do not write statistics to parquet files
-    #[arg(long)]
-    no_stats: bool,
-
     /// Columns to include in output
-    #[arg(short, long, num_args(0..))]
+    #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     include_columns: Option<Vec<String>>,
 
     /// Columns to exclude from output
-    #[arg(short, long, num_args(0..))]
+    #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     exclude_columns: Option<Vec<String>>,
 
+    /// RPC URL
+    #[arg(short, long, help_heading = "Source Options")]
+    pub rpc: Option<String>,
+
+    /// Network name, by default will derive from eth_getChainId
+    #[arg(long, help_heading = "Source Options")]
+    network_name: Option<String>,
+
     /// Global number of concurrent requests
-    #[arg(long)]
+    #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     max_concurrent_requests: Option<u64>,
 
     /// Number of chunks processed concurrently
-    #[arg(long)]
+    #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     max_concurrent_chunks: Option<u64>,
 
     /// Number blocks within a chunk processed concurrently
-    #[arg(long)]
+    #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     max_concurrent_blocks: Option<u64>,
 
     /// Number of blocks per log request
-    #[arg(long, default_value_t = 1)]
+    #[arg(
+        long,
+        value_name = "SIZE",
+        default_value_t = 1,
+        help_heading = "Acquisition Options"
+    )]
     log_request_size: u64,
 
     /// Dry run, collect no data
-    #[arg(short, long)]
+    #[arg(short, long, help_heading = "Acquisition Options")]
     dry: bool,
+
+    /// Chunk size (blocks per chunk)
+    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
+    pub chunk_size: u64,
+
+    /// Number of chunks (alternative to --chunk-size)
+    #[arg(long, help_heading = "Output Options")]
+    pub n_chunks: Option<u64>,
+
+    /// Directory for output files
+    #[arg(short, long, default_value = ".", help_heading = "Output Options")]
+    output_dir: String,
+
+    /// Save as csv instead of parquet
+    #[arg(long, help_heading = "Output Options")]
+    csv: bool,
+
+    /// Save as json instead of parquet
+    #[arg(long, help_heading = "Output Options")]
+    json: bool,
+
+    /// Use hex string encoding for binary columns
+    #[arg(long, help_heading = "Output Options")]
+    hex: bool,
+
+    /// Columns(s) to sort by
+    #[arg(short, long, num_args(0..), help_heading="Output Options")]
+    sort: Vec<String>,
+
+    /// Number of rows groups in parquet file
+    #[arg(long, help_heading = "Output Options")]
+    row_groups: Option<u64>,
+
+    /// Number of rows per row group in parquet file
+    #[arg(long, value_name = "GROUP_SIZE", help_heading = "Output Options")]
+    row_group_size: Option<u64>,
+
+    /// Do not write statistics to parquet files
+    #[arg(long, help_heading = "Output Options")]
+    no_stats: bool,
 }
 
 pub fn get_styles() -> clap::builder::Styles {
@@ -113,6 +118,26 @@ pub fn get_styles() -> clap::builder::Styles {
         .placeholder(comment)
         .valid(title)
         .invalid(comment)
+}
+
+fn get_about_str() -> &'static str {
+    cstr!(r#"<white><bold>cryo</bold></white> extracts blockchain data to parquet, csv, or json"#)
+}
+
+fn get_datatype_help() -> &'static str {
+    cstr!(
+        r#"datatype(s) to collect, one or more of:
+- <white><bold>blocks</bold></white>
+- <white><bold>logs</bold></white>
+- <white><bold>transactions</bold></white>
+- <white><bold>call_traces</bold></white>
+- <white><bold>state_diffs</bold></white>
+- <white><bold>balance_diffs</bold></white>
+- <white><bold>code_diffs</bold></white>
+- <white><bold>slot_diffs</bold></white>
+- <white><bold>nonce_diffs</bold></white>
+- <white><bold>opcode_traces</bold></white>"#
+    )
 }
 
 /// parse options for running freeze
@@ -182,7 +207,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,
-            );
+        );
         (datatype.clone(), schema)
     }));
 
@@ -225,15 +250,13 @@ fn parse_datatype(datatype: &str) -> Datatype {
 pub fn parse_rpc_url(args: &Args) -> String {
     let mut url = match &args.rpc {
         Some(url) => url.clone(),
-        _ => {
-            match env::var("ETH_RPC_URL") {
-                Ok(url) => url,
-                Err(_e) => {
-                    println!("must provide --rpc or set ETH_RPC_URL");
-                    std::process::exit(0);
-                }
+        _ => match env::var("ETH_RPC_URL") {
+            Ok(url) => url,
+            Err(_e) => {
+                println!("must provide --rpc or set ETH_RPC_URL");
+                std::process::exit(0);
             }
-        }
+        },
     };
     if !url.starts_with("http") {
         url = "http://".to_string() + url.as_str();
@@ -244,13 +267,13 @@ pub fn parse_rpc_url(args: &Args) -> String {
 fn parse_sort(
     raw_sort: &Vec<String>,
     schemas: &HashMap<Datatype, Schema>,
-    ) -> HashMap<Datatype, Vec<String>> {
+) -> HashMap<Datatype, Vec<String>> {
     if raw_sort.len() == 0 {
         HashMap::from_iter(
             schemas
-            .iter()
-            .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
-            )
+                .iter()
+                .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
+        )
     } else if schemas.len() > 1 {
         panic!("custom sort not supported for multiple schemas")
     } else {
@@ -264,7 +287,7 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         args.max_concurrent_requests,
         args.max_concurrent_chunks,
         args.max_concurrent_blocks,
-        ) {
+    ) {
         (None, None, None) => (32, 3),
         (Some(max_concurrent_requests), None, None) => {
             (std::cmp::max(max_concurrent_requests / 3, 1), 3)
@@ -273,28 +296,28 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         (None, None, Some(max_concurrent_blocks)) => (
             std::cmp::max(100 / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-            ),
-            (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
-                max_concurrent_chunks,
-                std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
-                ),
-                (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
-                    (max_concurrent_chunks, max_concurrent_blocks)
-                }
+        ),
+        (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
+            max_concurrent_chunks,
+            std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
+        ),
+        (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
+            (max_concurrent_chunks, max_concurrent_blocks)
+        }
         (Some(max_concurrent_requests), None, Some(max_concurrent_blocks)) => (
             std::cmp::max(max_concurrent_requests / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-            ),
-            (
-                Some(max_concurrent_requests),
-                Some(max_concurrent_chunks),
-                Some(max_concurrent_blocks),
-            ) => {
-                assert!(
+        ),
+        (
+            Some(max_concurrent_requests),
+            Some(max_concurrent_chunks),
+            Some(max_concurrent_blocks),
+        ) => {
+            assert!(
                     max_concurrent_requests == max_concurrent_chunks * max_concurrent_blocks,
                     "max_concurrent_requests should equal max_concurrent_chunks * max_concurrent_blocks"
                     );
-                (max_concurrent_chunks, max_concurrent_blocks)
-            }
+            (max_concurrent_chunks, max_concurrent_blocks)
+        }
     }
 }
