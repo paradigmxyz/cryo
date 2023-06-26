@@ -17,7 +17,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         println!("\n\n[dry run, exiting]");
     } else {
         outputs::print_header("\n\ncollecting data");
-        freeze::freeze(opts.clone()).await;
+        let _result = freeze::freeze(opts.clone()).await;
         let t_data_done = SystemTime::now();
         println!("...done\n\n");
         outputs::print_cryo_conclusion(t_start, t_parse_done, t_data_done, &opts);
