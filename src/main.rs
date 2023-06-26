@@ -1,9 +1,7 @@
 mod chunks;
 mod cli;
-mod dataframes;
 mod datatype_utils;
 mod freeze;
-mod gather;
 mod outputs;
 mod schemas;
 mod types;

@@ -1,26 +1,25 @@
-use crate::chunks;
-use crate::dataframes;
-use crate::gather;
-use crate::outputs;
-use crate::types::{BlockChunk, Datatype, FreezeOpts, SlimBlock};
-
-use indicatif::ProgressBar;
+use std::error::Error;
 use std::sync::Arc;
-use tokio::sync::Semaphore;
 
 use ethers::prelude::*;
 use futures::future::try_join_all;
+use indicatif::ProgressBar;
 use polars::prelude::*;
-use std::error::Error;
+use tokio::sync::Semaphore;
+
+use crate::chunks;
+use crate::datatype_utils::{block_utils, log_utils, transaction_utils};
+use crate::outputs;
+use crate::types::{BlockChunk, Datatype, FreezeOpts, SlimBlock};
 
 pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
     // create progress bar
     let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
     bar.set_style(
         indicatif::ProgressStyle::default_bar()
-            .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
-            .unwrap(),
-    );
+        .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
+        .unwrap(),
+        );
 
     // freeze chunks concurrently
     let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
@@ -40,7 +39,7 @@ pub async fn freeze(opts: FreezeOpts) -> Result<(), Box<dyn Error>> {
                 bar.inc(1);
             })
         })
-        .collect();
+    .collect();
 
     // gather results
     let _results = try_join_all(tasks).await?;
@@ -63,7 +62,7 @@ async fn freeze_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
 
 async fn freeze_blocks_and_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = chunks::get_chunk_block_numbers(&chunk);
-    let (blocks, txs) = gather::get_blocks_and_transactions(block_numbers, &opts)
+    let (blocks, txs) = block_utils::get_blocks_and_transactions(block_numbers, &opts)
         .await
         .unwrap();
     save_blocks(blocks, &chunk, &opts);
@@ -72,48 +71,41 @@ async fn freeze_blocks_and_transactions_chunk(chunk: &BlockChunk, opts: &FreezeO
 
 async fn freeze_blocks_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = chunks::get_chunk_block_numbers(&chunk);
-    let blocks = gather::get_blocks(block_numbers, &opts).await.unwrap();
+    let blocks = block_utils::get_blocks(block_numbers, &opts).await.unwrap();
     save_blocks(blocks, &chunk, &opts);
 }
 
 async fn freeze_transactions_chunk(chunk: &BlockChunk, opts: &FreezeOpts) {
     let block_numbers = chunks::get_chunk_block_numbers(&chunk);
-    let txs = gather::get_transactions(block_numbers, &opts)
+    let txs = transaction_utils::get_transactions(block_numbers, &opts)
         .await
         .unwrap();
     save_transactions(txs, &chunk, &opts);
 }
 
 async fn freeze_logs(chunk: &BlockChunk, opts: &FreezeOpts) {
-    let logs = gather::get_logs(&chunk, None, [None, None, None, None], &opts)
+    let logs = log_utils::get_logs(&chunk, None, [None, None, None, None], &opts)
         .await
         .unwrap();
     save_logs(logs, &chunk, &opts);
 }
 
-// async fn freeze_traces(chunk: BlockChunk, opts: &FreezeOpts) {
-//     let logs = gather::freeze_traces(&chunk, None, [None, None, None, None], &opts)
-//         .await
-//         .unwrap();
-//     save_logs(logs, &chunk, &opts);
-// }
-
 // saving
 
 fn save_blocks(blocks: Vec<SlimBlock>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = outputs::get_chunk_path("blocks", chunk, &opts);
-    let df: &mut DataFrame = &mut dataframes::blocks_to_df(blocks).unwrap();
+    let df: &mut DataFrame = &mut block_utils::blocks_to_df(blocks).unwrap();
     outputs::df_to_file(df, &path);
 }
 
 fn save_transactions(txs: Vec<Transaction>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = outputs::get_chunk_path("transactions", chunk, &opts);
-    let df: &mut DataFrame = &mut dataframes::txs_to_df(txs).unwrap();
+    let df: &mut DataFrame = &mut transaction_utils::txs_to_df(txs).unwrap();
     outputs::df_to_file(df, &path);
 }
 
 fn save_logs(logs: Vec<Log>, chunk: &BlockChunk, opts: &FreezeOpts) {
     let path = outputs::get_chunk_path("logs", chunk, &opts);
-    let df: &mut DataFrame = &mut dataframes::logs_to_df(logs).unwrap();
+    let df: &mut DataFrame = &mut log_utils::logs_to_df(logs).unwrap();
     outputs::df_to_file(df, &path);
 }
