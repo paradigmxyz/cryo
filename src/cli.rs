@@ -1,11 +1,13 @@
-use anstyle;
+use std::collections::HashMap;
+use std::env;
+use std::fs;
 
-use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
-use crate::{chunks, datatype_utils};
+use anstyle;
 use clap::Parser;
 use ethers::prelude::*;
-use std::collections::HashMap;
-use std::fs;
+
+use crate::types::{ColumnEncoding, Datatype, FileFormat, FreezeOpts, Schema};
+use crate::{chunks, schemas as schemas_mod};
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -20,8 +22,8 @@ pub struct Args {
     blocks: Vec<String>,
 
     /// RPC URL
-    #[arg(short, long, default_value = "http://34.105.67.70:8545")]
-    pub rpc: String,
+    #[arg(short, long)]
+    pub rpc: Option<String>,
 
     /// Network name, by default will derive from eth_getChainId
     #[arg(long)]
@@ -40,7 +42,7 @@ pub struct Args {
     output_dir: String,
 
     /// Save as csv instead of parquet
-    #[arg(long)]
+    #[arg(long, help_heading="Output Options")]
     csv: bool,
 
     /// Save as json instead of parquet
@@ -91,7 +93,7 @@ pub struct Args {
     #[arg(long, default_value_t = 1)]
     log_request_size: u64,
 
-    /// Dry run
+    /// Dry run, collect no data
     #[arg(short, long)]
     dry: bool,
 }
@@ -143,7 +145,8 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     };
 
     // parse network info
-    let provider = Provider::<Http>::try_from(args.rpc.clone()).unwrap();
+    let rpc_url = parse_rpc_url(&args);
+    let provider = Provider::<Http>::try_from(rpc_url).unwrap();
     let network_name = match &args.network_name {
         Some(name) => name.clone(),
         None => match provider.get_chainid().await {
@@ -185,12 +188,12 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     // process schemas
     let schemas: HashMap<Datatype, Schema> = HashMap::from_iter(datatypes.iter().map(|datatype| {
-        let schema: Schema = datatype_utils::get_schema(
+        let schema: Schema = schemas_mod::get_schema(
             &datatype,
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,
-        );
+            );
         (datatype.clone(), schema)
     }));
 
@@ -219,16 +222,35 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     (opts, args)
 }
 
+pub fn parse_rpc_url(args: &Args) -> String {
+    let mut url = match &args.rpc {
+        Some(url) => url.clone(),
+        _ => {
+            match env::var("ETH_RPC_URL") {
+                Ok(url) => url,
+                Err(_e) => {
+                    println!("must provide --rpc or set ETH_RPC_URL");
+                    std::process::exit(0);
+                }
+            }
+        }
+    };
+    if !url.starts_with("http") {
+        url = "http://".to_string() + url.as_str();
+    };
+    url
+}
+
 fn parse_sort(
     raw_sort: &Vec<String>,
     schemas: &HashMap<Datatype, Schema>,
-) -> HashMap<Datatype, Vec<String>> {
+    ) -> HashMap<Datatype, Vec<String>> {
     if raw_sort.len() == 0 {
         HashMap::from_iter(
             schemas
-                .iter()
-                .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
-        )
+            .iter()
+            .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
+            )
     } else if schemas.len() > 1 {
         panic!("custom sort not supported for multiple schemas")
     } else {
@@ -242,7 +264,7 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         args.max_concurrent_requests,
         args.max_concurrent_chunks,
         args.max_concurrent_blocks,
-    ) {
+        ) {
         (None, None, None) => (32, 3),
         (Some(max_concurrent_requests), None, None) => {
             (std::cmp::max(max_concurrent_requests / 3, 1), 3)
@@ -251,28 +273,28 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
         (None, None, Some(max_concurrent_blocks)) => (
             std::cmp::max(100 / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-        ),
-        (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
-            max_concurrent_chunks,
-            std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
-        ),
-        (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
-            (max_concurrent_chunks, max_concurrent_blocks)
-        }
+            ),
+            (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
+                max_concurrent_chunks,
+                std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
+                ),
+                (None, Some(max_concurrent_chunks), Some(max_concurrent_blocks)) => {
+                    (max_concurrent_chunks, max_concurrent_blocks)
+                }
         (Some(max_concurrent_requests), None, Some(max_concurrent_blocks)) => (
             std::cmp::max(max_concurrent_requests / max_concurrent_blocks, 1),
             max_concurrent_blocks,
-        ),
-        (
-            Some(max_concurrent_requests),
-            Some(max_concurrent_chunks),
-            Some(max_concurrent_blocks),
-        ) => {
-            assert!(
+            ),
+            (
+                Some(max_concurrent_requests),
+                Some(max_concurrent_chunks),
+                Some(max_concurrent_blocks),
+            ) => {
+                assert!(
                     max_concurrent_requests == max_concurrent_chunks * max_concurrent_blocks,
                     "max_concurrent_requests should equal max_concurrent_chunks * max_concurrent_blocks"
                     );
-            (max_concurrent_chunks, max_concurrent_blocks)
-        }
+                (max_concurrent_chunks, max_concurrent_blocks)
+            }
     }
 }

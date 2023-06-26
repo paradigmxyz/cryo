@@ -5,6 +5,7 @@ mod datatype_utils;
 mod freeze;
 mod gather;
 mod outputs;
+mod schemas;
 mod types;
 
 use std::time::SystemTime;

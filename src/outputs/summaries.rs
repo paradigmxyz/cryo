@@ -5,16 +5,17 @@ use std::time::SystemTime;
 use thousands::Separable;
 
 use crate::chunks;
-use crate::cli::Args;
+use crate::cli;
 use crate::outputs::generic_outputs;
 use crate::types::{Datatype, FreezeOpts, Schema};
 
-pub fn print_cryo_summary(opts: &FreezeOpts, args: &Args) {
+pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
     generic_outputs::print_header("cryo parameters");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.as_str()).collect();
     generic_outputs::print_bullet("datatypes", datatype_strs.join(", "));
     generic_outputs::print_bullet("network", &opts.network_name);
-    generic_outputs::print_bullet("provider", &args.rpc);
+    let rpc_url = cli::parse_rpc_url(&args);
+    generic_outputs::print_bullet("provider", &rpc_url);
     generic_outputs::print_bullet(
         "total blocks",
         chunks::get_total_blocks(&opts.block_chunks).to_string(),
