@@ -14,13 +14,13 @@ pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.dataset().name()).collect();
     generic::print_bullet("datatypes", datatype_strs.join(", "));
     generic::print_bullet("network", &opts.network_name);
-    let rpc_url = cli::parse_rpc_url(&args);
-    generic::print_bullet("provider", &rpc_url);
+    let rpc_url = cli::parse_rpc_url(args);
+    generic::print_bullet("provider", rpc_url);
     generic::print_bullet(
         "total blocks",
         chunks::get_total_blocks(&opts.block_chunks).to_string(),
     );
-    let chunk_size = chunks::get_total_blocks(&vec![opts.block_chunks.get(0).unwrap().clone()]);
+    let chunk_size = chunks::get_total_blocks(&[opts.block_chunks.get(0).unwrap().clone()]);
     generic::print_bullet("block chunk size", chunk_size.to_string());
     generic::print_bullet("total block chunks", opts.block_chunks.len().to_string());
     generic::print_bullet(
@@ -37,14 +37,14 @@ pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
     generic::print_bullet("output format", opts.output_format.as_str());
     generic::print_bullet("binary column format", opts.binary_column_format.as_str());
     generic::print_bullet("output dir", &opts.output_dir);
-    print_schemas(&opts.schemas, &opts);
+    print_schemas(&opts.schemas, opts);
 }
 
 fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
-        println!("");
-        println!("");
-        print_schema(&name, &schema, opts.sort.get(name).unwrap().to_vec())
+        println!();
+        println!();
+        print_schema(name, schema, opts.sort.get(name).unwrap().to_vec())
     })
 }
 
@@ -53,7 +53,7 @@ fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
     schema.iter().for_each(|(name, column_type)| {
         generic::print_bullet(name, column_type.as_str());
     });
-    println!("");
+    println!();
     println!("sorting {} by: {}", name.dataset().name(), sort.join(", "));
 }
 

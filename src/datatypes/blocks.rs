@@ -1,9 +1,9 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use ethers::prelude::*;
 use futures::future::join_all;
 use polars::prelude::*;
-use std::sync::Arc;
 use tokio::sync::Semaphore;
 
 use crate::chunks;
@@ -49,8 +49,8 @@ impl Dataset for Blocks {
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let block_numbers = chunks::get_chunk_block_numbers(&block_chunk);
-        let blocks = get_blocks(block_numbers, &opts).await.unwrap();
+        let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
+        let blocks = get_blocks(block_numbers, opts).await.unwrap();
         blocks_to_df(blocks).unwrap()
     }
 }
@@ -62,14 +62,9 @@ pub async fn get_blocks(
     let results = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
 
     let mut blocks: Vec<SlimBlock> = Vec::new();
-    for result in results.await.unwrap() {
-        match result {
-            Some(block) => {
-                let slim_block = chunks::block_to_slim_block(&block);
-                blocks.push(slim_block);
-            }
-            _ => {}
-        }
+    for block in results.await.unwrap().into_iter().flatten() {
+        let slim_block = chunks::block_to_slim_block(&block);
+        blocks.push(slim_block);
     }
 
     Ok(blocks)

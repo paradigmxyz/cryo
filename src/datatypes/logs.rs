@@ -54,7 +54,7 @@ impl Dataset for Logs {
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let logs = get_logs(&block_chunk, None, [None, None, None, None], &opts)
+        let logs = get_logs(block_chunk, None, [None, None, None, None], opts)
             .await
             .unwrap();
         logs_to_df(logs).unwrap()
@@ -68,7 +68,7 @@ pub async fn get_logs(
     opts: &FreezeOpts,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
     let request_chunks =
-        chunks::block_chunk_to_filter_options(&block_chunk, &opts.log_request_size);
+        chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
     let results = fetch_logs(
         request_chunks,
         address,

@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 
-use anstyle;
 use clap::Parser;
 use color_print::cstr;
 use ethers::prelude::*;
@@ -211,26 +210,26 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
             &args.include_columns,
             &args.exclude_columns,
         );
-        (datatype.clone(), schema)
+        (*datatype, schema)
     }));
 
     let sort = parse_sort(&args.sort, &schemas);
 
     // compile opts
     let opts = FreezeOpts {
-        datatypes: datatypes,
-        provider: provider,
-        block_chunks: block_chunks,
-        output_dir: output_dir,
-        output_format: output_format,
-        binary_column_format: binary_column_format,
-        network_name: network_name.clone(),
-        max_concurrent_chunks: max_concurrent_chunks,
-        max_concurrent_blocks: max_concurrent_blocks,
+        datatypes,
+        provider,
+        block_chunks,
+        output_dir,
+        output_format,
+        binary_column_format,
+        network_name,
+        max_concurrent_chunks,
+        max_concurrent_blocks,
         log_request_size: args.log_request_size,
         dry_run: args.dry,
-        schemas: schemas,
-        sort: sort,
+        schemas,
+        sort,
         row_groups: args.row_groups,
         row_group_size: args.row_group_size,
         parquet_statistics: !args.no_stats,
@@ -271,7 +270,7 @@ fn parse_sort(
     raw_sort: &Vec<String>,
     schemas: &HashMap<Datatype, Schema>,
 ) -> HashMap<Datatype, Vec<String>> {
-    if raw_sort.len() == 0 {
+    if raw_sort.is_empty() {
         HashMap::from_iter(
             schemas
                 .iter()

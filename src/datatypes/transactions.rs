@@ -62,8 +62,8 @@ impl Dataset for Transactions {
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let block_numbers = chunks::get_chunk_block_numbers(&block_chunk);
-        let transactions = get_transactions(block_numbers, &opts).await.unwrap();
+        let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
+        let transactions = get_transactions(block_numbers, opts).await.unwrap();
         txs_to_df(transactions).unwrap()
     }
 }
@@ -79,20 +79,15 @@ pub async fn get_transactions(
     );
 
     let mut txs: Vec<Transaction> = Vec::new();
-    for result in results.await.unwrap() {
-        match result {
-            Some(block) => {
-                let block_txs = block.transactions;
-                txs.extend(block_txs);
-            }
-            _ => {}
-        }
+    for block in results.await.unwrap().into_iter().flatten() {
+        let block_txs = block.transactions;
+        txs.extend(block_txs);
     }
 
     Ok(txs)
 }
 
-/// convert a Vec<Transaction> into polars dataframe
+/// convert a `Vec<Transaction>` into polars dataframe
 pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error::Error>> {
     // not recording: v, r, s, access_list
     let mut hashes: Vec<&[u8]> = Vec::new();

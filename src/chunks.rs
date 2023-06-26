@@ -44,7 +44,7 @@ pub fn get_subchunks_by_size(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<
 }
 
 pub fn get_subchunks_by_count(block_chunk: &BlockChunk, n_chunks: &u64) -> Vec<BlockChunk> {
-    let total_blocks = get_total_blocks(&vec![block_chunk.clone()]);
+    let total_blocks = get_total_blocks(&[block_chunk.clone()]);
 
     // ceiling division
     let chunk_size = (total_blocks + n_chunks - 1) / n_chunks;
@@ -88,7 +88,7 @@ pub fn block_chunk_to_filter_options(
             end_block: Some(end_block),
             ..
         } => {
-            let chunks = range_to_chunks(&start_block, &end_block, &log_request_size);
+            let chunks = range_to_chunks(start_block, end_block, log_request_size);
             chunks
                 .iter()
                 .map(|(start, end)| FilterBlockOption::Range {
@@ -160,7 +160,7 @@ pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParse
         _ => {
             let mut block_numbers: Vec<u64> = vec![];
             for input in inputs {
-                let subchunk = _process_block_input(&input, false).unwrap();
+                let subchunk = _process_block_input(input, false).unwrap();
                 block_numbers.extend(subchunk.block_numbers.unwrap());
             }
             let block_chunk = BlockChunk {
@@ -178,7 +178,7 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockPars
     match parts.len() {
         1 => {
             let block = parts
-                .get(0)
+                .first()
                 .ok_or("Missing number")
                 .unwrap()
                 .parse::<u64>()
@@ -191,7 +191,7 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockPars
         }
         2 => {
             let start_block = parts
-                .get(0)
+                .first()
                 .ok_or("Missing first number")
                 .unwrap()
                 .parse::<u64>()
@@ -216,15 +216,13 @@ fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockPars
                 })
             }
         }
-        _ => {
-            return Err(BlockParseError::InvalidInput(
-                "blocks must be in format block_number or start_block:end_block".to_string(),
-            ));
-        }
+        _ => Err(BlockParseError::InvalidInput(
+            "blocks must be in format block_number or start_block:end_block".to_string(),
+        )),
     }
 }
 
-pub fn get_total_blocks(block_chunks: &Vec<BlockChunk>) -> u64 {
+pub fn get_total_blocks(block_chunks: &[BlockChunk]) -> u64 {
     let mut total = 0;
     block_chunks.iter().for_each(|chunk| {
         total += match chunk {
