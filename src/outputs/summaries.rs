@@ -11,7 +11,7 @@ use crate::types::{Datatype, FreezeOpts, Schema};
 
 pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
     generic::print_header("cryo parameters");
-    let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.as_str()).collect();
+    let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.dataset().name()).collect();
     generic::print_bullet("datatypes", datatype_strs.join(", "));
     generic::print_bullet("network", &opts.network_name);
     let rpc_url = cli::parse_rpc_url(&args);
@@ -49,12 +49,12 @@ fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
 }
 
 fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
-    generic::print_header("schema for ".to_string() + name.as_str());
+    generic::print_header("schema for ".to_string() + name.dataset().name());
     schema.iter().for_each(|(name, column_type)| {
         generic::print_bullet(name, column_type.as_str());
     });
     println!("");
-    println!("sorting {} by: {}", name.as_str(), sort.join(", "));
+    println!("sorting {} by: {}", name.dataset().name(), sort.join(", "));
 }
 
 pub fn print_cryo_conclusion(

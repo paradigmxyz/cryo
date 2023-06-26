@@ -30,7 +30,7 @@ pub async fn freeze(opts: FreezeOpts) {
             tokio::spawn(async move {
                 let permit = sem.acquire().await.expect("Semaphore acquire");
                 for dt in &opts.datatypes {
-                    let ds = dt.get_dataset();
+                    let ds = dt.dataset();
                     let mut df = ds.collect_dataset(&chunk, &opts).await;
 
                     // save

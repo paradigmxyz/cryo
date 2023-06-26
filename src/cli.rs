@@ -206,7 +206,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     // process schemas
     let schemas: HashMap<Datatype, Schema> = HashMap::from_iter(datatypes.iter().map(|datatype| {
-        let schema: Schema = datatype.get_dataset().get_schema(
+        let schema: Schema = datatype.get_schema(
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,
@@ -275,7 +275,7 @@ fn parse_sort(
         HashMap::from_iter(
             schemas
                 .iter()
-                .map(|(datatype, _schema)| (*datatype, datatype.default_sort())),
+                .map(|(datatype, _schema)| (*datatype, datatype.dataset().default_sort())),
         )
     } else if schemas.len() > 1 {
         panic!("custom sort not supported for multiple schemas")

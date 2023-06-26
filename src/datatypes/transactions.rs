@@ -17,7 +17,7 @@ impl Dataset for Transactions {
         "transactions"
     }
 
-    fn get_block_column_types(&self) -> HashMap<&'static str, ColumnType> {
+    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
             ("block_number", ColumnType::Int32),
             ("transaction_index", ColumnType::Int32),
@@ -38,8 +38,7 @@ impl Dataset for Transactions {
         ])
     }
 
-
-    fn get_default_block_columns(&self) -> Vec<&'static str> {
+    fn default_columns(&self) -> Vec<&'static str> {
         vec![
             "block_number",
             "transaction_index",
@@ -58,8 +57,8 @@ impl Dataset for Transactions {
         ]
     }
 
-    fn get_default_sort(&self) -> Vec<&'static str> {
-        vec!["block_number", "transaction_index"]
+    fn default_sort(&self) -> Vec<String> {
+        vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
@@ -73,8 +72,11 @@ pub async fn get_transactions(
     block_numbers: Vec<u64>,
     opts: &FreezeOpts,
 ) -> Result<Vec<Transaction>, Box<dyn std::error::Error>> {
-    let results =
-        datatypes::blocks::fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
+    let results = datatypes::blocks::fetch_blocks_and_transactions(
+        block_numbers,
+        &opts.provider,
+        &opts.max_concurrent_blocks,
+    );
 
     let mut txs: Vec<Transaction> = Vec::new();
     for result in results.await.unwrap() {

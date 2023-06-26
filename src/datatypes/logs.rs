@@ -19,7 +19,7 @@ impl Dataset for Logs {
         "logs"
     }
 
-    fn get_block_column_types(&self) -> HashMap<&'static str, ColumnType> {
+    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
             ("block_number", ColumnType::Int32),
             ("transaction_index", ColumnType::Int32),
@@ -34,7 +34,7 @@ impl Dataset for Logs {
         ])
     }
 
-    fn get_default_block_columns(&self) -> Vec<&'static str> {
+    fn default_columns(&self) -> Vec<&'static str> {
         vec![
             "block_number",
             "transaction_index",
@@ -49,8 +49,8 @@ impl Dataset for Logs {
         ]
     }
 
-    fn get_default_sort(&self) -> Vec<&'static str> {
-        vec!["block_number", "log_index"]
+    fn default_sort(&self) -> Vec<String> {
+        vec!["block_number".to_string(), "log_index".to_string()]
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {

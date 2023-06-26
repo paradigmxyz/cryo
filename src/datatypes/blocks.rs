@@ -20,7 +20,7 @@ impl Dataset for Blocks {
         "blocks"
     }
 
-    fn get_block_column_types(&self) -> HashMap<&'static str, ColumnType> {
+    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
             ("block_number", ColumnType::Int32),
             ("block_hash", ColumnType::Binary),
@@ -32,7 +32,7 @@ impl Dataset for Blocks {
         ])
     }
 
-    fn get_default_block_columns(&self) -> Vec<&'static str> {
+    fn default_columns(&self) -> Vec<&'static str> {
         vec![
             "block_number",
             "block_hash",
@@ -44,8 +44,8 @@ impl Dataset for Blocks {
         ]
     }
 
-    fn get_default_sort(&self) -> Vec<&'static str> {
-        vec!["block_number"]
+    fn default_sort(&self) -> Vec<String> {
+        vec!["block_number".to_string()]
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
