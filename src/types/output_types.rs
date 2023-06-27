@@ -32,7 +32,7 @@ impl ColumnEncoding {
     }
 }
 
-#[derive(Default, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct BlockChunk {
     pub start_block: Option<u64>,
     pub end_block: Option<u64>,

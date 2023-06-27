@@ -77,6 +77,10 @@ pub struct Args {
     #[arg(short, long, default_value = ".", help_heading = "Output Options")]
     output_dir: String,
 
+    /// Overwrite existing files instead of skipping them
+    #[arg(long, help_heading = "Output Options")]
+    overwrite: bool,
+
     /// Save as csv instead of parquet
     #[arg(long, help_heading = "Output Options")]
     csv: bool,
@@ -177,20 +181,11 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     // parse args
     let args = Args::parse();
 
-    println!("topic1: {:?}", args.topic1);
-
     let datatypes: Vec<Datatype> = args
         .datatype
         .iter()
         .map(|datatype| parse_datatype(datatype))
         .collect();
-
-    // parse block chunks
-    let block_chunk = parse_block_inputs(&args.blocks).unwrap();
-    let block_chunks = match args.n_chunks {
-        Some(n_chunks) => chunks::get_subchunks_by_count(&block_chunk, &n_chunks),
-        None => chunks::get_subchunks_by_size(&block_chunk, &args.chunk_size),
-    };
 
     // parse network info
     let rpc_url = parse_rpc_url(&args);
@@ -204,6 +199,13 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
             },
             _ => panic!("could not determine chain_id"),
         },
+    };
+
+    // parse block chunks
+    let block_chunk = parse_block_inputs(&args.blocks, &provider).await.unwrap();
+    let block_chunks = match args.n_chunks {
+        Some(n_chunks) => chunks::get_subchunks_by_count(&block_chunk, &n_chunks),
+        None => chunks::get_subchunks_by_size(&block_chunk, &args.chunk_size),
     };
 
     // process output directory
@@ -362,13 +364,16 @@ pub enum BlockParseError {
 }
 
 /// parse block numbers to freeze
-pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParseError> {
+pub async fn parse_block_inputs(
+    inputs: &Vec<String>,
+    provider: &Provider<Http>,
+) -> Result<BlockChunk, BlockParseError> {
     match inputs.len() {
-        1 => _process_block_input(inputs.get(0).unwrap(), true),
+        1 => parse_block_token(inputs.get(0).unwrap(), true, provider).await,
         _ => {
             let mut block_numbers: Vec<u64> = vec![];
             for input in inputs {
-                let subchunk = _process_block_input(input, false).unwrap();
+                let subchunk = parse_block_token(input, false, provider).await.unwrap();
                 block_numbers.extend(subchunk.block_numbers.unwrap());
             }
             let block_chunk = BlockChunk {
@@ -381,51 +386,80 @@ pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParse
     }
 }
 
-fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockParseError> {
+enum RangePosition {
+    First,
+    Last,
+    None,
+}
+
+async fn parse_block_token(
+    s: &str,
+    as_range: bool,
+    provider: &Provider<Http>,
+) -> Result<BlockChunk, BlockParseError> {
+    let s = s.replace('_', "");
     let parts: Vec<&str> = s.split(':').collect();
-    match parts.len() {
-        1 => {
-            let block = parts
-                .first()
-                .ok_or("Missing number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
-            Ok(BlockChunk {
-                start_block: None,
-                end_block: None,
-                block_numbers: Some(vec![block]),
-            })
+    match parts.as_slice() {
+        [block_ref] => {
+            let block = parse_block_number(
+                block_ref,
+                RangePosition::None,
+                provider,
+            ).await;
+            Ok(BlockChunk { block_numbers: Some(vec![block]), ..Default::default() })
         }
-        2 => {
-            let start_block = parts
-                .first()
-                .ok_or("Missing first number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
-            let end_block = parts
-                .get(1)
-                .ok_or("Missing second number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
+        [first_ref, second_ref] => {
+            let start_block = parse_block_number(
+                first_ref,
+                RangePosition::First,
+                provider,
+            ).await;
+            let end_block = parse_block_number(
+                second_ref,
+                RangePosition::Last,
+                provider,
+            ).await;
+            if end_block <= start_block {
+                println!("{} > {}", start_block, end_block);
+                panic!("end_block should not be less than start_block")
+            }
             if as_range {
                 Ok(BlockChunk {
                     start_block: Some(start_block),
                     end_block: Some(end_block),
-                    block_numbers: None,
+                    block_numbers: None
                 })
             } else {
                 Ok(BlockChunk {
-                    start_block: None,
-                    end_block: None,
                     block_numbers: Some((start_block..=end_block).collect()),
+                    ..Default::default()
                 })
             }
         }
         _ => Err(BlockParseError::InvalidInput(
             "blocks must be in format block_number or start_block:end_block".to_string(),
         )),
+    }
+}
+
+async fn parse_block_number(block_ref: &str, range_position: RangePosition, provider: &Provider<Http>) -> u64 {
+    match (block_ref, range_position) {
+        ("latest", _) => provider.get_block_number().await.unwrap().as_u64(),
+        ("", RangePosition::First) => 0,
+        ("", RangePosition::Last) => provider.get_block_number().await.unwrap().as_u64(),
+        ("", RangePosition::None) => panic!("invalid input"),
+        _ if block_ref.ends_with('B') | block_ref.ends_with('b') => {
+            let s = &block_ref[..block_ref.len()-1];
+            (1e9 * s.parse::<f64>().unwrap()) as u64
+        }
+        _ if block_ref.ends_with('M') | block_ref.ends_with('m') => {
+            let s = &block_ref[..block_ref.len()-1];
+            (1e6 * s.parse::<f64>().unwrap()) as u64
+        }
+        _ if block_ref.ends_with('K') | block_ref.ends_with('k') => {
+            let s = &block_ref[..block_ref.len()-1];
+            (1e3 * s.parse::<f64>().unwrap()) as u64
+        }
+        _ => block_ref.parse::<u64>().unwrap(),
     }
 }

@@ -153,3 +153,43 @@ pub fn get_total_blocks(block_chunks: &[BlockChunk]) -> u64 {
     });
     total
 }
+
+pub fn get_min_block(block_chunks: &[BlockChunk]) -> u64 {
+    let mut block_min = std::u64::MAX;
+    block_chunks.iter().for_each(|chunk| {
+        let chunk_min = match chunk {
+            BlockChunk {
+                block_numbers: Some(block_numbers),
+                ..
+            } => *block_numbers.iter().min().unwrap(),
+            BlockChunk {
+                start_block: Some(start_block),
+                end_block: Some(_end_block),
+                ..
+            } => *start_block,
+            _ => panic!("invalid BlockChunk"),
+        };
+        block_min = std::cmp::min(chunk_min, block_min);
+    });
+    block_min
+}
+
+pub fn get_max_block(block_chunks: &[BlockChunk]) -> u64 {
+    let mut block_max = std::u64::MIN;
+    block_chunks.iter().for_each(|chunk| {
+        let chunk_max = match chunk {
+            BlockChunk {
+                block_numbers: Some(block_numbers),
+                ..
+            } => *block_numbers.iter().max().unwrap(),
+            BlockChunk {
+                start_block: Some(_start_block),
+                end_block: Some(end_block),
+                ..
+            } => *end_block,
+            _ => panic!("invalid BlockChunk"),
+        };
+        block_max = std::cmp::max(chunk_max, block_max);
+    });
+    block_max
+}

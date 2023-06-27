@@ -17,19 +17,30 @@ pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
     let rpc_url = cli::parse_rpc_url(args);
     generic::print_bullet("provider", rpc_url);
     generic::print_bullet(
+        "min block",
+        chunks::get_min_block(&opts.block_chunks).separate_with_commas(),
+    );
+    generic::print_bullet(
+        "max block",
+        chunks::get_max_block(&opts.block_chunks).separate_with_commas(),
+    );
+    generic::print_bullet(
         "total blocks",
-        chunks::get_total_blocks(&opts.block_chunks).to_string(),
+        chunks::get_total_blocks(&opts.block_chunks).separate_with_commas(),
     );
     let chunk_size = chunks::get_total_blocks(&[opts.block_chunks.get(0).unwrap().clone()]);
-    generic::print_bullet("block chunk size", chunk_size.to_string());
-    generic::print_bullet("total block chunks", opts.block_chunks.len().to_string());
+    generic::print_bullet("block chunk size", chunk_size.separate_with_commas());
+    generic::print_bullet(
+        "total block chunks",
+        opts.block_chunks.len().separate_with_commas(),
+    );
     generic::print_bullet(
         "max concurrent chunks",
-        opts.max_concurrent_chunks.to_string(),
+        opts.max_concurrent_chunks.separate_with_commas(),
     );
     generic::print_bullet(
         "max concurrent blocks",
-        opts.max_concurrent_blocks.to_string(),
+        opts.max_concurrent_blocks.separate_with_commas(),
     );
     if opts.datatypes.contains(&Datatype::Logs) {
         generic::print_bullet("log request size", opts.log_request_size.to_string());
