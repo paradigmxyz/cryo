@@ -1,6 +1,6 @@
 # ❄️🧊 cryo 🧊❄️
 
-cryo aims to be the quickest + easiest way to extract blockchain data to parquet, csv, or json
+cryo is the easiest way to extract blockchain data to parquet, csv, or json
 
 ## Example Usage
 
@@ -13,8 +13,9 @@ use as `cryo <dataset> [OPTIONS]`
 | Extract to csv instead of parquet | `cryo blocks txs traces --csv` |
 | Extract only certain columns | `cryo blocks --include number timestamp` |
 | Dry run to view output schemas or expected work | `cryo storage_diffs --dry` |
+| Extract all USDC events | `cryo logs --contract 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` |
 
-`cryo` will extract data from `ETH_RPC_URL` unless as a source is given with arg `--rpc <url>`
+`cryo` uses `ETH_RPC_URL` env var as the data source unless `--rpc <url>` is given
 
 ## Datasets
 
@@ -59,7 +60,9 @@ Options:
   -V, --version  Print version
 
 Content Options:
-  -b, --blocks [<BLOCKS>...]         Block numbers, either numbers or start:end ranges [default: 17000000:17000100]
+  -b, --blocks [<BLOCKS>...]         Block numbers, see syntax above [default: 0:latest]
+      --reorg-buffer <REORG_BUFFER>  Reorg buffer, avoid saving any blocks unless at least this old
+                                     can be a number of blocks or a length of time [default: 20min]
   -i, --include-columns [<COLS>...]  Columns to include in output
   -e, --exclude-columns [<COLS>...]  Columns to exclude from output
 
@@ -71,13 +74,13 @@ Acquisition Options:
       --max-concurrent-requests <M>  Global number of concurrent requests
       --max-concurrent-chunks <M>    Number of chunks processed concurrently
       --max-concurrent-blocks <M>    Number blocks within a chunk processed concurrently
-      --log-request-size <SIZE>      Number of blocks per log request [default: 1]
   -d, --dry                          Dry run, collect no data
 
 Output Options:
   -c, --chunk-size <CHUNK_SIZE>      Chunk size (blocks per chunk) [default: 1000]
       --n-chunks <N_CHUNKS>          Number of chunks (alternative to --chunk-size)
   -o, --output-dir <OUTPUT_DIR>      Directory for output files [default: .]
+      --overwrite                    Overwrite existing files instead of skipping them
       --csv                          Save as csv instead of parquet
       --json                         Save as json instead of parquet
       --hex                          Use hex string encoding for binary columns
@@ -85,4 +88,13 @@ Output Options:
       --row-groups <ROW_GROUPS>      Number of rows groups in parquet file
       --row-group-size <GROUP_SIZE>  Number of rows per row group in parquet file
       --no-stats                     Do not write statistics to parquet files
+
+Dataset-specific Options:
+      --gas-used                     [transactions] collect gas used for each transactions
+      --contract <CONTRACT>          [logs] filter logs by contract address
+      --topic0 <TOPIC0>              [logs] filter logs by topic0 [aliases: event]
+      --topic1 <TOPIC1>              [logs] filter logs by topic1
+      --topic2 <TOPIC2>              [logs] filter logs by topic2
+      --topic3 <TOPIC3>              [logs] filter logs by topic3
+      --log-request-size <N_BLOCKS>  [logs] Number of blocks per log request [default: 1]
 ```
