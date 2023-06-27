@@ -7,6 +7,7 @@ use color_print::cstr;
 use ethers::prelude::*;
 
 use crate::chunks;
+use crate::types::BlockChunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 use crate::types::FileFormat;
@@ -21,8 +22,16 @@ pub struct Args {
     datatype: Vec<String>,
 
     /// Block numbers, either numbers or start:end ranges
-    #[arg(short, long, default_value = "17000000:17000100", num_args(0..), help_heading="Content Options")]
+    #[arg(short, long, default_value = "0:latest", num_args(0..), help_heading="Content Options")]
     blocks: Vec<String>,
+
+    #[arg(
+        long,
+        default_value = "20min",
+        help_heading = "Content Options",
+        help = "Reorg buffer, avoid saving any blocks unless at least this old\ncan be a number of blocks or a length of time"
+    )]
+    reorg_buffer: String,
 
     /// Columns to include in output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
@@ -51,15 +60,6 @@ pub struct Args {
     /// Number blocks within a chunk processed concurrently
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     max_concurrent_blocks: Option<u64>,
-
-    /// Number of blocks per log request
-    #[arg(
-        long,
-        value_name = "SIZE",
-        default_value_t = 1,
-        help_heading = "Acquisition Options"
-    )]
-    log_request_size: u64,
 
     /// Dry run, collect no data
     #[arg(short, long, help_heading = "Acquisition Options")]
@@ -104,6 +104,35 @@ pub struct Args {
     /// Do not write statistics to parquet files
     #[arg(long, help_heading = "Output Options")]
     no_stats: bool,
+
+    /// [transactions] get gas used for each transactions
+    #[arg(long, help_heading = "Dataset-specific Options")]
+    gas_used: bool,
+
+    /// [logs] filter logs by topic1
+    #[arg(
+        long,
+        visible_alias = "event_hash",
+        help_heading = "Dataset-specific Options"
+    )]
+    topic1: Option<String>,
+
+    /// [logs] filter logs by topic2
+    #[arg(long, help_heading = "Dataset-specific Options")]
+    topic2: Option<String>,
+
+    /// [logs] filter logs by topic3
+    #[arg(long, help_heading = "Dataset-specific Options")]
+    topic3: Option<String>,
+
+    /// [logs] Number of blocks per log request
+    #[arg(
+        long,
+        value_name = "N_BLOCKS",
+        default_value_t = 1,
+        help_heading = "Dataset-specific Options"
+    )]
+    log_request_size: u64,
 }
 
 pub fn get_styles() -> clap::builder::Styles {
@@ -148,6 +177,8 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     // parse args
     let args = Args::parse();
 
+    println!("topic1: {:?}", args.topic1);
+
     let datatypes: Vec<Datatype> = args
         .datatype
         .iter()
@@ -155,7 +186,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         .collect();
 
     // parse block chunks
-    let block_chunk = chunks::parse_block_inputs(&args.blocks).unwrap();
+    let block_chunk = parse_block_inputs(&args.blocks).unwrap();
     let block_chunks = match args.n_chunks {
         Some(n_chunks) => chunks::get_subchunks_by_count(&block_chunk, &n_chunks),
         None => chunks::get_subchunks_by_size(&block_chunk, &args.chunk_size),
@@ -321,5 +352,80 @@ fn parse_concurrency_args(args: &Args) -> (u64, u64) {
                     );
             (max_concurrent_chunks, max_concurrent_blocks)
         }
+    }
+}
+
+#[derive(Debug)]
+pub enum BlockParseError {
+    InvalidInput(String),
+    // ParseError(std::num::ParseIntError),
+}
+
+/// parse block numbers to freeze
+pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParseError> {
+    match inputs.len() {
+        1 => _process_block_input(inputs.get(0).unwrap(), true),
+        _ => {
+            let mut block_numbers: Vec<u64> = vec![];
+            for input in inputs {
+                let subchunk = _process_block_input(input, false).unwrap();
+                block_numbers.extend(subchunk.block_numbers.unwrap());
+            }
+            let block_chunk = BlockChunk {
+                start_block: None,
+                end_block: None,
+                block_numbers: Some(block_numbers),
+            };
+            Ok(block_chunk)
+        }
+    }
+}
+
+fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockParseError> {
+    let parts: Vec<&str> = s.split(':').collect();
+    match parts.len() {
+        1 => {
+            let block = parts
+                .first()
+                .ok_or("Missing number")
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
+            Ok(BlockChunk {
+                start_block: None,
+                end_block: None,
+                block_numbers: Some(vec![block]),
+            })
+        }
+        2 => {
+            let start_block = parts
+                .first()
+                .ok_or("Missing first number")
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
+            let end_block = parts
+                .get(1)
+                .ok_or("Missing second number")
+                .unwrap()
+                .parse::<u64>()
+                .unwrap();
+            if as_range {
+                Ok(BlockChunk {
+                    start_block: Some(start_block),
+                    end_block: Some(end_block),
+                    block_numbers: None,
+                })
+            } else {
+                Ok(BlockChunk {
+                    start_block: None,
+                    end_block: None,
+                    block_numbers: Some((start_block..=end_block).collect()),
+                })
+            }
+        }
+        _ => Err(BlockParseError::InvalidInput(
+            "blocks must be in format block_number or start_block:end_block".to_string(),
+        )),
     }
 }

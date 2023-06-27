@@ -7,8 +7,8 @@ use polars::prelude::*;
 use tokio::sync::Semaphore;
 
 use crate::chunks;
-use crate::types::Blocks;
 use crate::types::BlockChunk;
+use crate::types::Blocks;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::FreezeOpts;
@@ -63,7 +63,7 @@ pub async fn get_blocks(
 
     let mut blocks: Vec<SlimBlock> = Vec::new();
     for block in results.await.unwrap().into_iter().flatten() {
-        let slim_block = chunks::block_to_slim_block(&block);
+        let slim_block = block_to_slim_block(&block);
         blocks.push(slim_block);
     }
 
@@ -200,4 +200,16 @@ pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::er
     );
 
     Ok(df?)
+}
+
+pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
+    SlimBlock {
+        number: block.number.unwrap().as_u64(),
+        hash: block.hash.unwrap().as_bytes().to_vec(),
+        author: block.author.unwrap().as_bytes().to_vec(),
+        gas_used: block.gas_used.as_u64(),
+        extra_data: block.extra_data.to_vec(),
+        timestamp: block.timestamp.as_u64(),
+        base_fee_per_gas: block.base_fee_per_gas.map(|value| value.as_u64()),
+    }
 }

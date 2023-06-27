@@ -1,19 +1,7 @@
 use ethers::prelude::*;
 use ring::digest::{self, Digest};
 
-use crate::types::{BlockChunk, SlimBlock};
-
-pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
-    SlimBlock {
-        number: block.number.unwrap().as_u64(),
-        hash: block.hash.unwrap().as_bytes().to_vec(),
-        author: block.author.unwrap().as_bytes().to_vec(),
-        gas_used: block.gas_used.as_u64(),
-        extra_data: block.extra_data.to_vec(),
-        timestamp: block.timestamp.as_u64(),
-        base_fee_per_gas: block.base_fee_per_gas.map(|value| value.as_u64()),
-    }
-}
+use crate::types::BlockChunk;
 
 pub fn get_subchunks_by_size(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
     match block_chunk {
@@ -144,81 +132,6 @@ pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
             ..
         } => format!("{}_to_{}", start_block, end_block),
         _ => panic!("invalid block range"),
-    }
-}
-
-#[derive(Debug)]
-pub enum BlockParseError {
-    InvalidInput(String),
-    // ParseError(std::num::ParseIntError),
-}
-
-/// parse block numbers to freeze
-pub fn parse_block_inputs(inputs: &Vec<String>) -> Result<BlockChunk, BlockParseError> {
-    match inputs.len() {
-        1 => _process_block_input(inputs.get(0).unwrap(), true),
-        _ => {
-            let mut block_numbers: Vec<u64> = vec![];
-            for input in inputs {
-                let subchunk = _process_block_input(input, false).unwrap();
-                block_numbers.extend(subchunk.block_numbers.unwrap());
-            }
-            let block_chunk = BlockChunk {
-                start_block: None,
-                end_block: None,
-                block_numbers: Some(block_numbers),
-            };
-            Ok(block_chunk)
-        }
-    }
-}
-
-fn _process_block_input(s: &str, as_range: bool) -> Result<BlockChunk, BlockParseError> {
-    let parts: Vec<&str> = s.split(':').collect();
-    match parts.len() {
-        1 => {
-            let block = parts
-                .first()
-                .ok_or("Missing number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
-            Ok(BlockChunk {
-                start_block: None,
-                end_block: None,
-                block_numbers: Some(vec![block]),
-            })
-        }
-        2 => {
-            let start_block = parts
-                .first()
-                .ok_or("Missing first number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
-            let end_block = parts
-                .get(1)
-                .ok_or("Missing second number")
-                .unwrap()
-                .parse::<u64>()
-                .unwrap();
-            if as_range {
-                Ok(BlockChunk {
-                    start_block: Some(start_block),
-                    end_block: Some(end_block),
-                    block_numbers: None,
-                })
-            } else {
-                Ok(BlockChunk {
-                    start_block: None,
-                    end_block: None,
-                    block_numbers: Some((start_block..=end_block).collect()),
-                })
-            }
-        }
-        _ => Err(BlockParseError::InvalidInput(
-            "blocks must be in format block_number or start_block:end_block".to_string(),
-        )),
     }
 }
 
