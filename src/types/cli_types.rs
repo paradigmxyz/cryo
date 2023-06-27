@@ -26,5 +26,15 @@ pub struct FreezeOpts {
     pub row_groups: Option<u64>,
     pub row_group_size: Option<u64>,
     pub parquet_statistics: bool,
+    pub overwrite: bool,
+}
+
+pub struct FreezeSummary {
+    pub n_completed: u64,
+    pub n_skipped: u64,
+}
+
+pub struct FreezeChunkSummary {
+    pub skipped: bool,
 }
 

@@ -5,6 +5,8 @@ pub mod output_types;
 pub mod schema_types;
 
 pub use cli_types::FreezeOpts;
+pub use cli_types::FreezeChunkSummary;
+pub use cli_types::FreezeSummary;
 pub use data_types::*;
 pub use output_types::FileFormat;
 pub use output_types::ColumnEncoding;

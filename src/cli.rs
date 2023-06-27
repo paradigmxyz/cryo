@@ -266,6 +266,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         row_groups: args.row_groups,
         row_group_size: args.row_group_size,
         parquet_statistics: !args.no_stats,
+        overwrite: args.overwrite,
     };
 
     (opts, args)
