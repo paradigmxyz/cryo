@@ -8,11 +8,13 @@ use as `cryo <dataset> [OPTIONS]`
 
 | Example | Command |
 | :- | :- |
-| Extract any blocks and transactions missing from current directory | `cryo blocks txs` |
 | Extract all logs from block 16,000,000 to block 17,000,000 | `cryo logs -b 16M:17M` |
-| Extract to csv | `cryo traces --csv` |
+| Extract blocks, logs, or traces missing from current directory | `cryo blocks txs traces` |
+| Extract to csv instead of parquet | `cryo blocks txs traces --csv` |
 | Extract only certain columns | `cryo blocks --include number timestamp` |
-| Dry run to view output schemas | `cryo storage_diffs --dry` |
+| Dry run to view output schemas or expected work | `cryo storage_diffs --dry` |
+
+`cryo` will extract data from `ETH_RPC_URL` unless as a source is given with arg `--rpc <url>`
 
 ## Datasets
 
