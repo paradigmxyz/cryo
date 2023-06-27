@@ -21,7 +21,7 @@ pub struct Args {
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     datatype: Vec<String>,
 
-    /// Block numbers, either numbers or start:end ranges
+    /// Block numbers, see syntax above
     #[arg(short, long, default_value = "0:latest", num_args(0..), help_heading="Content Options")]
     blocks: Vec<String>,
 
@@ -29,7 +29,7 @@ pub struct Args {
         long,
         default_value = "20min",
         help_heading = "Content Options",
-        help = "Reorg buffer, avoid saving any blocks unless at least this old\ncan be a number of blocks or a length of time"
+        help = "Reorg buffer, save blocks only when they are this old\ncan be a number of blocks or a time"
     )]
     reorg_buffer: String,
 
@@ -41,13 +41,17 @@ pub struct Args {
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     exclude_columns: Option<Vec<String>>,
 
-    /// RPC URL
+    /// RPC url [default: ETH_RPC_URL env var]
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,
 
-    /// Network name, by default will derive from eth_getChainId
+    /// Network name [default: use name of eth_getChainId]
     #[arg(long, help_heading = "Source Options")]
     network_name: Option<String>,
+
+    /// Ratelimit on requests per second
+    #[arg(short('l'), long, value_name="limit", help_heading = "Acquisition Options")]
+    requests_per_second: Option<u64>,
 
     /// Global number of concurrent requests
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
@@ -65,7 +69,7 @@ pub struct Args {
     #[arg(short, long, help_heading = "Acquisition Options")]
     dry: bool,
 
-    /// Chunk size (blocks per chunk)
+    /// Number of blocks per chunk
     #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
     pub chunk_size: u64,
 
@@ -109,16 +113,28 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     no_stats: bool,
 
-    /// [transactions] get gas used for each transactions
+    /// Set compression algorithm and level
+    #[arg(long, help_heading="Output Options", value_name="NAME [#]", num_args(1..=2), default_value = "lz4")]
+    compression: Vec<String>,
+
+    /// [transactions] track gas used by each transaction
     #[arg(long, help_heading = "Dataset-specific Options")]
     gas_used: bool,
 
-    /// [logs] filter logs by topic1
+    /// [logs] filter logs by contract address
+    #[arg(long, help_heading = "Dataset-specific Options")]
+    contract: Option<String>,
+
+    /// [logs] filter logs by topic0
     #[arg(
         long,
-        visible_alias = "event_hash",
+        visible_alias = "event",
         help_heading = "Dataset-specific Options"
     )]
+    topic0: Option<String>,
+
+    /// [logs] filter logs by topic1
+    #[arg(long, help_heading = "Dataset-specific Options")]
     topic1: Option<String>,
 
     /// [logs] filter logs by topic2
@@ -402,24 +418,15 @@ async fn parse_block_token(
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
         [block_ref] => {
-            let block = parse_block_number(
-                block_ref,
-                RangePosition::None,
-                provider,
-            ).await;
-            Ok(BlockChunk { block_numbers: Some(vec![block]), ..Default::default() })
+            let block = parse_block_number(block_ref, RangePosition::None, provider).await;
+            Ok(BlockChunk {
+                block_numbers: Some(vec![block]),
+                ..Default::default()
+            })
         }
         [first_ref, second_ref] => {
-            let start_block = parse_block_number(
-                first_ref,
-                RangePosition::First,
-                provider,
-            ).await;
-            let end_block = parse_block_number(
-                second_ref,
-                RangePosition::Last,
-                provider,
-            ).await;
+            let start_block = parse_block_number(first_ref, RangePosition::First, provider).await;
+            let end_block = parse_block_number(second_ref, RangePosition::Last, provider).await;
             if end_block <= start_block {
                 println!("{} > {}", start_block, end_block);
                 panic!("end_block should not be less than start_block")
@@ -428,7 +435,7 @@ async fn parse_block_token(
                 Ok(BlockChunk {
                     start_block: Some(start_block),
                     end_block: Some(end_block),
-                    block_numbers: None
+                    block_numbers: None,
                 })
             } else {
                 Ok(BlockChunk {
@@ -443,22 +450,26 @@ async fn parse_block_token(
     }
 }
 
-async fn parse_block_number(block_ref: &str, range_position: RangePosition, provider: &Provider<Http>) -> u64 {
+async fn parse_block_number(
+    block_ref: &str,
+    range_position: RangePosition,
+    provider: &Provider<Http>,
+) -> u64 {
     match (block_ref, range_position) {
         ("latest", _) => provider.get_block_number().await.unwrap().as_u64(),
         ("", RangePosition::First) => 0,
         ("", RangePosition::Last) => provider.get_block_number().await.unwrap().as_u64(),
         ("", RangePosition::None) => panic!("invalid input"),
         _ if block_ref.ends_with('B') | block_ref.ends_with('b') => {
-            let s = &block_ref[..block_ref.len()-1];
+            let s = &block_ref[..block_ref.len() - 1];
             (1e9 * s.parse::<f64>().unwrap()) as u64
         }
         _ if block_ref.ends_with('M') | block_ref.ends_with('m') => {
-            let s = &block_ref[..block_ref.len()-1];
+            let s = &block_ref[..block_ref.len() - 1];
             (1e6 * s.parse::<f64>().unwrap()) as u64
         }
         _ if block_ref.ends_with('K') | block_ref.ends_with('k') => {
-            let s = &block_ref[..block_ref.len()-1];
+            let s = &block_ref[..block_ref.len() - 1];
             (1e3 * s.parse::<f64>().unwrap()) as u64
         }
         _ => block_ref.parse::<u64>().unwrap(),
