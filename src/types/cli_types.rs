@@ -34,11 +34,11 @@ pub struct FreezeOpts {
     pub compression: ParquetCompression,
     // dataset-specific options
     pub gas_used: bool,
-    pub contract: Option<H160>,
-    pub topic0: Option<H256>,
-    pub topic1: Option<H256>,
-    pub topic2: Option<H256>,
-    pub topic3: Option<H256>,
+    pub contract: Option<ValueOrArray<H160>>,
+    pub topic0: Option<ValueOrArray<Option<H256>>>,
+    pub topic1: Option<ValueOrArray<Option<H256>>>,
+    pub topic2: Option<ValueOrArray<Option<H256>>>,
+    pub topic3: Option<ValueOrArray<Option<H256>>>,
     pub log_request_size: u64,
 }
 

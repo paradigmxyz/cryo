@@ -54,25 +54,34 @@ impl Dataset for Logs {
     }
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let logs = get_logs(block_chunk, None, [None, None, None, None], opts)
-            .await
-            .unwrap();
+        let logs = get_logs(
+            block_chunk,
+            &opts.contract,
+            &[
+                opts.topic0.clone(),
+                opts.topic1.clone(),
+                opts.topic2.clone(),
+                opts.topic3.clone(),
+            ],
+            opts,
+        )
+        .await
+        .unwrap();
         logs_to_df(logs).unwrap()
     }
 }
 
 pub async fn get_logs(
     block_chunk: &BlockChunk,
-    address: Option<ValueOrArray<H160>>,
-    topics: [Option<ValueOrArray<Option<H256>>>; 4],
+    address: &Option<ValueOrArray<H160>>,
+    topics: &[Option<ValueOrArray<Option<H256>>>; 4],
     opts: &FreezeOpts,
 ) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
-    let request_chunks =
-        chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
+    let request_chunks = chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
     let results = fetch_logs(
         request_chunks,
         address,
-        topics,
+        &topics,
         &opts.provider,
         &opts.max_concurrent_blocks,
     )
@@ -91,8 +100,8 @@ pub async fn get_logs(
 
 pub async fn fetch_logs(
     request_chunks: Vec<FilterBlockOption>,
-    address: Option<ValueOrArray<H160>>,
-    topics: [Option<ValueOrArray<Option<H256>>>; 4],
+    address: &Option<ValueOrArray<H160>>,
+    topics: &[Option<ValueOrArray<Option<H256>>>; 4],
     provider: &Provider<Http>,
     max_concurrent_requests: &u64,
 ) -> Result<Vec<Option<Vec<Log>>>, Box<dyn std::error::Error>> {

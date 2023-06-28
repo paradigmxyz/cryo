@@ -296,11 +296,11 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     let sort = parse_sort(&args.sort, &schemas);
 
-    let contract = parse_binary_160(&args.contract);
-    let topic0 = parse_binary_256(&args.topic0);
-    let topic1 = parse_binary_256(&args.topic1);
-    let topic2 = parse_binary_256(&args.topic2);
-    let topic3 = parse_binary_256(&args.topic3);
+    let contract = parse_address(&args.contract);
+    let topic0 = parse_topic(&args.topic0);
+    let topic1 = parse_topic(&args.topic1);
+    let topic2 = parse_topic(&args.topic2);
+    let topic3 = parse_topic(&args.topic3);
 
     let compression = parse_compression(&args.compression).unwrap();
 
@@ -368,16 +368,26 @@ pub fn parse_rpc_url(args: &Args) -> String {
     url
 }
 
-fn parse_binary_160(input: &Option<String>) -> Option<H160> {
-    input
-        .as_ref()
-        .and_then(|data| <[u8; 20]>::from_hex(data.as_str()).ok().map(H160))
+fn parse_address(input: &Option<String>) -> Option<ValueOrArray<H160>> {
+    input.as_ref().and_then(|data| {
+        <[u8; 20]>::from_hex(data.as_str().chars().skip(2).collect::<String>().as_str())
+            .ok()
+            .map(H160)
+            .map(ValueOrArray::Value)
+    })
 }
 
-fn parse_binary_256(input: &Option<String>) -> Option<H256> {
-    input
-        .as_ref()
-        .and_then(|data| <[u8; 32]>::from_hex(data.as_str()).ok().map(H256))
+fn parse_topic(input: &Option<String>) -> Option<ValueOrArray<Option<H256>>> {
+    let value = input.as_ref().and_then(|data| {
+        <[u8; 32]>::from_hex(data.as_str().chars().skip(2).collect::<String>().as_str())
+            .ok()
+            .map(H256)
+    });
+
+    match value {
+        Some(inner) => Some(ValueOrArray::Value(Some(inner))),
+        None => None,
+    }
 }
 
 fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression, CompressionParseError> {
