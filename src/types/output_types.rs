@@ -49,3 +49,4 @@ pub struct SlimBlock {
     pub timestamp: u64,
     pub base_fee_per_gas: Option<u64>,
 }
+

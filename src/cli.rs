@@ -5,6 +5,8 @@ use std::fs;
 use clap::Parser;
 use color_print::cstr;
 use ethers::prelude::*;
+use hex::FromHex;
+use polars::prelude::*;
 
 use crate::chunks;
 use crate::types::BlockChunk;
@@ -13,6 +15,7 @@ use crate::types::Datatype;
 use crate::types::FileFormat;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
+use crate::types::CompressionParseError;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
@@ -23,6 +26,14 @@ pub struct Args {
 
     /// Block numbers, see syntax above
     #[arg(short, long, default_value = "0:latest", num_args(0..), help_heading="Content Options")]
+
+    /// Number of blocks per chunk
+    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
+    pub chunk_size: u64,
+
+    /// Number of chunks (alternative to --chunk-size)
+    #[arg(long, help_heading = "Output Options")]
+    pub n_chunks: Option<u64>,
     blocks: Vec<String>,
 
     #[arg(
@@ -50,7 +61,12 @@ pub struct Args {
     network_name: Option<String>,
 
     /// Ratelimit on requests per second
-    #[arg(short('l'), long, value_name="limit", help_heading = "Acquisition Options")]
+    #[arg(
+        short('l'),
+        long,
+        value_name = "limit",
+        help_heading = "Acquisition Options"
+    )]
     requests_per_second: Option<u64>,
 
     /// Global number of concurrent requests
@@ -68,14 +84,6 @@ pub struct Args {
     /// Dry run, collect no data
     #[arg(short, long, help_heading = "Acquisition Options")]
     dry: bool,
-
-    /// Number of blocks per chunk
-    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
-    pub chunk_size: u64,
-
-    /// Number of chunks (alternative to --chunk-size)
-    #[arg(long, help_heading = "Output Options")]
-    pub n_chunks: Option<u64>,
 
     /// Directory for output files
     #[arg(short, long, default_value = ".", help_heading = "Output Options")]
@@ -264,25 +272,45 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
 
     let sort = parse_sort(&args.sort, &schemas);
 
+    let contract = parse_binary_160(&args.contract);
+    let topic0 = parse_binary_256(&args.topic0);
+    let topic1 = parse_binary_256(&args.topic1);
+    let topic2 = parse_binary_256(&args.topic2);
+    let topic3 = parse_binary_256(&args.topic3);
+
+    let compression = parse_compression(&args.compression).unwrap();
+
     // compile opts
     let opts = FreezeOpts {
         datatypes,
-        provider,
+        // content options
         block_chunks,
-        output_dir,
-        output_format,
-        binary_column_format,
+        schemas,
+        // source options
+        provider,
         network_name,
+        // acquisition options
         max_concurrent_chunks,
         max_concurrent_blocks,
-        log_request_size: args.log_request_size,
         dry_run: args.dry,
-        schemas,
+        // output options
+        output_dir,
+        overwrite: args.overwrite,
+        output_format,
+        binary_column_format,
         sort,
         row_groups: args.row_groups,
         row_group_size: args.row_group_size,
         parquet_statistics: !args.no_stats,
-        overwrite: args.overwrite,
+        compression,
+        // dataset-specific options
+        gas_used: args.gas_used,
+        contract,
+        topic0,
+        topic1,
+        topic2,
+        topic3,
+        log_request_size: args.log_request_size,
     };
 
     (opts, args)
@@ -314,6 +342,54 @@ pub fn parse_rpc_url(args: &Args) -> String {
         url = "http://".to_string() + url.as_str();
     };
     url
+}
+
+fn parse_binary_160(input: &Option<String>) -> Option<H160> {
+    input
+        .as_ref()
+        .and_then(|data| <[u8; 20]>::from_hex(data.as_str()).ok().map(H160))
+}
+
+fn parse_binary_256(input: &Option<String>) -> Option<H256> {
+    input
+        .as_ref()
+        .and_then(|data| <[u8; 32]>::from_hex(data.as_str()).ok().map(H256))
+}
+
+fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression, CompressionParseError> {
+    match input.as_slice() {
+        [algorithm] if algorithm.as_str() == "uncompressed" => Ok(ParquetCompression::Uncompressed),
+        [algorithm] if algorithm.as_str() == "snappy" => Ok(ParquetCompression::Snappy),
+        [algorithm] if algorithm.as_str() == "lzo" => Ok(ParquetCompression::Lzo),
+        [algorithm] if algorithm.as_str() == "lz4" => Ok(ParquetCompression::Lz4Raw),
+        [algorithm, level_str] if algorithm.as_str() == "gzip" => match level_str.parse::<u8>() {
+            Ok(level) => match GzipLevel::try_new(level) {
+                Ok(gzip_level) => Ok(ParquetCompression::Gzip(Some(gzip_level))),
+                Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+            },
+            Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+        },
+        [algorithm, level_str] if algorithm.as_str() == "brotli" => {
+            match level_str.parse::<u32>() {
+                Ok(level) => match BrotliLevel::try_new(level) {
+                    Ok(brotli_level) => Ok(ParquetCompression::Brotli(Some(brotli_level))),
+                    Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+                },
+                Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+            }
+        }
+        [algorithm, level_str] if algorithm.as_str() == "zstd" => match level_str.parse::<i32>() {
+            Ok(level) => match ZstdLevel::try_new(level) {
+                Ok(zstd_level) => Ok(ParquetCompression::Zstd(Some(zstd_level))),
+                Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+            },
+            Err(_) => Err(CompressionParseError::InvalidCompressionLevel),
+        },
+        [algorithm] if ["gzip", "brotli", "zstd"].contains(&algorithm.as_str()) => {
+            Err(CompressionParseError::MissingCompressionLevel)
+        }
+        _ => Err(CompressionParseError::InvalidCompressionAlgorithm),
+    }
 }
 
 fn parse_sort(
