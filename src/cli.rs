@@ -11,21 +11,28 @@ use polars::prelude::*;
 use crate::chunks;
 use crate::types::BlockChunk;
 use crate::types::ColumnEncoding;
+use crate::types::CompressionParseError;
 use crate::types::Datatype;
 use crate::types::FileFormat;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
-use crate::types::CompressionParseError;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
-#[command(author, version, about = get_about_str(), long_about = None, styles=get_styles())]
+#[command(author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str())]
 pub struct Args {
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     datatype: Vec<String>,
 
     /// Block numbers, see syntax above
-    #[arg(short, long, default_value = "0:latest", num_args(0..), help_heading="Content Options")]
+    #[arg(
+        short,
+        long,
+        default_value = "0:latest",
+        allow_hyphen_values(true),
+        help_heading = "Content Options"
+    )]
+    blocks: Vec<String>,
 
     /// Number of blocks per chunk
     #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
@@ -34,7 +41,6 @@ pub struct Args {
     /// Number of chunks (alternative to --chunk-size)
     #[arg(long, help_heading = "Output Options")]
     pub n_chunks: Option<u64>,
-    blocks: Vec<String>,
 
     #[arg(
         long,
@@ -184,6 +190,21 @@ fn get_about_str() -> &'static str {
     cstr!(r#"<white><bold>cryo</bold></white> extracts blockchain data to parquet, csv, or json"#)
 }
 
+fn get_after_str() -> &'static str {
+    cstr!(
+        r#"
+<white><bold>Block specification syntax</bold></white>
+- can use numbers                    <white><bold>--blocks 5000 6000 7000</bold></white>
+- can use ranges                     <white><bold>--blocks 12M:13M 15M:16M</bold></white>
+- numbers can contain { _ . K M B }  <white><bold>5_000 5K 15M 15.5M</bold></white>
+- omiting range end means latest     <white><bold>15.5M:</bold></white> == <white><bold>15.5M:latest</bold></white>
+- omitting range start means 0       <white><bold>:700</bold></white> == <white><bold>0:700</bold></white>
+- minus on start means minus end     <white><bold>-1000:7000</bold></white> == <white><bold>6000:7000</bold></white>
+- plus sign on end means plus start  <white><bold>15M:+1000</bold></white> == <white><bold>15M:15.001K</bold></white>
+"#
+    )
+}
+
 fn get_datatype_help() -> &'static str {
     cstr!(
         r#"datatype(s) to collect, one or more of:
@@ -231,6 +252,9 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         Some(n_chunks) => chunks::get_subchunks_by_count(&block_chunk, &n_chunks),
         None => chunks::get_subchunks_by_size(&block_chunk, &args.chunk_size),
     };
+    if args.reorg_buffer != "0" {
+        println!("reorg")
+    }
 
     // process output directory
     let output_dir = std::fs::canonicalize(args.output_dir.clone())
@@ -323,7 +347,7 @@ fn parse_datatype(datatype: &str) -> Datatype {
         "events" => Datatype::Logs,
         "transactions" => Datatype::Transactions,
         "txs" => Datatype::Transactions,
-        _ => panic!("invalid datatype"),
+        _ => panic!("{}", ("invalid datatype ".to_string() + datatype)),
     }
 }
 
@@ -501,8 +525,28 @@ async fn parse_block_token(
             })
         }
         [first_ref, second_ref] => {
-            let start_block = parse_block_number(first_ref, RangePosition::First, provider).await;
-            let end_block = parse_block_number(second_ref, RangePosition::Last, provider).await;
+            let (start_block, end_block) = match (first_ref, second_ref) {
+                _ if first_ref.starts_with('-') => {
+                    let end_block =
+                        parse_block_number(second_ref, RangePosition::Last, provider).await;
+                    let start_block = end_block - first_ref[1..].parse::<u64>().unwrap();
+                    (start_block, end_block)
+                }
+                _ if second_ref.starts_with('+') => {
+                    let start_block =
+                        parse_block_number(first_ref, RangePosition::First, provider).await;
+                    let end_block = start_block + second_ref.parse::<u64>().unwrap();
+                    (start_block, end_block)
+                }
+                _ => {
+                    let start_block =
+                        parse_block_number(first_ref, RangePosition::First, provider).await;
+                    let end_block =
+                        parse_block_number(second_ref, RangePosition::Last, provider).await;
+                    (start_block, end_block)
+                }
+            };
+
             if end_block <= start_block {
                 println!("{} > {}", start_block, end_block);
                 panic!("end_block should not be less than start_block")
