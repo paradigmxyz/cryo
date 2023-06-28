@@ -28,10 +28,9 @@ pub struct FreezeOpts {
     pub output_format: FileFormat,
     pub binary_column_format: ColumnEncoding,
     pub sort: HashMap<Datatype, Vec<String>>,
-    pub row_groups: Option<u64>,
-    pub row_group_size: Option<u64>,
+    pub row_group_size: Option<usize>,
     pub parquet_statistics: bool,
-    pub compression: ParquetCompression,
+    pub parquet_compression: ParquetCompression,
     // dataset-specific options
     pub gas_used: bool,
     pub contract: Option<ValueOrArray<H160>>,

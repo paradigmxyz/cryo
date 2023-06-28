@@ -115,13 +115,13 @@ pub struct Args {
     #[arg(short, long, num_args(0..), help_heading="Output Options")]
     sort: Vec<String>,
 
-    /// Number of rows groups in parquet file
-    #[arg(long, help_heading = "Output Options")]
-    row_groups: Option<u64>,
-
     /// Number of rows per row group in parquet file
     #[arg(long, value_name = "GROUP_SIZE", help_heading = "Output Options")]
-    row_group_size: Option<u64>,
+    row_group_size: Option<usize>,
+
+    /// Number of rows groups in parquet file
+    #[arg(long, help_heading = "Output Options")]
+    n_row_groups: Option<usize>,
 
     /// Do not write statistics to parquet files
     #[arg(long, help_heading = "Output Options")]
@@ -302,7 +302,9 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     let topic2 = parse_topic(&args.topic2);
     let topic3 = parse_topic(&args.topic3);
 
-    let compression = parse_compression(&args.compression).unwrap();
+    let parquet_compression = parse_compression(&args.compression).unwrap();
+
+    let row_group_size = parse_row_group_size(args.row_group_size, args.n_row_groups);
 
     // compile opts
     let opts = FreezeOpts {
@@ -323,10 +325,9 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         output_format,
         binary_column_format,
         sort,
-        row_groups: args.row_groups,
-        row_group_size: args.row_group_size,
+        row_group_size,
         parquet_statistics: !args.no_stats,
-        compression,
+        parquet_compression,
         // dataset-specific options
         gas_used: args.gas_used,
         contract,
@@ -348,6 +349,14 @@ fn parse_datatype(datatype: &str) -> Datatype {
         "transactions" => Datatype::Transactions,
         "txs" => Datatype::Transactions,
         _ => panic!("{}", ("invalid datatype ".to_string() + datatype)),
+    }
+}
+
+pub fn parse_row_group_size(row_group_size: Option<usize>, n_row_groups: Option<usize>) -> Option<usize> {
+    match (row_group_size, n_row_groups) {
+        (Some(row_group_size), _) => Some(row_group_size),
+        (_, Some(n_row_groups)) => Some(n_row_groups),
+        _ => None,
     }
 }
 

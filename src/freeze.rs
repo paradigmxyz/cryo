@@ -50,7 +50,7 @@ async fn freeze_chunk(
             return FreezeChunkSummary { skipped: true };
         } else {
             let mut df = ds.collect_dataset(&block_chunk, &opts).await;
-            outputs::df_to_file(&mut df, &path);
+            outputs::df_to_file(&mut df, &path, &opts);
         }
     }
     drop(permit);

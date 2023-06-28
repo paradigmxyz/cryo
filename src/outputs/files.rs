@@ -19,11 +19,11 @@ pub fn get_chunk_path(name: &str, chunk: &BlockChunk, opts: &FreezeOpts) -> Stri
 }
 
 /// write polars dataframe to file
-pub fn df_to_file(df: &mut DataFrame, filename: &str) {
+pub fn df_to_file(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) {
     let binding = filename.to_string() + "_tmp";
     let tmp_filename = binding.as_str();
     match filename {
-        _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename),
+        _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename, &opts),
         _ if filename.ends_with(".csv") => df_to_csv(df, tmp_filename),
         _ if filename.ends_with(".json") => df_to_json(df, tmp_filename),
         _ => panic!("invalid file format")
@@ -32,10 +32,12 @@ pub fn df_to_file(df: &mut DataFrame, filename: &str) {
 }
 
 /// write polars dataframe to parquet file
-fn df_to_parquet(df: &mut DataFrame, filename: &str) {
+fn df_to_parquet(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) {
     let file = std::fs::File::create(filename).unwrap();
     ParquetWriter::new(file)
-        .with_statistics(true)
+        .with_statistics(opts.parquet_statistics)
+        .with_compression(opts.parquet_compression)
+        .with_row_group_size(opts.row_group_size)
         .finish(df)
         .unwrap();
 }
