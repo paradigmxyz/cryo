@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 use std::sync::Arc;
 
 use ethers::prelude::*;
@@ -17,6 +18,10 @@ use crate::types::Schema;
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
+    fn datatype(&self) -> Datatype {
+        Datatype::Blocks
+    }
+
     fn name(&self) -> &'static str {
         "blocks"
     }
@@ -49,14 +54,37 @@ impl Dataset for Blocks {
         vec!["block_number".to_string()]
     }
 
-    async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-        let blocks = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_blocks)
+    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+        let numbers = chunks::get_chunk_block_numbers(block_chunk);
+        let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks)
             .await
             .unwrap();
         let blocks = blocks.into_iter().flatten().collect();
         blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).unwrap()
     }
+
+    // async fn collect_chunk_with_extras(
+    //     &self,
+    //     block_chunk: &BlockChunk,
+    //     extras: &HashSet<Datatype>,
+    //     opts: &FreezeOpts,
+    // ) -> HashMap<Datatype, DataFrame> {
+    //     if extras.is_empty() {
+    //         let df = self.collect_chunk(block_chunk, opts).await;
+    //         [(Datatype::Blocks, df)].iter().cloned().collect()
+    //     } else if (extras.len() == 1) & extras.contains(&Datatype::Transactions) {
+    //         let numbers = chunks::get_chunk_block_numbers(block_chunk);
+    //         let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks)
+    //             .await
+    //             .unwrap();
+    //         let blocks = blocks.into_iter().flatten().collect();
+    //         let blocks = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).unwrap()
+    //         [(Datatype::Blocks, blocks), (Datatype::Transactions, transactions)].iter().cloned().collect()
+    //     } else {
+    //         panic!("invalid extras")
+    //     }
+    // }
+
 }
 
 pub async fn fetch_blocks(
@@ -135,10 +163,7 @@ pub async fn fetch_blocks_and_transactions(
     }
 }
 
-pub fn blocks_to_df(
-    blocks: Vec<Block<TxHash>>,
-    schema: &Schema,
-) -> Result<DataFrame, PolarsError> {
+pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataFrame, PolarsError> {
     let include_number = schema.contains_key("block_number");
     let include_hash = schema.contains_key("block_hash");
     let include_author = schema.contains_key("author");

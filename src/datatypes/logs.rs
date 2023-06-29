@@ -10,11 +10,16 @@ use crate::chunks;
 use crate::types::BlockChunk;
 use crate::types::ColumnType;
 use crate::types::Dataset;
+use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Logs;
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
+    fn datatype(&self) -> Datatype {
+        Datatype::Logs
+    }
+
     fn name(&self) -> &'static str {
         "logs"
     }
@@ -53,7 +58,7 @@ impl Dataset for Logs {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
 
-    async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
         let logs = get_logs(
             block_chunk,
             &opts.contract,

@@ -6,6 +6,7 @@ use polars::prelude::*;
 use crate::chunks;
 use crate::datatypes;
 use crate::types::BlockChunk;
+use crate::types::Datatype;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::FreezeOpts;
@@ -13,6 +14,10 @@ use crate::types::Transactions;
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
+    fn datatype(&self) -> Datatype {
+        Datatype::Transactions
+    }
+
     fn name(&self) -> &'static str {
         "transactions"
     }
@@ -61,7 +66,7 @@ impl Dataset for Transactions {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
         let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
         let transactions = get_transactions(block_numbers, opts).await.unwrap();
         txs_to_df(transactions).unwrap()
