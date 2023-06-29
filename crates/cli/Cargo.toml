@@ -1,0 +1,23 @@
+[package]
+name = "cryo_cli"
+version = "0.1.0"
+edition = "2021"
+
+[[bin]]
+name = "cryo"
+path = "src/main.rs"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+clap = "4.3.9"
+color-print = "0.3.4"
+ethers = "2.0.7"
+hex = "0.4.3"
+polars = "0.30.0"
+tokio = "1.29.0"
+cryo_freezer = { path = "../freezer" }
+colored = "2.0.0"
+thousands = "0.2.0"
+chrono = "0.4.26"
+anstyle = "1.0.1"

@@ -8,18 +8,17 @@ use ethers::prelude::*;
 use hex::FromHex;
 use polars::prelude::*;
 
-use crate::chunks;
-use crate::types::BlockChunk;
-use crate::types::ColumnEncoding;
-use crate::types::CompressionParseError;
-use crate::types::Datatype;
-use crate::types::FileFormat;
-use crate::types::FreezeOpts;
-use crate::types::Schema;
+use cryo_freezer::BlockChunk;
+use cryo_freezer::ColumnEncoding;
+use cryo_freezer::CompressionParseError;
+use cryo_freezer::Datatype;
+use cryo_freezer::FileFormat;
+use cryo_freezer::FreezeOpts;
+use cryo_freezer::Schema;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
-#[command(author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str())]
+#[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str())]
 pub struct Args {
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     datatype: Vec<String>,
@@ -222,7 +221,7 @@ fn get_datatype_help() -> &'static str {
 }
 
 /// parse options for running freeze
-pub async fn parse_opts() -> (FreezeOpts, Args) {
+pub async fn parse_opts() -> FreezeOpts {
     // parse args
     let args = Args::parse();
 
@@ -249,8 +248,8 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     // parse block chunks
     let block_chunk = parse_block_inputs(&args.blocks, &provider).await.unwrap();
     let block_chunks = match args.n_chunks {
-        Some(n_chunks) => chunks::get_subchunks_by_count(&block_chunk, &n_chunks),
-        None => chunks::get_subchunks_by_size(&block_chunk, &args.chunk_size),
+        Some(n_chunks) => cryo_freezer::get_subchunks_by_count(&block_chunk, &n_chunks),
+        None => cryo_freezer::get_subchunks_by_size(&block_chunk, &args.chunk_size),
     };
     if args.reorg_buffer != "0" {
         println!("reorg")
@@ -307,7 +306,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
     let row_group_size = parse_row_group_size(args.row_group_size, args.n_row_groups);
 
     // compile opts
-    let opts = FreezeOpts {
+    FreezeOpts {
         datatypes,
         // content options
         block_chunks,
@@ -336,9 +335,7 @@ pub async fn parse_opts() -> (FreezeOpts, Args) {
         topic2,
         topic3,
         log_request_size: args.log_request_size,
-    };
-
-    (opts, args)
+    }
 }
 
 fn parse_datatype(datatype: &str) -> Datatype {
@@ -352,7 +349,10 @@ fn parse_datatype(datatype: &str) -> Datatype {
     }
 }
 
-pub fn parse_row_group_size(row_group_size: Option<usize>, n_row_groups: Option<usize>) -> Option<usize> {
+pub fn parse_row_group_size(
+    row_group_size: Option<usize>,
+    n_row_groups: Option<usize>,
+) -> Option<usize> {
     match (row_group_size, n_row_groups) {
         (Some(row_group_size), _) => Some(row_group_size),
         (_, Some(n_row_groups)) => Some(n_row_groups),

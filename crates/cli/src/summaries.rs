@@ -1,60 +1,80 @@
 use std::collections::HashMap;
 
 use chrono::{DateTime, Local};
+use colored::Colorize;
 use std::time::SystemTime;
 use thousands::Separable;
 
-use crate::chunks;
-use crate::cli;
-use crate::outputs::generic;
-use crate::types::Datatype;
-use crate::types::FreezeOpts;
-use crate::types::FreezeSummary;
-use crate::types::Schema;
+use cryo_freezer;
+use cryo_freezer::Datatype;
+use cryo_freezer::FreezeOpts;
+use cryo_freezer::FreezeSummary;
+use cryo_freezer::Schema;
 
-pub fn print_cryo_summary(opts: &FreezeOpts, args: &cli::Args) {
-    generic::print_header("cryo parameters");
+const TITLE_R: u8 = 0;
+const TITLE_G: u8 = 225;
+const TITLE_B: u8 = 0;
+
+pub fn print_header<A: AsRef<str>>(header: A) {
+    let header_str = header.as_ref().white().bold();
+    let underline = "─"
+        .repeat(header_str.len())
+        .truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}", header_str);
+    println!("{}", underline);
+}
+
+pub fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
+    let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let key_str = key.as_ref().white().bold();
+    let value_str = value.as_ref().truecolor(170, 170, 170);
+    let colon_str = ": ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
+}
+
+pub fn print_cryo_summary(opts: &FreezeOpts) {
+    print_header("cryo parameters");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.dataset().name()).collect();
-    generic::print_bullet("datatypes", datatype_strs.join(", "));
-    generic::print_bullet("network", &opts.network_name);
-    let rpc_url = cli::parse_rpc_url(args);
-    generic::print_bullet("provider", rpc_url);
-    generic::print_bullet(
+    print_bullet("datatypes", datatype_strs.join(", "));
+    print_bullet("network", &opts.network_name);
+    // let rpc_url = cli::parse_rpc_url(args);
+    // print_bullet("provider", rpc_url);
+    print_bullet(
         "min block",
-        chunks::get_min_block(&opts.block_chunks).separate_with_commas(),
+        cryo_freezer::get_min_block(&opts.block_chunks).separate_with_commas(),
     );
-    generic::print_bullet(
+    print_bullet(
         "max block",
-        chunks::get_max_block(&opts.block_chunks).separate_with_commas(),
+        cryo_freezer::get_max_block(&opts.block_chunks).separate_with_commas(),
     );
-    generic::print_bullet(
+    print_bullet(
         "total blocks",
-        chunks::get_total_blocks(&opts.block_chunks).separate_with_commas(),
+        cryo_freezer::get_total_blocks(&opts.block_chunks).separate_with_commas(),
     );
-    let chunk_size = chunks::get_total_blocks(&[opts.block_chunks.get(0).unwrap().clone()]);
-    generic::print_bullet("block chunk size", chunk_size.separate_with_commas());
-    generic::print_bullet(
+    let chunk_size = cryo_freezer::get_total_blocks(&[opts.block_chunks.get(0).unwrap().clone()]);
+    print_bullet("block chunk size", chunk_size.separate_with_commas());
+    print_bullet(
         "total block chunks",
         opts.block_chunks.len().separate_with_commas(),
     );
-    generic::print_bullet(
+    print_bullet(
         "max concurrent chunks",
         opts.max_concurrent_chunks.separate_with_commas(),
     );
-    generic::print_bullet(
+    print_bullet(
         "max concurrent blocks",
         opts.max_concurrent_blocks.separate_with_commas(),
     );
     if opts.datatypes.contains(&Datatype::Logs) {
-        generic::print_bullet("log request size", opts.log_request_size.to_string());
+        print_bullet("log request size", opts.log_request_size.to_string());
     };
-    generic::print_bullet("output format", opts.output_format.as_str());
-    generic::print_bullet("binary column format", opts.binary_column_format.as_str());
-    generic::print_bullet("output dir", &opts.output_dir);
+    print_bullet("output format", opts.output_format.as_str());
+    print_bullet("binary column format", opts.binary_column_format.as_str());
+    print_bullet("output dir", &opts.output_dir);
     print_schemas(&opts.schemas, opts);
 }
 
-fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
+pub fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
         println!();
         println!();
@@ -62,10 +82,10 @@ fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
     })
 }
 
-fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
-    generic::print_header("schema for ".to_string() + name.dataset().name());
+pub fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
+    print_header("schema for ".to_string() + name.dataset().name());
     schema.iter().for_each(|(name, column_type)| {
-        generic::print_bullet(name, column_type.as_str());
+        print_bullet(name, column_type.as_str());
     });
     println!();
     println!("sorting {} by: {}", name.dataset().name(), sort.join(", "));
@@ -86,12 +106,12 @@ pub fn print_cryo_conclusion(
     let millis = duration.subsec_millis();
     let duration_string = format!("{}.{:03} seconds", seconds, millis);
 
-    generic::print_header("collection summary");
-    generic::print_bullet(
+    print_header("collection summary");
+    print_bullet(
         "t_start",
         dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
     );
-    generic::print_bullet(
+    print_bullet(
         "t_end",
         "  ".to_string()
             + dt_data_done
@@ -99,31 +119,31 @@ pub fn print_cryo_conclusion(
                 .to_string()
                 .as_str(),
     );
-    generic::print_bullet("total duration", duration_string);
-    generic::print_bullet(
+    print_bullet("total duration", duration_string);
+    print_bullet(
         "chunks completed",
         freeze_summary.n_completed.separate_with_commas(),
     );
-    generic::print_bullet(
+    print_bullet(
         "chunks skipped",
         freeze_summary.n_skipped.separate_with_commas(),
     );
-    let total_blocks = chunks::get_total_blocks(&opts.block_chunks) as f64;
+    let total_blocks = cryo_freezer::get_total_blocks(&opts.block_chunks) as f64;
     let blocks_completed =
         total_blocks * (freeze_summary.n_completed as f64 / opts.block_chunks.len() as f64);
-    generic::print_bullet("blocks completed", blocks_completed.separate_with_commas());
+    print_bullet("blocks completed", blocks_completed.separate_with_commas());
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let blocks_per_second = blocks_completed / total_time;
     let blocks_per_minute = blocks_per_second * 60.0;
     let blocks_per_hour = blocks_per_minute * 60.0;
     let blocks_per_day = blocks_per_hour * 24.0;
-    generic::print_bullet("blocks per second", format_float(blocks_per_second));
-    generic::print_bullet("blocks per minute", format_float(blocks_per_minute));
-    generic::print_bullet(
+    print_bullet("blocks per second", format_float(blocks_per_second));
+    print_bullet("blocks per minute", format_float(blocks_per_minute));
+    print_bullet(
         "blocks per hour",
         "  ".to_string() + format_float(blocks_per_hour).as_str(),
     );
-    generic::print_bullet(
+    print_bullet(
         "blocks per day",
         "   ".to_string() + format_float(blocks_per_day).as_str(),
     );
