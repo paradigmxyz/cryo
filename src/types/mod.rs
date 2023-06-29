@@ -12,7 +12,6 @@ pub use data_types::*;
 pub use output_types::FileFormat;
 pub use output_types::ColumnEncoding;
 pub use output_types::BlockChunk;
-pub use output_types::SlimBlock;
 pub use schema_types::Schema;
 pub use schema_types::ColumnType;
 

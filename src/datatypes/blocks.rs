@@ -11,8 +11,9 @@ use crate::types::BlockChunk;
 use crate::types::Blocks;
 use crate::types::ColumnType;
 use crate::types::Dataset;
+use crate::types::Datatype;
 use crate::types::FreezeOpts;
-use crate::types::SlimBlock;
+use crate::types::Schema;
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
@@ -50,24 +51,12 @@ impl Dataset for Blocks {
 
     async fn collect_dataset(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
         let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-        let blocks = get_blocks(block_numbers, opts).await.unwrap();
-        blocks_to_df(blocks).unwrap()
+        let blocks = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_blocks)
+            .await
+            .unwrap();
+        let blocks = blocks.into_iter().flatten().collect();
+        blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).unwrap()
     }
-}
-
-pub async fn get_blocks(
-    block_numbers: Vec<u64>,
-    opts: &FreezeOpts,
-) -> Result<Vec<SlimBlock>, Box<dyn std::error::Error>> {
-    let results = fetch_blocks(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
-
-    let mut blocks: Vec<SlimBlock> = Vec::new();
-    for block in results.await.unwrap().into_iter().flatten() {
-        let slim_block = block_to_slim_block(&block);
-        blocks.push(slim_block);
-    }
-
-    Ok(blocks)
 }
 
 pub async fn fetch_blocks(
@@ -108,30 +97,6 @@ pub async fn fetch_blocks(
     }
 }
 
-// pub async fn get_blocks_and_transactions(
-//     block_numbers: Vec<u64>,
-//     opts: &FreezeOpts,
-// ) -> Result<(Vec<SlimBlock>, Vec<Transaction>), Box<dyn std::error::Error>> {
-//     let results =
-//         fetch_blocks_and_transactions(block_numbers, &opts.provider, &opts.max_concurrent_blocks);
-
-//     let mut blocks: Vec<SlimBlock> = Vec::new();
-//     let mut txs: Vec<Transaction> = Vec::new();
-//     for result in results.await.unwrap() {
-//         match result {
-//             Some(block) => {
-//                 let slim_block = chunks::block_to_slim_block(&block);
-//                 blocks.push(slim_block);
-//                 let block_txs = block.transactions;
-//                 txs.extend(block_txs);
-//             }
-//             _ => {}
-//         }
-//     }
-
-//     Ok((blocks, txs))
-// }
-
 pub async fn fetch_blocks_and_transactions(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
@@ -170,46 +135,74 @@ pub async fn fetch_blocks_and_transactions(
     }
 }
 
-pub fn blocks_to_df(blocks: Vec<SlimBlock>) -> Result<DataFrame, Box<dyn std::error::Error>> {
-    let mut number: Vec<u64> = Vec::new();
-    let mut hash: Vec<Vec<u8>> = Vec::new();
-    let mut author: Vec<Vec<u8>> = Vec::new();
-    let mut gas_used: Vec<u64> = Vec::new();
-    let mut extra_data: Vec<Vec<u8>> = Vec::new();
-    let mut timestamp: Vec<u64> = Vec::new();
-    let mut base_fee_per_gas: Vec<Option<u64>> = Vec::new();
+pub fn blocks_to_df(
+    blocks: Vec<Block<TxHash>>,
+    schema: &Schema,
+) -> Result<DataFrame, PolarsError> {
+    let include_number = schema.contains_key("block_number");
+    let include_hash = schema.contains_key("block_hash");
+    let include_author = schema.contains_key("author");
+    let include_gas_used = schema.contains_key("gas_used");
+    let include_extra_data = schema.contains_key("extra_data");
+    let include_timestamp = schema.contains_key("timestamp");
+    let include_base_fee_per_gas = schema.contains_key("base_fee_per_gas");
+
+    let mut number: Vec<u64> = Vec::with_capacity(blocks.len());
+    let mut hash: Vec<Vec<u8>> = Vec::with_capacity(blocks.len());
+    let mut author: Vec<Vec<u8>> = Vec::with_capacity(blocks.len());
+    let mut gas_used: Vec<u64> = Vec::with_capacity(blocks.len());
+    let mut extra_data: Vec<Vec<u8>> = Vec::with_capacity(blocks.len());
+    let mut timestamp: Vec<u64> = Vec::with_capacity(blocks.len());
+    let mut base_fee_per_gas: Vec<Option<u64>> = Vec::with_capacity(blocks.len());
 
     for block in blocks.iter() {
-        number.push(block.number);
-        hash.push(block.hash.clone());
-        author.push(block.author.clone());
-        gas_used.push(block.gas_used);
-        extra_data.push(block.extra_data.clone());
-        timestamp.push(block.timestamp);
-        base_fee_per_gas.push(block.base_fee_per_gas);
+        if let (Some(n), Some(h), Some(a)) = (block.number, block.hash, block.author) {
+            if include_number {
+                number.push(n.as_u64())
+            }
+            if include_hash {
+                hash.push(h.as_bytes().to_vec());
+            }
+            if include_author {
+                author.push(a.as_bytes().to_vec());
+            }
+            if include_gas_used {
+                gas_used.push(block.gas_used.as_u64());
+            }
+            if include_extra_data {
+                extra_data.push(block.extra_data.to_vec());
+            }
+            if include_timestamp {
+                timestamp.push(block.timestamp.as_u64());
+            }
+            if include_base_fee_per_gas {
+                base_fee_per_gas.push(block.base_fee_per_gas.map(|value| value.as_u64()));
+            }
+        }
     }
 
-    let df = df!(
-        "block_number" => number,
-        "block_hash" => hash,
-        "timestamp" => timestamp,
-        "author" => author,
-        "gas_used" => gas_used,
-        "extra_data" => extra_data,
-        "base_fee_per_gas" => base_fee_per_gas,
-    );
+    let mut cols = Vec::new();
+    if include_number {
+        cols.push(Series::new("block_number", number));
+    };
+    if include_hash {
+        cols.push(Series::new("block_hash", hash));
+    };
+    if include_author {
+        cols.push(Series::new("author", author));
+    };
+    if include_gas_used {
+        cols.push(Series::new("gas_used", gas_used));
+    };
+    if include_extra_data {
+        cols.push(Series::new("extra_data", extra_data));
+    };
+    if include_timestamp {
+        cols.push(Series::new("timestamp", timestamp));
+    };
+    if include_base_fee_per_gas {
+        cols.push(Series::new("base_fee_per_gas", base_fee_per_gas));
+    };
 
-    Ok(df?)
-}
-
-pub fn block_to_slim_block<T>(block: &Block<T>) -> SlimBlock {
-    SlimBlock {
-        number: block.number.unwrap().as_u64(),
-        hash: block.hash.unwrap().as_bytes().to_vec(),
-        author: block.author.unwrap().as_bytes().to_vec(),
-        gas_used: block.gas_used.as_u64(),
-        extra_data: block.extra_data.to_vec(),
-        timestamp: block.timestamp.as_u64(),
-        base_fee_per_gas: block.base_fee_per_gas.map(|value| value.as_u64()),
-    }
+    DataFrame::new(cols)
 }

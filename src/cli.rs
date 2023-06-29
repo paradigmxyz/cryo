@@ -393,10 +393,7 @@ fn parse_topic(input: &Option<String>) -> Option<ValueOrArray<Option<H256>>> {
             .map(H256)
     });
 
-    match value {
-        Some(inner) => Some(ValueOrArray::Value(Some(inner))),
-        None => None,
-    }
+    value.map(|inner| ValueOrArray::Value(Some(inner)))
 }
 
 fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression, CompressionParseError> {

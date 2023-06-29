@@ -842,6 +842,7 @@ dependencies = [
  "indexmap 2.0.0",
  "indicatif",
  "polars",
+ "rayon",
  "ring",
  "thousands",
  "tokio",

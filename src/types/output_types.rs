@@ -39,14 +39,3 @@ pub struct BlockChunk {
     pub block_numbers: Option<Vec<u64>>,
 }
 
-#[derive(Default)]
-pub struct SlimBlock {
-    pub number: u64,
-    pub hash: Vec<u8>,
-    pub author: Vec<u8>,
-    pub gas_used: u64,
-    pub extra_data: Vec<u8>,
-    pub timestamp: u64,
-    pub base_fee_per_gas: Option<u64>,
-}
-

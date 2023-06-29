@@ -23,7 +23,7 @@ pub fn df_to_file(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) {
     let binding = filename.to_string() + "_tmp";
     let tmp_filename = binding.as_str();
     match filename {
-        _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename, &opts),
+        _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename, opts),
         _ if filename.ends_with(".csv") => df_to_csv(df, tmp_filename),
         _ if filename.ends_with(".json") => df_to_json(df, tmp_filename),
         _ => panic!("invalid file format")

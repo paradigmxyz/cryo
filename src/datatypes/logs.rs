@@ -81,7 +81,7 @@ pub async fn get_logs(
     let results = fetch_logs(
         request_chunks,
         address,
-        &topics,
+        topics,
         &opts.provider,
         &opts.max_concurrent_blocks,
     )
