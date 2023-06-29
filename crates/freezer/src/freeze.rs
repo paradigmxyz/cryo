@@ -49,7 +49,7 @@ async fn freeze_chunk(
         if Path::new(&path).exists() & !opts.overwrite {
             return FreezeChunkSummary { skipped: true };
         } else {
-            let mut df = ds.collect_chunk(&block_chunk, &opts).await;
+            let mut df = ds.collect_chunk(&block_chunk, &opts).await.unwrap();
             outputs::df_to_file(&mut df, &path, &opts);
         }
     }

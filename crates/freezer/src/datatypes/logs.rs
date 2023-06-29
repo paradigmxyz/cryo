@@ -8,11 +8,13 @@ use tokio::sync::Semaphore;
 
 use crate::chunks;
 use crate::types::BlockChunk;
+use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Logs;
+use crate::types::Schema;
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
@@ -58,9 +60,15 @@ impl Dataset for Logs {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
 
-    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
-        let logs = get_logs(
-            block_chunk,
+    async fn collect_chunk(
+        &self,
+        block_chunk: &BlockChunk,
+        opts: &FreezeOpts,
+    ) -> Result<DataFrame, CollectError> {
+        let request_chunks =
+            chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
+        let logs = fetch_logs(
+            request_chunks,
             &opts.contract,
             &[
                 opts.topic0.clone(),
@@ -68,39 +76,13 @@ impl Dataset for Logs {
                 opts.topic2.clone(),
                 opts.topic3.clone(),
             ],
-            opts,
+            &opts.provider,
+            &opts.max_concurrent_blocks,
         )
-        .await
-        .unwrap();
-        logs_to_df(logs).unwrap()
+        .await?;
+
+        logs_to_df(logs, &opts.schemas[&Datatype::Logs]).map_err(CollectError::PolarsError)
     }
-}
-
-pub async fn get_logs(
-    block_chunk: &BlockChunk,
-    address: &Option<ValueOrArray<H160>>,
-    topics: &[Option<ValueOrArray<Option<H256>>>; 4],
-    opts: &FreezeOpts,
-) -> Result<Vec<Log>, Box<dyn std::error::Error>> {
-    let request_chunks = chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
-    let results = fetch_logs(
-        request_chunks,
-        address,
-        topics,
-        &opts.provider,
-        &opts.max_concurrent_blocks,
-    )
-    .await
-    .unwrap();
-
-    let mut logs: Vec<Log> = Vec::new();
-    for result in results {
-        for log in result.unwrap() {
-            logs.push(log);
-        }
-    }
-
-    Ok(logs)
 }
 
 pub async fn fetch_logs(
@@ -109,47 +91,39 @@ pub async fn fetch_logs(
     topics: &[Option<ValueOrArray<Option<H256>>>; 4],
     provider: &Provider<Http>,
     max_concurrent_requests: &u64,
-) -> Result<Vec<Option<Vec<Log>>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Log>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_requests as usize));
 
-    // prepare futures for concurrent execution
     let futures = request_chunks.into_iter().map(|request_chunk| {
         let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore); // Cloning the Arc, not the Semaphore
+        let semaphore = Arc::clone(&semaphore);
         let filter = Filter {
             block_option: request_chunk,
             address: address.clone(),
             topics: topics.clone(),
         };
         tokio::spawn(async move {
-            let permit = Arc::clone(&semaphore).acquire_owned().await;
-            let result = provider.get_logs(&filter).await;
-            drop(permit); // release the permit when the task is done
-            result
+            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            provider.get_logs(&filter).await
         })
     });
 
-    let results: Result<Vec<Option<Vec<Log>>>, _> = join_all(futures)
+    let nested_logs: Result<Vec<Option<Vec<Log>>>, CollectError> = join_all(futures)
         .await
         .into_iter()
         .map(|r| match r {
-            Ok(Ok(block)) => Ok(Some(block)),
-            Ok(Err(e)) => {
-                println!("Failed to get block: {}", e);
-                Ok(None)
-            }
-            Err(e) => Err(format!("Task failed: {}", e)),
+            Ok(Ok(logs)) => Ok(Some(logs)),
+            Ok(Err(e)) => Err(CollectError::ProviderError(e)),
+            Err(e) => Err(CollectError::TaskFailed(e)),
         })
         .collect();
 
-    match results {
-        Ok(blocks) => Ok(blocks),
-        Err(e) => Err(Box::from(e)), // Convert the error into a boxed dyn Error
-    }
+    let flat_logs: Vec<Log> = nested_logs?.into_iter().flatten().flatten().collect();
+
+    Ok(flat_logs)
 }
 
-pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error>> {
-    // not recording: block_hash, transaction_log_index
+pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, PolarsError> {
     let mut address: Vec<Vec<u8>> = Vec::new();
     let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
     let mut topic1: Vec<Option<Vec<u8>>> = Vec::new();
@@ -160,62 +134,62 @@ pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error
     let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
     let mut transaction_index: Vec<u64> = Vec::new();
     let mut log_index: Vec<u64> = Vec::new();
-    // let mut log_type: Vec<Option<String>> = Vec::new();
 
     for log in logs.iter() {
-        if log.removed.unwrap() {
+        if let Some(true) = log.removed {
             continue;
-        };
-
-        address.push(log.address.as_bytes().to_vec());
-        match log.topics.len() {
-            0 => {
-                topic0.push(None);
-                topic1.push(None);
-                topic2.push(None);
-                topic3.push(None);
-            }
-            1 => {
-                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                topic1.push(None);
-                topic2.push(None);
-                topic3.push(None);
-            }
-            2 => {
-                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                topic2.push(None);
-                topic3.push(None);
-            }
-            3 => {
-                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                topic3.push(None);
-            }
-            4 => {
-                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                topic3.push(Some(log.topics[3].as_bytes().to_vec()));
-            }
-            _ => {
-                panic!("Invalid number of topics");
-            }
         }
-        data.push(log.data.clone().to_vec());
-        block_number.push(log.block_number.unwrap().as_u64());
-        transaction_hash.push(
-            log.transaction_hash
-                .map(|hash| hash.as_bytes().to_vec())
-                .unwrap(),
-        );
-        transaction_index.push(log.transaction_index.unwrap().as_u64());
-        log_index.push(log.log_index.unwrap().as_u64());
-        // log_type.push(log.log_type.clone());
+        if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
+            log.block_number,
+            log.transaction_hash,
+            log.transaction_index,
+            log.log_index,
+        ) {
+            address.push(log.address.as_bytes().to_vec());
+            match log.topics.len() {
+                0 => {
+                    topic0.push(None);
+                    topic1.push(None);
+                    topic2.push(None);
+                    topic3.push(None);
+                }
+                1 => {
+                    topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                    topic1.push(None);
+                    topic2.push(None);
+                    topic3.push(None);
+                }
+                2 => {
+                    topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                    topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                    topic2.push(None);
+                    topic3.push(None);
+                }
+                3 => {
+                    topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                    topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                    topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                    topic3.push(None);
+                }
+                4 => {
+                    topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                    topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                    topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                    topic3.push(Some(log.topics[3].as_bytes().to_vec()));
+                }
+                _ => {
+                    panic!("Invalid number of topics");
+                }
+            }
+            data.push(log.data.clone().to_vec());
+            block_number.push(bn.as_u64());
+            transaction_hash.push(tx.as_bytes().to_vec());
+            transaction_index.push(ti.as_u64());
+            log_index.push(li.as_u64());
+        }
     }
 
-    let df = df!(
+    df!(
         "block_number" => block_number,
         "transaction_index" => transaction_index,
         "log_index" => log_index,
@@ -226,8 +200,5 @@ pub fn logs_to_df(logs: Vec<Log>) -> Result<DataFrame, Box<dyn std::error::Error
         "topic2" => topic2,
         "topic3" => topic3,
         "data" => data,
-        // "log_type" => log_type,
-    );
-
-    Ok(df?)
+    )
 }

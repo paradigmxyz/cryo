@@ -6,9 +6,10 @@ use polars::prelude::*;
 use crate::chunks;
 use crate::datatypes;
 use crate::types::BlockChunk;
-use crate::types::Datatype;
+use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
+use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Transactions;
 
@@ -66,17 +67,21 @@ impl Dataset for Transactions {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+    async fn collect_chunk(
+        &self,
+        block_chunk: &BlockChunk,
+        opts: &FreezeOpts,
+    ) -> Result<DataFrame, CollectError> {
         let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-        let transactions = get_transactions(block_numbers, opts).await.unwrap();
-        txs_to_df(transactions).unwrap()
+        let transactions = fetch_transactions(block_numbers, opts).await?;
+        txs_to_df(transactions).map_err(CollectError::PolarsError)
     }
 }
 
-pub async fn get_transactions(
+pub async fn fetch_transactions(
     block_numbers: Vec<u64>,
     opts: &FreezeOpts,
-) -> Result<Vec<Transaction>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Transaction>, CollectError> {
     let results = datatypes::blocks::fetch_blocks_and_transactions(
         block_numbers,
         &opts.provider,
@@ -84,7 +89,7 @@ pub async fn get_transactions(
     );
 
     let mut txs: Vec<Transaction> = Vec::new();
-    for block in results.await.unwrap().into_iter().flatten() {
+    for block in results.await?.into_iter().flatten() {
         let block_txs = block.transactions;
         txs.extend(block_txs);
     }
@@ -93,7 +98,7 @@ pub async fn get_transactions(
 }
 
 /// convert a `Vec<Transaction>` into polars dataframe
-pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error::Error>> {
+pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, PolarsError> {
     // not recording: v, r, s, access_list
     let mut hashes: Vec<&[u8]> = Vec::new();
     let mut transaction_indices: Vec<Option<u64>> = Vec::new();
@@ -135,7 +140,8 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error:
         max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
         chain_ids.push(tx.chain_id.map(|value| value.as_u64()));
     }
-    let df = df!(
+
+    df!(
         "block_number" => block_numbers,
         "transaction_index" => transaction_indices,
         "transaction_hash" => hashes,
@@ -150,6 +156,5 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, Box<dyn std::error:
         "max_priority_fee_per_gas" => max_priority_fee_per_gas,
         "max_fee_per_gas" => max_fee_per_gas,
         "chain_id" => chain_ids,
-    );
-    Ok(df?)
+    )
 }

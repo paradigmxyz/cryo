@@ -10,6 +10,7 @@ use tokio::sync::Semaphore;
 use crate::chunks;
 use crate::types::BlockChunk;
 use crate::types::Blocks;
+use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
@@ -54,113 +55,70 @@ impl Dataset for Blocks {
         vec!["block_number".to_string()]
     }
 
-    async fn collect_chunk(&self, block_chunk: &BlockChunk, opts: &FreezeOpts) -> DataFrame {
+    async fn collect_chunk(
+        &self,
+        block_chunk: &BlockChunk,
+        opts: &FreezeOpts,
+    ) -> Result<DataFrame, CollectError> {
         let numbers = chunks::get_chunk_block_numbers(block_chunk);
-        let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks)
-            .await
-            .unwrap();
+        let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
         let blocks = blocks.into_iter().flatten().collect();
-        blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).unwrap()
+        blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).map_err(CollectError::PolarsError)
     }
-
-    // async fn collect_chunk_with_extras(
-    //     &self,
-    //     block_chunk: &BlockChunk,
-    //     extras: &HashSet<Datatype>,
-    //     opts: &FreezeOpts,
-    // ) -> HashMap<Datatype, DataFrame> {
-    //     if extras.is_empty() {
-    //         let df = self.collect_chunk(block_chunk, opts).await;
-    //         [(Datatype::Blocks, df)].iter().cloned().collect()
-    //     } else if (extras.len() == 1) & extras.contains(&Datatype::Transactions) {
-    //         let numbers = chunks::get_chunk_block_numbers(block_chunk);
-    //         let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks)
-    //             .await
-    //             .unwrap();
-    //         let blocks = blocks.into_iter().flatten().collect();
-    //         let blocks = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).unwrap()
-    //         [(Datatype::Blocks, blocks), (Datatype::Transactions, transactions)].iter().cloned().collect()
-    //     } else {
-    //         panic!("invalid extras")
-    //     }
-    // }
-
 }
 
 pub async fn fetch_blocks(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
-) -> Result<Vec<Option<Block<TxHash>>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Option<Block<TxHash>>>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
-    // prepare futures for concurrent execution
     let futures = block_numbers.into_iter().map(|block_number| {
         let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore); // Cloning the Arc, not the Semaphore
+        let semaphore = Arc::clone(&semaphore);
         tokio::spawn(async move {
-            let permit = Arc::clone(&semaphore).acquire_owned().await;
-            let result = provider.get_block(block_number).await;
-            drop(permit); // release the permit when the task is done
-            result
+            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            provider.get_block(block_number).await
         })
     });
 
-    let results: Result<Vec<Option<Block<TxHash>>>, _> = join_all(futures)
+    join_all(futures)
         .await
         .into_iter()
         .map(|r| match r {
             Ok(Ok(block)) => Ok(block),
-            Ok(Err(e)) => {
-                println!("Failed to get block: {}", e);
-                Ok(None)
-            }
-            Err(e) => Err(format!("Task failed: {}", e)),
+            Ok(Err(e)) => Err(CollectError::ProviderError(e)),
+            Err(e) => Err(CollectError::TaskFailed(e)),
         })
-        .collect();
-
-    match results {
-        Ok(blocks) => Ok(blocks),
-        Err(e) => Err(e.into()), // Convert the error into a boxed dyn Error
-    }
+        .collect()
 }
 
 pub async fn fetch_blocks_and_transactions(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
-) -> Result<Vec<Option<Block<Transaction>>>, Box<dyn std::error::Error>> {
+) -> Result<Vec<Option<Block<Transaction>>>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
-    // prepare futures for concurrent execution
     let futures = block_numbers.into_iter().map(|block_number| {
         let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore); // Cloning the Arc, not the Semaphore
+        let semaphore = Arc::clone(&semaphore);
         tokio::spawn(async move {
-            let permit = Arc::clone(&semaphore).acquire_owned().await;
-            let result = provider.get_block_with_txs(block_number).await;
-            drop(permit); // release the permit when the task is done
-            result
+            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            provider.get_block_with_txs(block_number).await
         })
     });
 
-    let results: Result<Vec<Option<Block<Transaction>>>, _> = join_all(futures)
+    join_all(futures)
         .await
         .into_iter()
         .map(|r| match r {
             Ok(Ok(block)) => Ok(block),
-            Ok(Err(e)) => {
-                println!("Failed to get block: {}", e);
-                Ok(None)
-            }
-            Err(e) => Err(format!("Task failed: {}", e)),
+            Ok(Err(e)) => Err(CollectError::ProviderError(e)),
+            Err(e) => Err(CollectError::TaskFailed(e)),
         })
-        .collect();
-
-    match results {
-        Ok(blocks) => Ok(blocks),
-        Err(e) => Err(e.into()), // Convert the error into a boxed dyn Error
-    }
+        .collect()
 }
 
 pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataFrame, PolarsError> {

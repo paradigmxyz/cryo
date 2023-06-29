@@ -21,6 +21,7 @@ indicatif = "0.17.5"
 polars = { version = "0.30.0", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding", "json", "dtype-struct"] }
 rayon = "1.7.0"
 ring = "0.16.20"
+thiserror = "1.0.40"
 thousands = "0.2.0"
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread"] }
 
