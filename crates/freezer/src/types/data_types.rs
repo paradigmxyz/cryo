@@ -2,13 +2,12 @@ use std::collections::HashMap;
 // use std::collections::HashSet;
 
 use async_trait;
-use ethers::prelude::*;
 use polars::prelude::*;
-use thiserror::Error;
 
 use crate::types::BlockChunk;
 use crate::types::ColumnType;
 use crate::types::FreezeOpts;
+use crate::types::error_types;
 
 pub struct Blocks;
 pub struct Logs;
@@ -31,18 +30,6 @@ impl Datatype {
     }
 }
 
-#[derive(Error, Debug)]
-pub enum CollectError {
-    #[error("Failed to get block: {0}")]
-    ProviderError(#[source] ProviderError), // Replace ProviderErrorType with the actual error type from the provider
-
-    #[error("Task failed: {0}")]
-    TaskFailed(#[source] tokio::task::JoinError),
-
-    #[error("Failed to convert to DataFrme: {0}")]
-    PolarsError(#[from] PolarsError),
-}
-
 #[async_trait::async_trait]
 pub trait Dataset: Sync + Send {
     fn datatype(&self) -> Datatype;
@@ -54,7 +41,7 @@ pub trait Dataset: Sync + Send {
         &self,
         _block_chunk: &BlockChunk,
         _opts: &FreezeOpts,
-    ) -> Result<DataFrame, CollectError>;
+    ) -> Result<DataFrame, error_types::CollectError>;
 
     // async fn collect_chunk_with_extras(
     //     &self,

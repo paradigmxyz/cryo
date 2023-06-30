@@ -44,10 +44,12 @@ pub struct FreezeOpts {
 pub struct FreezeSummary {
     pub n_completed: u64,
     pub n_skipped: u64,
+    pub n_errored: u64,
 }
 
 pub struct FreezeChunkSummary {
     pub skipped: bool,
+    pub errored: bool,
 }
 
 #[derive(Debug)]

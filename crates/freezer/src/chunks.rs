@@ -2,6 +2,7 @@ use ethers::prelude::*;
 use ring::digest::{self, Digest};
 
 use crate::types::BlockChunk;
+use crate::types::error_types;
 
 pub fn get_subchunks_by_size(block_chunk: &BlockChunk, chunk_size: &u64) -> Vec<BlockChunk> {
     match block_chunk {
@@ -115,23 +116,26 @@ fn compute_numbers_hash(numbers: &[u64]) -> String {
 }
 
 /// convert a block chunk into a String representation
-pub fn get_block_chunk_stub(chunk: &BlockChunk) -> String {
+pub fn get_block_chunk_stub(chunk: &BlockChunk) -> Result<String, error_types::ChunkError> {
     match chunk {
         BlockChunk {
             block_numbers: Some(block_numbers),
             ..
         } => {
-            let min = block_numbers.iter().min().unwrap();
-            let max = block_numbers.iter().max().unwrap();
-            let hash = compute_numbers_hash(block_numbers);
-            format!("mixed_{}_to_{}_{}", min, max, &hash[0..8].to_string())
+            match (block_numbers.iter().min(), block_numbers.iter().max()) {
+                (Some(min), Some(max)) => {
+                    let hash = compute_numbers_hash(block_numbers);
+                    Ok(format!("mixed_{}_to_{}_{}", min, max, &hash[0..8].to_string()))
+                },
+                _ => Err(error_types::ChunkError::StubError)
+            }
         }
         BlockChunk {
             start_block: Some(start_block),
             end_block: Some(end_block),
             ..
-        } => format!("{}_to_{}", start_block, end_block),
-        _ => panic!("invalid block range"),
+        } => Ok(format!("{}_to_{}", start_block, end_block)),
+        _ => Err(error_types::ChunkError::InvalidChunk),
     }
 }
 
@@ -154,42 +158,55 @@ pub fn get_total_blocks(block_chunks: &[BlockChunk]) -> u64 {
     total
 }
 
-pub fn get_min_block(block_chunks: &[BlockChunk]) -> u64 {
-    let mut block_min = std::u64::MAX;
-    block_chunks.iter().for_each(|chunk| {
-        let chunk_min = match chunk {
-            BlockChunk {
-                block_numbers: Some(block_numbers),
-                ..
-            } => *block_numbers.iter().min().unwrap(),
-            BlockChunk {
-                start_block: Some(start_block),
-                end_block: Some(_end_block),
-                ..
-            } => *start_block,
-            _ => panic!("invalid BlockChunk"),
-        };
-        block_min = std::cmp::min(chunk_min, block_min);
-    });
-    block_min
+pub fn get_min_block(block_chunks: &[BlockChunk]) -> Option<u64> {
+    if block_chunks.is_empty() {
+        None
+    } else {
+        let mut block_min = std::u64::MAX;
+        block_chunks.iter().for_each(|chunk| {
+            let chunk_min = match chunk {
+                BlockChunk {
+                    block_numbers: Some(block_numbers),
+                    ..
+                } => block_numbers.iter().min(),
+                BlockChunk {
+                    start_block: Some(start_block),
+                    end_block: Some(_end_block),
+                    ..
+                } => Some(start_block),
+                _ => panic!("invalid BlockChunk"),
+            };
+            if let Some(&chunk_min) = chunk_min {
+                block_min = std::cmp::min(chunk_min, block_min);
+            }
+        });
+        Some(block_min)
+    }
 }
 
-pub fn get_max_block(block_chunks: &[BlockChunk]) -> u64 {
-    let mut block_max = std::u64::MIN;
-    block_chunks.iter().for_each(|chunk| {
-        let chunk_max = match chunk {
-            BlockChunk {
-                block_numbers: Some(block_numbers),
-                ..
-            } => *block_numbers.iter().max().unwrap(),
-            BlockChunk {
-                start_block: Some(_start_block),
-                end_block: Some(end_block),
-                ..
-            } => *end_block,
-            _ => panic!("invalid BlockChunk"),
-        };
-        block_max = std::cmp::max(chunk_max, block_max);
-    });
-    block_max
+pub fn get_max_block(block_chunks: &[BlockChunk]) -> Option<u64> {
+    if block_chunks.is_empty() {
+        None
+    } else {
+        let mut block_max = std::u64::MIN;
+        block_chunks.iter().for_each(|chunk| {
+            let chunk_max = match chunk {
+                BlockChunk {
+                    block_numbers: Some(block_numbers),
+                    ..
+                } => block_numbers.iter().max(),
+                BlockChunk {
+                    start_block: Some(start_block),
+                    end_block: Some(_end_block),
+                    ..
+                } => Some(start_block),
+                _ => panic!("invalid BlockChunk"),
+            };
+            if let Some(&chunk_max) = chunk_max {
+                block_max = std::cmp::max(chunk_max, block_max);
+            }
+        });
+        Some(block_max)
+    }
 }
+

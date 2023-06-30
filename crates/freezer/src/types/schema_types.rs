@@ -1,11 +1,12 @@
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
-
-pub type Schema = IndexMap<String, ColumnType>;
+use thiserror::Error;
 
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
+
+pub type Schema = IndexMap<String, ColumnType>;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
@@ -32,27 +33,33 @@ impl ColumnType {
     }
 }
 
+#[derive(Error, Debug)]
+pub enum SchemaError {
+    #[error("Invalid column")]
+    InvalidColumn,
+}
+
 impl Datatype {
     pub fn get_schema(
-        // datatype: Datatype,
         &self,
         binary_column_format: &ColumnEncoding,
         include_columns: &Option<Vec<String>>,
         exclude_columns: &Option<Vec<String>>,
-    ) -> Schema {
+    ) -> Result<Schema, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
         let used_columns = compute_used_columns(default_columns, include_columns, exclude_columns);
         let mut schema: Schema = IndexMap::new();
-        used_columns.iter().for_each(|column| {
-            let mut column_type = *column_types.get(column.as_str()).unwrap();
-            if (*binary_column_format == ColumnEncoding::Hex) & (column_type == ColumnType::Binary)
-            {
-                column_type = ColumnType::Hex;
+        for column in used_columns {
+            let mut ctype = column_types
+                .get(column.as_str())
+                .ok_or(SchemaError::InvalidColumn)?;
+            if (*binary_column_format == ColumnEncoding::Hex) & (ctype == &ColumnType::Binary) {
+                ctype = &ColumnType::Hex;
             }
-            schema.insert((*column.clone()).to_string(), column_type);
-        });
-        schema
+            schema.insert((*column.clone()).to_string(), *ctype);
+        }
+        Ok(schema)
     }
 }
 

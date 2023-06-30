@@ -5,7 +5,6 @@ use colored::Colorize;
 use std::time::SystemTime;
 use thousands::Separable;
 
-use cryo_freezer;
 use cryo_freezer::Datatype;
 use cryo_freezer::FreezeOpts;
 use cryo_freezer::FreezeSummary;
@@ -41,11 +40,11 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     // print_bullet("provider", rpc_url);
     print_bullet(
         "min block",
-        cryo_freezer::get_min_block(&opts.block_chunks).separate_with_commas(),
+        cryo_freezer::get_min_block(&opts.block_chunks).unwrap().separate_with_commas(),
     );
     print_bullet(
         "max block",
-        cryo_freezer::get_max_block(&opts.block_chunks).separate_with_commas(),
+        cryo_freezer::get_max_block(&opts.block_chunks).unwrap().separate_with_commas(),
     );
     print_bullet(
         "total blocks",

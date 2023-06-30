@@ -1,23 +1,24 @@
 use std::path::Path;
 use std::sync::Arc;
 
-use futures::future::try_join_all;
+use futures::future::join_all;
 use indicatif::ProgressBar;
 use tokio::sync::Semaphore;
 
 use crate::outputs;
 use crate::types::BlockChunk;
+use crate::types::FreezeChunkSummary;
+use crate::types::FreezeError;
 use crate::types::FreezeOpts;
 use crate::types::FreezeSummary;
-use crate::types::FreezeChunkSummary;
 
-pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, Box<dyn std::error::Error>> {
+pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     // create progress bar
     let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
     bar.set_style(
         indicatif::ProgressStyle::default_bar()
             .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
-            .unwrap(),
+            .map_err(FreezeError::ProgressBarError)?,
     );
 
     // freeze chunks concurrently
@@ -31,7 +32,11 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, Box<dyn std::erro
         let task = tokio::spawn(freeze_chunk(block_chunk, sem, opts, bar));
         tasks.push(task)
     }
-    let chunk_summaries: Vec<FreezeChunkSummary> = try_join_all(tasks).await.unwrap();
+    let chunk_summaries: Vec<FreezeChunkSummary> = join_all(tasks)
+        .await
+        .into_iter()
+        .filter_map(Result::ok)
+        .collect();
     Ok(create_freeze_summary(chunk_summaries))
 }
 
@@ -41,31 +46,58 @@ async fn freeze_chunk(
     opts: Arc<FreezeOpts>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {
-    let permit = sem.acquire().await.expect("Semaphore acquire");
+    let _permit = sem.acquire().await.expect("Semaphore acquire");
     for dt in &opts.datatypes {
         let ds = dt.dataset();
-        let path = outputs::get_chunk_path(ds.name(), &block_chunk, &opts);
-
-        if Path::new(&path).exists() & !opts.overwrite {
-            return FreezeChunkSummary { skipped: true };
-        } else {
-            let mut df = ds.collect_chunk(&block_chunk, &opts).await.unwrap();
-            outputs::df_to_file(&mut df, &path, &opts);
+        match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
+            Ok(path) => {
+                if Path::new(&path).exists() & !opts.overwrite {
+                    return FreezeChunkSummary {
+                        skipped: true,
+                        errored: false,
+                    };
+                } else {
+                    match ds.collect_chunk(&block_chunk, &opts).await {
+                        Ok(mut df) => if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
+                            return FreezeChunkSummary {
+                                skipped: false,
+                                errored: true,
+                            }
+                        },
+                        Err(_e) => {
+                            return FreezeChunkSummary {
+                                skipped: false,
+                                errored: true,
+                            }
+                        }
+                    }
+                }
+            }
+            _ => {
+                return FreezeChunkSummary {
+                    skipped: false,
+                    errored: true,
+                }
+            }
         }
     }
-    drop(permit);
     bar.inc(1);
-
-    FreezeChunkSummary { skipped: false }
+    FreezeChunkSummary {
+        skipped: false,
+        errored: false,
+    }
 }
 
 fn create_freeze_summary(chunk_summaries: Vec<FreezeChunkSummary>) -> FreezeSummary {
     let mut n_completed: u64 = 0;
     let mut n_skipped: u64 = 0;
+    let mut n_errored: u64 = 0;
 
-    for chunk_sumary in chunk_summaries {
-        if chunk_sumary.skipped {
+    for chunk_summary in chunk_summaries {
+        if chunk_summary.skipped {
             n_skipped += 1;
+        } else if chunk_summary.errored {
+            n_errored += 1;
         } else {
             n_completed += 1;
         }
@@ -74,5 +106,6 @@ fn create_freeze_summary(chunk_summaries: Vec<FreezeChunkSummary>) -> FreezeSumm
     FreezeSummary {
         n_completed,
         n_skipped,
+        n_errored,
     }
 }

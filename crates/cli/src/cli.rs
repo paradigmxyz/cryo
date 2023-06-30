@@ -289,7 +289,7 @@ pub async fn parse_opts() -> FreezeOpts {
             &binary_column_format,
             &args.include_columns,
             &args.exclude_columns,
-        );
+        ).unwrap();
         (*datatype, schema)
     }));
 
