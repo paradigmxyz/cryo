@@ -18,14 +18,6 @@ pub struct Args {
     )]
     pub blocks: Vec<String>,
 
-    /// Number of blocks per chunk
-    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
-    pub chunk_size: u64,
-
-    /// Number of chunks (alternative to --chunk-size)
-    #[arg(long, help_heading = "Output Options")]
-    pub n_chunks: Option<u64>,
-
     #[arg(
         long,
         default_value = "20min",
@@ -41,6 +33,14 @@ pub struct Args {
     /// Columns to exclude from output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub exclude_columns: Option<Vec<String>>,
+
+    /// Use hex string encoding for binary columns
+    #[arg(long, help_heading = "Content Options")]
+    pub hex: bool,
+
+    /// Columns(s) to sort by
+    #[arg(short, long, num_args(0..), help_heading="Content Options")]
+    pub sort: Vec<String>,
 
     /// RPC url [default: ETH_RPC_URL env var]
     #[arg(short, long, help_heading = "Source Options")]
@@ -75,6 +75,14 @@ pub struct Args {
     #[arg(short, long, help_heading = "Acquisition Options")]
     pub dry: bool,
 
+    /// Number of blocks per file
+    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
+    pub chunk_size: u64,
+
+    /// Number of files (alternative to --chunk-size)
+    #[arg(long, help_heading = "Output Options")]
+    pub n_chunks: Option<u64>,
+
     /// Directory for output files
     #[arg(short, long, default_value = ".", help_heading = "Output Options")]
     pub output_dir: String,
@@ -90,14 +98,6 @@ pub struct Args {
     /// Save as json instead of parquet
     #[arg(long, help_heading = "Output Options")]
     pub json: bool,
-
-    /// Use hex string encoding for binary columns
-    #[arg(long, help_heading = "Output Options")]
-    pub hex: bool,
-
-    /// Columns(s) to sort by
-    #[arg(short, long, num_args(0..), help_heading="Output Options")]
-    pub sort: Vec<String>,
 
     /// Number of rows per row group in parquet file
     #[arg(long, value_name = "GROUP_SIZE", help_heading = "Output Options")]
