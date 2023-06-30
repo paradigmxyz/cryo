@@ -32,10 +32,15 @@ impl ColumnEncoding {
     }
 }
 
-#[derive(Default, Debug, Clone)]
-pub struct BlockChunk {
-    pub start_block: Option<u64>,
-    pub end_block: Option<u64>,
-    pub block_numbers: Option<Vec<u64>>,
-}
+// #[derive(Default, Debug, Clone)]
+// pub struct BlockChunk {
+//     pub start_block: Option<u64>,
+//     pub end_block: Option<u64>,
+//     pub block_numbers: Option<Vec<u64>>,
+// }
 
+#[derive(Debug, Clone)]
+pub enum BlockChunk {
+    Numbers(Vec<u64>),
+    Range(u64, u64),
+}

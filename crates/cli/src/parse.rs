@@ -315,16 +315,10 @@ pub async fn parse_block_inputs(
             let mut block_numbers: Vec<u64> = vec![];
             for input in inputs {
                 let subchunk = parse_block_token(input, false, provider).await?;
-                let subchunk_block_numbers = subchunk
-                    .block_numbers
-                    .ok_or_else(|| eyre::eyre!("Failed to get block numbers from subchunk"))?;
+                let subchunk_block_numbers = cryo_freezer::get_chunk_block_numbers(&subchunk);
                 block_numbers.extend(subchunk_block_numbers);
             }
-            let block_chunk = BlockChunk {
-                start_block: None,
-                end_block: None,
-                block_numbers: Some(block_numbers),
-            };
+            let block_chunk = BlockChunk::Numbers(block_numbers);
             Ok(block_chunk)
         }
     }
@@ -346,10 +340,7 @@ async fn parse_block_token(
     match parts.as_slice() {
         [block_ref] => {
             let block = parse_block_number(block_ref, RangePosition::None, provider).await?;
-            Ok(BlockChunk {
-                block_numbers: Some(vec![block]),
-                ..Default::default()
-            })
+            Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
             let (start_block, end_block) = match (first_ref, second_ref) {
@@ -381,16 +372,9 @@ async fn parse_block_token(
             if end_block <= start_block {
                 Err(eyre::eyre!("end_block should not be less than start_block"))
             } else if as_range {
-                Ok(BlockChunk {
-                    start_block: Some(start_block),
-                    end_block: Some(end_block),
-                    block_numbers: None,
-                })
+                Ok(BlockChunk::Range(start_block, end_block))
             } else {
-                Ok(BlockChunk {
-                    block_numbers: Some((start_block..=end_block).collect()),
-                    ..Default::default()
-                })
+                Ok(BlockChunk::Numbers((start_block..=end_block).collect()))
             }
         }
         _ => Err(eyre::eyre!(
