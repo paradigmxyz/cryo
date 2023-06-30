@@ -16,6 +16,6 @@
     //         let blocks = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks])?
     //         [(Datatype::Blocks, blocks), (Datatype::Transactions, transactions)].iter().cloned().collect()
     //     } else {
-    //         panic!("invalid extras")
+    //         eyre::eyre("invalid extras")
     //     }
     // }

@@ -27,6 +27,9 @@ pub enum CollectError {
 
     #[error("Failed to convert to DataFrme: {0}")]
     PolarsError(#[from] PolarsError),
+
+    #[error("Invalid number of topics")]
+    InvalidNumberOfTopics,
 }
 
 #[derive(Error, Debug)]

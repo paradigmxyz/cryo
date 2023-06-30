@@ -81,7 +81,7 @@ impl Dataset for Logs {
         )
         .await?;
 
-        logs_to_df(logs, &opts.schemas[&Datatype::Logs]).map_err(CollectError::PolarsError)
+        logs_to_df(logs, &opts.schemas[&Datatype::Logs])
     }
 }
 
@@ -123,7 +123,7 @@ pub async fn fetch_logs(
     Ok(flat_logs)
 }
 
-pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, PolarsError> {
+pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, CollectError> {
     let mut address: Vec<Vec<u8>> = Vec::new();
     let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
     let mut topic1: Vec<Option<Vec<u8>>> = Vec::new();
@@ -178,7 +178,7 @@ pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, PolarsE
                     topic3.push(Some(log.topics[3].as_bytes().to_vec()));
                 }
                 _ => {
-                    panic!("Invalid number of topics");
+                    return Err(CollectError::InvalidNumberOfTopics);
                 }
             }
             data.push(log.data.clone().to_vec());
@@ -200,5 +200,5 @@ pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, PolarsE
         "topic2" => topic2,
         "topic3" => topic3,
         "data" => data,
-    )
+    ).map_err(CollectError::PolarsError)
 }

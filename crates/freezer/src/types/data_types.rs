@@ -50,7 +50,7 @@ pub trait Dataset: Sync + Send {
     //     opts: &FreezeOpts,
     // ) -> HashMap<Datatype, DataFrame> {
     //     if !extras.is_empty() {
-    //         panic!("custom collect_datasets() required when using extras");
+    //         ...
     //     }
     //     let df = self.collect_chunk(block_chunk, opts).await;
     //     [(self.datatype(), df)].iter().cloned().collect()

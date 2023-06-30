@@ -32,8 +32,7 @@ pub fn df_to_file(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) -> Resu
         _ if filename.ends_with(".parquet") => df_to_parquet(df, tmp_filename, opts),
         _ if filename.ends_with(".csv") => df_to_csv(df, tmp_filename),
         _ if filename.ends_with(".json") => df_to_json(df, tmp_filename),
-        // _ => return Err(FileError::FileWriteError("invalid file format")),
-        _ => panic!("HI")
+        _ => return Err(FileError::FileWriteError),
     };
     match result {
         Ok(()) => {
