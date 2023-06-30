@@ -860,10 +860,13 @@ dependencies = [
  "colored",
  "cryo_freezer",
  "ethers",
+ "eyre",
  "hex",
  "polars",
+ "thiserror",
  "thousands",
  "tokio",
+ "url",
 ]
 
 [[package]]

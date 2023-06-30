@@ -38,20 +38,21 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     print_bullet("network", &opts.network_name);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
-    print_bullet(
-        "min block",
-        cryo_freezer::get_min_block(&opts.block_chunks).unwrap().separate_with_commas(),
-    );
-    print_bullet(
-        "max block",
-        cryo_freezer::get_max_block(&opts.block_chunks).unwrap().separate_with_commas(),
-    );
+    if let Some(min) = cryo_freezer::get_min_block(&opts.block_chunks) {
+        print_bullet("min block", min.separate_with_commas());
+    };
+    if let Some(max) = cryo_freezer::get_max_block(&opts.block_chunks) {
+        print_bullet("max block", max.separate_with_commas());
+    };
     print_bullet(
         "total blocks",
         cryo_freezer::get_total_blocks(&opts.block_chunks).separate_with_commas(),
     );
-    let chunk_size = cryo_freezer::get_total_blocks(&[opts.block_chunks.get(0).unwrap().clone()]);
-    print_bullet("block chunk size", chunk_size.separate_with_commas());
+
+    if let Some(first_chunk) = opts.block_chunks.get(0) {
+        let chunk_size = cryo_freezer::get_total_blocks(&[first_chunk.clone()]);
+        print_bullet("block chunk size", chunk_size.separate_with_commas());
+    };
     print_bullet(
         "total block chunks",
         opts.block_chunks.len().separate_with_commas(),
@@ -77,17 +78,19 @@ pub fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
         println!();
         println!();
-        print_schema(name, schema, opts.sort.get(name).unwrap().to_vec())
+        print_schema(name, schema, opts.sort.get(name))
     })
 }
 
-pub fn print_schema(name: &Datatype, schema: &Schema, sort: Vec<String>) {
+pub fn print_schema(name: &Datatype, schema: &Schema, sort: Option<&Vec<String>>) {
     print_header("schema for ".to_string() + name.dataset().name());
     schema.iter().for_each(|(name, column_type)| {
         print_bullet(name, column_type.as_str());
     });
     println!();
-    println!("sorting {} by: {}", name.dataset().name(), sort.join(", "));
+    if let Some(sort_cols) = sort {
+        println!("sorting {} by: {}", name.dataset().name(), sort_cols.join(", "));
+    }
 }
 
 pub fn print_cryo_conclusion(
@@ -100,7 +103,13 @@ pub fn print_cryo_conclusion(
     let dt_start: DateTime<Local> = t_start.into();
     let dt_data_done: DateTime<Local> = t_data_done.into();
 
-    let duration = t_data_done.duration_since(t_start).unwrap();
+    let duration = match t_data_done.duration_since(t_start) {
+        Ok(duration) => duration,
+        Err(_e) => {
+            println!("error computing system time, aborting");
+            return
+        }
+    };
     let seconds = duration.as_secs();
     let millis = duration.subsec_millis();
     let duration_string = format!("{}.{:03} seconds", seconds, millis);

@@ -52,10 +52,3 @@ pub struct FreezeChunkSummary {
     pub errored: bool,
 }
 
-#[derive(Debug)]
-pub enum CompressionParseError {
-    InvalidCompressionAlgorithm,
-    InvalidCompressionLevel,
-    MissingCompressionLevel,
-}
-
