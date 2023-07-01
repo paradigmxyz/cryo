@@ -1,10 +1,12 @@
 
+pub mod conversions;
 pub mod cli_types;
 pub mod data_types;
 pub mod error_types;
 pub mod output_types;
 pub mod schema_types;
 
+pub use conversions::ToVecU8;
 pub use cli_types::FreezeOpts;
 pub use cli_types::FreezeChunkSummary;
 pub use cli_types::FreezeSummary;
