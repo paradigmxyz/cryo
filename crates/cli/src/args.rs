@@ -8,7 +8,7 @@ pub struct Args {
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     pub datatype: Vec<String>,
 
-    /// Block numbers, see syntax above
+    /// Block numbers, see syntax below
     #[arg(
         short,
         long,
@@ -22,9 +22,18 @@ pub struct Args {
         long,
         default_value = "20min",
         help_heading = "Content Options",
-        help = "Reorg buffer, save blocks only when they are this old\ncan be a number of blocks or a time"
+        help = "Reorg buffer, save blocks only when they are this old,\ncan be a number of blocks or a time"
     )]
     pub reorg_buffer: String,
+
+    // #[arg(
+    //     short,
+    //     long,
+    //     allow_hyphen_values(true),
+    //     help_heading = "Content Options",
+    //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see syntax below",
+    // )]
+    // pub txs: Vec<String>,
 
     /// Columns to include in output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
