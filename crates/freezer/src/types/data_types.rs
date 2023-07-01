@@ -17,6 +17,7 @@ pub struct NonceDiffs;
 pub struct StorageDiffs;
 pub struct Traces;
 pub struct Transactions;
+pub struct VmTraces;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Datatype {
@@ -28,6 +29,7 @@ pub enum Datatype {
     Transactions,
     Traces,
     StorageDiffs,
+    VmTraces,
 }
 
 impl Datatype {
@@ -41,6 +43,7 @@ impl Datatype {
             Datatype::Transactions => Box::new(Transactions),
             Datatype::Traces => Box::new(Traces),
             Datatype::StorageDiffs => Box::new(StorageDiffs),
+            Datatype::VmTraces => Box::new(VmTraces),
         }
     }
 }

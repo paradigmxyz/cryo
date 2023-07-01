@@ -7,3 +7,4 @@ pub mod state_diffs;
 pub mod storage_diffs;
 pub mod traces;
 pub mod transactions;
+pub mod vm_traces;

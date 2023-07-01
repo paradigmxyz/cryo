@@ -1,12 +1,10 @@
 use std::collections::HashMap;
-use std::sync::Arc;
 
 use ethers::prelude::*;
-use futures::future::join_all;
 use polars::prelude::*;
-use tokio::sync::Semaphore;
 
 use crate::chunks;
+use crate::fetch;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::FreezeOpts;
@@ -19,7 +17,7 @@ pub async fn collect_single(
     opts: &FreezeOpts,
 ) -> Result<DataFrame, CollectError> {
     let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-    let diffs = fetch_state_diffs(
+    let diffs = fetch::fetch_state_diffs(
         block_chunk,
         &opts.provider,
         &opts.max_concurrent_blocks,
@@ -32,43 +30,6 @@ pub async fn collect_single(
         },
         Err(e) => Err(CollectError::PolarsError(e)),
     }
-}
-
-pub async fn fetch_state_diffs(
-    block_chunk: &BlockChunk,
-    provider: &Provider<Http>,
-    max_concurrent_blocks: &u64,
-) -> Result<Vec<BlockTrace>, CollectError> {
-    let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
-
-    let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-    let futures = block_numbers.into_iter().map(|block_number| {
-        let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore);
-        tokio::spawn(async move {
-            let _permit = Arc::clone(&semaphore).acquire_owned().await;
-            provider
-                .trace_replay_block_transactions(
-                    BlockNumber::Number(block_number.into()),
-                    vec![TraceType::StateDiff],
-                )
-                .await
-        })
-    });
-
-    let results: Vec<_> = join_all(futures)
-        .await
-        .into_iter()
-        .map(|res| res.map_err(CollectError::TaskFailed))
-        .collect();
-
-    let mut traces: Vec<BlockTrace> = Vec::new();
-    for result in results {
-        let block_traces = result?.map_err(CollectError::ProviderError)?;
-        traces.extend(block_traces);
-    }
-
-    Ok(traces)
 }
 
 pub fn state_diffs_to_df(
