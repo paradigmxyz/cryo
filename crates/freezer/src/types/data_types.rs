@@ -12,12 +12,14 @@ use crate::types::error_types;
 pub struct Blocks;
 pub struct Logs;
 pub struct Transactions;
+pub struct Traces;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Datatype {
     Blocks,
     Logs,
     Transactions,
+    Traces,
 }
 
 impl Datatype {
@@ -26,6 +28,7 @@ impl Datatype {
             Datatype::Blocks => Box::new(Blocks),
             Datatype::Logs => Box::new(Logs),
             Datatype::Transactions => Box::new(Transactions),
+            Datatype::Traces => Box::new(Traces),
         }
     }
 }
