@@ -4,7 +4,7 @@ use ethers::prelude::*;
 use polars::prelude::*;
 
 use crate::chunks;
-use crate::datatypes;
+use crate::datasets;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -82,7 +82,7 @@ pub async fn fetch_transactions(
     block_numbers: Vec<u64>,
     opts: &FreezeOpts,
 ) -> Result<Vec<Transaction>, CollectError> {
-    let results = datatypes::blocks::fetch_blocks_and_transactions(
+    let results = datasets::blocks::fetch_blocks_and_transactions(
         block_numbers,
         &opts.provider,
         &opts.max_concurrent_blocks,

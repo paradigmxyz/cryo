@@ -1,5 +1,5 @@
 mod chunks;
-mod datatypes;
+mod datasets;
 mod fetch;
 mod freeze;
 mod outputs;
