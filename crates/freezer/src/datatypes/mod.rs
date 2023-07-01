@@ -1,5 +1,9 @@
+pub mod balance_diffs;
 pub mod blocks;
+pub mod code_diffs;
 pub mod logs;
-pub mod transactions;
+pub mod nonce_diffs;
+pub mod state_diffs;
+pub mod storage_diffs;
 pub mod traces;
-
+pub mod transactions;

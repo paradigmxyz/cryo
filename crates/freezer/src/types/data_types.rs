@@ -9,26 +9,38 @@ use crate::types::ColumnType;
 use crate::types::FreezeOpts;
 use crate::types::error_types;
 
+pub struct BalanceDiffs;
 pub struct Blocks;
+pub struct CodeDiffs;
 pub struct Logs;
-pub struct Transactions;
+pub struct NonceDiffs;
+pub struct StorageDiffs;
 pub struct Traces;
+pub struct Transactions;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
 pub enum Datatype {
+    BalanceDiffs,
     Blocks,
+    CodeDiffs,
     Logs,
+    NonceDiffs,
     Transactions,
     Traces,
+    StorageDiffs,
 }
 
 impl Datatype {
     pub fn dataset(&self) -> Box<dyn Dataset> {
         match *self {
+            Datatype::BalanceDiffs => Box::new(BalanceDiffs),
             Datatype::Blocks => Box::new(Blocks),
+            Datatype::CodeDiffs => Box::new(CodeDiffs),
             Datatype::Logs => Box::new(Logs),
+            Datatype::NonceDiffs => Box::new(NonceDiffs),
             Datatype::Transactions => Box::new(Transactions),
             Datatype::Traces => Box::new(Traces),
+            Datatype::StorageDiffs => Box::new(StorageDiffs),
         }
     }
 }

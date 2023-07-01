@@ -146,9 +146,13 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
 
 fn parse_datatype(datatype: &str) -> Result<Datatype> {
     let datatype = match datatype {
+        "balance_diffs" => Datatype::BalanceDiffs,
         "blocks" => Datatype::Blocks,
+        "code_diffs" => Datatype::CodeDiffs,
         "logs" => Datatype::Logs,
         "events" => Datatype::Logs,
+        "nonce_diffs" => Datatype::NonceDiffs,
+        "storage_diffs" => Datatype::StorageDiffs,
         "transactions" => Datatype::Transactions,
         "txs" => Datatype::Transactions,
         "traces" => Datatype::Traces,

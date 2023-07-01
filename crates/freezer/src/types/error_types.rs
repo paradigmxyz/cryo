@@ -30,6 +30,9 @@ pub enum CollectError {
 
     #[error("Invalid number of topics")]
     InvalidNumberOfTopics,
+
+    #[error("Bad schema specified")]
+    BadSchemaError,
 }
 
 #[derive(Error, Debug)]
