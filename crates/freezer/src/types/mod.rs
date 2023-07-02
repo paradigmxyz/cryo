@@ -7,6 +7,7 @@ pub mod output_types;
 pub mod schema_types;
 
 pub use conversions::ToVecU8;
+pub use conversions::ToVecHex;
 pub use cli_types::FreezeOpts;
 pub use cli_types::FreezeChunkSummary;
 pub use cli_types::FreezeSummary;

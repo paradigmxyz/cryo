@@ -886,6 +886,7 @@ dependencies = [
  "indexmap 2.0.0",
  "indicatif",
  "polars",
+ "prefix-hex",
  "rayon",
  "ring",
  "thiserror",
@@ -3081,6 +3082,15 @@ name = "precomputed-hash"
 version = "0.1.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "925383efa346730478fb4838dbe9137d2a47675ad789c546d150a6e1dd4ab31c"
+
+[[package]]
+name = "prefix-hex"
+version = "0.7.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d9653998c1c55e1705580cf92d156b57094bbae6c83482d406f2223439cd354a"
+dependencies = [
+ "hex",
+]
 
 [[package]]
 name = "prettyplease"
