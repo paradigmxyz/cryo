@@ -159,6 +159,17 @@ mod tests {
     use super::*;
 
     #[test]
+    fn test_get_total_blocks() {
+        let chunks = &[BlockChunk::Range(0, 4)];
+        let result = get_total_blocks(chunks);
+        assert_eq!(result, 5);
+
+        let chunks = &[BlockChunk::Range(0, 4), BlockChunk::Range(2, 6)];
+        let result = get_total_blocks(chunks);
+        assert_eq!(result, 10);
+    }
+
+    #[test]
     fn test_get_max_block() {
         let chunks = &[BlockChunk::Range(0, 4)];
         let result = get_max_block(chunks);
