@@ -1,5 +1,9 @@
 mod chunks;
 mod datasets;
+
+#[macro_use]
+mod dataframes;
+
 mod fetch;
 mod freeze;
 mod outputs;
