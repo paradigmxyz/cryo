@@ -48,7 +48,8 @@ impl Datatype {
     ) -> Result<Schema, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
-        let used_columns = compute_used_columns(default_columns, include_columns, exclude_columns);
+        let used_columns =
+            compute_used_columns(default_columns, include_columns, exclude_columns, self);
         let mut schema: Schema = IndexMap::new();
         for column in used_columns {
             let mut ctype = column_types
@@ -67,8 +68,17 @@ pub fn compute_used_columns(
     default_columns: Vec<&str>,
     include_columns: &Option<Vec<String>>,
     exclude_columns: &Option<Vec<String>>,
+    datatype: &Datatype,
 ) -> Vec<String> {
     match (include_columns, exclude_columns) {
+        (Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
+            datatype
+                .dataset()
+                .column_types()
+                .keys()
+                .map(|k| k.to_string())
+                .collect()
+        }
         (Some(include), Some(exclude)) => {
             let include_set: HashSet<_> = include.iter().collect();
             let exclude_set: HashSet<_> = exclude.iter().collect();
