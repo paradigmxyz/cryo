@@ -69,12 +69,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         (_, true) => FileFormat::Json,
         (false, false) => FileFormat::Parquet,
     };
-    if output_format != FileFormat::Parquet {
-        return Err(eyre::eyre!(
-            "non-parquet not supported until hex encoding implemented"
-        ));
-    };
-    let binary_column_format = match args.hex {
+    let binary_column_format = match args.hex | (output_format != FileFormat::Parquet) {
         true => ColumnEncoding::Hex,
         false => ColumnEncoding::Binary,
     };
