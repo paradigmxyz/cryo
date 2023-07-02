@@ -20,3 +20,29 @@ jobs:
       run: cargo build --verbose
     - name: Run tests
       run: cargo test --verbose
+
+  lint:
+    name: code lint
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v3
+      - name: Install toolchain
+        uses: dtolnay/rust-toolchain@nightly
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: cargo fmt
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all --check
+
+      - name: cargo clippy
+        uses: actions-rs/clippy-check@v1
+        with:
+          args: --all --all-features
+          token: ${{ secrets.GITHUB_TOKEN }}
