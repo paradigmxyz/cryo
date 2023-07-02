@@ -14,8 +14,12 @@ pub async fn fetch_state_diffs(
     max_concurrent_blocks: &u64,
 ) -> Result<Vec<BlockTrace>, CollectError> {
     fetch_block_traces(
-        block_chunk, provider, max_concurrent_blocks, &[TraceType::StateDiff],
-    ).await
+        block_chunk,
+        provider,
+        max_concurrent_blocks,
+        &[TraceType::StateDiff],
+    )
+    .await
 }
 
 pub async fn fetch_vm_traces(
@@ -24,8 +28,12 @@ pub async fn fetch_vm_traces(
     max_concurrent_blocks: &u64,
 ) -> Result<Vec<BlockTrace>, CollectError> {
     fetch_block_traces(
-        block_chunk, provider, max_concurrent_blocks, &[TraceType::VmTrace],
-    ).await
+        block_chunk,
+        provider,
+        max_concurrent_blocks,
+        &[TraceType::VmTrace],
+    )
+    .await
 }
 
 async fn fetch_block_traces(

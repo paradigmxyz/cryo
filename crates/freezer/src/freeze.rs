@@ -58,12 +58,14 @@ async fn freeze_chunk(
                     };
                 } else {
                     match ds.collect_chunk(&block_chunk, &opts).await {
-                        Ok(mut df) => if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
-                            return FreezeChunkSummary {
-                                skipped: false,
-                                errored: true,
+                        Ok(mut df) => {
+                            if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
+                                return FreezeChunkSummary {
+                                    skipped: false,
+                                    errored: true,
+                                };
                             }
-                        },
+                        }
                         Err(_e) => {
                             return FreezeChunkSummary {
                                 skipped: false,

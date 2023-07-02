@@ -4,10 +4,10 @@ use std::collections::HashMap;
 use async_trait;
 use polars::prelude::*;
 
+use crate::types::error_types;
 use crate::types::BlockChunk;
 use crate::types::ColumnType;
 use crate::types::FreezeOpts;
-use crate::types::error_types;
 
 pub struct BalanceDiffs;
 pub struct Blocks;

@@ -89,7 +89,11 @@ pub fn print_schema(name: &Datatype, schema: &Schema, sort: Option<&Vec<String>>
     });
     println!();
     if let Some(sort_cols) = sort {
-        println!("sorting {} by: {}", name.dataset().name(), sort_cols.join(", "));
+        println!(
+            "sorting {} by: {}",
+            name.dataset().name(),
+            sort_cols.join(", ")
+        );
     }
 }
 
@@ -107,7 +111,7 @@ pub fn print_cryo_conclusion(
         Ok(duration) => duration,
         Err(_e) => {
             println!("error computing system time, aborting");
-            return
+            return;
         }
     };
     let seconds = duration.as_secs();

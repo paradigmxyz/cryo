@@ -1,5 +1,3 @@
-
-
 #[derive(Clone, Eq, PartialEq)]
 pub enum FileFormat {
     Parquet,

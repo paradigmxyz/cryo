@@ -35,9 +35,7 @@ pub fn df_to_file(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) -> Resu
         _ => return Err(FileError::FileWriteError),
     };
     match result {
-        Ok(()) => {
-            std::fs::rename(tmp_filename, filename).map_err(|_e| FileError::FileWriteError)
-        },
+        Ok(()) => std::fs::rename(tmp_filename, filename).map_err(|_e| FileError::FileWriteError),
         Err(_e) => Err(FileError::FileWriteError),
     }
 }
@@ -75,4 +73,3 @@ fn df_to_json(df: &mut DataFrame, filename: &str) -> Result<(), FileError> {
         _ => Ok(()),
     }
 }
-

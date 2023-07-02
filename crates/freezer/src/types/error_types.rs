@@ -37,7 +37,6 @@ pub enum CollectError {
 
 #[derive(Error, Debug)]
 pub enum ChunkError {
-
     #[error("Block chunk not valid")]
     InvalidChunk,
 
@@ -53,4 +52,3 @@ pub enum FileError {
     #[error("Error writing file")]
     FileWriteError,
 }
-

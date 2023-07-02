@@ -11,8 +11,8 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
-use crate::types::VmTraces;
 use crate::types::ToVecU8;
+use crate::types::VmTraces;
 
 #[async_trait::async_trait]
 impl Dataset for VmTraces {
@@ -57,7 +57,8 @@ impl Dataset for VmTraces {
         let df = vm_traces_to_df(vm_traces, &opts.schemas[&Datatype::VmTraces])
             .map_err(CollectError::PolarsError);
         if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
-            df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+            df.map(|x| x.sort(sort_keys, false))?
+                .map_err(CollectError::PolarsError)
         } else {
             df
         }
@@ -131,7 +132,6 @@ struct VmTraceColumns {
 
 fn add_ops(vm_trace: VMTrace, schema: &Schema, columns: &mut VmTraceColumns) {
     for opcode in vm_trace.ops {
-
         if schema.contains_key("pc") {
             columns.pc.push(opcode.pc as u64);
         };
@@ -208,4 +208,3 @@ fn add_ops(vm_trace: VMTrace, schema: &Schema, columns: &mut VmTraceColumns) {
         }
     }
 }
-

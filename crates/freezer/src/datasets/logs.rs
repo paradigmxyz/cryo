@@ -83,7 +83,8 @@ impl Dataset for Logs {
 
         let df = logs_to_df(logs, &opts.schemas[&Datatype::Logs]);
         if let Some(sort_keys) = opts.sort.get(&Datatype::Logs) {
-            df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+            df.map(|x| x.sort(sort_keys, false))?
+                .map_err(CollectError::PolarsError)
         } else {
             df
         }
@@ -205,5 +206,6 @@ pub fn logs_to_df(logs: Vec<Log>, _schema: &Schema) -> Result<DataFrame, Collect
         "topic2" => topic2,
         "topic3" => topic3,
         "data" => data,
-    ).map_err(CollectError::PolarsError)
+    )
+    .map_err(CollectError::PolarsError)
 }

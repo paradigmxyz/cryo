@@ -103,12 +103,11 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
 
     let parquet_compression = parse_compression(&args.compression)?;
 
-    let chunk_size = block_chunks.first().map(cryo_freezer::get_chunk_block_numbers).map(|x| x.len());
-    let row_group_size = parse_row_group_size(
-        args.row_group_size,
-        args.n_row_groups,
-        chunk_size,
-    );
+    let chunk_size = block_chunks
+        .first()
+        .map(cryo_freezer::get_chunk_block_numbers)
+        .map(|x| x.len());
+    let row_group_size = parse_row_group_size(args.row_group_size, args.n_row_groups, chunk_size);
 
     // compile opts
     let opts = FreezeOpts {

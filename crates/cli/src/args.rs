@@ -34,7 +34,6 @@ pub struct Args {
     //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see syntax below",
     // )]
     // pub txs: Vec<String>,
-
     /// Columns to include in output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
@@ -213,4 +212,3 @@ fn get_datatype_help() -> &'static str {
 - <white><bold>opcode_traces</bold></white>"#
     )
 }
-

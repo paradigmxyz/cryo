@@ -55,7 +55,8 @@ impl ToVecHex for Vec<Option<Vec<u8>>> {
     type Output = Vec<Option<String>>;
 
     fn to_vec_hex(&self) -> Self::Output {
-        self.iter().map(|opt| opt.as_ref().map(|v| prefix_hex::encode(v.clone()))).collect()
+        self.iter()
+            .map(|opt| opt.as_ref().map(|v| prefix_hex::encode(v.clone())))
+            .collect()
     }
 }
-

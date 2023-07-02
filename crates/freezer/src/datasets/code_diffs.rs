@@ -3,8 +3,8 @@ use std::collections::HashMap;
 use polars::prelude::*;
 
 use super::state_diffs;
-use crate::types::CodeDiffs;
 use crate::types::BlockChunk;
+use crate::types::CodeDiffs;
 use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;

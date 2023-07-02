@@ -22,8 +22,14 @@ async fn main() -> Result<()> {
             Ok(freeze_summary) => {
                 let t_data_done = SystemTime::now();
                 println!("...done\n\n");
-                summaries::print_cryo_conclusion(t_start, t_parse_done, t_data_done, &opts, &freeze_summary);
-            },
+                summaries::print_cryo_conclusion(
+                    t_start,
+                    t_parse_done,
+                    t_data_done,
+                    &opts,
+                    &freeze_summary,
+                );
+            }
             Err(e) => {
                 println!("{}", e)
             }

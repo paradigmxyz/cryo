@@ -51,4 +51,3 @@ pub struct FreezeChunkSummary {
     pub skipped: bool,
     pub errored: bool,
 }
-

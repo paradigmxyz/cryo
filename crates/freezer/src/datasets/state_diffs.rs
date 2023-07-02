@@ -7,9 +7,9 @@ use crate::chunks;
 use crate::fetch;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
+use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
-use crate::types::Datatype;
 
 pub async fn collect_single(
     datatype: &Datatype,
@@ -17,12 +17,8 @@ pub async fn collect_single(
     opts: &FreezeOpts,
 ) -> Result<DataFrame, CollectError> {
     let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
-    let diffs = fetch::fetch_state_diffs(
-        block_chunk,
-        &opts.provider,
-        &opts.max_concurrent_blocks,
-    )
-    .await?;
+    let diffs =
+        fetch::fetch_state_diffs(block_chunk, &opts.provider, &opts.max_concurrent_blocks).await?;
     let df = match state_diffs_to_df(diffs, block_numbers, &opts.schemas) {
         Ok(mut dfs) => match dfs.remove(datatype) {
             Some(df) => Ok(df),
@@ -31,7 +27,8 @@ pub async fn collect_single(
         Err(e) => Err(CollectError::PolarsError(e)),
     };
     if let Some(sort_keys) = opts.sort.get(datatype) {
-        df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+        df.map(|x| x.sort(sort_keys, false))?
+            .map_err(CollectError::PolarsError)
     } else {
         df
     }
@@ -42,7 +39,6 @@ pub fn state_diffs_to_df(
     block_numbers: Vec<u64>,
     schemas: &HashMap<Datatype, Schema>,
 ) -> Result<HashMap<Datatype, DataFrame>, PolarsError> {
-
     let include_storage = schemas.contains_key(&Datatype::StorageDiffs);
     let include_balance = schemas.contains_key(&Datatype::BalanceDiffs);
     let include_nonce = schemas.contains_key(&Datatype::NonceDiffs);
@@ -50,7 +46,8 @@ pub fn state_diffs_to_df(
 
     // storage
     let include_storage_block_number = included(schemas, Datatype::StorageDiffs, "block_number");
-    let include_storage_transaction_hash = included(schemas, Datatype::StorageDiffs, "transaction_hash");
+    let include_storage_transaction_hash =
+        included(schemas, Datatype::StorageDiffs, "transaction_hash");
     let include_storage_address = included(schemas, Datatype::StorageDiffs, "address");
     let include_storage_slot = included(schemas, Datatype::StorageDiffs, "slot");
     let include_storage_from_value = included(schemas, Datatype::StorageDiffs, "from_value");
@@ -64,7 +61,8 @@ pub fn state_diffs_to_df(
 
     // balance
     let include_balance_block_number = included(schemas, Datatype::BalanceDiffs, "block_number");
-    let include_balance_transaction_hash = included(schemas, Datatype::BalanceDiffs, "transaction_hash");
+    let include_balance_transaction_hash =
+        included(schemas, Datatype::BalanceDiffs, "transaction_hash");
     let include_balance_address = included(schemas, Datatype::BalanceDiffs, "address");
     let include_balance_from_value = included(schemas, Datatype::BalanceDiffs, "from_value");
     let include_balance_to_value = included(schemas, Datatype::BalanceDiffs, "to_value");
@@ -76,7 +74,8 @@ pub fn state_diffs_to_df(
 
     // nonce
     let include_nonce_block_number = included(schemas, Datatype::NonceDiffs, "block_number");
-    let include_nonce_transaction_hash = included(schemas, Datatype::NonceDiffs, "transaction_hash");
+    let include_nonce_transaction_hash =
+        included(schemas, Datatype::NonceDiffs, "transaction_hash");
     let include_nonce_address = included(schemas, Datatype::NonceDiffs, "address");
     let include_nonce_from_value = included(schemas, Datatype::NonceDiffs, "from_value");
     let include_nonce_to_value = included(schemas, Datatype::NonceDiffs, "to_value");
@@ -98,11 +97,9 @@ pub fn state_diffs_to_df(
     let mut code_from_value: Vec<Vec<u8>> = Vec::with_capacity(blocks_traces.len());
     let mut code_to_value: Vec<Vec<u8>> = Vec::with_capacity(blocks_traces.len());
 
-
     for (block_num, ts) in block_numbers.iter().zip(blocks_traces) {
         if let (Some(tx), Some(StateDiff(state_diff))) = (ts.transaction_hash, ts.state_diff) {
             for (addr, addr_diff) in state_diff.iter() {
-
                 // storage
                 if include_storage {
                     for (s, diff) in addr_diff.storage.iter() {
@@ -139,7 +136,9 @@ pub fn state_diffs_to_df(
                         Diff::Same => ("0".to_string(), "0".to_string()),
                         Diff::Born(value) => ("0".to_string(), value.to_string()),
                         Diff::Died(value) => (value.to_string(), "0".to_string()),
-                        Diff::Changed(ChangedType { from, to }) => (from.to_string(), to.to_string()),
+                        Diff::Changed(ChangedType { from, to }) => {
+                            (from.to_string(), to.to_string())
+                        }
                     };
                     if include_balance_block_number {
                         balance_block_number.push(*block_num);
@@ -186,7 +185,10 @@ pub fn state_diffs_to_df(
                 // code
                 if include_code {
                     let (from, to) = match &addr_diff.code {
-                        Diff::Same => (H256::zero().as_bytes().to_vec(), H256::zero().as_bytes().to_vec()),
+                        Diff::Same => (
+                            H256::zero().as_bytes().to_vec(),
+                            H256::zero().as_bytes().to_vec(),
+                        ),
                         Diff::Born(value) => (H256::zero().as_bytes().to_vec(), value.to_vec()),
                         Diff::Died(value) => (value.to_vec(), H256::zero().as_bytes().to_vec()),
                         Diff::Changed(ChangedType { from, to }) => (from.to_vec(), to.to_vec()),
@@ -207,7 +209,6 @@ pub fn state_diffs_to_df(
                         code_to_value.push(to);
                     };
                 }
-
             }
         }
     }
@@ -319,4 +320,3 @@ fn included(
         false
     }
 }
-
