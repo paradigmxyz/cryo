@@ -18,7 +18,7 @@ async fn main() -> Result<()> {
         println!("\n\n[dry run, exiting]");
     } else {
         summaries::print_header("\n\ncollecting data");
-        match cryo_freezer::freeze(opts.clone()).await {
+        match cryo_freeze::freeze(opts.clone()).await {
             Ok(freeze_summary) => {
                 let t_data_done = SystemTime::now();
                 println!("...done\n\n");
