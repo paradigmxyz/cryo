@@ -81,7 +81,12 @@ impl Dataset for Logs {
         )
         .await?;
 
-        logs_to_df(logs, &opts.schemas[&Datatype::Logs])
+        let df = logs_to_df(logs, &opts.schemas[&Datatype::Logs]);
+        if let Some(sort_keys) = opts.sort.get(&Datatype::Logs) {
+            df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+        } else {
+            df
+        }
     }
 }
 

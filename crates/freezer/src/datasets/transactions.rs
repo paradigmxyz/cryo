@@ -74,7 +74,12 @@ impl Dataset for Transactions {
     ) -> Result<DataFrame, CollectError> {
         let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
         let transactions = fetch_transactions(block_numbers, opts).await?;
-        txs_to_df(transactions).map_err(CollectError::PolarsError)
+        let df = txs_to_df(transactions).map_err(CollectError::PolarsError);
+        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
+            df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+        } else {
+            df
+        }
     }
 }
 

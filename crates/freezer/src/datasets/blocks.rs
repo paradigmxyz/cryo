@@ -7,6 +7,8 @@ use polars::prelude::*;
 use tokio::sync::Semaphore;
 
 use crate::chunks;
+use crate::types::conversions::ToVecHex;
+use crate::types::conversions::ToVecU8;
 use crate::types::BlockChunk;
 use crate::types::Blocks;
 use crate::types::CollectError;
@@ -17,8 +19,6 @@ use crate::types::FreezeOpts;
 use crate::types::Schema;
 use crate::with_series;
 use crate::with_series_binary;
-use crate::types::conversions::ToVecU8;
-use crate::types::conversions::ToVecHex;
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
@@ -74,7 +74,14 @@ impl Dataset for Blocks {
         let numbers = chunks::get_chunk_block_numbers(block_chunk);
         let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
         let blocks = blocks.into_iter().flatten().collect();
-        blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks]).map_err(CollectError::PolarsError)
+        let df = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks])
+            .map_err(CollectError::PolarsError);
+        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
+            df.map(|x| x.sort(sort_keys, false))?
+                .map_err(CollectError::PolarsError)
+        } else {
+            df
+        }
     }
 }
 
@@ -132,9 +139,7 @@ pub async fn fetch_blocks_and_transactions(
         .collect()
 }
 
-
 pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataFrame, PolarsError> {
-
     let include_hash = schema.contains_key("hash");
     let include_parent_hash = schema.contains_key("parent_hash");
     let include_author = schema.contains_key("author");
@@ -230,4 +235,3 @@ pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataF
     with_series!(cols, "base_fee_per_gas", base_fee_per_gas, schema);
     DataFrame::new(cols)
 }
-

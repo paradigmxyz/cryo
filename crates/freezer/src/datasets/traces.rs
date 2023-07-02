@@ -87,7 +87,14 @@ impl Dataset for Traces {
     ) -> Result<DataFrame, CollectError> {
         let numbers = chunks::get_chunk_block_numbers(block_chunk);
         let traces = fetch_traces(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
-        traces_to_df(traces, &opts.schemas[&Datatype::Traces]).map_err(CollectError::PolarsError)
+        let df = traces_to_df(traces, &opts.schemas[&Datatype::Traces])
+            .map_err(CollectError::PolarsError);
+        if let Some(sort_keys) = opts.sort.get(&Datatype::Traces) {
+            df.map(|x| x.sort(sort_keys, false))?
+                .map_err(CollectError::PolarsError)
+        } else {
+            df
+        }
     }
 }
 

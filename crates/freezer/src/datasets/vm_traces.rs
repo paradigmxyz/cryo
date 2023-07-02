@@ -54,8 +54,13 @@ impl Dataset for VmTraces {
         let vm_traces =
             fetch::fetch_vm_traces(block_chunk, &opts.provider, &opts.max_concurrent_blocks)
                 .await?;
-        vm_traces_to_df(vm_traces, &opts.schemas[&Datatype::VmTraces])
-            .map_err(CollectError::PolarsError)
+        let df = vm_traces_to_df(vm_traces, &opts.schemas[&Datatype::VmTraces])
+            .map_err(CollectError::PolarsError);
+        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
+            df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+        } else {
+            df
+        }
     }
 }
 

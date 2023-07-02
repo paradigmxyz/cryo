@@ -23,12 +23,17 @@ pub async fn collect_single(
         &opts.max_concurrent_blocks,
     )
     .await?;
-    match state_diffs_to_df(diffs, block_numbers, &opts.schemas) {
+    let df = match state_diffs_to_df(diffs, block_numbers, &opts.schemas) {
         Ok(mut dfs) => match dfs.remove(datatype) {
             Some(df) => Ok(df),
             None => Err(CollectError::BadSchemaError),
         },
         Err(e) => Err(CollectError::PolarsError(e)),
+    };
+    if let Some(sort_keys) = opts.sort.get(datatype) {
+        df.map(|x| x.sort(sort_keys, false))?.map_err(CollectError::PolarsError)
+    } else {
+        df
     }
 }
 
