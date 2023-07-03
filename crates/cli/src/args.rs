@@ -103,6 +103,10 @@ pub struct Args {
     #[arg(short, long, default_value = ".", help_heading = "Output Options")]
     pub output_dir: String,
 
+    /// Suffix to attach to end of each filename
+    #[arg(long, help_heading = "Output Options")]
+    pub file_suffix: Option<String>,
+
     /// Overwrite existing files instead of skipping them
     #[arg(long, help_heading = "Output Options")]
     pub overwrite: bool,

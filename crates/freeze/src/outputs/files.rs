@@ -11,13 +11,23 @@ pub fn get_chunk_path(
     opts: &FreezeOpts,
 ) -> Result<String, FileError> {
     let block_chunk_stub = chunk.stub().map_err(FileError::FilePathError)?;
-    let filename = format!(
-        "{}__{}__{}.{}",
-        opts.network_name,
-        name,
-        block_chunk_stub,
-        opts.output_format.as_str()
-    );
+    let filename = match &opts.file_suffix {
+        Some(suffix) =>  format!(
+            "{}__{}__{}__{}.{}",
+            opts.network_name,
+            name,
+            block_chunk_stub,
+            suffix,
+            opts.output_format.as_str()
+        ),
+        None => format!(
+            "{}__{}__{}.{}",
+            opts.network_name,
+            name,
+            block_chunk_stub,
+            opts.output_format.as_str()
+        ),
+    };
     match opts.output_dir.as_str() {
         "." => Ok(filename),
         output_dir => Ok(output_dir.to_string() + "/" + filename.as_str()),

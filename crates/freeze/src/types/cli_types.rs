@@ -28,6 +28,7 @@ pub struct FreezeOpts {
     // output options
     pub output_dir: String,
     pub overwrite: bool,
+    pub file_suffix: Option<String>,
     pub output_format: FileFormat,
     pub binary_column_format: ColumnEncoding,
     pub sort: HashMap<Datatype, Vec<String>>,

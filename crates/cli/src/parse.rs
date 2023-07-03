@@ -155,6 +155,8 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         None => None,
     };
 
+    let file_suffix = args.file_suffix;
+
     // compile opts
     let opts = FreezeOpts {
         datatypes,
@@ -171,6 +173,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         dry_run: args.dry,
         // output options
         output_dir,
+        file_suffix,
         overwrite: args.overwrite,
         output_format,
         binary_column_format,
