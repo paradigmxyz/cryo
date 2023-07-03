@@ -32,7 +32,7 @@ pub struct FreezeOpts {
     pub parquet_statistics: bool,
     pub parquet_compression: ParquetCompression,
     // dataset-specific options
-    pub gas_used: bool,
+    // pub gas_used: bool,
     pub contract: Option<ValueOrArray<H160>>,
     pub topic0: Option<ValueOrArray<Option<H256>>>,
     pub topic1: Option<ValueOrArray<Option<H256>>>,

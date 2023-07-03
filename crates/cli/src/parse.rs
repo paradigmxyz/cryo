@@ -69,12 +69,24 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     };
 
     // parse block chunks
-    let block_chunk = parse_block_inputs(&args.blocks, &provider).await?;
-    let block_chunks = match args.n_chunks {
-        Some(n_chunks) => block_chunk.subchunk_by_count(&n_chunks),
-        None => block_chunk.subchunk_by_size(&args.chunk_size),
+    let block_chunks = parse_block_inputs(&args.blocks, &provider).await?;
+    let block_chunks = if args.align {
+        println!("ALIGNED");
+        block_chunks
+            .into_iter()
+            .filter_map(|x| x.align(args.chunk_size))
+            .collect()
+    } else {
+        block_chunks
     };
+    println!("CHUNKS {:?}", block_chunks);
+    let block_chunks = match args.n_chunks {
+        Some(n_chunks) => block_chunks.subchunk_by_count(&n_chunks),
+        None => block_chunks.subchunk_by_size(&args.chunk_size),
+    };
+    println!("CHUNKS {:?}", block_chunks);
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
+    println!("CHUNKS {:?}", block_chunks);
 
     // process output directory
     let output_dir = std::fs::canonicalize(args.output_dir.clone())
@@ -156,7 +168,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         parquet_statistics: !args.no_stats,
         parquet_compression,
         // dataset-specific options
-        gas_used: args.gas_used,
+        // gas_used: args.gas_used,
         contract,
         topic0,
         topic1,
@@ -333,23 +345,22 @@ fn parse_concurrency_args(args: &Args) -> Result<(u64, u64)> {
 pub async fn parse_block_inputs(
     inputs: &Vec<String>,
     provider: &Provider<Http>,
-) -> Result<BlockChunk> {
+) -> Result<Vec<BlockChunk>> {
     match inputs.len() {
         1 => {
             let first_input = inputs
                 .get(0)
                 .ok_or_else(|| eyre::eyre!("Failed to get the first input"))?;
-            parse_block_token(first_input, true, provider).await
+            parse_block_token(first_input, true, provider)
+                .await
+                .map(|x| vec![x])
         }
         _ => {
-            let mut block_numbers: Vec<u64> = vec![];
+            let mut chunks = Vec::new();
             for input in inputs {
-                let subchunk = parse_block_token(input, false, provider).await?;
-                let subchunk_block_numbers = subchunk.numbers();
-                block_numbers.extend(subchunk_block_numbers);
+                chunks.push(parse_block_token(input, false, provider).await?);
             }
-            let block_chunk = BlockChunk::Numbers(block_numbers);
-            Ok(block_chunk)
+            Ok(chunks)
         }
     }
 }

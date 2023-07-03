@@ -7,9 +7,21 @@ use crate::types::BlockChunk;
 pub trait ChunkAgg {
     /// return a Vec of all blocks in chunk
     fn numbers(&self) -> Vec<u64>;
+
+    /// get total block count
     fn total_blocks(&self) -> u64;
+
+    /// get minimum block
     fn min_block(&self) -> Option<u64>;
+
+    /// get maximum block
     fn max_block(&self) -> Option<u64>;
+
+    /// divide into subchunks by size
+    fn subchunk_by_size(&self, chunk_size: &u64) -> Vec<BlockChunk>;
+
+    /// divide into number of subchunks
+    fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk>;
 }
 
 impl ChunkAgg for BlockChunk {
@@ -36,6 +48,27 @@ impl ChunkAgg for BlockChunk {
             BlockChunk::Numbers(numbers) => numbers.iter().max().cloned(),
             BlockChunk::Range(_, end_block) => Some(*end_block),
         }
+    }
+
+    fn subchunk_by_size(&self, chunk_size: &u64) -> Vec<BlockChunk> {
+        match &self {
+            BlockChunk::Numbers(numbers) => numbers
+                .chunks(*chunk_size as usize)
+                .map(|chunk| BlockChunk::Numbers(chunk.to_vec()))
+                .collect(),
+            BlockChunk::Range(start_block, end_block) => {
+                range_to_chunks(start_block, end_block, chunk_size)
+                    .iter()
+                    .map(|(start, end)| BlockChunk::Range(*start, *end))
+                    .collect()
+            }
+        }
+    }
+
+    fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk> {
+        let total_blocks = &self.total_blocks();
+        let chunk_size = (total_blocks + n_chunks - 1) / n_chunks;
+        self.subchunk_by_size(&chunk_size)
     }
 }
 
@@ -79,44 +112,28 @@ impl ChunkAgg for Vec<BlockChunk> {
             Some(block_max)
         }
     }
+
+    fn subchunk_by_size(&self, chunk_size: &u64) -> Vec<BlockChunk> {
+        self.to_single_chunk().subchunk_by_size(chunk_size)
+    }
+
+    fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk> {
+        self.to_single_chunk().subchunk_by_count(n_chunks)
+    }
 }
 
 pub trait ChunkOps {
-    /// divide into subchunks by size
-    fn subchunk_by_size(&self, chunk_size: &u64) -> Vec<BlockChunk>;
-
-    /// divide into number of subchunks
-    fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk>;
-
     /// convert a block chunk into a String representation
     fn stub(&self) -> Result<String, error_types::ChunkError>;
 
     /// break a block chunk into FilterBlockOption for log requests
     fn to_log_filter_options(&self, log_request_size: &u64) -> Vec<FilterBlockOption>;
+
+    /// align chunk boundaries to standard boundaries
+    fn align(self, chunk_size: u64) -> Option<BlockChunk>;
 }
 
 impl ChunkOps for BlockChunk {
-    fn subchunk_by_size(&self, chunk_size: &u64) -> Vec<BlockChunk> {
-        match &self {
-            BlockChunk::Numbers(numbers) => numbers
-                .chunks(*chunk_size as usize)
-                .map(|chunk| BlockChunk::Numbers(chunk.to_vec()))
-                .collect(),
-            BlockChunk::Range(start_block, end_block) => {
-                range_to_chunks(start_block, end_block, chunk_size)
-                    .iter()
-                    .map(|(start, end)| BlockChunk::Range(*start, *end))
-                    .collect()
-            }
-        }
-    }
-
-    fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk> {
-        let total_blocks = &self.total_blocks();
-        let chunk_size = (total_blocks + n_chunks - 1) / n_chunks;
-        self.subchunk_by_size(&chunk_size)
-    }
-
     fn stub(&self) -> Result<String, error_types::ChunkError> {
         match self {
             BlockChunk::Numbers(numbers) => match (numbers.iter().min(), numbers.iter().max()) {
@@ -155,6 +172,37 @@ impl ChunkOps for BlockChunk {
                         to_block: Some((*end).into()),
                     })
                     .collect()
+            }
+        }
+    }
+
+    fn align(self, chunk_size: u64) -> Option<BlockChunk> {
+        match self {
+            BlockChunk::Numbers(numbers) => Some(BlockChunk::Numbers(numbers)),
+            BlockChunk::Range(start, end) => {
+                let start = ((start + chunk_size - 1) / chunk_size) * chunk_size;
+                let end = (end / chunk_size) * chunk_size;
+                if end > start {
+                    Some(BlockChunk::Range(start, end))
+                } else {
+                    None
+                }
+            }
+        }
+    }
+}
+
+pub trait ChunkVecOps {
+    fn to_single_chunk(&self) -> BlockChunk;
+}
+
+impl ChunkVecOps for Vec<BlockChunk> {
+    fn to_single_chunk(&self) -> BlockChunk {
+        match (self.len(), self.get(0)) {
+            (1, Some(chunk)) => chunk.clone(),
+            _ => {
+                let numbers = self.iter().flat_map(|x| x.numbers()).collect();
+                BlockChunk::Numbers(numbers)
             }
         }
     }

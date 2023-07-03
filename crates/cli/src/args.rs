@@ -19,6 +19,14 @@ pub struct Args {
     pub blocks: Vec<String>,
 
     #[arg(
+        short,
+        long,
+        help_heading = "Content Options",
+        help = "Align block chunk boundaries to regular intervals\ne.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)"
+    )]
+    pub align: bool,
+
+    #[arg(
         long,
         default_value_t = 0,
         help_heading = "Content Options",
@@ -123,10 +131,9 @@ pub struct Args {
     #[arg(long, help_heading="Output Options", value_name="NAME [#]", num_args(1..=2), default_value = "lz4")]
     pub compression: Vec<String>,
 
-    /// [transactions] track gas used by each transaction
-    #[arg(long, help_heading = "Dataset-specific Options")]
-    pub gas_used: bool,
-
+    // /// [transactions] track gas used by each transaction
+    // #[arg(long, help_heading = "Dataset-specific Options")]
+    // pub gas_used: bool,
     /// [logs] filter logs by contract address
     #[arg(long, help_heading = "Dataset-specific Options")]
     pub contract: Option<String>,
