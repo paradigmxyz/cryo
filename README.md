@@ -60,41 +60,55 @@ Options:
   -V, --version  Print version
 
 Content Options:
-  -b, --blocks [<BLOCKS>...]         Block numbers, see syntax above [default: 0:latest]
-      --reorg-buffer <REORG_BUFFER>  Reorg buffer, avoid saving any blocks unless at least this old
-                                     can be a number of blocks or a length of time [default: 20min]
+  -b, --blocks <BLOCKS>              Block numbers, see syntax below [default: 0:latest]
+  -a, --align                        Align block chunk boundaries to regular intervals
+                                     e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
+      --reorg-buffer <REORG_BUFFER>  Reorg buffer, save blocks only when they are this old,
+                                     can be a number of blocks or a time [default: 0]
   -i, --include-columns [<COLS>...]  Columns to include in output
   -e, --exclude-columns [<COLS>...]  Columns to exclude from output
+      --hex                          Use hex string encoding for binary columns
+  -s, --sort [<SORT>...]             Columns(s) to sort by
 
 Source Options:
-  -r, --rpc <RPC>                    RPC URL
-      --network-name <NETWORK_NAME>  Network name, by default will derive from eth_getChainId
+  -r, --rpc <RPC>                    RPC url [default: ETH_RPC_URL env var]
+      --network-name <NETWORK_NAME>  Network name [default: use name of eth_getChainId]
 
 Acquisition Options:
+  -l, --requests-per-second <limit>  Ratelimit on requests per second
       --max-concurrent-requests <M>  Global number of concurrent requests
       --max-concurrent-chunks <M>    Number of chunks processed concurrently
       --max-concurrent-blocks <M>    Number blocks within a chunk processed concurrently
   -d, --dry                          Dry run, collect no data
 
 Output Options:
-  -c, --chunk-size <CHUNK_SIZE>      Chunk size (blocks per chunk) [default: 1000]
-      --n-chunks <N_CHUNKS>          Number of chunks (alternative to --chunk-size)
+  -c, --chunk-size <CHUNK_SIZE>      Number of blocks per file [default: 1000]
+      --n-chunks <N_CHUNKS>          Number of files (alternative to --chunk-size)
   -o, --output-dir <OUTPUT_DIR>      Directory for output files [default: .]
+      --file-suffix <FILE_SUFFIX>    Suffix attached to end of each filename
       --overwrite                    Overwrite existing files instead of skipping them
       --csv                          Save as csv instead of parquet
       --json                         Save as json instead of parquet
-      --hex                          Use hex string encoding for binary columns
-  -s, --sort [<SORT>...]             Columns(s) to sort by
-      --row-groups <ROW_GROUPS>      Number of rows groups in parquet file
       --row-group-size <GROUP_SIZE>  Number of rows per row group in parquet file
+      --n-row-groups <N_ROW_GROUPS>  Number of rows groups in parquet file
       --no-stats                     Do not write statistics to parquet files
+      --compression <NAME [#]>...    Set compression algorithm and level [default: lz4]
 
 Dataset-specific Options:
-      --gas-used                     [transactions] collect gas used for each transactions
       --contract <CONTRACT>          [logs] filter logs by contract address
       --topic0 <TOPIC0>              [logs] filter logs by topic0 [aliases: event]
       --topic1 <TOPIC1>              [logs] filter logs by topic1
       --topic2 <TOPIC2>              [logs] filter logs by topic2
       --topic3 <TOPIC3>              [logs] filter logs by topic3
       --log-request-size <N_BLOCKS>  [logs] Number of blocks per log request [default: 1]
+
+
+Block specification syntax
+- can use numbers                    --blocks 5000 6000 7000
+- can use ranges                     --blocks 12M:13M 15M:16M
+- numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
+- omiting range end means latest     15.5M: == 15.5M:latest
+- omitting range start means 0       :700 == 0:700
+- minus on start means minus end     -1000:7000 == 6000:7000
+- plus sign on end means plus start  15M:+1000 == 15M:15.001K
 ```
