@@ -47,7 +47,7 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     };
     print_bullet(
         "total blocks",
-        &opts.block_chunks.total_blocks().separate_with_commas(),
+        opts.block_chunks.total_blocks().separate_with_commas(),
     );
 
     if let Some(first_chunk) = opts.block_chunks.get(0) {

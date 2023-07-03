@@ -41,7 +41,7 @@ impl ChunkAgg for BlockChunk {
 
 impl ChunkAgg for Vec<BlockChunk> {
     fn numbers(&self) -> Vec<u64> {
-        self.iter().map(|chunk| chunk.numbers()).flatten().collect()
+        self.iter().flat_map(|chunk| chunk.numbers()).collect()
     }
 
     fn total_blocks(&self) -> u64 {
