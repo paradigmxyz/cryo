@@ -20,6 +20,27 @@ use cryo_freeze::Schema;
 
 use crate::args::Args;
 
+async fn apply_reorg_buffer(
+    block_chunks: Vec<BlockChunk>,
+    reorg_filter: u64,
+    provider: &Provider<Http>,
+) -> Result<Vec<BlockChunk>, ProviderError> {
+    match reorg_filter {
+        0 => Ok(block_chunks),
+        reorg_filter => {
+            let latest_block = provider.get_block_number().await?.as_u64();
+            let max_allowed = latest_block - reorg_filter;
+            Ok(block_chunks
+                .into_iter()
+                .filter_map(|x| match x.max_block() {
+                    Some(max_block) if max_block <= max_allowed => Some(x),
+                    _ => None,
+                })
+                .collect())
+        }
+    }
+}
+
 /// parse options for running freeze
 pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse args
@@ -53,6 +74,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         Some(n_chunks) => block_chunk.subchunk_by_count(&n_chunks),
         None => block_chunk.subchunk_by_size(&args.chunk_size),
     };
+    let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
 
     // process output directory
     let output_dir = std::fs::canonicalize(args.output_dir.clone())

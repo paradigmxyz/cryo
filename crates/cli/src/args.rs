@@ -20,11 +20,11 @@ pub struct Args {
 
     #[arg(
         long,
-        default_value = "20min",
+        default_value_t = 0,
         help_heading = "Content Options",
         help = "Reorg buffer, save blocks only when they are this old,\ncan be a number of blocks or a time"
     )]
-    pub reorg_buffer: String,
+    pub reorg_buffer: u64,
 
     // #[arg(
     //     short,
