@@ -10,6 +10,8 @@ use hex::FromHex;
 use polars::prelude::*;
 
 use cryo_freeze::BlockChunk;
+use cryo_freeze::ChunkAgg;
+use cryo_freeze::ChunkOps;
 use cryo_freeze::ColumnEncoding;
 use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
@@ -48,8 +50,8 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse block chunks
     let block_chunk = parse_block_inputs(&args.blocks, &provider).await?;
     let block_chunks = match args.n_chunks {
-        Some(n_chunks) => cryo_freeze::get_subchunks_by_count(&block_chunk, &n_chunks),
-        None => cryo_freeze::get_subchunks_by_size(&block_chunk, &args.chunk_size),
+        Some(n_chunks) => block_chunk.subchunk_by_count(&n_chunks),
+        None => block_chunk.subchunk_by_size(&args.chunk_size),
     };
 
     // process output directory
@@ -103,11 +105,10 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
 
     let parquet_compression = parse_compression(&args.compression)?;
 
-    let chunk_size = block_chunks.first().map(cryo_freeze::get_chunk_block_numbers).map(|x| x.len());
     let row_group_size = parse_row_group_size(
         args.row_group_size,
         args.n_row_groups,
-        chunk_size,
+        block_chunks.get(0).map(|x| x.total_blocks() as usize),
     );
 
     // compile opts
@@ -322,7 +323,7 @@ pub async fn parse_block_inputs(
             let mut block_numbers: Vec<u64> = vec![];
             for input in inputs {
                 let subchunk = parse_block_token(input, false, provider).await?;
-                let subchunk_block_numbers = cryo_freeze::get_chunk_block_numbers(&subchunk);
+                let subchunk_block_numbers = subchunk.numbers();
                 block_numbers.extend(subchunk_block_numbers);
             }
             let block_chunk = BlockChunk::Numbers(block_numbers);

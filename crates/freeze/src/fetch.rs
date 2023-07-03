@@ -4,7 +4,7 @@ use ethers::prelude::*;
 use futures::future::join_all;
 use tokio::sync::Semaphore;
 
-use crate::chunks;
+use crate::chunks::ChunkAgg;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 
@@ -44,7 +44,7 @@ async fn fetch_block_traces(
 ) -> Result<Vec<BlockTrace>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
-    let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
+    let block_numbers = block_chunk.numbers();
     let futures = block_numbers.into_iter().map(|block_number| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);

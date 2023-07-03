@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use crate::chunks;
+use crate::chunks::ChunkAgg;
 use crate::fetch;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
@@ -16,10 +16,10 @@ pub async fn collect_single(
     block_chunk: &BlockChunk,
     opts: &FreezeOpts,
 ) -> Result<DataFrame, CollectError> {
-    let block_numbers = chunks::get_chunk_block_numbers(block_chunk);
+    let numbers = block_chunk.numbers();
     let diffs =
         fetch::fetch_state_diffs(block_chunk, &opts.provider, &opts.max_concurrent_blocks).await?;
-    let df = match state_diffs_to_df(diffs, block_numbers, &opts.schemas) {
+    let df = match state_diffs_to_df(diffs, numbers, &opts.schemas) {
         Ok(mut dfs) => match dfs.remove(datatype) {
             Some(df) => Ok(df),
             None => Err(CollectError::BadSchemaError),

@@ -6,7 +6,7 @@ use futures::future::join_all;
 use polars::prelude::*;
 use tokio::sync::Semaphore;
 
-use crate::chunks;
+use crate::chunks::ChunkAgg;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -85,7 +85,7 @@ impl Dataset for Traces {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let numbers = chunks::get_chunk_block_numbers(block_chunk);
+        let numbers = block_chunk.numbers();
         let traces = fetch_traces(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
         let df = traces_to_df(traces, &opts.schemas[&Datatype::Traces])
             .map_err(CollectError::PolarsError);

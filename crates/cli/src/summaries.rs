@@ -5,6 +5,7 @@ use colored::Colorize;
 use std::time::SystemTime;
 use thousands::Separable;
 
+use cryo_freeze::ChunkAgg;
 use cryo_freeze::Datatype;
 use cryo_freeze::FreezeOpts;
 use cryo_freeze::FreezeSummary;
@@ -38,19 +39,19 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     print_bullet("network", &opts.network_name);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
-    if let Some(min) = cryo_freeze::get_min_block(&opts.block_chunks) {
+    if let Some(min) = &opts.block_chunks.min_block() {
         print_bullet("min block", min.separate_with_commas());
     };
-    if let Some(max) = cryo_freeze::get_max_block(&opts.block_chunks) {
+    if let Some(max) = &opts.block_chunks.max_block() {
         print_bullet("max block", max.separate_with_commas());
     };
     print_bullet(
         "total blocks",
-        cryo_freeze::get_total_blocks(&opts.block_chunks).separate_with_commas(),
+        &opts.block_chunks.total_blocks().separate_with_commas(),
     );
 
     if let Some(first_chunk) = opts.block_chunks.get(0) {
-        let chunk_size = cryo_freeze::get_total_blocks(&[first_chunk.clone()]);
+        let chunk_size = first_chunk.total_blocks();
         print_bullet("block chunk size", chunk_size.separate_with_commas());
     };
     print_bullet(
@@ -140,7 +141,8 @@ pub fn print_cryo_conclusion(
         "chunks skipped",
         freeze_summary.n_skipped.separate_with_commas(),
     );
-    let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
+    // let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
+    let total_blocks = opts.block_chunks.total_blocks() as f64;
     let blocks_completed =
         total_blocks * (freeze_summary.n_completed as f64 / opts.block_chunks.len() as f64);
     print_bullet("blocks completed", blocks_completed.separate_with_commas());

@@ -1,6 +1,6 @@
 use polars::prelude::*;
 
-use crate::chunks;
+use crate::chunks::ChunkOps;
 use crate::types::FileError;
 use crate::types::{BlockChunk, FreezeOpts};
 
@@ -10,7 +10,7 @@ pub fn get_chunk_path(
     chunk: &BlockChunk,
     opts: &FreezeOpts,
 ) -> Result<String, FileError> {
-    let block_chunk_stub = chunks::get_block_chunk_stub(chunk).map_err(FileError::FilePathError)?;
+    let block_chunk_stub = chunk.stub().map_err(FileError::FilePathError)?;
     let filename = format!(
         "{}__{}__{}.{}",
         opts.network_name,

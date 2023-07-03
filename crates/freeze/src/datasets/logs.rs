@@ -6,7 +6,7 @@ use futures::future::join_all;
 use polars::prelude::*;
 use tokio::sync::Semaphore;
 
-use crate::chunks;
+use crate::chunks::ChunkOps;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -65,8 +65,7 @@ impl Dataset for Logs {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let request_chunks =
-            chunks::block_chunk_to_filter_options(block_chunk, &opts.log_request_size);
+        let request_chunks = block_chunk.to_log_filter_options(&opts.log_request_size);
         let logs = fetch_logs(
             request_chunks,
             &opts.contract,
