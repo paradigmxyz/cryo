@@ -13,6 +13,7 @@ use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FreezeOpts;
+use crate::types::RateLimiter;
 use crate::types::Schema;
 use crate::types::Traces;
 
@@ -86,7 +87,13 @@ impl Dataset for Traces {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let numbers = block_chunk.numbers();
-        let traces = fetch_traces(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
+        let traces = fetch_traces(
+            numbers,
+            &opts.provider,
+            &opts.max_concurrent_blocks,
+            &opts.rate_limiter,
+        )
+        .await?;
         let df = traces_to_df(traces, &opts.schemas[&Datatype::Traces])
             .map_err(CollectError::PolarsError);
         if let Some(sort_keys) = opts.sort.get(&Datatype::Traces) {
@@ -102,14 +109,19 @@ pub async fn fetch_traces(
     block_numbers: Vec<u64>,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<Trace>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
     let futures = block_numbers.into_iter().map(|block_number| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);
+        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
             provider
                 .trace_block(BlockNumber::Number(block_number.into()))
                 .await

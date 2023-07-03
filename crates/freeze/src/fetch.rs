@@ -7,16 +7,19 @@ use tokio::sync::Semaphore;
 use crate::chunks::ChunkAgg;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
+use crate::types::RateLimiter;
 
 pub async fn fetch_state_diffs(
     block_chunk: &BlockChunk,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<BlockTrace>, CollectError> {
     fetch_block_traces(
         block_chunk,
         provider,
         max_concurrent_blocks,
+        rate_limiter,
         &[TraceType::StateDiff],
     )
     .await
@@ -26,11 +29,13 @@ pub async fn fetch_vm_traces(
     block_chunk: &BlockChunk,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<BlockTrace>, CollectError> {
     fetch_block_traces(
         block_chunk,
         provider,
         max_concurrent_blocks,
+        rate_limiter,
         &[TraceType::VmTrace],
     )
     .await
@@ -40,6 +45,7 @@ async fn fetch_block_traces(
     block_chunk: &BlockChunk,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
     trace_types: &[TraceType],
 ) -> Result<Vec<BlockTrace>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
@@ -48,9 +54,13 @@ async fn fetch_block_traces(
     let futures = block_numbers.into_iter().map(|block_number| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);
+        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
         let trace_types = trace_types.to_vec();
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
             provider
                 .trace_replay_block_transactions(
                     BlockNumber::Number(block_number.into()),

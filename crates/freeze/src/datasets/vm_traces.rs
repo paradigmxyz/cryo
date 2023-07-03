@@ -51,9 +51,13 @@ impl Dataset for VmTraces {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let vm_traces =
-            fetch::fetch_vm_traces(block_chunk, &opts.provider, &opts.max_concurrent_blocks)
-                .await?;
+        let vm_traces = fetch::fetch_vm_traces(
+            block_chunk,
+            &opts.provider,
+            &opts.max_concurrent_blocks,
+            &opts.rate_limiter,
+        )
+        .await?;
         let df = vm_traces_to_df(vm_traces, &opts.schemas[&Datatype::VmTraces])
             .map_err(CollectError::PolarsError);
         if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {

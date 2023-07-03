@@ -92,6 +92,7 @@ pub async fn fetch_transactions(
         block_numbers,
         &opts.provider,
         &opts.max_concurrent_blocks,
+        &opts.rate_limiter,
     );
 
     let mut txs: Vec<Transaction> = Vec::new();

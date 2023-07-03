@@ -6,8 +6,11 @@ use clap::Parser;
 use ethers::prelude::*;
 use eyre::Result;
 use eyre::WrapErr;
+use governor::Quota;
+use governor::RateLimiter;
 use hex::FromHex;
 use polars::prelude::*;
+use std::num::NonZeroU32;
 
 use cryo_freeze::BlockChunk;
 use cryo_freeze::ChunkAgg;
@@ -71,7 +74,6 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse block chunks
     let block_chunks = parse_block_inputs(&args.blocks, &provider).await?;
     let block_chunks = if args.align {
-        println!("ALIGNED");
         block_chunks
             .into_iter()
             .filter_map(|x| x.align(args.chunk_size))
@@ -79,14 +81,11 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     } else {
         block_chunks
     };
-    println!("CHUNKS {:?}", block_chunks);
     let block_chunks = match args.n_chunks {
         Some(n_chunks) => block_chunks.subchunk_by_count(&n_chunks),
         None => block_chunks.subchunk_by_size(&args.chunk_size),
     };
-    println!("CHUNKS {:?}", block_chunks);
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
-    println!("CHUNKS {:?}", block_chunks);
 
     // process output directory
     let output_dir = std::fs::canonicalize(args.output_dir.clone())
@@ -145,6 +144,17 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         block_chunks.get(0).map(|x| x.total_blocks() as usize),
     );
 
+    let rate_limiter = match args.requests_per_second {
+        Some(rate_limit) => match NonZeroU32::new(rate_limit) {
+            Some(value) => {
+                let quota = Quota::per_second(value);
+                Some(Arc::new(RateLimiter::direct(quota)))
+            }
+            _ => None,
+        },
+        None => None,
+    };
+
     // compile opts
     let opts = FreezeOpts {
         datatypes,
@@ -155,6 +165,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         provider,
         network_name,
         // acquisition options
+        rate_limiter,
         max_concurrent_chunks,
         max_concurrent_blocks,
         dry_run: args.dry,

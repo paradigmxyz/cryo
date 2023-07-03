@@ -73,7 +73,7 @@ pub struct Args {
         value_name = "limit",
         help_heading = "Acquisition Options"
     )]
-    pub requests_per_second: Option<u64>,
+    pub requests_per_second: Option<u32>,
 
     /// Global number of concurrent requests
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]

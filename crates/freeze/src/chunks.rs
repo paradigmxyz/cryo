@@ -208,10 +208,6 @@ impl ChunkVecOps for Vec<BlockChunk> {
     }
 }
 
-//
-// // old
-//
-
 /// convert a range of numbers into a Vec of (start, end) chunk tuples
 fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
     let mut chunks = Vec::new();

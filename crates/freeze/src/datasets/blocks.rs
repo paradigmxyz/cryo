@@ -16,6 +16,7 @@ use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FreezeOpts;
+use crate::types::RateLimiter;
 use crate::types::Schema;
 use crate::with_series;
 use crate::with_series_binary;
@@ -72,7 +73,13 @@ impl Dataset for Blocks {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let numbers = block_chunk.numbers();
-        let blocks = fetch_blocks(numbers, &opts.provider, &opts.max_concurrent_blocks).await?;
+        let blocks = fetch_blocks(
+            numbers,
+            &opts.provider,
+            &opts.max_concurrent_blocks,
+            &opts.rate_limiter,
+        )
+        .await?;
         let blocks = blocks.into_iter().flatten().collect();
         let df = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks])
             .map_err(CollectError::PolarsError);
@@ -89,14 +96,19 @@ pub async fn fetch_blocks(
     numbers: Vec<u64>,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<Option<Block<TxHash>>>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
     let futures = numbers.into_iter().map(|number| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);
+        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
             provider.get_block(number).await
         })
     });
@@ -116,14 +128,19 @@ pub async fn fetch_blocks_and_transactions(
     numbers: Vec<u64>,
     provider: &Provider<Http>,
     max_concurrent_blocks: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<Option<Block<Transaction>>>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
 
     let futures = numbers.into_iter().map(|number| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);
+        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
             provider.get_block_with_txs(number).await
         })
     });

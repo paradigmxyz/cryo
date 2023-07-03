@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use ethers::prelude::*;
 use polars::prelude::*;
@@ -7,6 +8,7 @@ use crate::types::BlockChunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 use crate::types::FileFormat;
+use crate::types::RateLimiter;
 use crate::types::Schema;
 
 #[derive(Clone)]
@@ -19,6 +21,7 @@ pub struct FreezeOpts {
     pub provider: Provider<Http>,
     pub network_name: String,
     // acquisition options
+    pub rate_limiter: Option<Arc<RateLimiter>>,
     pub max_concurrent_chunks: u64,
     pub max_concurrent_blocks: u64,
     pub dry_run: bool,

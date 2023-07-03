@@ -17,8 +17,13 @@ pub async fn collect_single(
     opts: &FreezeOpts,
 ) -> Result<DataFrame, CollectError> {
     let numbers = block_chunk.numbers();
-    let diffs =
-        fetch::fetch_state_diffs(block_chunk, &opts.provider, &opts.max_concurrent_blocks).await?;
+    let diffs = fetch::fetch_state_diffs(
+        block_chunk,
+        &opts.provider,
+        &opts.max_concurrent_blocks,
+        &opts.rate_limiter,
+    )
+    .await?;
     let df = match state_diffs_to_df(diffs, numbers, &opts.schemas) {
         Ok(mut dfs) => match dfs.remove(datatype) {
             Some(df) => Ok(df),

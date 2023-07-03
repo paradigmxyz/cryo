@@ -2,6 +2,7 @@ pub mod cli_types;
 pub mod conversions;
 pub mod data_types;
 pub mod error_types;
+pub mod external_types;
 pub mod output_types;
 pub mod schema_types;
 
@@ -11,6 +12,7 @@ pub use cli_types::FreezeSummary;
 pub use conversions::ToVecHex;
 pub use conversions::ToVecU8;
 pub use data_types::*;
+pub use external_types::RateLimiter;
 pub use output_types::BlockChunk;
 pub use output_types::ColumnEncoding;
 pub use output_types::FileFormat;

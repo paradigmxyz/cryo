@@ -14,6 +14,7 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FreezeOpts;
 use crate::types::Logs;
+use crate::types::RateLimiter;
 use crate::types::Schema;
 
 #[async_trait::async_trait]
@@ -77,6 +78,7 @@ impl Dataset for Logs {
             ],
             &opts.provider,
             &opts.max_concurrent_blocks,
+            &opts.rate_limiter,
         )
         .await?;
 
@@ -96,12 +98,14 @@ pub async fn fetch_logs(
     topics: &[Option<ValueOrArray<Option<H256>>>; 4],
     provider: &Provider<Http>,
     max_concurrent_requests: &u64,
+    rate_limiter: &Option<Arc<RateLimiter>>,
 ) -> Result<Vec<Log>, CollectError> {
     let semaphore = Arc::new(Semaphore::new(*max_concurrent_requests as usize));
 
     let futures = request_chunks.into_iter().map(|request_chunk| {
         let provider = provider.clone();
         let semaphore = Arc::clone(&semaphore);
+        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
         let filter = Filter {
             block_option: request_chunk,
             address: address.clone(),
@@ -109,6 +113,9 @@ pub async fn fetch_logs(
         };
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
             provider.get_logs(&filter).await
         })
     });
