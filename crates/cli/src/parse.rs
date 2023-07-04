@@ -131,10 +131,12 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let sort = parse_sort(&args.sort, &schemas)?;
 
     let contract = parse_address(&args.contract);
-    let topic0 = parse_topic(&args.topic0);
-    let topic1 = parse_topic(&args.topic1);
-    let topic2 = parse_topic(&args.topic2);
-    let topic3 = parse_topic(&args.topic3);
+    let topics = [
+        parse_topic(&args.topic0),
+        parse_topic(&args.topic1),
+        parse_topic(&args.topic2),
+        parse_topic(&args.topic3),
+    ];
 
     let parquet_compression = parse_compression(&args.compression)?;
 
@@ -184,10 +186,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         // dataset-specific options
         // gas_used: args.gas_used,
         contract,
-        topic0,
-        topic1,
-        topic2,
-        topic3,
+        topics,
         log_request_size: args.log_request_size,
     };
     Ok(opts)

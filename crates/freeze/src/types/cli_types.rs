@@ -9,6 +9,7 @@ use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FileFormat;
+use crate::types::LogOpts;
 use crate::types::RateLimiter;
 use crate::types::Schema;
 
@@ -29,8 +30,8 @@ pub struct FreezeOpts {
     pub dry_run: bool,
     // output options
     pub output_dir: String,
-    pub overwrite: bool,
     pub file_suffix: Option<String>,
+    pub overwrite: bool,
     pub output_format: FileFormat,
     pub binary_column_format: ColumnEncoding,
     pub sort: HashMap<Datatype, Vec<String>>,
@@ -39,12 +40,7 @@ pub struct FreezeOpts {
     pub parquet_compression: ParquetCompression,
     // dataset-specific options
     // pub gas_used: bool,
-    pub contract: Option<ValueOrArray<H160>>,
-    pub topic0: Option<ValueOrArray<Option<H256>>>,
-    pub topic1: Option<ValueOrArray<Option<H256>>>,
-    pub topic2: Option<ValueOrArray<Option<H256>>>,
-    pub topic3: Option<ValueOrArray<Option<H256>>>,
-    pub log_request_size: u64,
+    pub log_opts: LogOpts,
 }
 
 impl FreezeOpts {

@@ -75,18 +75,16 @@ impl Dataset for Blocks {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let rx = provider_collect_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
-        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks])
-            .await
-            .map_err(CollectError::PolarsError)
+        let rx = fetch_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
+        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks]).await
     }
 }
 
-async fn provider_collect_blocks(
+async fn fetch_blocks(
     block_chunk: &BlockChunk,
     opts: &FetchOpts,
 ) -> mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>> {
-    let (tx, rx) = mpsc::channel(block_chunk.numbers().len() * 1000);
+    let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
@@ -146,7 +144,7 @@ pub async fn fetch_blocks_and_transactions(
 pub async fn blocks_to_df(
     mut blocks: mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>>,
     schema: &Schema,
-) -> Result<DataFrame, PolarsError> {
+) -> Result<DataFrame, CollectError> {
     let include_hash = schema.contains_key("hash");
     let include_parent_hash = schema.contains_key("parent_hash");
     let include_author = schema.contains_key("author");
@@ -240,5 +238,5 @@ pub async fn blocks_to_df(
     with_series_binary!(cols, "total_difficulty", total_difficulty, schema);
     with_series!(cols, "size", size, schema);
     with_series!(cols, "base_fee_per_gas", base_fee_per_gas, schema);
-    DataFrame::new(cols)
+    DataFrame::new(cols).map_err(CollectError::PolarsError)
 }

@@ -10,3 +10,10 @@ pub struct FetchOpts {
     pub semaphore: Arc<Semaphore>,
     pub rate_limiter: Option<Arc<RateLimiter>>,
 }
+
+#[derive(Clone)]
+pub struct LogOpts {
+    pub topics: [Option<ValueOrArray<Option<H256>>>; 4],
+    pub address: Option<ValueOrArray<H160>>,
+    pub log_request_size: u64,
+}

@@ -15,6 +15,7 @@ pub use conversions::ToVecU8;
 pub use data_types::*;
 pub use external_types::RateLimiter;
 pub use fetch_types::FetchOpts;
+pub use fetch_types::LogOpts;
 pub use output_types::BlockChunk;
 pub use output_types::ColumnEncoding;
 pub use output_types::FileFormat;
