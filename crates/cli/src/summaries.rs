@@ -120,6 +120,7 @@ pub fn print_cryo_conclusion(
     let duration_string = format!("{}.{:03} seconds", seconds, millis);
 
     print_header("collection summary");
+    print_bullet("total duration", duration_string);
     print_bullet(
         "t_start",
         dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
@@ -132,20 +133,20 @@ pub fn print_cryo_conclusion(
                 .to_string()
                 .as_str(),
     );
-    print_bullet("total duration", duration_string);
-    print_bullet(
-        "chunks completed",
-        freeze_summary.n_completed.separate_with_commas(),
-    );
+    let n_chunks = opts.block_chunks.len();
     print_bullet(
         "chunks skipped",
         freeze_summary.n_skipped.separate_with_commas(),
+    );
+    print_bullet(
+        "chunks collected",
+        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), n_chunks),
     );
     // let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
     let total_blocks = opts.block_chunks.total_blocks() as f64;
     let blocks_completed =
         total_blocks * (freeze_summary.n_completed as f64 / opts.block_chunks.len() as f64);
-    print_bullet("blocks completed", blocks_completed.separate_with_commas());
+    print_bullet("blocks collected", blocks_completed.separate_with_commas());
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let blocks_per_second = blocks_completed / total_time;
     let blocks_per_minute = blocks_per_second * 60.0;
