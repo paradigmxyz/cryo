@@ -76,7 +76,9 @@ impl Dataset for Blocks {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = provider_collect_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
-        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks]).await.map_err(CollectError::PolarsError)
+        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks])
+            .await
+            .map_err(CollectError::PolarsError)
     }
 }
 
@@ -101,7 +103,7 @@ async fn provider_collect_blocks(
                 .await
                 .map_err(CollectError::ProviderError);
             match tx.send(block).await {
-                Ok(_) => {},
+                Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
             }
         });

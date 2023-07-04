@@ -7,10 +7,10 @@ use polars::prelude::*;
 use crate::types::BlockChunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FileFormat;
 use crate::types::RateLimiter;
 use crate::types::Schema;
-use crate::types::FetchOpts;
 
 #[derive(Clone)]
 pub struct FreezeOpts {
@@ -49,7 +49,9 @@ pub struct FreezeOpts {
 
 impl FreezeOpts {
     pub fn chunk_fetch_opts(&self) -> FetchOpts {
-        let sem = Arc::new(tokio::sync::Semaphore::new(self.max_concurrent_blocks as usize));
+        let sem = Arc::new(tokio::sync::Semaphore::new(
+            self.max_concurrent_blocks as usize,
+        ));
         FetchOpts {
             // provider: self.provider.clone(),
             provider: Arc::clone(&self.provider),

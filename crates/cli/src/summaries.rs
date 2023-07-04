@@ -140,7 +140,11 @@ pub fn print_cryo_conclusion(
     );
     print_bullet(
         "chunks collected",
-        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), n_chunks),
+        format!(
+            "{} / {}",
+            freeze_summary.n_completed.separate_with_commas(),
+            n_chunks
+        ),
     );
     // let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
     let total_blocks = opts.block_chunks.total_blocks() as f64;

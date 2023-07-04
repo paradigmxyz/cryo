@@ -2,8 +2,8 @@ pub mod cli_types;
 pub mod conversions;
 pub mod data_types;
 pub mod error_types;
-pub mod fetch_types;
 pub mod external_types;
+pub mod fetch_types;
 pub mod output_types;
 pub mod schema_types;
 

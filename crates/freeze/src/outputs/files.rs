@@ -12,7 +12,7 @@ pub fn get_chunk_path(
 ) -> Result<String, FileError> {
     let block_chunk_stub = chunk.stub().map_err(FileError::FilePathError)?;
     let filename = match &opts.file_suffix {
-        Some(suffix) =>  format!(
+        Some(suffix) => format!(
             "{}__{}__{}__{}.{}",
             opts.network_name,
             name,
