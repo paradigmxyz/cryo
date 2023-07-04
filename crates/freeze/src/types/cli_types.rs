@@ -10,6 +10,7 @@ use crate::types::Datatype;
 use crate::types::FileFormat;
 use crate::types::RateLimiter;
 use crate::types::Schema;
+use crate::types::FetchOpts;
 
 #[derive(Clone)]
 pub struct FreezeOpts {
@@ -18,7 +19,8 @@ pub struct FreezeOpts {
     pub block_chunks: Vec<BlockChunk>,
     pub schemas: HashMap<Datatype, Schema>,
     // source options
-    pub provider: Provider<Http>,
+    // pub provider: Provider<Http>,
+    pub provider: Arc<Provider<Http>>,
     pub network_name: String,
     // acquisition options
     pub rate_limiter: Option<Arc<RateLimiter>>,
@@ -43,6 +45,18 @@ pub struct FreezeOpts {
     pub topic2: Option<ValueOrArray<Option<H256>>>,
     pub topic3: Option<ValueOrArray<Option<H256>>>,
     pub log_request_size: u64,
+}
+
+impl FreezeOpts {
+    pub fn chunk_fetch_opts(&self) -> FetchOpts {
+        let sem = Arc::new(tokio::sync::Semaphore::new(self.max_concurrent_blocks as usize));
+        FetchOpts {
+            // provider: self.provider.clone(),
+            provider: Arc::clone(&self.provider),
+            rate_limiter: self.rate_limiter.as_ref().map(Arc::clone),
+            semaphore: sem,
+        }
+    }
 }
 
 pub struct FreezeSummary {

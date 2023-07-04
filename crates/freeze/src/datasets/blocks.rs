@@ -4,7 +4,9 @@ use std::sync::Arc;
 use ethers::prelude::*;
 use futures::future::join_all;
 use polars::prelude::*;
+use tokio::sync::mpsc;
 use tokio::sync::Semaphore;
+use tokio::task;
 
 use crate::chunks::ChunkAgg;
 use crate::types::conversions::ToVecHex;
@@ -15,6 +17,7 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::RateLimiter;
 use crate::types::Schema;
@@ -72,56 +75,38 @@ impl Dataset for Blocks {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let numbers = block_chunk.numbers();
-        let blocks = fetch_blocks(
-            numbers,
-            &opts.provider,
-            &opts.max_concurrent_blocks,
-            &opts.rate_limiter,
-        )
-        .await?;
-        let blocks = blocks.into_iter().flatten().collect();
-        let df = blocks_to_df(blocks, &opts.schemas[&Datatype::Blocks])
-            .map_err(CollectError::PolarsError);
-        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
-            df.map(|x| x.sort(sort_keys, false))?
-                .map_err(CollectError::PolarsError)
-        } else {
-            df
-        }
+        let rx = provider_collect_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
+        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks]).await.map_err(CollectError::PolarsError)
     }
 }
 
-pub async fn fetch_blocks(
-    numbers: Vec<u64>,
-    provider: &Provider<Http>,
-    max_concurrent_blocks: &u64,
-    rate_limiter: &Option<Arc<RateLimiter>>,
-) -> Result<Vec<Option<Block<TxHash>>>, CollectError> {
-    let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
+async fn provider_collect_blocks(
+    block_chunk: &BlockChunk,
+    opts: &FetchOpts,
+) -> mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>> {
+    let (tx, rx) = mpsc::channel(block_chunk.numbers().len() * 1000);
 
-    let futures = numbers.into_iter().map(|number| {
-        let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore);
-        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
-        tokio::spawn(async move {
+    for number in block_chunk.numbers() {
+        let tx = tx.clone();
+        let provider = opts.provider.clone();
+        let semaphore = opts.semaphore.clone();
+        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            provider.get_block(number).await
-        })
-    });
-
-    join_all(futures)
-        .await
-        .into_iter()
-        .map(|r| match r {
-            Ok(Ok(block)) => Ok(block),
-            Ok(Err(e)) => Err(CollectError::ProviderError(e)),
-            Err(e) => Err(CollectError::TaskFailed(e)),
-        })
-        .collect()
+            let block = provider
+                .get_block(number)
+                .await
+                .map_err(CollectError::ProviderError);
+            match tx.send(block).await {
+                Ok(_) => {},
+                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+            }
+        });
+    }
+    rx
 }
 
 pub async fn fetch_blocks_and_transactions(
@@ -156,7 +141,10 @@ pub async fn fetch_blocks_and_transactions(
         .collect()
 }
 
-pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataFrame, PolarsError> {
+pub async fn blocks_to_df(
+    mut blocks: mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>>,
+    schema: &Schema,
+) -> Result<DataFrame, PolarsError> {
     let include_hash = schema.contains_key("hash");
     let include_parent_hash = schema.contains_key("parent_hash");
     let include_author = schema.contains_key("author");
@@ -172,7 +160,7 @@ pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataF
     let include_size = schema.contains_key("size");
     let include_base_fee_per_gas = schema.contains_key("base_fee_per_gas");
 
-    let capacity = blocks.len();
+    let capacity = 0;
     let mut hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut parent_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut author: Vec<Vec<u8>> = Vec::with_capacity(capacity);
@@ -188,7 +176,7 @@ pub fn blocks_to_df(blocks: Vec<Block<TxHash>>, schema: &Schema) -> Result<DataF
     let mut size: Vec<Option<u64>> = Vec::with_capacity(capacity);
     let mut base_fee_per_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
 
-    for block in blocks.iter() {
+    while let Some(Ok(Some(block))) = blocks.recv().await {
         if let (Some(n), Some(h), Some(a)) = (block.number, block.hash, block.author) {
             if include_hash {
                 hash.push(h.as_bytes().to_vec());

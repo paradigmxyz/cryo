@@ -164,7 +164,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         block_chunks,
         schemas,
         // source options
-        provider,
+        provider: Arc::new(provider),
         network_name,
         // acquisition options
         rate_limiter,
