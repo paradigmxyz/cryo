@@ -2,9 +2,9 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ethers::prelude::*;
-use futures::future::join_all;
 use polars::prelude::*;
-use tokio::sync::Semaphore;
+use tokio::sync::mpsc;
+use tokio::task;
 
 use crate::chunks::ChunkAgg;
 use crate::types::BlockChunk;
@@ -12,8 +12,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
-use crate::types::RateLimiter;
 use crate::types::Schema;
 use crate::types::Traces;
 
@@ -86,61 +86,38 @@ impl Dataset for Traces {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let numbers = block_chunk.numbers();
-        let traces = fetch_traces(
-            numbers,
-            &opts.provider,
-            &opts.max_concurrent_blocks,
-            &opts.rate_limiter,
-        )
-        .await?;
-        let df = traces_to_df(traces, &opts.schemas[&Datatype::Traces])
-            .map_err(CollectError::PolarsError);
-        if let Some(sort_keys) = opts.sort.get(&Datatype::Traces) {
-            df.map(|x| x.sort(sort_keys, false))?
-                .map_err(CollectError::PolarsError)
-        } else {
-            df
-        }
+        let rx = fetch_traces(block_chunk, &opts.chunk_fetch_opts()).await;
+        traces_to_df(rx, &opts.schemas[&Datatype::Traces]).await
     }
 }
 
 pub async fn fetch_traces(
-    block_numbers: Vec<u64>,
-    provider: &Provider<Http>,
-    max_concurrent_blocks: &u64,
-    rate_limiter: &Option<Arc<RateLimiter>>,
-) -> Result<Vec<Trace>, CollectError> {
-    let semaphore = Arc::new(Semaphore::new(*max_concurrent_blocks as usize));
+    block_chunk: &BlockChunk,
+    opts: &FetchOpts,
+) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
+    let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
-    let futures = block_numbers.into_iter().map(|block_number| {
-        let provider = provider.clone();
-        let semaphore = Arc::clone(&semaphore);
-        let rate_limiter = rate_limiter.as_ref().map(Arc::clone);
-        tokio::spawn(async move {
+    for number in block_chunk.numbers() {
+        let tx = tx.clone();
+        let provider = opts.provider.clone();
+        let semaphore = opts.semaphore.clone();
+        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            provider
-                .trace_block(BlockNumber::Number(block_number.into()))
+            let result = provider
+                .trace_block(BlockNumber::Number(number.into()))
                 .await
-        })
-    });
-
-    let results: Vec<_> = join_all(futures)
-        .await
-        .into_iter()
-        .map(|res| res.map_err(CollectError::TaskFailed))
-        .collect();
-
-    let mut traces: Vec<Trace> = Vec::new();
-    for result in results {
-        let block_traces = result?.map_err(CollectError::ProviderError)?;
-        traces.extend(block_traces);
+                .map_err(CollectError::ProviderError);
+            match tx.send(result).await {
+                Ok(_) => {}
+                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+            }
+        });
     }
-
-    Ok(traces)
+    rx
 }
 
 fn reward_type_to_string(reward_type: &RewardType) -> String {
@@ -171,7 +148,10 @@ fn action_call_type_to_string(action_call_type: &CallType) -> String {
     }
 }
 
-pub fn traces_to_df(traces: Vec<Trace>, schema: &Schema) -> Result<DataFrame, PolarsError> {
+async fn traces_to_df(
+    mut rx: mpsc::Receiver<Result<Vec<Trace>, CollectError>>,
+    schema: &Schema,
+) -> Result<DataFrame, CollectError> {
     let include_action_from = schema.contains_key("action_from");
     let include_action_to = schema.contains_key("action_to");
     let include_action_value = schema.contains_key("action_value");
@@ -193,241 +173,246 @@ pub fn traces_to_df(traces: Vec<Trace>, schema: &Schema) -> Result<DataFrame, Po
     let include_block_hash = schema.contains_key("block_hash");
     let include_error = schema.contains_key("error");
 
-    let mut action_from: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut action_to: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut action_value: Vec<String> = Vec::with_capacity(traces.len());
-    let mut action_gas: Vec<Option<u64>> = Vec::with_capacity(traces.len());
-    let mut action_input: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut action_call_type: Vec<Option<String>> = Vec::with_capacity(traces.len());
-    let mut action_init: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut action_reward_type: Vec<Option<String>> = Vec::with_capacity(traces.len());
-    let mut action_type: Vec<String> = Vec::with_capacity(traces.len());
-    let mut result_gas_used: Vec<Option<u64>> = Vec::with_capacity(traces.len());
-    let mut result_output: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut result_code: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut result_address: Vec<Option<Vec<u8>>> = Vec::with_capacity(traces.len());
-    let mut trace_address: Vec<String> = Vec::with_capacity(traces.len());
-    let mut subtraces: Vec<u32> = Vec::with_capacity(traces.len());
-    let mut transaction_position: Vec<u32> = Vec::with_capacity(traces.len());
-    let mut transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(traces.len());
-    let mut block_number: Vec<u64> = Vec::with_capacity(traces.len());
-    let mut block_hash: Vec<Vec<u8>> = Vec::with_capacity(traces.len());
-    let mut error: Vec<Option<String>> = Vec::with_capacity(traces.len());
+    let capacity = 0;
+    let mut action_from: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut action_to: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut action_value: Vec<String> = Vec::with_capacity(capacity);
+    let mut action_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
+    let mut action_input: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut action_call_type: Vec<Option<String>> = Vec::with_capacity(capacity);
+    let mut action_init: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut action_reward_type: Vec<Option<String>> = Vec::with_capacity(capacity);
+    let mut action_type: Vec<String> = Vec::with_capacity(capacity);
+    let mut result_gas_used: Vec<Option<u64>> = Vec::with_capacity(capacity);
+    let mut result_output: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut result_code: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut result_address: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
+    let mut trace_address: Vec<String> = Vec::with_capacity(capacity);
+    let mut subtraces: Vec<u32> = Vec::with_capacity(capacity);
+    let mut transaction_position: Vec<u32> = Vec::with_capacity(capacity);
+    let mut transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
+    let mut block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut block_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
+    let mut error: Vec<Option<String>> = Vec::with_capacity(capacity);
 
-    for trace in traces.iter() {
-        if let (Some(tx_hash), Some(tx_pos)) = (trace.transaction_hash, trace.transaction_position)
-        {
-            // Call
-            // from: from,
-            // to: to,
-            // value: value,
-            // gas: gas,
-            // input: input,
-            // call_type: action_call_type, [None, Call, CallCode, DelegateCall, StaticCall]
-            //
-            // Create
-            // from: from,
-            // value: value,
-            // gas: gas,
-            // init: init,
-            //
-            // Suicide
-            // address: from,
-            // refund_address: to,
-            // balance: value,
-            //
-            // Reward
-            // author: to,
-            // value: value,
-            // reward_type: action_reward_type, [Block, Uncle, EmptyStep, External],
+    while let Some(Ok(traces)) = rx.recv().await {
+        for trace in traces.iter() {
+            if let (Some(tx_hash), Some(tx_pos)) =
+                (trace.transaction_hash, trace.transaction_position)
+            {
+                // Call
+                // from: from,
+                // to: to,
+                // value: value,
+                // gas: gas,
+                // input: input,
+                // call_type: action_call_type, [None, Call, CallCode, DelegateCall, StaticCall]
+                //
+                // Create
+                // from: from,
+                // value: value,
+                // gas: gas,
+                // init: init,
+                //
+                // Suicide
+                // address: from,
+                // refund_address: to,
+                // balance: value,
+                //
+                // Reward
+                // author: to,
+                // value: value,
+                // reward_type: action_reward_type, [Block, Uncle, EmptyStep, External],
 
-            match &trace.action {
-                Action::Call(a) => {
-                    if include_action_from {
-                        action_from.push(Some(a.from.as_bytes().to_vec()));
-                    }
-                    if include_action_to {
-                        action_to.push(Some(a.to.as_bytes().to_vec()));
-                    }
-                    if include_action_value {
-                        action_value.push(a.value.to_string());
-                    }
-                    if include_action_gas {
-                        action_gas.push(Some(a.gas.as_u64()));
-                    }
-                    if include_action_input {
-                        action_input.push(Some(a.input.to_vec()));
-                    }
-                    if include_action_call_type {
-                        action_call_type.push(Some(action_call_type_to_string(&a.call_type)));
-                    }
+                match &trace.action {
+                    Action::Call(a) => {
+                        if include_action_from {
+                            action_from.push(Some(a.from.as_bytes().to_vec()));
+                        }
+                        if include_action_to {
+                            action_to.push(Some(a.to.as_bytes().to_vec()));
+                        }
+                        if include_action_value {
+                            action_value.push(a.value.to_string());
+                        }
+                        if include_action_gas {
+                            action_gas.push(Some(a.gas.as_u64()));
+                        }
+                        if include_action_input {
+                            action_input.push(Some(a.input.to_vec()));
+                        }
+                        if include_action_call_type {
+                            action_call_type.push(Some(action_call_type_to_string(&a.call_type)));
+                        }
 
-                    if include_action_init {
-                        action_init.push(None)
+                        if include_action_init {
+                            action_init.push(None)
+                        }
+                        if include_action_reward_type {
+                            action_reward_type.push(None)
+                        }
                     }
-                    if include_action_reward_type {
-                        action_reward_type.push(None)
+                    Action::Create(action) => {
+                        if include_action_from {
+                            action_from.push(Some(action.from.as_bytes().to_vec()));
+                        }
+                        if include_action_value {
+                            action_value.push(action.value.to_string());
+                        }
+                        if include_action_gas {
+                            action_gas.push(Some(action.gas.as_u64()));
+                        }
+                        if include_action_init {
+                            action_init.push(Some(action.init.to_vec()));
+                        }
+
+                        if include_action_to {
+                            action_to.push(None)
+                        }
+                        if include_action_input {
+                            action_input.push(None)
+                        }
+                        if include_action_call_type {
+                            action_call_type.push(None)
+                        }
+                        if include_action_reward_type {
+                            action_reward_type.push(None)
+                        }
+                    }
+                    Action::Suicide(action) => {
+                        if include_action_from {
+                            action_from.push(Some(action.address.as_bytes().to_vec()));
+                        }
+                        if include_action_to {
+                            action_to.push(Some(action.refund_address.as_bytes().to_vec()));
+                        }
+                        if include_action_value {
+                            action_value.push(action.balance.to_string());
+                        }
+
+                        if include_action_gas {
+                            action_gas.push(None)
+                        }
+                        if include_action_input {
+                            action_input.push(None)
+                        }
+                        if include_action_call_type {
+                            action_call_type.push(None)
+                        }
+                        if include_action_init {
+                            action_init.push(None)
+                        }
+                        if include_action_reward_type {
+                            action_reward_type.push(None)
+                        }
+                    }
+                    Action::Reward(action) => {
+                        if include_action_to {
+                            action_to.push(Some(action.author.as_bytes().to_vec()));
+                        }
+                        if include_action_value {
+                            action_value.push(action.value.to_string());
+                        }
+                        if include_action_reward_type {
+                            action_reward_type
+                                .push(Some(reward_type_to_string(&action.reward_type)));
+                        }
+
+                        if include_action_from {
+                            action_from.push(None)
+                        }
+                        if include_action_gas {
+                            action_gas.push(None)
+                        }
+                        if include_action_input {
+                            action_input.push(None)
+                        }
+                        if include_action_call_type {
+                            action_call_type.push(None)
+                        }
+                        if include_action_init {
+                            action_init.push(None)
+                        }
                     }
                 }
-                Action::Create(action) => {
-                    if include_action_from {
-                        action_from.push(Some(action.from.as_bytes().to_vec()));
-                    }
-                    if include_action_value {
-                        action_value.push(action.value.to_string());
-                    }
-                    if include_action_gas {
-                        action_gas.push(Some(action.gas.as_u64()));
-                    }
-                    if include_action_init {
-                        action_init.push(Some(action.init.to_vec()));
-                    }
+                if include_action_type {
+                    action_type.push(action_type_to_string(&trace.action_type));
+                }
 
-                    if include_action_to {
-                        action_to.push(None)
+                match &trace.result {
+                    Some(Res::Call(result)) => {
+                        if include_result_gas_used {
+                            result_gas_used.push(Some(result.gas_used.as_u64()));
+                        }
+                        if include_result_output {
+                            result_output.push(Some(result.output.to_vec()));
+                        }
+
+                        if include_result_code {
+                            result_code.push(None);
+                        }
+                        if include_result_address {
+                            result_address.push(None);
+                        }
                     }
-                    if include_action_input {
-                        action_input.push(None)
+                    Some(Res::Create(result)) => {
+                        if include_result_gas_used {
+                            result_gas_used.push(Some(result.gas_used.as_u64()));
+                        }
+                        if include_result_code {
+                            result_code.push(Some(result.code.to_vec()));
+                        }
+                        if include_result_address {
+                            result_address.push(Some(result.address.as_bytes().to_vec()));
+                        }
+
+                        if include_result_output {
+                            result_output.push(None);
+                        }
                     }
-                    if include_action_call_type {
-                        action_call_type.push(None)
-                    }
-                    if include_action_reward_type {
-                        action_reward_type.push(None)
+                    Some(Res::None) | None => {
+                        if include_result_gas_used {
+                            result_gas_used.push(None);
+                        }
+                        if include_result_output {
+                            result_output.push(None);
+                        }
+                        if include_result_code {
+                            result_code.push(None);
+                        }
+                        if include_result_address {
+                            result_address.push(None);
+                        }
                     }
                 }
-                Action::Suicide(action) => {
-                    if include_action_from {
-                        action_from.push(Some(action.address.as_bytes().to_vec()));
-                    }
-                    if include_action_to {
-                        action_to.push(Some(action.refund_address.as_bytes().to_vec()));
-                    }
-                    if include_action_value {
-                        action_value.push(action.balance.to_string());
-                    }
-
-                    if include_action_gas {
-                        action_gas.push(None)
-                    }
-                    if include_action_input {
-                        action_input.push(None)
-                    }
-                    if include_action_call_type {
-                        action_call_type.push(None)
-                    }
-                    if include_action_init {
-                        action_init.push(None)
-                    }
-                    if include_action_reward_type {
-                        action_reward_type.push(None)
-                    }
+                if include_trace_address {
+                    trace_address.push(
+                        trace
+                            .trace_address
+                            .iter()
+                            .map(|n| n.to_string())
+                            .collect::<Vec<String>>()
+                            .join("_"),
+                    );
                 }
-                Action::Reward(action) => {
-                    if include_action_to {
-                        action_to.push(Some(action.author.as_bytes().to_vec()));
-                    }
-                    if include_action_value {
-                        action_value.push(action.value.to_string());
-                    }
-                    if include_action_reward_type {
-                        action_reward_type.push(Some(reward_type_to_string(&action.reward_type)));
-                    }
-
-                    if include_action_from {
-                        action_from.push(None)
-                    }
-                    if include_action_gas {
-                        action_gas.push(None)
-                    }
-                    if include_action_input {
-                        action_input.push(None)
-                    }
-                    if include_action_call_type {
-                        action_call_type.push(None)
-                    }
-                    if include_action_init {
-                        action_init.push(None)
-                    }
+                if include_subtraces {
+                    subtraces.push(trace.subtraces as u32);
                 }
-            }
-            if include_action_type {
-                action_type.push(action_type_to_string(&trace.action_type));
-            }
-
-            match &trace.result {
-                Some(Res::Call(result)) => {
-                    if include_result_gas_used {
-                        result_gas_used.push(Some(result.gas_used.as_u64()));
-                    }
-                    if include_result_output {
-                        result_output.push(Some(result.output.to_vec()));
-                    }
-
-                    if include_result_code {
-                        result_code.push(None);
-                    }
-                    if include_result_address {
-                        result_address.push(None);
-                    }
+                if include_transaction_position {
+                    transaction_position.push(tx_pos as u32);
                 }
-                Some(Res::Create(result)) => {
-                    if include_result_gas_used {
-                        result_gas_used.push(Some(result.gas_used.as_u64()));
-                    }
-                    if include_result_code {
-                        result_code.push(Some(result.code.to_vec()));
-                    }
-                    if include_result_address {
-                        result_address.push(Some(result.address.as_bytes().to_vec()));
-                    }
-
-                    if include_result_output {
-                        result_output.push(None);
-                    }
+                if include_transaction_hash {
+                    transaction_hash.push(tx_hash.as_bytes().to_vec());
                 }
-                Some(Res::None) | None => {
-                    if include_result_gas_used {
-                        result_gas_used.push(None);
-                    }
-                    if include_result_output {
-                        result_output.push(None);
-                    }
-                    if include_result_code {
-                        result_code.push(None);
-                    }
-                    if include_result_address {
-                        result_address.push(None);
-                    }
+                if include_block_number {
+                    block_number.push(trace.block_number);
                 }
-            }
-            if include_trace_address {
-                trace_address.push(
-                    trace
-                        .trace_address
-                        .iter()
-                        .map(|n| n.to_string())
-                        .collect::<Vec<String>>()
-                        .join("_"),
-                );
-            }
-            if include_subtraces {
-                subtraces.push(trace.subtraces as u32);
-            }
-            if include_transaction_position {
-                transaction_position.push(tx_pos as u32);
-            }
-            if include_transaction_hash {
-                transaction_hash.push(tx_hash.as_bytes().to_vec());
-            }
-            if include_block_number {
-                block_number.push(trace.block_number);
-            }
-            if include_block_hash {
-                block_hash.push(trace.block_hash.as_bytes().to_vec());
-            }
-            if include_error {
-                error.push(trace.error.clone());
+                if include_block_hash {
+                    block_hash.push(trace.block_hash.as_bytes().to_vec());
+                }
+                if include_error {
+                    error.push(trace.error.clone());
+                }
             }
         }
     }
@@ -494,5 +479,5 @@ pub fn traces_to_df(traces: Vec<Trace>, schema: &Schema) -> Result<DataFrame, Po
         cols.push(Series::new("error", error));
     }
 
-    DataFrame::new(cols)
+    DataFrame::new(cols).map_err(CollectError::PolarsError)
 }

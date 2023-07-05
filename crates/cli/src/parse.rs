@@ -19,6 +19,7 @@ use cryo_freeze::ColumnEncoding;
 use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
 use cryo_freeze::FreezeOpts;
+use cryo_freeze::LogOpts;
 use cryo_freeze::Schema;
 
 use crate::args::Args;
@@ -137,6 +138,11 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         parse_topic(&args.topic2),
         parse_topic(&args.topic3),
     ];
+    let log_opts = LogOpts {
+        address: contract,
+        topics,
+        log_request_size: args.log_request_size,
+    };
 
     let parquet_compression = parse_compression(&args.compression)?;
 
@@ -185,9 +191,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         parquet_compression,
         // dataset-specific options
         // gas_used: args.gas_used,
-        contract,
-        topics,
-        log_request_size: args.log_request_size,
+        log_opts,
     };
     Ok(opts)
 }

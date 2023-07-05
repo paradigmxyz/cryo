@@ -8,6 +8,17 @@ use crate::types::Datatype;
 
 pub type Schema = IndexMap<String, ColumnType>;
 
+pub struct Table {
+    columns: IndexMap<String, ColumnType>,
+    pub sort_order: Option<Vec<String>>,
+}
+
+impl Table {
+    pub fn has_column(&self, column: String) -> bool {
+        self.columns.contains_key(&column)
+    }
+}
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
     Int32,

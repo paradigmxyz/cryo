@@ -67,7 +67,10 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
         opts.max_concurrent_blocks.separate_with_commas(),
     );
     if opts.datatypes.contains(&Datatype::Logs) {
-        print_bullet("log request size", opts.log_request_size.to_string());
+        print_bullet(
+            "log request size",
+            opts.log_opts.log_request_size.to_string(),
+        );
     };
     print_bullet("output format", opts.output_format.as_str());
     print_bullet("binary column format", opts.binary_column_format.as_str());

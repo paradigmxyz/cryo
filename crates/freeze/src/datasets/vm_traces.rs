@@ -2,13 +2,15 @@ use std::collections::HashMap;
 
 use ethers::prelude::*;
 use polars::prelude::*;
+use tokio::sync::mpsc;
 
-use crate::fetch;
+use crate::datasets::state_diffs;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
 use crate::types::ToVecU8;
@@ -51,43 +53,40 @@ impl Dataset for VmTraces {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let vm_traces = fetch::fetch_vm_traces(
-            block_chunk,
-            &opts.provider,
-            &opts.max_concurrent_blocks,
-            &opts.rate_limiter,
-        )
-        .await?;
-        let df = vm_traces_to_df(vm_traces, &opts.schemas[&Datatype::VmTraces])
-            .map_err(CollectError::PolarsError);
-        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
-            df.map(|x| x.sort(sort_keys, false))?
-                .map_err(CollectError::PolarsError)
-        } else {
-            df
-        }
+        let rx = fetch_vm_traces(block_chunk, &opts.chunk_fetch_opts()).await;
+        vm_traces_to_df(rx, &opts.schemas[&Datatype::VmTraces]).await
     }
 }
 
-pub fn vm_traces_to_df(
-    block_traces: Vec<BlockTrace>,
+async fn fetch_vm_traces(
+    block_chunk: &BlockChunk,
+    opts: &FetchOpts,
+) -> mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)> {
+    state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], opts).await
+}
+
+pub async fn vm_traces_to_df(
+    mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
     schema: &Schema,
-) -> Result<DataFrame, PolarsError> {
+) -> Result<DataFrame, CollectError> {
+    let capacity = 100;
     let mut columns = VmTraceColumns {
-        pc: Vec::with_capacity(block_traces.len()),
-        cost: Vec::with_capacity(block_traces.len()),
-        used: Vec::with_capacity(block_traces.len()),
-        push: Vec::with_capacity(block_traces.len()),
-        mem_off: Vec::with_capacity(block_traces.len()),
-        mem_data: Vec::with_capacity(block_traces.len()),
-        storage_key: Vec::with_capacity(block_traces.len()),
-        storage_val: Vec::with_capacity(block_traces.len()),
-        op: Vec::with_capacity(block_traces.len()),
+        pc: Vec::with_capacity(capacity),
+        cost: Vec::with_capacity(capacity),
+        used: Vec::with_capacity(capacity),
+        push: Vec::with_capacity(capacity),
+        mem_off: Vec::with_capacity(capacity),
+        mem_data: Vec::with_capacity(capacity),
+        storage_key: Vec::with_capacity(capacity),
+        storage_val: Vec::with_capacity(capacity),
+        op: Vec::with_capacity(capacity),
     };
 
-    for block_trace in block_traces.into_iter() {
-        if let Some(vm_trace) = block_trace.vm_trace {
-            add_ops(vm_trace, schema, &mut columns)
+    while let Some((_num, Ok(block_traces))) = rx.recv().await {
+        for block_trace in block_traces.into_iter() {
+            if let Some(vm_trace) = block_trace.vm_trace {
+                add_ops(vm_trace, schema, &mut columns)
+            }
         }
     }
 
@@ -119,7 +118,7 @@ pub fn vm_traces_to_df(
     if schema.contains_key("op") {
         series.push(Series::new("op", columns.op));
     };
-    DataFrame::new(series)
+    DataFrame::new(series).map_err(CollectError::PolarsError)
 }
 
 struct VmTraceColumns {

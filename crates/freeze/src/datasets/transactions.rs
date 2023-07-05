@@ -2,14 +2,16 @@ use std::collections::HashMap;
 
 use ethers::prelude::*;
 use polars::prelude::*;
+use tokio::sync::mpsc;
+use tokio::task;
 
 use crate::chunks::ChunkAgg;
-use crate::datasets;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Transactions;
 
@@ -72,44 +74,48 @@ impl Dataset for Transactions {
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
-        let numbers = block_chunk.numbers();
-        let transactions = fetch_transactions(numbers, opts).await?;
-        let df = txs_to_df(transactions).map_err(CollectError::PolarsError);
-        if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
-            df.map(|x| x.sort(sort_keys, false))?
-                .map_err(CollectError::PolarsError)
-        } else {
-            df
-        }
+        let rx = fetch_blocks_and_transactions(block_chunk, &opts.chunk_fetch_opts()).await;
+        txs_to_df(rx).await
     }
 }
 
-pub async fn fetch_transactions(
-    block_numbers: Vec<u64>,
-    opts: &FreezeOpts,
-) -> Result<Vec<Transaction>, CollectError> {
-    let results = datasets::blocks::fetch_blocks_and_transactions(
-        block_numbers,
-        &opts.provider,
-        &opts.max_concurrent_blocks,
-        &opts.rate_limiter,
-    );
+async fn fetch_blocks_and_transactions(
+    block_chunk: &BlockChunk,
+    opts: &FetchOpts,
+) -> mpsc::Receiver<Result<Option<Block<Transaction>>, CollectError>> {
+    let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
-    let mut txs: Vec<Transaction> = Vec::new();
-    for block in results.await?.into_iter().flatten() {
-        let block_txs = block.transactions;
-        txs.extend(block_txs);
+    for number in block_chunk.numbers() {
+        let tx = tx.clone();
+        let provider = opts.provider.clone();
+        let semaphore = opts.semaphore.clone();
+        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        task::spawn(async move {
+            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            }
+            let block = provider
+                .get_block_with_txs(number)
+                .await
+                .map_err(CollectError::ProviderError);
+            match tx.send(block).await {
+                Ok(_) => {}
+                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+            }
+        });
     }
-
-    Ok(txs)
+    rx
 }
 
 /// convert a `Vec<Transaction>` into polars dataframe
-pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, PolarsError> {
+async fn txs_to_df(
+    mut rx: mpsc::Receiver<Result<Option<Block<Transaction>>, CollectError>>,
+) -> Result<DataFrame, CollectError> {
     // not recording: v, r, s, access_list
-    let mut hashes: Vec<&[u8]> = Vec::new();
+    let mut hashes: Vec<Vec<u8>> = Vec::new();
     let mut transaction_indices: Vec<Option<u64>> = Vec::new();
-    let mut from_addresses: Vec<&[u8]> = Vec::new();
+    let mut from_addresses: Vec<Vec<u8>> = Vec::new();
     let mut to_addresses: Vec<Option<Vec<u8>>> = Vec::new();
     let mut nonces: Vec<u64> = Vec::new();
     let mut block_numbers: Vec<Option<u64>> = Vec::new();
@@ -122,30 +128,34 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, PolarsError> {
     let mut max_fee_per_gas: Vec<Option<u64>> = Vec::new();
     let mut chain_ids: Vec<Option<u64>> = Vec::new();
 
-    for tx in txs.iter() {
-        match tx.block_number {
-            Some(block_number) => block_numbers.push(Some(block_number.as_u64())),
-            None => block_numbers.push(None),
+    while let Some(Ok(Some(block))) = rx.recv().await {
+        for tx in block.transactions.iter() {
+            match tx.block_number {
+                Some(block_number) => block_numbers.push(Some(block_number.as_u64())),
+                None => block_numbers.push(None),
+            }
+            match tx.transaction_index {
+                Some(transaction_index) => {
+                    transaction_indices.push(Some(transaction_index.as_u64()))
+                }
+                None => transaction_indices.push(None),
+            }
+            hashes.push(tx.hash.as_bytes().to_vec());
+            from_addresses.push(tx.from.as_bytes().to_vec());
+            match tx.to {
+                Some(to_address) => to_addresses.push(Some(to_address.as_bytes().to_vec())),
+                None => to_addresses.push(None),
+            }
+            nonces.push(tx.nonce.as_u64());
+            values.push(tx.value.to_string());
+            inputs.push(tx.input.to_vec());
+            gas.push(tx.gas.as_u64());
+            gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
+            transaction_type.push(tx.transaction_type.map(|value| value.as_u64()));
+            max_priority_fee_per_gas.push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
+            max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
+            chain_ids.push(tx.chain_id.map(|value| value.as_u64()));
         }
-        match tx.transaction_index {
-            Some(transaction_index) => transaction_indices.push(Some(transaction_index.as_u64())),
-            None => transaction_indices.push(None),
-        }
-        hashes.push(tx.hash.as_bytes());
-        from_addresses.push(tx.from.as_bytes());
-        match tx.to {
-            Some(to_address) => to_addresses.push(Some(to_address.as_bytes().to_vec())),
-            None => to_addresses.push(None),
-        }
-        nonces.push(tx.nonce.as_u64());
-        values.push(tx.value.to_string());
-        inputs.push(tx.input.to_vec());
-        gas.push(tx.gas.as_u64());
-        gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
-        transaction_type.push(tx.transaction_type.map(|value| value.as_u64()));
-        max_priority_fee_per_gas.push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
-        max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
-        chain_ids.push(tx.chain_id.map(|value| value.as_u64()));
     }
 
     df!(
@@ -164,4 +174,5 @@ pub fn txs_to_df(txs: Vec<Transaction>) -> Result<DataFrame, PolarsError> {
         "max_fee_per_gas" => max_fee_per_gas,
         "chain_id" => chain_ids,
     )
+    .map_err(CollectError::PolarsError)
 }

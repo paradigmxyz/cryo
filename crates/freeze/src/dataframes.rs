@@ -21,3 +21,10 @@ macro_rules! with_series_binary {
         }
     };
 }
+
+// if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
+//     df.map(|x| x.sort(sort_keys, false))?
+//         .map_err(CollectError::PolarsError)
+// } else {
+//     df
+// }
