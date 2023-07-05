@@ -101,6 +101,15 @@ pub fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>)
             sort_cols.join(", ")
         );
     }
+    let other_columns: String = name
+        .dataset()
+        .column_types()
+        .keys()
+        .copied()
+        .filter(|x| !schema.has_column(x))
+        .collect::<Vec<_>>()
+        .join(", ");
+    println!("\nother available columns: {}", other_columns);
 }
 
 pub fn print_cryo_conclusion(

@@ -29,7 +29,7 @@ pub(crate) async fn collect_single(
         },
         Err(e) => Err(CollectError::PolarsError(e)),
     };
-    if let Some(schema) = &opts.schemas.get(&datatype) {
+    if let Some(schema) = &opts.schemas.get(datatype) {
         df.sort_by_schema(schema)
     } else {
         df
