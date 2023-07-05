@@ -1,5 +1,7 @@
 # ❄️🧊 cryo 🧊❄️
 
+[![Rust](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml)
+
 cryo is the easiest way to extract blockchain data to parquet, csv, or json
 
 ## Example Usage
