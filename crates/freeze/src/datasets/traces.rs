@@ -14,7 +14,7 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
-use crate::types::Schema;
+use crate::types::Table;
 use crate::types::Traces;
 
 #[async_trait::async_trait]
@@ -150,28 +150,28 @@ fn action_call_type_to_string(action_call_type: &CallType) -> String {
 
 async fn traces_to_df(
     mut rx: mpsc::Receiver<Result<Vec<Trace>, CollectError>>,
-    schema: &Schema,
+    schema: &Table,
 ) -> Result<DataFrame, CollectError> {
-    let include_action_from = schema.contains_key("action_from");
-    let include_action_to = schema.contains_key("action_to");
-    let include_action_value = schema.contains_key("action_value");
-    let include_action_gas = schema.contains_key("action_gas");
-    let include_action_input = schema.contains_key("action_input");
-    let include_action_call_type = schema.contains_key("action_call_type");
-    let include_action_init = schema.contains_key("action_init");
-    let include_action_reward_type = schema.contains_key("action_reward_type");
-    let include_action_type = schema.contains_key("action_type");
-    let include_result_gas_used = schema.contains_key("result_gas_used");
-    let include_result_output = schema.contains_key("result_output");
-    let include_result_code = schema.contains_key("result_code");
-    let include_result_address = schema.contains_key("result_address");
-    let include_trace_address = schema.contains_key("trace_address");
-    let include_subtraces = schema.contains_key("subtraces");
-    let include_transaction_position = schema.contains_key("transaction_position");
-    let include_transaction_hash = schema.contains_key("transaction_hash");
-    let include_block_number = schema.contains_key("block_number");
-    let include_block_hash = schema.contains_key("block_hash");
-    let include_error = schema.contains_key("error");
+    let include_action_from = schema.has_column("action_from");
+    let include_action_to = schema.has_column("action_to");
+    let include_action_value = schema.has_column("action_value");
+    let include_action_gas = schema.has_column("action_gas");
+    let include_action_input = schema.has_column("action_input");
+    let include_action_call_type = schema.has_column("action_call_type");
+    let include_action_init = schema.has_column("action_init");
+    let include_action_reward_type = schema.has_column("action_reward_type");
+    let include_action_type = schema.has_column("action_type");
+    let include_result_gas_used = schema.has_column("result_gas_used");
+    let include_result_output = schema.has_column("result_output");
+    let include_result_code = schema.has_column("result_code");
+    let include_result_address = schema.has_column("result_address");
+    let include_trace_address = schema.has_column("trace_address");
+    let include_subtraces = schema.has_column("subtraces");
+    let include_transaction_position = schema.has_column("transaction_position");
+    let include_transaction_hash = schema.has_column("transaction_hash");
+    let include_block_number = schema.has_column("block_number");
+    let include_block_hash = schema.has_column("block_hash");
+    let include_error = schema.has_column("error");
 
     let capacity = 0;
     let mut action_from: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);

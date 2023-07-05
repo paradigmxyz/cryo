@@ -2,7 +2,7 @@
 #[macro_export]
 macro_rules! with_series {
     ($all_series:expr, $name:expr, $value:expr, $schema:expr) => {
-        if $schema.contains_key($name) {
+        if $schema.has_column($name) {
             $all_series.push(Series::new($name, $value));
         }
     };
@@ -12,8 +12,8 @@ macro_rules! with_series {
 #[macro_export]
 macro_rules! with_series_binary {
     ($all_series:expr, $name:expr, $value:expr, $schema:expr) => {
-        if $schema.contains_key($name) {
-            if let Some(ColumnType::Hex) = $schema.get($name) {
+        if $schema.has_column($name) {
+            if let Some(ColumnType::Hex) = $schema.column_type($name) {
                 $all_series.push(Series::new($name, $value.to_vec_hex()));
             } else {
                 $all_series.push(Series::new($name, $value));

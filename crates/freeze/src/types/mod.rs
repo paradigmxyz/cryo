@@ -30,7 +30,7 @@ pub use output_types::BlockChunk;
 pub use output_types::ColumnEncoding;
 pub use output_types::FileFormat;
 pub use schema_types::ColumnType;
-pub use schema_types::Schema;
+pub use schema_types::Table;
 
 pub use error_types::CollectError;
 pub use error_types::FileError;

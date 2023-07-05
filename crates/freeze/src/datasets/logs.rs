@@ -16,7 +16,7 @@ use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::LogOpts;
 use crate::types::Logs;
-use crate::types::Schema;
+use crate::types::Table;
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
@@ -109,7 +109,7 @@ async fn fetch_logs(
 
 async fn logs_to_df(
     mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
-    _schema: &Schema,
+    _schema: &Table,
 ) -> Result<DataFrame, CollectError> {
     let mut address: Vec<Vec<u8>> = Vec::new();
     let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();

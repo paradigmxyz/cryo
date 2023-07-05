@@ -10,7 +10,7 @@ use crate::types::CollectError;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
-use crate::types::Schema;
+use crate::types::Table;
 
 pub(crate) async fn collect_single(
     datatype: &Datatype,
@@ -76,7 +76,7 @@ pub(crate) async fn fetch_state_diffs(
 
 async fn state_diffs_to_df(
     mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
-    schemas: &HashMap<Datatype, Schema>,
+    schemas: &HashMap<Datatype, Table>,
 ) -> Result<HashMap<Datatype, DataFrame>, PolarsError> {
     let include_storage = schemas.contains_key(&Datatype::StorageDiffs);
     let include_balance = schemas.contains_key(&Datatype::BalanceDiffs);
@@ -354,12 +354,12 @@ async fn state_diffs_to_df(
 }
 
 fn included(
-    schemas: &HashMap<Datatype, Schema>,
+    schemas: &HashMap<Datatype, Table>,
     datatype: Datatype,
     column_name: &'static str,
 ) -> bool {
     if let Some(schema) = schemas.get(&datatype) {
-        schema.contains_key(column_name)
+        schema.has_column(column_name)
     } else {
         false
     }

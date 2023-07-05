@@ -9,7 +9,7 @@ use cryo_freeze::ChunkAgg;
 use cryo_freeze::Datatype;
 use cryo_freeze::FreezeOpts;
 use cryo_freeze::FreezeSummary;
-use cryo_freeze::Schema;
+use cryo_freeze::Table;
 
 const TITLE_R: u8 = 0;
 const TITLE_G: u8 = 225;
@@ -78,19 +78,21 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     print_schemas(&opts.schemas, opts);
 }
 
-pub fn print_schemas(schemas: &HashMap<Datatype, Schema>, opts: &FreezeOpts) {
+pub fn print_schemas(schemas: &HashMap<Datatype, Table>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
         println!();
         println!();
-        print_schema(name, schema, opts.sort.get(name))
+        print_schema(name, &schema.clone(), opts.sort.get(name))
     })
 }
 
-pub fn print_schema(name: &Datatype, schema: &Schema, sort: Option<&Vec<String>>) {
+pub fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>) {
     print_header("schema for ".to_string() + name.dataset().name());
-    schema.iter().for_each(|(name, column_type)| {
-        print_bullet(name, column_type.as_str());
-    });
+    for column in schema.columns() {
+        if let Some(column_type) = schema.column_type(column) {
+            print_bullet(column, column_type.as_str());
+        }
+    }
     println!();
     if let Some(sort_cols) = sort {
         println!(

@@ -20,7 +20,7 @@ use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
 use cryo_freeze::FreezeOpts;
 use cryo_freeze::LogOpts;
-use cryo_freeze::Schema;
+use cryo_freeze::Table;
 
 use crate::args::Args;
 
@@ -114,14 +114,15 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let (max_concurrent_chunks, max_concurrent_blocks) = parse_concurrency_args(&args)?;
 
     // process schemas
-    let schemas: Result<HashMap<Datatype, Schema>, eyre::Report> = datatypes
+    let schemas: Result<HashMap<Datatype, Table>, eyre::Report> = datatypes
         .iter()
         .map(|datatype| {
             datatype
-                .get_schema(
+                .table_schema(
                     &binary_column_format,
                     &args.include_columns,
                     &args.exclude_columns,
+                    None,
                 )
                 .map(|schema| (*datatype, schema))
                 .wrap_err_with(|| format!("Failed to get schema for datatype: {:?}", datatype))
@@ -300,7 +301,7 @@ fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression> {
 
 fn parse_sort(
     raw_sort: &Vec<String>,
-    schemas: &HashMap<Datatype, Schema>,
+    schemas: &HashMap<Datatype, Table>,
 ) -> Result<HashMap<Datatype, Vec<String>>, eyre::Report> {
     if raw_sort.is_empty() {
         Ok(HashMap::from_iter(schemas.iter().map(

@@ -11,7 +11,7 @@ use crate::types::FetchOpts;
 use crate::types::FileFormat;
 use crate::types::LogOpts;
 use crate::types::RateLimiter;
-use crate::types::Schema;
+use crate::types::Table;
 
 /// Options controling the behavior of a freeze operation
 #[derive(Clone)]
@@ -22,7 +22,7 @@ pub struct FreezeOpts {
     /// Block chunks to collect
     pub block_chunks: Vec<BlockChunk>,
     /// Schemas for each datatype to collect
-    pub schemas: HashMap<Datatype, Schema>,
+    pub schemas: HashMap<Datatype, Table>,
     // source options
     // pub provider: Provider<Http>,
     /// Provider to use as data source

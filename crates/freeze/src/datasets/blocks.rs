@@ -17,7 +17,7 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
-use crate::types::Schema;
+use crate::types::Table;
 use crate::with_series;
 use crate::with_series_binary;
 
@@ -108,22 +108,22 @@ async fn fetch_blocks(
 
 async fn blocks_to_df(
     mut blocks: mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>>,
-    schema: &Schema,
+    schema: &Table,
 ) -> Result<DataFrame, CollectError> {
-    let include_hash = schema.contains_key("hash");
-    let include_parent_hash = schema.contains_key("parent_hash");
-    let include_author = schema.contains_key("author");
-    let include_state_root = schema.contains_key("state_root");
-    let include_transactions_root = schema.contains_key("transactions_root");
-    let include_receipts_root = schema.contains_key("receipts_root");
-    let include_number = schema.contains_key("number");
-    let include_gas_used = schema.contains_key("gas_used");
-    let include_extra_data = schema.contains_key("extra_data");
-    let include_logs_bloom = schema.contains_key("logs_bloom");
-    let include_timestamp = schema.contains_key("timestamp");
-    let include_total_difficulty = schema.contains_key("total_difficulty");
-    let include_size = schema.contains_key("size");
-    let include_base_fee_per_gas = schema.contains_key("base_fee_per_gas");
+    let include_hash = schema.has_column("hash");
+    let include_parent_hash = schema.has_column("parent_hash");
+    let include_author = schema.has_column("author");
+    let include_state_root = schema.has_column("state_root");
+    let include_transactions_root = schema.has_column("transactions_root");
+    let include_receipts_root = schema.has_column("receipts_root");
+    let include_number = schema.has_column("number");
+    let include_gas_used = schema.has_column("gas_used");
+    let include_extra_data = schema.has_column("extra_data");
+    let include_logs_bloom = schema.has_column("logs_bloom");
+    let include_timestamp = schema.has_column("timestamp");
+    let include_total_difficulty = schema.has_column("total_difficulty");
+    let include_size = schema.has_column("size");
+    let include_base_fee_per_gas = schema.has_column("base_fee_per_gas");
 
     let capacity = 0;
     let mut hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);

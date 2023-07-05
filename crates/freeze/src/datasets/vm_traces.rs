@@ -12,7 +12,7 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
-use crate::types::Schema;
+use crate::types::Table;
 use crate::types::ToVecU8;
 use crate::types::VmTraces;
 
@@ -67,7 +67,7 @@ async fn fetch_vm_traces(
 
 async fn vm_traces_to_df(
     mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
-    schema: &Schema,
+    schema: &Table,
 ) -> Result<DataFrame, CollectError> {
     let capacity = 100;
     let mut columns = VmTraceColumns {
@@ -91,31 +91,31 @@ async fn vm_traces_to_df(
     }
 
     let mut series = Vec::new();
-    if schema.contains_key("pc") {
+    if schema.has_column("pc") {
         series.push(Series::new("pc", columns.pc));
     };
-    if schema.contains_key("cost") {
+    if schema.has_column("cost") {
         series.push(Series::new("cost", columns.cost));
     };
-    if schema.contains_key("used") {
+    if schema.has_column("used") {
         series.push(Series::new("used", columns.used));
     };
-    if schema.contains_key("push") {
+    if schema.has_column("push") {
         series.push(Series::new("push", columns.push));
     };
-    if schema.contains_key("mem_off") {
+    if schema.has_column("mem_off") {
         series.push(Series::new("mem_off", columns.mem_off));
     };
-    if schema.contains_key("mem_data") {
+    if schema.has_column("mem_data") {
         series.push(Series::new("mem_data", columns.mem_data));
     };
-    if schema.contains_key("storage_key") {
+    if schema.has_column("storage_key") {
         series.push(Series::new("storage_key", columns.storage_key));
     };
-    if schema.contains_key("storage_val") {
+    if schema.has_column("storage_val") {
         series.push(Series::new("storage_val", columns.storage_val));
     };
-    if schema.contains_key("op") {
+    if schema.has_column("op") {
         series.push(Series::new("op", columns.op));
     };
     DataFrame::new(series).map_err(CollectError::PolarsError)
@@ -133,73 +133,73 @@ struct VmTraceColumns {
     op: Vec<String>,
 }
 
-fn add_ops(vm_trace: VMTrace, schema: &Schema, columns: &mut VmTraceColumns) {
+fn add_ops(vm_trace: VMTrace, schema: &Table, columns: &mut VmTraceColumns) {
     for opcode in vm_trace.ops {
-        if schema.contains_key("pc") {
+        if schema.has_column("pc") {
             columns.pc.push(opcode.pc as u64);
         };
-        if schema.contains_key("cost") {
+        if schema.has_column("cost") {
             columns.cost.push(opcode.cost);
         };
 
         if let Some(ex) = opcode.ex {
-            if schema.contains_key("used") {
+            if schema.has_column("used") {
                 columns.used.push(Some(ex.used));
             };
-            if schema.contains_key("push") {
+            if schema.has_column("push") {
                 columns.push.push(Some(ex.push.to_vec_u8()));
             };
             if let Some(mem) = ex.mem {
-                if schema.contains_key("mem_off") {
+                if schema.has_column("mem_off") {
                     columns.mem_off.push(Some(mem.off as u32));
                 };
-                if schema.contains_key("mem_data") {
+                if schema.has_column("mem_data") {
                     columns.mem_data.push(Some(mem.data.to_vec()));
                 };
             } else {
-                if schema.contains_key("mem_key") {
+                if schema.has_column("mem_key") {
                     columns.mem_off.push(None);
                 };
-                if schema.contains_key("mem_val") {
+                if schema.has_column("mem_val") {
                     columns.mem_data.push(None);
                 };
             };
             if let Some(store) = ex.store {
-                if schema.contains_key("storage_key") {
+                if schema.has_column("storage_key") {
                     columns.storage_key.push(Some(store.key.to_vec_u8()));
                 };
-                if schema.contains_key("storage_val") {
+                if schema.has_column("storage_val") {
                     columns.storage_val.push(Some(store.val.to_vec_u8()));
                 };
             } else {
-                if schema.contains_key("storage_key") {
+                if schema.has_column("storage_key") {
                     columns.storage_key.push(None);
                 };
-                if schema.contains_key("storage_val") {
+                if schema.has_column("storage_val") {
                     columns.storage_val.push(None);
                 };
             }
         } else {
-            if schema.contains_key("used") {
+            if schema.has_column("used") {
                 columns.used.push(None);
             };
-            if schema.contains_key("push") {
+            if schema.has_column("push") {
                 columns.push.push(None);
             };
-            if schema.contains_key("mem_key") {
+            if schema.has_column("mem_key") {
                 columns.mem_off.push(None);
             };
-            if schema.contains_key("mem_val") {
+            if schema.has_column("mem_val") {
                 columns.mem_data.push(None);
             };
-            if schema.contains_key("storage_key") {
+            if schema.has_column("storage_key") {
                 columns.storage_key.push(None);
             };
-            if schema.contains_key("storage_val") {
+            if schema.has_column("storage_val") {
                 columns.storage_val.push(None);
             };
         }
-        if schema.contains_key("op") {
+        if schema.has_column("op") {
             match opcode.op {
                 ExecutedInstruction::Known(op) => columns.op.push(op.to_string()),
                 ExecutedInstruction::Unknown(op) => columns.op.push(op),

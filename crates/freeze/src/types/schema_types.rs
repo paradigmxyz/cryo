@@ -6,19 +6,34 @@ use thiserror::Error;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 
-/// Schema represents the underlying schema for a dataset
-pub type Schema = IndexMap<String, ColumnType>;
+/// Schema for a particular table
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Table {
+    columns: IndexMap<String, ColumnType>,
 
-// pub struct Table {
-//     columns: IndexMap<String, ColumnType>,
-//     pub sort_order: Option<Vec<String>>,
-// }
+    /// datatype of Table
+    pub datatype: Datatype,
 
-// impl Table {
-//     pub fn has_column(&self, column: String) -> bool {
-//         self.columns.contains_key(&column)
-//     }
-// }
+    /// sort order for rows
+    pub sort: Option<Vec<String>>,
+}
+
+impl Table {
+    /// return whether schema has a column
+    pub fn has_column(&self, column: &str) -> bool {
+        self.columns.contains_key(column)
+    }
+
+    /// get ColumnType of column
+    pub fn column_type(&self, column: &str) -> Option<ColumnType> {
+        self.columns.get(column).cloned()
+    }
+
+    /// get columns of Table
+    pub fn columns(&self) -> Vec<&str> {
+        self.columns.keys().map(|x| x.as_str()).collect()
+    }
+}
 
 /// datatype of column
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -64,17 +79,18 @@ pub enum SchemaError {
 
 impl Datatype {
     /// get schema for a particular datatype
-    pub fn get_schema(
+    pub fn table_schema(
         &self,
         binary_column_format: &ColumnEncoding,
         include_columns: &Option<Vec<String>>,
         exclude_columns: &Option<Vec<String>>,
-    ) -> Result<Schema, SchemaError> {
+        sort: Option<Vec<String>>,
+    ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
         let used_columns =
             compute_used_columns(default_columns, include_columns, exclude_columns, self);
-        let mut schema: Schema = IndexMap::new();
+        let mut columns = IndexMap::new();
         for column in used_columns {
             let mut ctype = column_types
                 .get(column.as_str())
@@ -82,8 +98,13 @@ impl Datatype {
             if (*binary_column_format == ColumnEncoding::Hex) & (ctype == &ColumnType::Binary) {
                 ctype = &ColumnType::Hex;
             }
-            schema.insert((*column.clone()).to_string(), *ctype);
+            columns.insert((*column.clone()).to_string(), *ctype);
         }
+        let schema = Table {
+            datatype: *self,
+            sort,
+            columns,
+        };
         Ok(schema)
     }
 }
