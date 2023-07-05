@@ -61,14 +61,12 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse network info
     let rpc_url = parse_rpc_url(&args);
     let provider = Provider::<Http>::try_from(rpc_url)?;
+    let chain_id = provider.get_chainid().await?.as_u64();
     let network_name = match &args.network_name {
         Some(name) => name.clone(),
-        None => match provider.get_chainid().await {
-            Ok(chain_id) => match chain_id.as_u64() {
-                1 => "ethereum".to_string(),
-                chain_id => "network_".to_string() + chain_id.to_string().as_str(),
-            },
-            _ => return Err(eyre::eyre!("could not determine chain_id")),
+        None => match chain_id {
+            1 => "ethereum".to_string(),
+            chain_id => "network_".to_string() + chain_id.to_string().as_str(),
         },
     };
 
@@ -123,6 +121,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
                     &binary_column_format,
                     &args.include_columns,
                     &args.exclude_columns,
+                    &args.columns,
                     sort.get(datatype).cloned(),
                 )
                 .map(|schema| (*datatype, schema))
@@ -173,6 +172,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         schemas,
         // source options
         provider: Arc::new(provider),
+        chain_id,
         network_name,
         // acquisition options
         rate_limiter,

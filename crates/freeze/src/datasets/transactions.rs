@@ -161,6 +161,10 @@ async fn txs_to_df(
         }
     }
 
+    // if schema.has_column("chain_id") {
+    //     cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+    // }
+
     df!(
         "block_number" => block_numbers,
         "transaction_index" => transaction_indices,

@@ -88,7 +88,7 @@ impl Dataset for Traces {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_traces(block_chunk, &opts.chunk_fetch_opts()).await;
-        traces_to_df(rx, &opts.schemas[&Datatype::Traces]).await
+        traces_to_df(rx, &opts.schemas[&Datatype::Traces], opts.chain_id).await
     }
 }
 
@@ -152,6 +152,7 @@ fn action_call_type_to_string(action_call_type: &CallType) -> String {
 async fn traces_to_df(
     mut rx: mpsc::Receiver<Result<Vec<Trace>, CollectError>>,
     schema: &Table,
+    chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     let include_action_from = schema.has_column("action_from");
     let include_action_to = schema.has_column("action_to");
@@ -196,11 +197,14 @@ async fn traces_to_df(
     let mut block_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut error: Vec<Option<String>> = Vec::with_capacity(capacity);
 
+    let mut n_rows = 0;
     while let Some(Ok(traces)) = rx.recv().await {
         for trace in traces.iter() {
             if let (Some(tx_hash), Some(tx_pos)) =
                 (trace.transaction_hash, trace.transaction_position)
             {
+                n_rows += 1;
+
                 // Call
                 // from: from,
                 // to: to,
@@ -478,6 +482,9 @@ async fn traces_to_df(
     }
     if include_error {
         cols.push(Series::new("error", error));
+    }
+    if schema.has_column("chain_id") {
+        cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
     DataFrame::new(cols)

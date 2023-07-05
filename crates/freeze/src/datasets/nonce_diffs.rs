@@ -29,6 +29,7 @@ impl Dataset for NonceDiffs {
             ("address", ColumnType::Binary),
             ("from_value", ColumnType::Binary),
             ("to_value", ColumnType::Binary),
+            ("chain_id", ColumnType::Int64),
         ])
     }
 

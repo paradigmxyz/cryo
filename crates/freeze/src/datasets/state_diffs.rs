@@ -19,7 +19,7 @@ pub(crate) async fn collect_single(
     opts: &FreezeOpts,
 ) -> Result<DataFrame, CollectError> {
     let rx = fetch_state_diffs(block_chunk, &opts.chunk_fetch_opts()).await;
-    let dfs = state_diffs_to_df(rx, &opts.schemas).await;
+    let dfs = state_diffs_to_df(rx, &opts.schemas, opts.chain_id).await;
 
     // get single df out of result
     let df = match dfs {
@@ -77,6 +77,7 @@ pub(crate) async fn fetch_state_diffs(
 async fn state_diffs_to_df(
     mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
     schemas: &HashMap<Datatype, Table>,
+    chain_id: u64,
 ) -> Result<HashMap<Datatype, DataFrame>, PolarsError> {
     let include_storage = schemas.contains_key(&Datatype::StorageDiffs);
     let include_balance = schemas.contains_key(&Datatype::BalanceDiffs);
@@ -138,11 +139,13 @@ async fn state_diffs_to_df(
     let mut code_from_value: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut code_to_value: Vec<Vec<u8>> = Vec::with_capacity(capacity);
 
-    // for (block_num, ts) in block_numbers.iter().zip(blocks_traces) {
+    let mut n_rows = 0;
     while let Some((block_num, Ok(blocks_traces))) = rx.recv().await {
         for ts in blocks_traces.iter() {
             if let (Some(tx), Some(StateDiff(state_diff))) = (ts.transaction_hash, &ts.state_diff) {
                 for (addr, addr_diff) in state_diff.iter() {
+                    n_rows += n_rows;
+
                     // storage
                     if include_storage {
                         for (s, diff) in addr_diff.storage.iter() {
@@ -280,6 +283,9 @@ async fn state_diffs_to_df(
         if include_storage_to_value {
             cols.push(Series::new("to_value", storage_to_value));
         }
+        if schemas[&Datatype::StorageDiffs].has_column("chain_id") {
+            cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+        }
         let df = DataFrame::new(cols)?;
         dfs.insert(Datatype::StorageDiffs, df);
     };
@@ -301,6 +307,9 @@ async fn state_diffs_to_df(
         }
         if include_balance_to_value {
             cols.push(Series::new("to_value", balance_to_value));
+        }
+        if schemas[&Datatype::BalanceDiffs].has_column("chain_id") {
+            cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
         dfs.insert(Datatype::BalanceDiffs, df);
@@ -324,6 +333,9 @@ async fn state_diffs_to_df(
         if include_nonce_to_value {
             cols.push(Series::new("to_value", nonce_to_value));
         }
+        if schemas[&Datatype::NonceDiffs].has_column("chain_id") {
+            cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+        }
         let df = DataFrame::new(cols)?;
         dfs.insert(Datatype::NonceDiffs, df);
     };
@@ -345,6 +357,9 @@ async fn state_diffs_to_df(
         }
         if include_code_to_value {
             cols.push(Series::new("to_value", code_to_value));
+        }
+        if schemas[&Datatype::CodeDiffs].has_column("chain_id") {
+            cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
         dfs.insert(Datatype::CodeDiffs, df);

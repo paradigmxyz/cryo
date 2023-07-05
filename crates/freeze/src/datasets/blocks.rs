@@ -48,6 +48,7 @@ impl Dataset for Blocks {
             ("total_difficulty", ColumnType::String),
             ("size", ColumnType::Int32),
             ("base_fee_per_gas", ColumnType::Int64),
+            ("chain_id", ColumnType::Int64),
             // not including: transactions, seal_fields, epoch_snark_data, randomness
         ])
     }
@@ -74,7 +75,7 @@ impl Dataset for Blocks {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
-        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks]).await
+        blocks_to_df(rx, &opts.schemas[&Datatype::Blocks], opts.chain_id).await
     }
 }
 
@@ -110,6 +111,7 @@ async fn fetch_blocks(
 async fn blocks_to_df(
     mut blocks: mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>>,
     schema: &Table,
+    chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     let include_hash = schema.has_column("hash");
     let include_parent_hash = schema.has_column("parent_hash");
@@ -142,8 +144,11 @@ async fn blocks_to_df(
     let mut size: Vec<Option<u64>> = Vec::with_capacity(capacity);
     let mut base_fee_per_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
 
+    let mut n_rows = 0;
     while let Some(Ok(Some(block))) = blocks.recv().await {
         if let (Some(n), Some(h), Some(a)) = (block.number, block.hash, block.author) {
+            n_rows += 1;
+
             if include_hash {
                 hash.push(h.as_bytes().to_vec());
             }
@@ -204,6 +209,11 @@ async fn blocks_to_df(
     with_series_binary!(cols, "total_difficulty", total_difficulty, schema);
     with_series!(cols, "size", size, schema);
     with_series!(cols, "base_fee_per_gas", base_fee_per_gas, schema);
+
+    if schema.has_column("chain_id") {
+        cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+    }
+
     DataFrame::new(cols)
         .map_err(CollectError::PolarsError)
         .sort_by_schema(schema)

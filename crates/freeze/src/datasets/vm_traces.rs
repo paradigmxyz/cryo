@@ -55,7 +55,7 @@ impl Dataset for VmTraces {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_vm_traces(block_chunk, &opts.chunk_fetch_opts()).await;
-        vm_traces_to_df(rx, &opts.schemas[&Datatype::VmTraces]).await
+        vm_traces_to_df(rx, &opts.schemas[&Datatype::VmTraces], opts.chain_id).await
     }
 }
 
@@ -69,6 +69,7 @@ async fn fetch_vm_traces(
 async fn vm_traces_to_df(
     mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
     schema: &Table,
+    chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     let capacity = 100;
     let mut columns = VmTraceColumns {
@@ -81,6 +82,7 @@ async fn vm_traces_to_df(
         storage_key: Vec::with_capacity(capacity),
         storage_val: Vec::with_capacity(capacity),
         op: Vec::with_capacity(capacity),
+        n_rows: 0,
     };
 
     while let Some((_num, Ok(block_traces))) = rx.recv().await {
@@ -119,6 +121,9 @@ async fn vm_traces_to_df(
     if schema.has_column("op") {
         series.push(Series::new("op", columns.op));
     };
+    if schema.has_column("chain_id") {
+        series.push(Series::new("chain_id", vec![chain_id; columns.n_rows]));
+    };
     DataFrame::new(series)
         .map_err(CollectError::PolarsError)
         .sort_by_schema(schema)
@@ -134,10 +139,13 @@ struct VmTraceColumns {
     storage_key: Vec<Option<Vec<u8>>>,
     storage_val: Vec<Option<Vec<u8>>>,
     op: Vec<String>,
+    n_rows: usize,
 }
 
 fn add_ops(vm_trace: VMTrace, schema: &Table, columns: &mut VmTraceColumns) {
     for opcode in vm_trace.ops {
+        columns.n_rows += 1;
+
         if schema.has_column("pc") {
             columns.pc.push(opcode.pc as u64);
         };

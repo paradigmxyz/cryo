@@ -24,9 +24,10 @@ pub struct FreezeOpts {
     /// Schemas for each datatype to collect
     pub schemas: HashMap<Datatype, Table>,
     // source options
-    // pub provider: Provider<Http>,
     /// Provider to use as data source
     pub provider: Arc<Provider<Http>>,
+    /// Chain id of network
+    pub chain_id: u64,
     /// Name of network to use in output files
     pub network_name: String,
     // acquisition options
