@@ -84,12 +84,18 @@ impl Datatype {
         binary_column_format: &ColumnEncoding,
         include_columns: &Option<Vec<String>>,
         exclude_columns: &Option<Vec<String>>,
+        columns: &Option<Vec<String>>,
         sort: Option<Vec<String>>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
-        let used_columns =
-            compute_used_columns(default_columns, include_columns, exclude_columns, self);
+        let used_columns = compute_used_columns(
+            default_columns,
+            include_columns,
+            exclude_columns,
+            columns,
+            self,
+        );
         let mut columns = IndexMap::new();
         for column in used_columns {
             let mut ctype = column_types
@@ -113,10 +119,11 @@ fn compute_used_columns(
     default_columns: Vec<&str>,
     include_columns: &Option<Vec<String>>,
     exclude_columns: &Option<Vec<String>>,
+    columns: &Option<Vec<String>>,
     datatype: &Datatype,
 ) -> Vec<String> {
-    match (include_columns, exclude_columns) {
-        (Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
+    match (columns, include_columns, exclude_columns) {
+        (Some(columns), _, _) if ((columns.len() == 1) & columns.contains(&"all".to_string())) => {
             datatype
                 .dataset()
                 .column_types()
@@ -124,7 +131,16 @@ fn compute_used_columns(
                 .map(|k| k.to_string())
                 .collect()
         }
-        (Some(include), Some(exclude)) => {
+        (Some(columns), _, _) => columns.iter().map(|x| x.to_string()).collect(),
+        (_, Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
+            datatype
+                .dataset()
+                .column_types()
+                .keys()
+                .map(|k| k.to_string())
+                .collect()
+        }
+        (_, Some(include), Some(exclude)) => {
             let include_set: HashSet<_> = include.iter().collect();
             let exclude_set: HashSet<_> = exclude.iter().collect();
             let intersection: HashSet<_> = include_set.intersection(&exclude_set).collect();
@@ -134,8 +150,8 @@ fn compute_used_columns(
             );
             include.to_vec()
         }
-        (Some(include), None) => include.to_vec(),
-        (None, Some(exclude)) => {
+        (_, Some(include), None) => include.to_vec(),
+        (_, None, Some(exclude)) => {
             let exclude_set: HashSet<_> = exclude.iter().collect();
             default_columns
                 .into_iter()
@@ -143,6 +159,6 @@ fn compute_used_columns(
                 .map(|s| s.to_string())
                 .collect()
         }
-        (None, None) => default_columns.iter().map(|s| s.to_string()).collect(),
+        (_, None, None) => default_columns.iter().map(|s| s.to_string()).collect(),
     }
 }

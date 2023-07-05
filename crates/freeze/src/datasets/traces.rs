@@ -50,6 +50,7 @@ impl Dataset for Traces {
             ("block_number", ColumnType::Int64),
             ("block_hash", ColumnType::Binary),
             ("error", ColumnType::String),
+            ("chain_id", ColumnType::Int64),
         ])
     }
 

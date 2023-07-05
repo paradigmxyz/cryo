@@ -29,8 +29,9 @@ pub struct Args {
     #[arg(
         long,
         default_value_t = 0,
+        value_name = "N_BLOCKS",
         help_heading = "Content Options",
-        help = "Reorg buffer, save blocks only when they are this old,\ncan be a number of blocks or a time"
+        help = "Reorg buffer, save blocks only when they are this old,\ncan be a number of blocks"
     )]
     pub reorg_buffer: u64,
 
@@ -42,13 +43,17 @@ pub struct Args {
     //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see syntax below",
     // )]
     // pub txs: Vec<String>,
-    /// Columns to include in output
+    /// Columns to include alongside the default output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
 
-    /// Columns to exclude from output
+    /// Columns to exclude from the default output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub exclude_columns: Option<Vec<String>>,
+
+    /// Use these columns instead of the default
+    #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
+    pub columns: Option<Vec<String>>,
 
     /// Use hex string encoding for binary columns
     #[arg(long, help_heading = "Content Options")]
@@ -92,7 +97,7 @@ pub struct Args {
     pub dry: bool,
 
     /// Number of blocks per file
-    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
+    #[arg(long, default_value_t = 1000, help_heading = "Output Options")]
     pub chunk_size: u64,
 
     /// Number of files (alternative to --chunk-size)
