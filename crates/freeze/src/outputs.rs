@@ -5,7 +5,7 @@ use crate::types::FileError;
 use crate::types::{BlockChunk, FreezeOpts};
 
 /// get file path of output chunk
-pub fn get_chunk_path(
+pub(crate) fn get_chunk_path(
     name: &str,
     chunk: &BlockChunk,
     opts: &FreezeOpts,
@@ -35,7 +35,11 @@ pub fn get_chunk_path(
 }
 
 /// write polars dataframe to file
-pub fn df_to_file(df: &mut DataFrame, filename: &str, opts: &FreezeOpts) -> Result<(), FileError> {
+pub(crate) fn df_to_file(
+    df: &mut DataFrame,
+    filename: &str,
+    opts: &FreezeOpts,
+) -> Result<(), FileError> {
     let binding = filename.to_string() + "_tmp";
     let tmp_filename = binding.as_str();
     let result = match filename {

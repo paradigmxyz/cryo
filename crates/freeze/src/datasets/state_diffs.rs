@@ -12,7 +12,7 @@ use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Schema;
 
-pub async fn collect_single(
+pub(crate) async fn collect_single(
     datatype: &Datatype,
     block_chunk: &BlockChunk,
     opts: &FreezeOpts,
@@ -36,7 +36,7 @@ pub async fn collect_single(
     }
 }
 
-pub async fn fetch_block_traces(
+pub(crate) async fn fetch_block_traces(
     block_chunk: &BlockChunk,
     trace_types: &[TraceType],
     opts: &FetchOpts,
@@ -67,7 +67,7 @@ pub async fn fetch_block_traces(
     rx
 }
 
-pub async fn fetch_state_diffs(
+pub(crate) async fn fetch_state_diffs(
     block_chunk: &BlockChunk,
     opts: &FetchOpts,
 ) -> mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)> {

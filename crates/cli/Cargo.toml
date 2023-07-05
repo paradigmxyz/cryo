@@ -10,7 +10,7 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "4.3.9"
+clap = { version = "4.3.4", features = ["derive", "color", "unstable-styles"] }
 color-print = "0.3.4"
 ethers = "2.0.7"
 hex = "0.4.3"

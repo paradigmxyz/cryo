@@ -106,7 +106,7 @@ async fn fetch_blocks(
     rx
 }
 
-pub async fn blocks_to_df(
+async fn blocks_to_df(
     mut blocks: mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>>,
     schema: &Schema,
 ) -> Result<DataFrame, CollectError> {

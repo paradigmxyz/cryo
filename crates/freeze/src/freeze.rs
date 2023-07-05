@@ -12,6 +12,7 @@ use crate::types::FreezeError;
 use crate::types::FreezeOpts;
 use crate::types::FreezeSummary;
 
+/// perform a bulk data extraction of multiple datatypes over multiple block chunks
 pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     // create progress bar
     let bar = Arc::new(ProgressBar::new(opts.block_chunks.len() as u64));
@@ -40,6 +41,7 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     Ok(create_freeze_summary(chunk_summaries))
 }
 
+/// perform a bulk data extraction of multiple datatypes over a single block chunk
 async fn freeze_chunk(
     block_chunk: BlockChunk,
     sem: Arc<Semaphore>,

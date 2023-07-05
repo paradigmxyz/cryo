@@ -91,7 +91,7 @@ impl Dataset for Traces {
     }
 }
 
-pub async fn fetch_traces(
+async fn fetch_traces(
     block_chunk: &BlockChunk,
     opts: &FetchOpts,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {

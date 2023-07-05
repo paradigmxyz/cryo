@@ -1,7 +1,10 @@
+/// conversion operations
 use ethers::prelude::*;
 use prefix_hex;
 
+/// Converts data to Vec<u8>
 pub trait ToVecU8 {
+    /// Convert to Vec<u8>
     fn to_vec_u8(&self) -> Vec<u8>;
 }
 
@@ -37,9 +40,12 @@ impl ToVecU8 for Vec<U256> {
 //     }
 // }
 
+/// Encodes data as Vec of hex String
 pub trait ToVecHex {
+    /// Output type
     type Output;
 
+    /// Convert to Vec of hex String
     fn to_vec_hex(&self) -> Self::Output;
 }
 

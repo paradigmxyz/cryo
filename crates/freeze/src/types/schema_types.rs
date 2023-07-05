@@ -6,37 +6,47 @@ use thiserror::Error;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 
+/// Schema represents the underlying schema for a dataset
 pub type Schema = IndexMap<String, ColumnType>;
 
-pub struct Table {
-    columns: IndexMap<String, ColumnType>,
-    pub sort_order: Option<Vec<String>>,
-}
+// pub struct Table {
+//     columns: IndexMap<String, ColumnType>,
+//     pub sort_order: Option<Vec<String>>,
+// }
 
-impl Table {
-    pub fn has_column(&self, column: String) -> bool {
-        self.columns.contains_key(&column)
-    }
-}
+// impl Table {
+//     pub fn has_column(&self, column: String) -> bool {
+//         self.columns.contains_key(&column)
+//     }
+// }
 
+/// datatype of column
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
+    /// Int32 column type
     Int32,
+    /// Int64 column type
     Int64,
-    Decimal128,
+    /// Float64 column type
     Float64,
+    /// Decimal128 column type
+    Decimal128,
+    /// String column type
     String,
+    /// Binary column type
     Binary,
+    /// Hex column type
     Hex,
 }
 
 impl ColumnType {
+    /// convert ColumnType to str
     pub fn as_str(&self) -> &'static str {
         match *self {
             ColumnType::Int32 => "int32",
             ColumnType::Int64 => "int64",
-            ColumnType::Decimal128 => "decimal128",
             ColumnType::Float64 => "float64",
+            ColumnType::Decimal128 => "decimal128",
             ColumnType::String => "string",
             ColumnType::Binary => "binary",
             ColumnType::Hex => "hex",
@@ -44,13 +54,16 @@ impl ColumnType {
     }
 }
 
+/// Error related to Schemas
 #[derive(Error, Debug)]
 pub enum SchemaError {
+    /// Invalid column being operated on
     #[error("Invalid column")]
     InvalidColumn,
 }
 
 impl Datatype {
+    /// get schema for a particular datatype
     pub fn get_schema(
         &self,
         binary_column_format: &ColumnEncoding,
@@ -75,7 +88,7 @@ impl Datatype {
     }
 }
 
-pub fn compute_used_columns(
+fn compute_used_columns(
     default_columns: Vec<&str>,
     include_columns: &Option<Vec<String>>,
     exclude_columns: &Option<Vec<String>>,

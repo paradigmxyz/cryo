@@ -4,6 +4,7 @@ use ring::digest::{self, Digest};
 use crate::types::error_types;
 use crate::types::BlockChunk;
 
+/// Aggregation operations related to chunks
 pub trait ChunkAgg {
     /// return a Vec of all blocks in chunk
     fn numbers(&self) -> Vec<u64>;
@@ -122,6 +123,7 @@ impl ChunkAgg for Vec<BlockChunk> {
     }
 }
 
+/// Operations that can be performed on chunks
 pub trait ChunkOps {
     /// convert a block chunk into a String representation
     fn stub(&self) -> Result<String, error_types::ChunkError>;
@@ -192,7 +194,8 @@ impl ChunkOps for BlockChunk {
     }
 }
 
-pub trait ChunkVecOps {
+/// Operations that can be performed on Vec's of chunks
+pub(crate) trait ChunkVecOps {
     fn to_single_chunk(&self) -> BlockChunk;
 }
 

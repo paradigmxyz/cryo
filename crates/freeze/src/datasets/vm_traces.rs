@@ -65,7 +65,7 @@ async fn fetch_vm_traces(
     state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], opts).await
 }
 
-pub async fn vm_traces_to_df(
+async fn vm_traces_to_df(
     mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
     schema: &Schema,
 ) -> Result<DataFrame, CollectError> {
