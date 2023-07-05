@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 use tokio::task;
 
 use crate::chunks::ChunkAgg;
+use crate::dataframes::SortableDataFrame;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -13,6 +14,7 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
+use crate::types::Table;
 use crate::types::Transactions;
 
 #[async_trait::async_trait]
@@ -75,7 +77,7 @@ impl Dataset for Transactions {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_blocks_and_transactions(block_chunk, &opts.chunk_fetch_opts()).await;
-        txs_to_df(rx).await
+        txs_to_df(rx, &opts.schemas[&Datatype::Transactions]).await
     }
 }
 
@@ -111,6 +113,7 @@ async fn fetch_blocks_and_transactions(
 /// convert a `Vec<Transaction>` into polars dataframe
 async fn txs_to_df(
     mut rx: mpsc::Receiver<Result<Option<Block<Transaction>>, CollectError>>,
+    schema: &Table,
 ) -> Result<DataFrame, CollectError> {
     // not recording: v, r, s, access_list
     let mut hashes: Vec<Vec<u8>> = Vec::new();
@@ -175,4 +178,5 @@ async fn txs_to_df(
         "chain_id" => chain_ids,
     )
     .map_err(CollectError::PolarsError)
+    .sort_by_schema(schema)
 }

@@ -4,6 +4,7 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
+use crate::dataframes::SortableDataFrame;
 use crate::datasets::state_diffs;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
@@ -118,7 +119,9 @@ async fn vm_traces_to_df(
     if schema.has_column("op") {
         series.push(Series::new("op", columns.op));
     };
-    DataFrame::new(series).map_err(CollectError::PolarsError)
+    DataFrame::new(series)
+        .map_err(CollectError::PolarsError)
+        .sort_by_schema(schema)
 }
 
 struct VmTraceColumns {

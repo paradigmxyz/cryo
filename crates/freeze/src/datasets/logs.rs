@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use tokio::task;
 
 use crate::chunks::ChunkOps;
+use crate::dataframes::SortableDataFrame;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -109,7 +110,7 @@ async fn fetch_logs(
 
 async fn logs_to_df(
     mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
-    _schema: &Table,
+    schema: &Table,
 ) -> Result<DataFrame, CollectError> {
     let mut address: Vec<Vec<u8>> = Vec::new();
     let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
@@ -191,4 +192,5 @@ async fn logs_to_df(
         "data" => data,
     )
     .map_err(CollectError::PolarsError)
+    .sort_by_schema(schema)
 }

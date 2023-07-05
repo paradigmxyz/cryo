@@ -5,6 +5,7 @@ use polars::prelude::*;
 use tokio::sync::mpsc;
 
 use crate::chunks::ChunkAgg;
+use crate::dataframes::SortableDataFrame;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::Datatype;
@@ -28,9 +29,8 @@ pub(crate) async fn collect_single(
         },
         Err(e) => Err(CollectError::PolarsError(e)),
     };
-    if let Some(sort_keys) = opts.sort.get(datatype) {
-        df.map(|x| x.sort(sort_keys, false))?
-            .map_err(CollectError::PolarsError)
+    if let Some(schema) = &opts.schemas.get(&datatype) {
+        df.sort_by_schema(schema)
     } else {
         df
     }

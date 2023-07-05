@@ -1,3 +1,8 @@
+use polars::prelude::*;
+
+use crate::types::CollectError;
+use crate::types::Table;
+
 /// convert a Vec to Series and add to Vec<Series>
 #[macro_export]
 macro_rules! with_series {
@@ -22,9 +27,17 @@ macro_rules! with_series_binary {
     };
 }
 
-// if let Some(sort_keys) = opts.sort.get(&Datatype::Blocks) {
-//     df.map(|x| x.sort(sort_keys, false))?
-//         .map_err(CollectError::PolarsError)
-// } else {
-//     df
-// }
+pub(crate) trait SortableDataFrame {
+    fn sort_by_schema(self, schema: &Table) -> Self;
+}
+
+impl SortableDataFrame for Result<DataFrame, CollectError> {
+    fn sort_by_schema(self, schema: &Table) -> Self {
+        match (self, &schema.sort_columns) {
+            (Ok(df), Some(sort_columns)) => df
+                .sort(sort_columns, false)
+                .map_err(CollectError::PolarsError),
+            (df, _) => df,
+        }
+    }
+}

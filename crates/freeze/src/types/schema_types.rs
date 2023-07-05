@@ -15,7 +15,7 @@ pub struct Table {
     pub datatype: Datatype,
 
     /// sort order for rows
-    pub sort: Option<Vec<String>>,
+    pub sort_columns: Option<Vec<String>>,
 }
 
 impl Table {
@@ -102,7 +102,7 @@ impl Datatype {
         }
         let schema = Table {
             datatype: *self,
-            sort,
+            sort_columns: sort,
             columns,
         };
         Ok(schema)

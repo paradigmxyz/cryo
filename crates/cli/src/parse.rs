@@ -114,6 +114,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let (max_concurrent_chunks, max_concurrent_blocks) = parse_concurrency_args(&args)?;
 
     // process schemas
+    let sort = parse_sort(&args.sort, &datatypes)?;
     let schemas: Result<HashMap<Datatype, Table>, eyre::Report> = datatypes
         .iter()
         .map(|datatype| {
@@ -122,15 +123,13 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
                     &binary_column_format,
                     &args.include_columns,
                     &args.exclude_columns,
-                    None,
+                    sort.get(datatype).cloned(),
                 )
                 .map(|schema| (*datatype, schema))
                 .wrap_err_with(|| format!("Failed to get schema for datatype: {:?}", datatype))
         })
         .collect();
     let schemas = schemas?;
-
-    let sort = parse_sort(&args.sort, &schemas)?;
 
     let contract = parse_address(&args.contract);
     let topics = [
@@ -301,18 +300,18 @@ fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression> {
 
 fn parse_sort(
     raw_sort: &Vec<String>,
-    schemas: &HashMap<Datatype, Table>,
+    datatypes: &Vec<Datatype>,
 ) -> Result<HashMap<Datatype, Vec<String>>, eyre::Report> {
     if raw_sort.is_empty() {
-        Ok(HashMap::from_iter(schemas.iter().map(
-            |(datatype, _schema)| (*datatype, datatype.dataset().default_sort()),
-        )))
-    } else if schemas.len() > 1 {
+        Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
+            (*datatype, datatype.dataset().default_sort())
+        })))
+    } else if datatypes.len() > 1 {
         Err(eyre::eyre!(
-            "custom sort not supported for multiple schemas"
+            "custom sort not supported for multiple datasets"
         ))
     } else {
-        match schemas.keys().next() {
+        match datatypes.iter().next() {
             Some(datatype) => Ok(HashMap::from_iter([(*datatype, raw_sort.clone())])),
             None => Err(eyre::eyre!("schemas map is empty")),
         }

@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use tokio::task;
 
 use crate::chunks::ChunkAgg;
+use crate::dataframes::SortableDataFrame;
 use crate::types::conversions::ToVecHex;
 use crate::types::conversions::ToVecU8;
 use crate::types::BlockChunk;
@@ -203,5 +204,7 @@ async fn blocks_to_df(
     with_series_binary!(cols, "total_difficulty", total_difficulty, schema);
     with_series!(cols, "size", size, schema);
     with_series!(cols, "base_fee_per_gas", base_fee_per_gas, schema);
-    DataFrame::new(cols).map_err(CollectError::PolarsError)
+    DataFrame::new(cols)
+        .map_err(CollectError::PolarsError)
+        .sort_by_schema(schema)
 }

@@ -7,6 +7,7 @@ use tokio::sync::mpsc;
 use tokio::task;
 
 use crate::chunks::ChunkAgg;
+use crate::dataframes::SortableDataFrame;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -479,5 +480,7 @@ async fn traces_to_df(
         cols.push(Series::new("error", error));
     }
 
-    DataFrame::new(cols).map_err(CollectError::PolarsError)
+    DataFrame::new(cols)
+        .map_err(CollectError::PolarsError)
+        .sort_by_schema(schema)
 }
