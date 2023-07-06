@@ -7,6 +7,7 @@ use tokio::task;
 
 use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
+use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -16,6 +17,8 @@ use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Table;
 use crate::types::Transactions;
+use crate::with_series;
+use crate::with_series_binary;
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
@@ -77,7 +80,7 @@ impl Dataset for Transactions {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_blocks_and_transactions(block_chunk, &opts.chunk_fetch_opts()).await;
-        txs_to_df(rx, &opts.schemas[&Datatype::Transactions]).await
+        txs_to_df(rx, &opts.schemas[&Datatype::Transactions], opts.chain_id).await
     }
 }
 
@@ -114,6 +117,7 @@ async fn fetch_blocks_and_transactions(
 async fn txs_to_df(
     mut rx: mpsc::Receiver<Result<Option<Block<Transaction>>, CollectError>>,
     schema: &Table,
+    chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     // not recording: v, r, s, access_list
     let mut block_numbers: Vec<Option<u64>> = Vec::new();
@@ -131,8 +135,10 @@ async fn txs_to_df(
     let mut max_fee_per_gas: Vec<Option<u64>> = Vec::new();
     let mut chain_ids: Vec<Option<u64>> = Vec::new();
 
+    let mut n_rows = 0;
     while let Some(Ok(Some(block))) = rx.recv().await {
         for tx in block.transactions.iter() {
+            n_rows += 1;
             match tx.block_number {
                 Some(block_number) => block_numbers.push(Some(block_number.as_u64())),
                 None => block_numbers.push(None),
@@ -161,26 +167,31 @@ async fn txs_to_df(
         }
     }
 
-    // if schema.has_column("chain_id") {
-    //     cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
-    // }
+    let mut cols = Vec::new();
+    with_series!(cols, "block_number", block_numbers, schema);
+    with_series!(cols, "transaction_index", transaction_indices, schema);
+    with_series_binary!(cols, "transaction_hash", hashes, schema);
+    with_series!(cols, "nonce", nonces, schema);
+    with_series_binary!(cols, "from_address", from_addresses, schema);
+    with_series_binary!(cols, "to_address", to_addresses, schema);
+    with_series!(cols, "value", values, schema);
+    with_series_binary!(cols, "input", inputs, schema);
+    with_series!(cols, "gas_limit", gas, schema);
+    with_series!(cols, "gas_price", gas_price, schema);
+    with_series!(cols, "transaction_type", transaction_type, schema);
+    with_series!(
+        cols,
+        "max_priority_fee_per_gas",
+        max_priority_fee_per_gas,
+        schema
+    );
+    with_series!(cols, "max_fee_per_gas", max_fee_per_gas, schema);
 
-    df!(
-        "block_number" => block_numbers,
-        "transaction_index" => transaction_indices,
-        "transaction_hash" => hashes,
-        "nonce" => nonces,
-        "from_address" => from_addresses,
-        "to_address" => to_addresses,
-        "value" => values,
-        "input" => inputs,
-        "gas_limit" => gas,
-        "gas_price" => gas_price,
-        "transaction_type" => transaction_type,
-        "max_priority_fee_per_gas" => max_priority_fee_per_gas,
-        "max_fee_per_gas" => max_fee_per_gas,
-        "chain_id" => chain_ids,
-    )
-    .map_err(CollectError::PolarsError)
-    .sort_by_schema(schema)
+    if schema.has_column("chain_id") {
+        cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+    }
+
+    DataFrame::new(cols)
+        .map_err(CollectError::PolarsError)
+        .sort_by_schema(schema)
 }

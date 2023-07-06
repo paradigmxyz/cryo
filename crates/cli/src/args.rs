@@ -52,7 +52,7 @@ pub struct Args {
     pub exclude_columns: Option<Vec<String>>,
 
     /// Use these columns instead of the default
-    #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
+    #[arg(long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub columns: Option<Vec<String>>,
 
     /// Use hex string encoding for binary columns
@@ -97,7 +97,7 @@ pub struct Args {
     pub dry: bool,
 
     /// Number of blocks per file
-    #[arg(long, default_value_t = 1000, help_heading = "Output Options")]
+    #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
     pub chunk_size: u64,
 
     /// Number of files (alternative to --chunk-size)

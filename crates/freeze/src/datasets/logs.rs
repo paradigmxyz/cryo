@@ -8,6 +8,7 @@ use tokio::task;
 
 use crate::chunks::ChunkOps;
 use crate::dataframes::SortableDataFrame;
+use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -18,6 +19,8 @@ use crate::types::FreezeOpts;
 use crate::types::LogOpts;
 use crate::types::Logs;
 use crate::types::Table;
+use crate::with_series;
+use crate::with_series_binary;
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
@@ -70,7 +73,7 @@ impl Dataset for Logs {
         opts: &FreezeOpts,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_logs(block_chunk, &opts.log_opts, &opts.chunk_fetch_opts()).await;
-        logs_to_df(rx, &opts.schemas[&Datatype::Logs]).await
+        logs_to_df(rx, &opts.schemas[&Datatype::Logs], opts.chain_id).await
     }
 }
 
@@ -112,6 +115,7 @@ async fn fetch_logs(
 async fn logs_to_df(
     mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
     schema: &Table,
+    chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     let mut block_number: Vec<u32> = Vec::new();
     let mut transaction_index: Vec<u32> = Vec::new();
@@ -124,6 +128,7 @@ async fn logs_to_df(
     let mut topic3: Vec<Option<Vec<u8>>> = Vec::new();
     let mut data: Vec<Vec<u8>> = Vec::new();
 
+    let mut n_rows = 0;
     while let Some(Ok(logs)) = logs.recv().await {
         for log in logs.iter() {
             if let Some(true) = log.removed {
@@ -135,6 +140,7 @@ async fn logs_to_df(
                 log.transaction_index,
                 log.log_index,
             ) {
+                n_rows += 1;
                 address.push(log.address.as_bytes().to_vec());
                 match log.topics.len() {
                     0 => {
@@ -180,22 +186,23 @@ async fn logs_to_df(
         }
     }
 
-    // if schema.has_column("chain_id") {
-    //     cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
-    // }
+    let mut cols = Vec::new();
+    with_series!(cols, "block_number", block_number, schema);
+    with_series!(cols, "transaction_index", transaction_index, schema);
+    with_series!(cols, "log_index", log_index, schema);
+    with_series_binary!(cols, "transaction_hash", transaction_hash, schema);
+    with_series_binary!(cols, "contract_address", address, schema);
+    with_series_binary!(cols, "topic0", topic0, schema);
+    with_series_binary!(cols, "topic1", topic1, schema);
+    with_series_binary!(cols, "topic2", topic2, schema);
+    with_series_binary!(cols, "topic3", topic3, schema);
+    with_series_binary!(cols, "data", data, schema);
 
-    df!(
-        "block_number" => block_number,
-        "transaction_index" => transaction_index,
-        "log_index" => log_index,
-        "transaction_hash" => transaction_hash,
-        "contract_address" => address,
-        "topic0" => topic0,
-        "topic1" => topic1,
-        "topic2" => topic2,
-        "topic3" => topic3,
-        "data" => data,
-    )
-    .map_err(CollectError::PolarsError)
-    .sort_by_schema(schema)
+    if schema.has_column("chain_id") {
+        cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
+    }
+
+    DataFrame::new(cols)
+        .map_err(CollectError::PolarsError)
+        .sort_by_schema(schema)
 }
