@@ -30,12 +30,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let args = Args::parse();
 
     // parse datatypes
-    let datatypes: Result<Vec<Datatype>, _> = args
-        .datatype
-        .iter()
-        .map(|datatype| parse_datatype(datatype))
-        .collect();
-    let datatypes = datatypes?;
+    let datatypes = parse_datatypes(&args.datatype)?;
 
     // parse network info
     let rpc_url = parse_rpc_url(&args);
@@ -180,23 +175,38 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     Ok(opts)
 }
 
-fn parse_datatype(datatype: &str) -> Result<Datatype> {
-    let datatype = match datatype {
-        "balance_diffs" => Datatype::BalanceDiffs,
-        "blocks" => Datatype::Blocks,
-        "code_diffs" => Datatype::CodeDiffs,
-        "logs" => Datatype::Logs,
-        "events" => Datatype::Logs,
-        "nonce_diffs" => Datatype::NonceDiffs,
-        "storage_diffs" => Datatype::StorageDiffs,
-        "transactions" => Datatype::Transactions,
-        "txs" => Datatype::Transactions,
-        "traces" => Datatype::Traces,
-        "vm_traces" => Datatype::VmTraces,
-        "opcode_traces" => Datatype::VmTraces,
-        _ => return Err(eyre::eyre!("invalid datatype {}", datatype)),
-    };
-    Ok(datatype)
+fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>> {
+    let mut datatypes = Vec::new();
+
+    for raw_input in raw_inputs {
+        match raw_input.as_str() {
+            "state_diffs" => {
+                datatypes.push(Datatype::BalanceDiffs);
+                datatypes.push(Datatype::CodeDiffs);
+                datatypes.push(Datatype::NonceDiffs);
+                datatypes.push(Datatype::StorageDiffs);
+            }
+            datatype => {
+                let datatype = match datatype {
+                    "balance_diffs" => Datatype::BalanceDiffs,
+                    "blocks" => Datatype::Blocks,
+                    "code_diffs" => Datatype::CodeDiffs,
+                    "logs" => Datatype::Logs,
+                    "events" => Datatype::Logs,
+                    "nonce_diffs" => Datatype::NonceDiffs,
+                    "storage_diffs" => Datatype::StorageDiffs,
+                    "transactions" => Datatype::Transactions,
+                    "txs" => Datatype::Transactions,
+                    "traces" => Datatype::Traces,
+                    "vm_traces" => Datatype::VmTraces,
+                    "opcode_traces" => Datatype::VmTraces,
+                    _ => return Err(eyre::eyre!("invalid datatype {}", datatype)),
+                };
+                datatypes.push(datatype)
+            }
+        }
+    }
+    Ok(datatypes)
 }
 
 fn parse_row_group_size(
