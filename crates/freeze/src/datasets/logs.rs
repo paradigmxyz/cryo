@@ -31,9 +31,9 @@ impl Dataset for Logs {
 
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
-            ("block_number", ColumnType::Int32),
-            ("transaction_index", ColumnType::Int32),
-            ("log_index", ColumnType::Int32),
+            ("block_number", ColumnType::UInt32),
+            ("transaction_index", ColumnType::UInt32),
+            ("log_index", ColumnType::UInt32),
             ("transaction_hash", ColumnType::Binary),
             ("contract_address", ColumnType::Binary),
             ("topic0", ColumnType::Binary),
@@ -41,7 +41,7 @@ impl Dataset for Logs {
             ("topic2", ColumnType::Binary),
             ("topic3", ColumnType::Binary),
             ("data", ColumnType::Binary),
-            ("chain_id", ColumnType::Int64),
+            ("chain_id", ColumnType::UInt64),
         ])
     }
 
@@ -113,16 +113,16 @@ async fn logs_to_df(
     mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
     schema: &Table,
 ) -> Result<DataFrame, CollectError> {
+    let mut block_number: Vec<u32> = Vec::new();
+    let mut transaction_index: Vec<u32> = Vec::new();
+    let mut log_index: Vec<u32> = Vec::new();
+    let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
     let mut address: Vec<Vec<u8>> = Vec::new();
     let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
     let mut topic1: Vec<Option<Vec<u8>>> = Vec::new();
     let mut topic2: Vec<Option<Vec<u8>>> = Vec::new();
     let mut topic3: Vec<Option<Vec<u8>>> = Vec::new();
     let mut data: Vec<Vec<u8>> = Vec::new();
-    let mut block_number: Vec<u64> = Vec::new();
-    let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
-    let mut transaction_index: Vec<u64> = Vec::new();
-    let mut log_index: Vec<u64> = Vec::new();
 
     while let Some(Ok(logs)) = logs.recv().await {
         for log in logs.iter() {
@@ -172,10 +172,10 @@ async fn logs_to_df(
                     }
                 }
                 data.push(log.data.clone().to_vec());
-                block_number.push(bn.as_u64());
+                block_number.push(bn.as_u32());
                 transaction_hash.push(tx.as_bytes().to_vec());
-                transaction_index.push(ti.as_u64());
-                log_index.push(li.as_u64());
+                transaction_index.push(ti.as_u32());
+                log_index.push(li.as_u32());
             }
         }
     }

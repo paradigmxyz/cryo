@@ -39,12 +39,12 @@ impl Dataset for Transactions {
             ("value_str", ColumnType::String),
             ("value_float", ColumnType::Float64),
             ("input", ColumnType::Binary),
-            ("gas_limit", ColumnType::Int64),
-            ("gas_price", ColumnType::Int64),
-            ("transaction_type", ColumnType::Int32),
-            ("max_priority_fee_per_gas", ColumnType::Int64),
-            ("max_fee_per_gas", ColumnType::Int64),
-            ("chain_id", ColumnType::Int64),
+            ("gas_limit", ColumnType::UInt32),
+            ("gas_price", ColumnType::UInt64),
+            ("transaction_type", ColumnType::UInt32),
+            ("max_priority_fee_per_gas", ColumnType::UInt64),
+            ("max_fee_per_gas", ColumnType::UInt64),
+            ("chain_id", ColumnType::UInt64),
         ])
     }
 
@@ -116,17 +116,17 @@ async fn txs_to_df(
     schema: &Table,
 ) -> Result<DataFrame, CollectError> {
     // not recording: v, r, s, access_list
-    let mut hashes: Vec<Vec<u8>> = Vec::new();
+    let mut block_numbers: Vec<Option<u64>> = Vec::new();
     let mut transaction_indices: Vec<Option<u64>> = Vec::new();
+    let mut hashes: Vec<Vec<u8>> = Vec::new();
+    let mut nonces: Vec<u64> = Vec::new();
     let mut from_addresses: Vec<Vec<u8>> = Vec::new();
     let mut to_addresses: Vec<Option<Vec<u8>>> = Vec::new();
-    let mut nonces: Vec<u64> = Vec::new();
-    let mut block_numbers: Vec<Option<u64>> = Vec::new();
     let mut values: Vec<String> = Vec::new();
     let mut inputs: Vec<Vec<u8>> = Vec::new();
-    let mut gas: Vec<u64> = Vec::new();
+    let mut gas: Vec<u32> = Vec::new();
     let mut gas_price: Vec<Option<u64>> = Vec::new();
-    let mut transaction_type: Vec<Option<u64>> = Vec::new();
+    let mut transaction_type: Vec<Option<u32>> = Vec::new();
     let mut max_priority_fee_per_gas: Vec<Option<u64>> = Vec::new();
     let mut max_fee_per_gas: Vec<Option<u64>> = Vec::new();
     let mut chain_ids: Vec<Option<u64>> = Vec::new();
@@ -152,9 +152,9 @@ async fn txs_to_df(
             nonces.push(tx.nonce.as_u64());
             values.push(tx.value.to_string());
             inputs.push(tx.input.to_vec());
-            gas.push(tx.gas.as_u64());
+            gas.push(tx.gas.as_u32());
             gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
-            transaction_type.push(tx.transaction_type.map(|value| value.as_u64()));
+            transaction_type.push(tx.transaction_type.map(|value| value.as_u32()));
             max_priority_fee_per_gas.push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
             max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
             chain_ids.push(tx.chain_id.map(|value| value.as_u64()));

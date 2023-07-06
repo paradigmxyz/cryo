@@ -23,13 +23,13 @@ impl Dataset for NonceDiffs {
 
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
-            ("block_number", ColumnType::Int32),
+            ("block_number", ColumnType::UInt32),
             ("transaction_index", ColumnType::Binary),
             ("transaction_hash", ColumnType::Binary),
             ("address", ColumnType::Binary),
             ("from_value", ColumnType::Binary),
             ("to_value", ColumnType::Binary),
-            ("chain_id", ColumnType::Int64),
+            ("chain_id", ColumnType::UInt64),
         ])
     }
 

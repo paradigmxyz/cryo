@@ -40,15 +40,15 @@ impl Dataset for Blocks {
             ("state_root", ColumnType::Binary),
             ("transactions_root", ColumnType::Binary),
             ("receipts_root", ColumnType::Binary),
-            ("number", ColumnType::Int32),
-            ("gas_used", ColumnType::Int32),
+            ("number", ColumnType::UInt32),
+            ("gas_used", ColumnType::UInt32),
             ("extra_data", ColumnType::Binary),
             ("logs_bloom", ColumnType::Binary),
-            ("timestamp", ColumnType::Int32),
+            ("timestamp", ColumnType::UInt32),
             ("total_difficulty", ColumnType::String),
-            ("size", ColumnType::Int32),
-            ("base_fee_per_gas", ColumnType::Int64),
-            ("chain_id", ColumnType::Int64),
+            ("size", ColumnType::UInt32),
+            ("base_fee_per_gas", ColumnType::UInt64),
+            ("chain_id", ColumnType::UInt64),
             // not including: transactions, seal_fields, epoch_snark_data, randomness
         ])
     }
@@ -136,12 +136,12 @@ async fn blocks_to_df(
     let mut transactions_root: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut receipts_root: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut number: Vec<u32> = Vec::with_capacity(capacity);
-    let mut gas_used: Vec<u64> = Vec::with_capacity(capacity);
+    let mut gas_used: Vec<u32> = Vec::with_capacity(capacity);
     let mut extra_data: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut logs_bloom: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
-    let mut timestamp: Vec<u64> = Vec::with_capacity(capacity);
+    let mut timestamp: Vec<u32> = Vec::with_capacity(capacity);
     let mut total_difficulty: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
-    let mut size: Vec<Option<u64>> = Vec::with_capacity(capacity);
+    let mut size: Vec<Option<u32>> = Vec::with_capacity(capacity);
     let mut base_fee_per_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
 
     let mut n_rows = 0;
@@ -171,7 +171,7 @@ async fn blocks_to_df(
                 number.push(n.as_u32())
             }
             if include_gas_used {
-                gas_used.push(block.gas_used.as_u64());
+                gas_used.push(block.gas_used.as_u32());
             }
             if include_extra_data {
                 extra_data.push(block.extra_data.to_vec());
@@ -180,13 +180,13 @@ async fn blocks_to_df(
                 logs_bloom.push(block.logs_bloom.map(|x| x.0.to_vec()));
             }
             if include_timestamp {
-                timestamp.push(block.timestamp.as_u64());
+                timestamp.push(block.timestamp.as_u32());
             }
             if include_total_difficulty {
                 total_difficulty.push(block.total_difficulty.map(|x| x.to_vec_u8()));
             }
             if include_size {
-                size.push(block.size.map(|x| x.as_u64()));
+                size.push(block.size.map(|x| x.as_u32()));
             }
             if include_base_fee_per_gas {
                 base_fee_per_gas.push(block.base_fee_per_gas.map(|value| value.as_u64()));

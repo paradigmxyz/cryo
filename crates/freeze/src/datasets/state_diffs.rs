@@ -40,7 +40,7 @@ pub(crate) async fn fetch_block_traces(
     block_chunk: &BlockChunk,
     trace_types: &[TraceType],
     opts: &FetchOpts,
-) -> mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)> {
+) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
     let (tx, rx) = mpsc::channel(block_chunk.total_blocks() as usize);
     for number in block_chunk.numbers() {
         let tx = tx.clone();
@@ -57,7 +57,7 @@ pub(crate) async fn fetch_block_traces(
                 .trace_replay_block_transactions(BlockNumber::Number(number.into()), trace_types)
                 .await
                 .map_err(CollectError::ProviderError);
-            match tx.send((number, result)).await {
+            match tx.send((number as u32, result)).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
             }
@@ -70,12 +70,12 @@ pub(crate) async fn fetch_block_traces(
 pub(crate) async fn fetch_state_diffs(
     block_chunk: &BlockChunk,
     opts: &FetchOpts,
-) -> mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)> {
+) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
     fetch_block_traces(block_chunk, &[TraceType::StateDiff], opts).await
 }
 
 async fn state_diffs_to_df(
-    mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
+    mut rx: mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)>,
     schemas: &HashMap<Datatype, Table>,
     chain_id: u64,
 ) -> Result<HashMap<Datatype, DataFrame>, PolarsError> {
@@ -94,7 +94,7 @@ async fn state_diffs_to_df(
     let include_storage_slot = included(schemas, Datatype::StorageDiffs, "slot");
     let include_storage_from_value = included(schemas, Datatype::StorageDiffs, "from_value");
     let include_storage_to_value = included(schemas, Datatype::StorageDiffs, "to_value");
-    let mut storage_block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut storage_block_number: Vec<u32> = Vec::with_capacity(capacity);
     let mut storage_transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut storage_address: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut storage_slot: Vec<Vec<u8>> = Vec::with_capacity(capacity);
@@ -108,7 +108,7 @@ async fn state_diffs_to_df(
     let include_balance_address = included(schemas, Datatype::BalanceDiffs, "address");
     let include_balance_from_value = included(schemas, Datatype::BalanceDiffs, "from_value");
     let include_balance_to_value = included(schemas, Datatype::BalanceDiffs, "to_value");
-    let mut balance_block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut balance_block_number: Vec<u32> = Vec::with_capacity(capacity);
     let mut balance_transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut balance_address: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut balance_from_value: Vec<String> = Vec::with_capacity(capacity);
@@ -121,7 +121,7 @@ async fn state_diffs_to_df(
     let include_nonce_address = included(schemas, Datatype::NonceDiffs, "address");
     let include_nonce_from_value = included(schemas, Datatype::NonceDiffs, "from_value");
     let include_nonce_to_value = included(schemas, Datatype::NonceDiffs, "to_value");
-    let mut nonce_block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut nonce_block_number: Vec<u32> = Vec::with_capacity(capacity);
     let mut nonce_transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut nonce_address: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut nonce_from_value: Vec<u64> = Vec::with_capacity(capacity);
@@ -133,7 +133,7 @@ async fn state_diffs_to_df(
     let include_code_address = included(schemas, Datatype::CodeDiffs, "address");
     let include_code_from_value = included(schemas, Datatype::CodeDiffs, "from_value");
     let include_code_to_value = included(schemas, Datatype::CodeDiffs, "to_value");
-    let mut code_block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut code_block_number: Vec<u32> = Vec::with_capacity(capacity);
     let mut code_transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut code_address: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut code_from_value: Vec<Vec<u8>> = Vec::with_capacity(capacity);

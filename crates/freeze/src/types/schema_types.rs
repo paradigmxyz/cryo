@@ -38,6 +38,10 @@ impl Table {
 /// datatype of column
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
+    /// UInt32 column type
+    UInt32,
+    /// UInt64 column type
+    UInt64,
     /// Int32 column type
     Int32,
     /// Int64 column type
@@ -58,6 +62,8 @@ impl ColumnType {
     /// convert ColumnType to str
     pub fn as_str(&self) -> &'static str {
         match *self {
+            ColumnType::UInt32 => "uint32",
+            ColumnType::UInt64 => "uint64",
             ColumnType::Int32 => "int32",
             ColumnType::Int64 => "int64",
             ColumnType::Float64 => "float64",

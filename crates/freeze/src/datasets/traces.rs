@@ -44,13 +44,13 @@ impl Dataset for Traces {
             ("result_code", ColumnType::Binary),
             ("result_address", ColumnType::Binary),
             ("trace_address", ColumnType::String),
-            ("subtraces", ColumnType::Int32),
-            ("transaction_position", ColumnType::Int32),
+            ("subtraces", ColumnType::UInt32),
+            ("transaction_position", ColumnType::UInt32),
             ("transaction_hash", ColumnType::Binary),
-            ("block_number", ColumnType::Int64),
+            ("block_number", ColumnType::UInt32),
             ("block_hash", ColumnType::Binary),
             ("error", ColumnType::String),
-            ("chain_id", ColumnType::Int64),
+            ("chain_id", ColumnType::UInt64),
         ])
     }
 
@@ -194,7 +194,7 @@ async fn traces_to_df(
     let mut subtraces: Vec<u32> = Vec::with_capacity(capacity);
     let mut transaction_position: Vec<u32> = Vec::with_capacity(capacity);
     let mut transaction_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
-    let mut block_number: Vec<u64> = Vec::with_capacity(capacity);
+    let mut block_number: Vec<u32> = Vec::with_capacity(capacity);
     let mut block_hash: Vec<Vec<u8>> = Vec::with_capacity(capacity);
     let mut error: Vec<Option<String>> = Vec::with_capacity(capacity);
 
@@ -411,7 +411,7 @@ async fn traces_to_df(
                     transaction_hash.push(tx_hash.as_bytes().to_vec());
                 }
                 if include_block_number {
-                    block_number.push(trace.block_number);
+                    block_number.push(trace.block_number as u32);
                 }
                 if include_block_hash {
                     block_hash.push(trace.block_hash.as_bytes().to_vec());

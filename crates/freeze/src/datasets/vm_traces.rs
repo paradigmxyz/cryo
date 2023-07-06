@@ -29,8 +29,8 @@ impl Dataset for VmTraces {
 
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
-            ("block_number", ColumnType::Int32),
-            ("transaction_position", ColumnType::Int32),
+            ("block_number", ColumnType::UInt32),
+            ("transaction_position", ColumnType::UInt32),
             ("pc", ColumnType::Int64),
             ("cost", ColumnType::Int64),
             ("used", ColumnType::Int64),
@@ -76,12 +76,27 @@ impl Dataset for VmTraces {
 async fn fetch_vm_traces(
     block_chunk: &BlockChunk,
     opts: &FetchOpts,
-) -> mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)> {
+) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
     state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], opts).await
 }
 
+struct VmTraceColumns {
+    block_number: Vec<u32>,
+    transaction_position: Vec<u32>,
+    pc: Vec<u64>,
+    cost: Vec<u64>,
+    used: Vec<Option<u64>>,
+    push: Vec<Option<Vec<u8>>>,
+    mem_off: Vec<Option<u32>>,
+    mem_data: Vec<Option<Vec<u8>>>,
+    storage_key: Vec<Option<Vec<u8>>>,
+    storage_val: Vec<Option<Vec<u8>>>,
+    op: Vec<String>,
+    n_rows: usize,
+}
+
 async fn vm_traces_to_df(
-    mut rx: mpsc::Receiver<(u64, Result<Vec<BlockTrace>, CollectError>)>,
+    mut rx: mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)>,
     schema: &Table,
     chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
@@ -104,7 +119,7 @@ async fn vm_traces_to_df(
     while let Some((number, Ok(block_traces))) = rx.recv().await {
         for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
             if let Some(vm_trace) = block_trace.vm_trace {
-                add_ops(vm_trace, schema, &mut columns, number as u32, tx_pos as u32)
+                add_ops(vm_trace, schema, &mut columns, number, tx_pos as u32)
             }
         }
     }
@@ -152,21 +167,6 @@ async fn vm_traces_to_df(
     DataFrame::new(series)
         .map_err(CollectError::PolarsError)
         .sort_by_schema(schema)
-}
-
-struct VmTraceColumns {
-    block_number: Vec<u32>,
-    transaction_position: Vec<u32>,
-    pc: Vec<u64>,
-    cost: Vec<u64>,
-    used: Vec<Option<u64>>,
-    push: Vec<Option<Vec<u8>>>,
-    mem_off: Vec<Option<u32>>,
-    mem_data: Vec<Option<Vec<u8>>>,
-    storage_key: Vec<Option<Vec<u8>>>,
-    storage_val: Vec<Option<Vec<u8>>>,
-    op: Vec<String>,
-    n_rows: usize,
 }
 
 fn add_ops(
