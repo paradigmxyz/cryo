@@ -19,7 +19,7 @@ pub struct Args {
     )]
     pub blocks: Vec<String>,
 
-    /// Align block chunk boundaries to regular intervals
+    /// Align block chunk boundaries to regular intervals,
     /// e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
     #[arg(short, long, help_heading = "Content Options", verbatim_doc_comment)]
     pub align: bool,
@@ -43,16 +43,18 @@ pub struct Args {
     //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see syntax below",
     // )]
     // pub txs: Vec<String>,
-    /// Columns to include alongside the default output
-    #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
+    /// Columns to include alongside the default output,
+    /// use `all` to include all available columns
+    #[arg(short, long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
 
     /// Columns to exclude from the default output
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub exclude_columns: Option<Vec<String>>,
 
-    /// Use these columns instead of the default
-    #[arg(long, value_name="COLS", num_args(0..), help_heading="Content Options")]
+    /// Columns to use instead of the default columns,
+    /// use `all` to use all available columns
+    #[arg(long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub columns: Option<Vec<String>>,
 
     /// Use hex string encoding for binary columns
