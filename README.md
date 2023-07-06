@@ -85,6 +85,8 @@ A future version of `cryo` will be able to bypass JSON-RPC and query node data d
 
 ## CLI Options
 
+output of `cryo --help`:
+
 ```
 cryo extracts blockchain data to parquet, csv, or json
 
@@ -93,15 +95,15 @@ Usage: cryo [OPTIONS] <DATATYPE>...
 Arguments:
   <DATATYPE>...  datatype(s) to collect, one or more of:
                  - blocks
-                 - logs
-                 - transactions
-                 - call_traces
-                 - state_diffs
+                 - transactions  (alias = txs)
+                 - logs          (alias = events)
+                 - traces        (alias = call_traces)
+                 - state_diffs   (= balance + code + nonce + storage diffs)
                  - balance_diffs
                  - code_diffs
-                 - slot_diffs
                  - nonce_diffs
-                 - opcode_traces
+                 - storage_diffs
+                 - vm_traces     (alias = opcode_traces)
 
 Options:
   -h, --help     Print help
