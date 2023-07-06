@@ -2,6 +2,8 @@
 name = "cryo_freeze"
 version = "0.1.0"
 edition = "2021"
+description = "cryo is the easiest way to extract blockchain data to parquet, csv, or json"
+repository = "https://github.com/paradigmxyz/cryo"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
