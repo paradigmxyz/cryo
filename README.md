@@ -46,7 +46,7 @@ cryo can extract the following datasets from EVM nodes:
 ```bash
 git clone https://github.com/paradigmxyz/cryo
 cd cryo
-cargo install --path .
+cargo install --path ./crates/cli
 ```
 
 This method requires having rust installed. See [rustup](https://rustup.rs/) for instructions.
