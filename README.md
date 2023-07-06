@@ -60,6 +60,29 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
 
+## Data Schema
+
+Many `cryo` cli options will affect output schemas by adding/removing columns or changing column datatypes.
+
+`cryo` will always print out data schemas before collecting any data. To view these schemas without collecting data, use `--dry` to perform a dry run.
+
+#### JSON-RPC
+
+`cryo` currently obtains all of its data using the [JSON-RPC](https://ethereum.org/en/developers/docs/apis/json-rpc/) protocol standard.
+
+|dataset|blocks per request|results per block|method|
+|-|-|-|-|
+|Blocks|1|1|`eth_getBlockByNumber`|
+|Transactions|1|multiple|`eth_getBlockByNumber`|
+|Logs|multiple|multiple|`eth_getLogs`|
+|Traces|1|multiple|`trace_block`|
+|State Diffs|1|multiple|`trace_replayBlockTransactions`|
+|Vm Traces|1|multiple|`trace_replayBlockTransactions`|
+
+`cryo` use [ethers.rs](https://github.com/gakonst/ethers-rs) to perform JSON-RPC requests, so it can be used any chain that ethers-rs is compatible with. This includes Ethereum, Optimism, Arbitrum, Polygon, BNB, and Avalanche.
+
+A future version of `cryo` will be able to bypass JSON-RPC and query node data directly.
+
 ## CLI Options
 
 ```
