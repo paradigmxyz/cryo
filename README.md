@@ -2,7 +2,11 @@
 
 [![Rust](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml)
 
-cryo is the easiest way to extract blockchain data to parquet, csv, or json
+`cryo` is the easiest way to extract blockchain data to parquet, csv, or json
+
+`cryo` is also extremely flexible, with [many different options](#cli-options) to control how data is extracted + filtered + formatted
+
+*`cryo` is a WIP, please report bugs + feedback to the issue tracker*
 
 ## Example Usage
 
@@ -35,7 +39,26 @@ cryo can extract the following datasets from EVM nodes:
 
 ## Installation
 
-[wip]
+#### Method 1: install from source
+
+```bash
+git clone https://github.com/paradigmxyz/cryo
+cd cryo
+cargo install --path .
+```
+
+This method requires having rust installed. See [rustup](https://rustup.rs/) for instructions.
+
+#### Method 2: install from crates.io
+
+```bash
+cargo install cryo_cli
+```
+
+This method requires having rust installed. See [rustup](https://rustup.rs/) for instructions.
+
+Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
+
 
 ## CLI Options
 
@@ -65,10 +88,11 @@ Content Options:
   -b, --blocks <BLOCKS>              Block numbers, see syntax below [default: 0:latest]
   -a, --align                        Align block chunk boundaries to regular intervals
                                      e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
-      --reorg-buffer <REORG_BUFFER>  Reorg buffer, save blocks only when they are this old,
-                                     can be a number of blocks or a time [default: 0]
-  -i, --include-columns [<COLS>...]  Columns to include in output
-  -e, --exclude-columns [<COLS>...]  Columns to exclude from output
+      --reorg-buffer <N_BLOCKS>      Reorg buffer, save blocks only when they are this old,
+                                     can be a number of blocks [default: 0]
+  -i, --include-columns [<COLS>...]  Columns to include alongside the default output
+  -e, --exclude-columns [<COLS>...]  Columns to exclude from the default output
+      --columns [<COLS>...]          Use these columns instead of the default
       --hex                          Use hex string encoding for binary columns
   -s, --sort [<SORT>...]             Columns(s) to sort by
 
@@ -87,7 +111,7 @@ Output Options:
   -c, --chunk-size <CHUNK_SIZE>      Number of blocks per file [default: 1000]
       --n-chunks <N_CHUNKS>          Number of files (alternative to --chunk-size)
   -o, --output-dir <OUTPUT_DIR>      Directory for output files [default: .]
-      --file-suffix <FILE_SUFFIX>    Suffix attached to end of each filename
+      --file-suffix <FILE_SUFFIX>    Suffix to attach to end of each filename
       --overwrite                    Overwrite existing files instead of skipping them
       --csv                          Save as csv instead of parquet
       --json                         Save as json instead of parquet
@@ -114,3 +138,4 @@ Block specification syntax
 - minus on start means minus end     -1000:7000 == 6000:7000
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
 ```
+
