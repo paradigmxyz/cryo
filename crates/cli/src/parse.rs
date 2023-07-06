@@ -484,8 +484,9 @@ async fn parse_block_number(
                 .wrap_err_with(|| format!("Error parsing block ref '{}'", s))
         }
         _ => block_ref
-            .parse::<u64>()
-            .wrap_err_with(|| format!("Error parsing block ref '{}'", block_ref)),
+            .parse::<f64>()
+            .wrap_err_with(|| format!("Error parsing block ref '{}'", block_ref))
+            .map(|x| x as u64),
     }
 }
 
