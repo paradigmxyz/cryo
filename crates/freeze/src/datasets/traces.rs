@@ -8,6 +8,7 @@ use tokio::task;
 
 use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
+use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -17,6 +18,8 @@ use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Table;
 use crate::types::Traces;
+use crate::with_series;
+use crate::with_series_binary;
 
 #[async_trait::async_trait]
 impl Dataset for Traces {
@@ -32,14 +35,14 @@ impl Dataset for Traces {
         HashMap::from_iter(vec![
             ("action_from", ColumnType::Binary),
             ("action_to", ColumnType::Binary),
-            ("action_value", ColumnType::Binary),
-            ("action_gas", ColumnType::Binary),
+            ("action_value", ColumnType::String),
+            ("action_gas", ColumnType::UInt32),
             ("action_input", ColumnType::Binary),
             ("action_call_type", ColumnType::String),
             ("action_init", ColumnType::Binary),
             ("action_reward_type", ColumnType::String),
             ("action_type", ColumnType::String),
-            ("result_gas_used", ColumnType::Binary),
+            ("result_gas_used", ColumnType::UInt32),
             ("result_output", ColumnType::Binary),
             ("result_code", ColumnType::Binary),
             ("result_address", ColumnType::Binary),
@@ -180,13 +183,13 @@ async fn traces_to_df(
     let mut action_from: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut action_to: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut action_value: Vec<String> = Vec::with_capacity(capacity);
-    let mut action_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
+    let mut action_gas: Vec<Option<u32>> = Vec::with_capacity(capacity);
     let mut action_input: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut action_call_type: Vec<Option<String>> = Vec::with_capacity(capacity);
     let mut action_init: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut action_reward_type: Vec<Option<String>> = Vec::with_capacity(capacity);
     let mut action_type: Vec<String> = Vec::with_capacity(capacity);
-    let mut result_gas_used: Vec<Option<u64>> = Vec::with_capacity(capacity);
+    let mut result_gas_used: Vec<Option<u32>> = Vec::with_capacity(capacity);
     let mut result_output: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut result_code: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
     let mut result_address: Vec<Option<Vec<u8>>> = Vec::with_capacity(capacity);
@@ -242,7 +245,7 @@ async fn traces_to_df(
                             action_value.push(a.value.to_string());
                         }
                         if include_action_gas {
-                            action_gas.push(Some(a.gas.as_u64()));
+                            action_gas.push(Some(a.gas.as_u32()));
                         }
                         if include_action_input {
                             action_input.push(Some(a.input.to_vec()));
@@ -266,7 +269,7 @@ async fn traces_to_df(
                             action_value.push(action.value.to_string());
                         }
                         if include_action_gas {
-                            action_gas.push(Some(action.gas.as_u64()));
+                            action_gas.push(Some(action.gas.as_u32()));
                         }
                         if include_action_init {
                             action_init.push(Some(action.init.to_vec()));
@@ -348,7 +351,7 @@ async fn traces_to_df(
                 match &trace.result {
                     Some(Res::Call(result)) => {
                         if include_result_gas_used {
-                            result_gas_used.push(Some(result.gas_used.as_u64()));
+                            result_gas_used.push(Some(result.gas_used.as_u32()));
                         }
                         if include_result_output {
                             result_output.push(Some(result.output.to_vec()));
@@ -363,7 +366,7 @@ async fn traces_to_df(
                     }
                     Some(Res::Create(result)) => {
                         if include_result_gas_used {
-                            result_gas_used.push(Some(result.gas_used.as_u64()));
+                            result_gas_used.push(Some(result.gas_used.as_u32()));
                         }
                         if include_result_code {
                             result_code.push(Some(result.code.to_vec()));
@@ -424,66 +427,28 @@ async fn traces_to_df(
     }
 
     let mut cols = Vec::new();
-    if include_action_from {
-        cols.push(Series::new("action_from", action_from));
-    }
-    if include_action_to {
-        cols.push(Series::new("action_to", action_to));
-    }
-    if include_action_value {
-        cols.push(Series::new("action_value", action_value));
-    }
-    if include_action_gas {
-        cols.push(Series::new("action_gas", action_gas));
-    }
-    if include_action_input {
-        cols.push(Series::new("action_input", action_input));
-    }
-    if include_action_call_type {
-        cols.push(Series::new("action_call_type", action_call_type));
-    }
-    if include_action_init {
-        cols.push(Series::new("action_init", action_init));
-    }
-    if include_action_reward_type {
-        cols.push(Series::new("action_reward_type", action_reward_type));
-    }
-    if include_action_type {
-        cols.push(Series::new("action_type", action_type));
-    }
-    if include_result_gas_used {
-        cols.push(Series::new("result_gas_used", result_gas_used));
-    }
-    if include_result_output {
-        cols.push(Series::new("result_output", result_output));
-    }
-    if include_result_code {
-        cols.push(Series::new("result_code", result_code));
-    }
-    if include_result_address {
-        cols.push(Series::new("result_address", result_address));
-    }
-    if include_trace_address {
-        cols.push(Series::new("trace_address", trace_address));
-    }
-    if include_subtraces {
-        cols.push(Series::new("subtraces", subtraces));
-    }
-    if include_transaction_position {
-        cols.push(Series::new("transaction_position", transaction_position));
-    }
-    if include_transaction_hash {
-        cols.push(Series::new("transaction_hash", transaction_hash));
-    }
-    if include_block_number {
-        cols.push(Series::new("block_number", block_number));
-    }
-    if include_block_hash {
-        cols.push(Series::new("block_hash", block_hash));
-    }
-    if include_error {
-        cols.push(Series::new("error", error));
-    }
+
+    with_series_binary!(cols, "action_from", action_from, schema);
+    with_series_binary!(cols, "action_to", action_to, schema);
+    with_series!(cols, "action_value", action_value, schema);
+    with_series!(cols, "action_gas", action_gas, schema);
+    with_series_binary!(cols, "action_input", action_input, schema);
+    with_series!(cols, "action_call_type", action_call_type, schema);
+    with_series_binary!(cols, "action_init", action_init, schema);
+    with_series!(cols, "action_reward_type", action_reward_type, schema);
+    with_series!(cols, "action_type", action_type, schema);
+    with_series!(cols, "result_gas_used", result_gas_used, schema);
+    with_series_binary!(cols, "result_output", result_output, schema);
+    with_series_binary!(cols, "result_code", result_code, schema);
+    with_series_binary!(cols, "result_address", result_address, schema);
+    with_series!(cols, "trace_address", trace_address, schema);
+    with_series!(cols, "subtraces", subtraces, schema);
+    with_series!(cols, "transaction_position", transaction_position, schema);
+    with_series_binary!(cols, "transaction_hash", transaction_hash, schema);
+    with_series!(cols, "block_number", block_number, schema);
+    with_series_binary!(cols, "block_hash", block_hash, schema);
+    with_series!(cols, "error", error, schema);
+
     if schema.has_column("chain_id") {
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }

@@ -6,6 +6,7 @@ use tokio::sync::mpsc;
 
 use crate::dataframes::SortableDataFrame;
 use crate::datasets::state_diffs;
+use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
@@ -16,6 +17,8 @@ use crate::types::FreezeOpts;
 use crate::types::Table;
 use crate::types::ToVecU8;
 use crate::types::VmTraces;
+use crate::with_series;
+use crate::with_series_binary;
 
 #[async_trait::async_trait]
 impl Dataset for VmTraces {
@@ -124,47 +127,30 @@ async fn vm_traces_to_df(
         }
     }
 
-    let mut series = Vec::new();
-    if schema.has_column("block_number") {
-        series.push(Series::new("block_number", columns.block_number));
-    };
-    if schema.has_column("transaction_position") {
-        series.push(Series::new(
-            "transaction_position",
-            columns.transaction_position,
-        ));
-    };
-    if schema.has_column("pc") {
-        series.push(Series::new("pc", columns.pc));
-    };
-    if schema.has_column("cost") {
-        series.push(Series::new("cost", columns.cost));
-    };
-    if schema.has_column("used") {
-        series.push(Series::new("used", columns.used));
-    };
-    if schema.has_column("push") {
-        series.push(Series::new("push", columns.push));
-    };
-    if schema.has_column("mem_off") {
-        series.push(Series::new("mem_off", columns.mem_off));
-    };
-    if schema.has_column("mem_data") {
-        series.push(Series::new("mem_data", columns.mem_data));
-    };
-    if schema.has_column("storage_key") {
-        series.push(Series::new("storage_key", columns.storage_key));
-    };
-    if schema.has_column("storage_val") {
-        series.push(Series::new("storage_val", columns.storage_val));
-    };
-    if schema.has_column("op") {
-        series.push(Series::new("op", columns.op));
-    };
+    let mut cols = Vec::new();
+
+    with_series!(cols, "block_number", columns.block_number, schema);
+    with_series!(
+        cols,
+        "transaction_position",
+        columns.transaction_position,
+        schema
+    );
+    with_series!(cols, "pc", columns.pc, schema);
+    with_series!(cols, "cost", columns.cost, schema);
+    with_series!(cols, "used", columns.used, schema);
+    with_series_binary!(cols, "push", columns.push, schema);
+    with_series!(cols, "mem_off", columns.mem_off, schema);
+    with_series_binary!(cols, "mem_data", columns.mem_data, schema);
+    with_series_binary!(cols, "storage_key", columns.storage_key, schema);
+    with_series_binary!(cols, "storage_val", columns.storage_val, schema);
+    with_series!(cols, "op", columns.op, schema);
+
     if schema.has_column("chain_id") {
-        series.push(Series::new("chain_id", vec![chain_id; columns.n_rows]));
+        cols.push(Series::new("chain_id", vec![chain_id; columns.n_rows]));
     };
-    DataFrame::new(series)
+
+    DataFrame::new(cols)
         .map_err(CollectError::PolarsError)
         .sort_by_schema(schema)
 }

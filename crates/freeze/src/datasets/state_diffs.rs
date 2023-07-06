@@ -6,12 +6,16 @@ use tokio::sync::mpsc;
 
 use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
+use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
 use crate::types::CollectError;
+use crate::types::ColumnType;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::Table;
+use crate::with_series;
+use crate::with_series_binary;
 
 pub(crate) async fn collect_single(
     datatype: &Datatype,
@@ -265,25 +269,14 @@ async fn state_diffs_to_df(
     // storage
     if include_storage {
         let mut cols = Vec::new();
-        if include_storage_block_number {
-            cols.push(Series::new("block_number", storage_block_number));
-        }
-        if include_storage_transaction_hash {
-            cols.push(Series::new("transaction_hash", storage_transaction_hash));
-        }
-        if include_storage_address {
-            cols.push(Series::new("address", storage_address));
-        }
-        if include_storage_slot {
-            cols.push(Series::new("slot", storage_slot));
-        }
-        if include_storage_from_value {
-            cols.push(Series::new("from_value", storage_from_value));
-        }
-        if include_storage_to_value {
-            cols.push(Series::new("to_value", storage_to_value));
-        }
-        if schemas[&Datatype::StorageDiffs].has_column("chain_id") {
+        let schema = &schemas[&Datatype::StorageDiffs];
+        with_series!(cols, "block_number", storage_block_number, schema);
+        with_series_binary!(cols, "transaction_hash", storage_transaction_hash, schema);
+        with_series_binary!(cols, "address", storage_address, schema);
+        with_series_binary!(cols, "slot", storage_slot, schema);
+        with_series_binary!(cols, "from_value", storage_from_value, schema);
+        with_series_binary!(cols, "to_value", storage_to_value, schema);
+        if schema.has_column("chain_id") {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
@@ -293,22 +286,13 @@ async fn state_diffs_to_df(
     // balance
     if include_balance {
         let mut cols = Vec::new();
-        if include_balance_block_number {
-            cols.push(Series::new("block_number", balance_block_number));
-        }
-        if include_balance_transaction_hash {
-            cols.push(Series::new("transaction_hash", balance_transaction_hash));
-        }
-        if include_balance_address {
-            cols.push(Series::new("address", balance_address));
-        }
-        if include_balance_from_value {
-            cols.push(Series::new("from_value", balance_from_value));
-        }
-        if include_balance_to_value {
-            cols.push(Series::new("to_value", balance_to_value));
-        }
-        if schemas[&Datatype::BalanceDiffs].has_column("chain_id") {
+        let schema = &schemas[&Datatype::BalanceDiffs];
+        with_series!(cols, "block_number", balance_block_number, schema);
+        with_series_binary!(cols, "transaction_hash", balance_transaction_hash, schema);
+        with_series_binary!(cols, "address", balance_address, schema);
+        with_series!(cols, "from_value", balance_from_value, schema);
+        with_series!(cols, "to_value", balance_to_value, schema);
+        if schema.has_column("chain_id") {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
@@ -318,22 +302,13 @@ async fn state_diffs_to_df(
     // nonce
     if include_nonce {
         let mut cols = Vec::new();
-        if include_nonce_block_number {
-            cols.push(Series::new("block_number", nonce_block_number));
-        }
-        if include_nonce_transaction_hash {
-            cols.push(Series::new("transaction_hash", nonce_transaction_hash));
-        }
-        if include_nonce_address {
-            cols.push(Series::new("address", nonce_address));
-        }
-        if include_nonce_from_value {
-            cols.push(Series::new("from_value", nonce_from_value));
-        }
-        if include_nonce_to_value {
-            cols.push(Series::new("to_value", nonce_to_value));
-        }
-        if schemas[&Datatype::NonceDiffs].has_column("chain_id") {
+        let schema = &schemas[&Datatype::NonceDiffs];
+        with_series!(cols, "block_number", nonce_block_number, schema);
+        with_series_binary!(cols, "transaction_hash", nonce_transaction_hash, schema);
+        with_series_binary!(cols, "address", nonce_address, schema);
+        with_series!(cols, "from_value", nonce_from_value, schema);
+        with_series!(cols, "to_value", nonce_to_value, schema);
+        if schema.has_column("chain_id") {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
@@ -343,22 +318,13 @@ async fn state_diffs_to_df(
     // code
     if include_code {
         let mut cols = Vec::new();
-        if include_code_block_number {
-            cols.push(Series::new("block_number", code_block_number));
-        }
-        if include_code_transaction_hash {
-            cols.push(Series::new("transaction_hash", code_transaction_hash));
-        }
-        if include_code_address {
-            cols.push(Series::new("address", code_address));
-        }
-        if include_code_from_value {
-            cols.push(Series::new("from_value", code_from_value));
-        }
-        if include_code_to_value {
-            cols.push(Series::new("to_value", code_to_value));
-        }
-        if schemas[&Datatype::CodeDiffs].has_column("chain_id") {
+        let schema = &schemas[&Datatype::CodeDiffs];
+        with_series!(cols, "block_number", code_block_number, schema);
+        with_series_binary!(cols, "transaction_hash", code_transaction_hash, schema);
+        with_series_binary!(cols, "address", code_address, schema);
+        with_series_binary!(cols, "from_value", code_from_value, schema);
+        with_series_binary!(cols, "to_value", code_to_value, schema);
+        if schema.has_column("chain_id") {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
         let df = DataFrame::new(cols)?;
