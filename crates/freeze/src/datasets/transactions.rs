@@ -106,7 +106,10 @@ async fn fetch_blocks_and_transactions(
                 .map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
-                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
             }
         });
     }
@@ -136,34 +139,40 @@ async fn txs_to_df(
     let mut chain_ids: Vec<Option<u64>> = Vec::new();
 
     let mut n_rows = 0;
-    while let Some(Ok(Some(block))) = rx.recv().await {
-        for tx in block.transactions.iter() {
-            n_rows += 1;
-            match tx.block_number {
-                Some(block_number) => block_numbers.push(Some(block_number.as_u64())),
-                None => block_numbers.push(None),
-            }
-            match tx.transaction_index {
-                Some(transaction_index) => {
-                    transaction_indices.push(Some(transaction_index.as_u64()))
+    while let Some(message) = rx.recv().await {
+        match message {
+            Ok(Some(block)) => {
+                for tx in block.transactions.iter() {
+                    n_rows += 1;
+                    match tx.block_number {
+                        Some(block_number) => block_numbers.push(Some(block_number.as_u64())),
+                        None => block_numbers.push(None),
+                    }
+                    match tx.transaction_index {
+                        Some(transaction_index) => {
+                            transaction_indices.push(Some(transaction_index.as_u64()))
+                        }
+                        None => transaction_indices.push(None),
+                    }
+                    hashes.push(tx.hash.as_bytes().to_vec());
+                    from_addresses.push(tx.from.as_bytes().to_vec());
+                    match tx.to {
+                        Some(to_address) => to_addresses.push(Some(to_address.as_bytes().to_vec())),
+                        None => to_addresses.push(None),
+                    }
+                    nonces.push(tx.nonce.as_u64());
+                    values.push(tx.value.to_string());
+                    inputs.push(tx.input.to_vec());
+                    gas.push(tx.gas.as_u32());
+                    gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
+                    transaction_type.push(tx.transaction_type.map(|value| value.as_u32()));
+                    max_priority_fee_per_gas
+                        .push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
+                    max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
+                    chain_ids.push(tx.chain_id.map(|value| value.as_u64()));
                 }
-                None => transaction_indices.push(None),
             }
-            hashes.push(tx.hash.as_bytes().to_vec());
-            from_addresses.push(tx.from.as_bytes().to_vec());
-            match tx.to {
-                Some(to_address) => to_addresses.push(Some(to_address.as_bytes().to_vec())),
-                None => to_addresses.push(None),
-            }
-            nonces.push(tx.nonce.as_u64());
-            values.push(tx.value.to_string());
-            inputs.push(tx.input.to_vec());
-            gas.push(tx.gas.as_u32());
-            gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
-            transaction_type.push(tx.transaction_type.map(|value| value.as_u32()));
-            max_priority_fee_per_gas.push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
-            max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
-            chain_ids.push(tx.chain_id.map(|value| value.as_u64()));
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 

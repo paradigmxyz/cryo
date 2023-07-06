@@ -69,10 +69,11 @@ async fn freeze_chunk(
                             }
                         }
                         Err(_e) => {
+                            println!("chunk failed: {:?}", _e);
                             return FreezeChunkSummary {
                                 skipped: false,
                                 errored: true,
-                            }
+                            };
                         }
                     }
                 }

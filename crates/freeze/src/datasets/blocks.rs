@@ -101,7 +101,10 @@ async fn fetch_blocks(
                 .map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
-                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
             }
         });
     }
@@ -145,52 +148,57 @@ async fn blocks_to_df(
     let mut base_fee_per_gas: Vec<Option<u64>> = Vec::with_capacity(capacity);
 
     let mut n_rows = 0;
-    while let Some(Ok(Some(block))) = blocks.recv().await {
-        if let (Some(n), Some(h), Some(a)) = (block.number, block.hash, block.author) {
-            n_rows += 1;
+    while let Some(message) = blocks.recv().await {
+        match message {
+            Ok(Some(block)) => {
+                if let (Some(n), Some(h), Some(a)) = (block.number, block.hash, block.author) {
+                    n_rows += 1;
 
-            if include_hash {
-                hash.push(h.as_bytes().to_vec());
+                    if include_hash {
+                        hash.push(h.as_bytes().to_vec());
+                    }
+                    if include_parent_hash {
+                        parent_hash.push(block.parent_hash.as_bytes().to_vec());
+                    }
+                    if include_author {
+                        author.push(a.as_bytes().to_vec());
+                    }
+                    if include_state_root {
+                        state_root.push(block.state_root.as_bytes().to_vec());
+                    }
+                    if include_transactions_root {
+                        transactions_root.push(block.transactions_root.as_bytes().to_vec());
+                    }
+                    if include_receipts_root {
+                        receipts_root.push(block.receipts_root.as_bytes().to_vec());
+                    }
+                    if include_number {
+                        number.push(n.as_u32())
+                    }
+                    if include_gas_used {
+                        gas_used.push(block.gas_used.as_u32());
+                    }
+                    if include_extra_data {
+                        extra_data.push(block.extra_data.to_vec());
+                    }
+                    if include_logs_bloom {
+                        logs_bloom.push(block.logs_bloom.map(|x| x.0.to_vec()));
+                    }
+                    if include_timestamp {
+                        timestamp.push(block.timestamp.as_u32());
+                    }
+                    if include_total_difficulty {
+                        total_difficulty.push(block.total_difficulty.map(|x| x.to_vec_u8()));
+                    }
+                    if include_size {
+                        size.push(block.size.map(|x| x.as_u32()));
+                    }
+                    if include_base_fee_per_gas {
+                        base_fee_per_gas.push(block.base_fee_per_gas.map(|value| value.as_u64()));
+                    }
+                }
             }
-            if include_parent_hash {
-                parent_hash.push(block.parent_hash.as_bytes().to_vec());
-            }
-            if include_author {
-                author.push(a.as_bytes().to_vec());
-            }
-            if include_state_root {
-                state_root.push(block.state_root.as_bytes().to_vec());
-            }
-            if include_transactions_root {
-                transactions_root.push(block.transactions_root.as_bytes().to_vec());
-            }
-            if include_receipts_root {
-                receipts_root.push(block.receipts_root.as_bytes().to_vec());
-            }
-            if include_number {
-                number.push(n.as_u32())
-            }
-            if include_gas_used {
-                gas_used.push(block.gas_used.as_u32());
-            }
-            if include_extra_data {
-                extra_data.push(block.extra_data.to_vec());
-            }
-            if include_logs_bloom {
-                logs_bloom.push(block.logs_bloom.map(|x| x.0.to_vec()));
-            }
-            if include_timestamp {
-                timestamp.push(block.timestamp.as_u32());
-            }
-            if include_total_difficulty {
-                total_difficulty.push(block.total_difficulty.map(|x| x.to_vec_u8()));
-            }
-            if include_size {
-                size.push(block.size.map(|x| x.as_u32()));
-            }
-            if include_base_fee_per_gas {
-                base_fee_per_gas.push(block.base_fee_per_gas.map(|value| value.as_u64()));
-            }
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 

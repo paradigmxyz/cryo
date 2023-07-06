@@ -105,7 +105,10 @@ async fn fetch_logs(
                 .map_err(CollectError::ProviderError);
             match tx.send(result).await {
                 Ok(_) => {}
-                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
             }
         });
     }
@@ -129,60 +132,66 @@ async fn logs_to_df(
     let mut data: Vec<Vec<u8>> = Vec::new();
 
     let mut n_rows = 0;
-    while let Some(Ok(logs)) = logs.recv().await {
-        for log in logs.iter() {
-            if let Some(true) = log.removed {
-                continue;
-            }
-            if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
-                log.block_number,
-                log.transaction_hash,
-                log.transaction_index,
-                log.log_index,
-            ) {
-                n_rows += 1;
-                address.push(log.address.as_bytes().to_vec());
-                match log.topics.len() {
-                    0 => {
-                        topic0.push(None);
-                        topic1.push(None);
-                        topic2.push(None);
-                        topic3.push(None);
+    // while let Some(Ok(logs)) = logs.recv().await {
+    while let Some(message) = logs.recv().await {
+        match message {
+            Ok(logs) => {
+                for log in logs.iter() {
+                    if let Some(true) = log.removed {
+                        continue;
                     }
-                    1 => {
-                        topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                        topic1.push(None);
-                        topic2.push(None);
-                        topic3.push(None);
-                    }
-                    2 => {
-                        topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                        topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                        topic2.push(None);
-                        topic3.push(None);
-                    }
-                    3 => {
-                        topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                        topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                        topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                        topic3.push(None);
-                    }
-                    4 => {
-                        topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                        topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                        topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                        topic3.push(Some(log.topics[3].as_bytes().to_vec()));
-                    }
-                    _ => {
-                        return Err(CollectError::InvalidNumberOfTopics);
+                    if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
+                        log.block_number,
+                        log.transaction_hash,
+                        log.transaction_index,
+                        log.log_index,
+                    ) {
+                        n_rows += 1;
+                        address.push(log.address.as_bytes().to_vec());
+                        match log.topics.len() {
+                            0 => {
+                                topic0.push(None);
+                                topic1.push(None);
+                                topic2.push(None);
+                                topic3.push(None);
+                            }
+                            1 => {
+                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                                topic1.push(None);
+                                topic2.push(None);
+                                topic3.push(None);
+                            }
+                            2 => {
+                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                                topic2.push(None);
+                                topic3.push(None);
+                            }
+                            3 => {
+                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                                topic3.push(None);
+                            }
+                            4 => {
+                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                                topic3.push(Some(log.topics[3].as_bytes().to_vec()));
+                            }
+                            _ => {
+                                return Err(CollectError::InvalidNumberOfTopics);
+                            }
+                        }
+                        data.push(log.data.clone().to_vec());
+                        block_number.push(bn.as_u32());
+                        transaction_hash.push(tx.as_bytes().to_vec());
+                        transaction_index.push(ti.as_u32());
+                        log_index.push(li.as_u32());
                     }
                 }
-                data.push(log.data.clone().to_vec());
-                block_number.push(bn.as_u32());
-                transaction_hash.push(tx.as_bytes().to_vec());
-                transaction_index.push(ti.as_u32());
-                log_index.push(li.as_u32());
             }
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 

@@ -96,7 +96,8 @@ async fn state_diffs_to_df(
 
     // storage
     let include_storage_block_number = included(schemas, Datatype::StorageDiffs, "block_number");
-    let include_storage_transaction_index = included(schemas, Datatype::StorageDiffs, "transaction_index");
+    let include_storage_transaction_index =
+        included(schemas, Datatype::StorageDiffs, "transaction_index");
     let include_storage_transaction_hash =
         included(schemas, Datatype::StorageDiffs, "transaction_hash");
     let include_storage_address = included(schemas, Datatype::StorageDiffs, "address");
@@ -113,7 +114,8 @@ async fn state_diffs_to_df(
 
     // balance
     let include_balance_block_number = included(schemas, Datatype::BalanceDiffs, "block_number");
-    let include_balance_transaction_index = included(schemas, Datatype::BalanceDiffs, "transaction_index");
+    let include_balance_transaction_index =
+        included(schemas, Datatype::BalanceDiffs, "transaction_index");
     let include_balance_transaction_hash =
         included(schemas, Datatype::BalanceDiffs, "transaction_hash");
     let include_balance_address = included(schemas, Datatype::BalanceDiffs, "address");
@@ -128,7 +130,8 @@ async fn state_diffs_to_df(
 
     // nonce
     let include_nonce_block_number = included(schemas, Datatype::NonceDiffs, "block_number");
-    let include_nonce_transaction_index = included(schemas, Datatype::NonceDiffs, "transaction_index");
+    let include_nonce_transaction_index =
+        included(schemas, Datatype::NonceDiffs, "transaction_index");
     let include_nonce_transaction_hash =
         included(schemas, Datatype::NonceDiffs, "transaction_hash");
     let include_nonce_address = included(schemas, Datatype::NonceDiffs, "address");
@@ -143,7 +146,8 @@ async fn state_diffs_to_df(
 
     // code
     let include_code_block_number = included(schemas, Datatype::CodeDiffs, "block_number");
-    let include_code_transaction_index = included(schemas, Datatype::CodeDiffs, "transaction_index");
+    let include_code_transaction_index =
+        included(schemas, Datatype::CodeDiffs, "transaction_index");
     let include_code_transaction_hash = included(schemas, Datatype::CodeDiffs, "transaction_hash");
     let include_code_address = included(schemas, Datatype::CodeDiffs, "address");
     let include_code_from_value = included(schemas, Datatype::CodeDiffs, "from_value");
@@ -160,7 +164,9 @@ async fn state_diffs_to_df(
         match message {
             (block_num, Ok(blocks_traces)) => {
                 for ts in blocks_traces.iter() {
-                    if let (Some(tx), Some(StateDiff(state_diff))) = (ts.transaction_hash, &ts.state_diff) {
+                    if let (Some(tx), Some(StateDiff(state_diff))) =
+                        (ts.transaction_hash, &ts.state_diff)
+                    {
                         for (addr, addr_diff) in state_diff.iter() {
                             n_rows += n_rows;
 
@@ -233,7 +239,9 @@ async fn state_diffs_to_df(
                                     Diff::Same => (0u64, 0u64),
                                     Diff::Born(value) => (0u64, value.as_u64()),
                                     Diff::Died(value) => (value.as_u64(), 0u64),
-                                    Diff::Changed(ChangedType { from, to }) => (from.as_u64(), to.as_u64()),
+                                    Diff::Changed(ChangedType { from, to }) => {
+                                        (from.as_u64(), to.as_u64())
+                                    }
                                 };
                                 if include_nonce_block_number {
                                     nonce_block_number.push(block_num);
@@ -262,9 +270,15 @@ async fn state_diffs_to_df(
                                         H256::zero().as_bytes().to_vec(),
                                         H256::zero().as_bytes().to_vec(),
                                     ),
-                                    Diff::Born(value) => (H256::zero().as_bytes().to_vec(), value.to_vec()),
-                                    Diff::Died(value) => (value.to_vec(), H256::zero().as_bytes().to_vec()),
-                                    Diff::Changed(ChangedType { from, to }) => (from.to_vec(), to.to_vec()),
+                                    Diff::Born(value) => {
+                                        (H256::zero().as_bytes().to_vec(), value.to_vec())
+                                    }
+                                    Diff::Died(value) => {
+                                        (value.to_vec(), H256::zero().as_bytes().to_vec())
+                                    }
+                                    Diff::Changed(ChangedType { from, to }) => {
+                                        (from.to_vec(), to.to_vec())
+                                    }
                                 };
                                 if include_code_block_number {
                                     code_block_number.push(block_num);
@@ -289,7 +303,7 @@ async fn state_diffs_to_df(
                     }
                 }
             }
-            _ => { return Err(CollectError::TooManyRequestsError) }
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 

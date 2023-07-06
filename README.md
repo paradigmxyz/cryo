@@ -8,6 +8,8 @@
 
 *`cryo` is an early WIP, please report bugs + feedback to the issue tracker*
 
+*note that `cryo`'s default settings will slam a node too hard for use with 3rd party RPC providers. Instead, `--requests-per-second` and `--max-concurrent-requests` should be used to impose ratelimits. Such settings will be handled automatically in a future release*.
+
 ## Example Usage
 
 use as `cryo <dataset> [OPTIONS]`

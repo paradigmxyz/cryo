@@ -45,6 +45,10 @@ pub enum CollectError {
     /// Error related to bad schema
     #[error("Bad schema specified")]
     BadSchemaError,
+
+    /// Error related to too many requests
+    #[error("try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests")]
+    TooManyRequestsError,
 }
 
 /// Error performing a chunk operation

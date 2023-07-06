@@ -83,7 +83,10 @@ impl Dataset for Traces {
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_position".to_string()]
+        vec![
+            "block_number".to_string(),
+            "transaction_position".to_string(),
+        ]
     }
 
     async fn collect_chunk(
@@ -256,7 +259,8 @@ async fn traces_to_df(
                                     action_input.push(Some(a.input.to_vec()));
                                 }
                                 if include_action_call_type {
-                                    action_call_type.push(Some(action_call_type_to_string(&a.call_type)));
+                                    action_call_type
+                                        .push(Some(action_call_type_to_string(&a.call_type)));
                                 }
 
                                 if include_action_init {
@@ -430,7 +434,7 @@ async fn traces_to_df(
                     }
                 }
             }
-            _ => { return Err(CollectError::TooManyRequestsError) }
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 

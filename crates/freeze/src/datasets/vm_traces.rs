@@ -119,11 +119,16 @@ async fn vm_traces_to_df(
         n_rows: 0,
     };
 
-    while let Some((number, Ok(block_traces))) = rx.recv().await {
-        for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
-            if let Some(vm_trace) = block_trace.vm_trace {
-                add_ops(vm_trace, schema, &mut columns, number, tx_pos as u32)
+    while let Some(message) = rx.recv().await {
+        match message {
+            (number, Ok(block_traces)) => {
+                for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
+                    if let Some(vm_trace) = block_trace.vm_trace {
+                        add_ops(vm_trace, schema, &mut columns, number, tx_pos as u32)
+                    }
+                }
             }
+            _ => return Err(CollectError::TooManyRequestsError),
         }
     }
 
