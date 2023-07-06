@@ -59,9 +59,9 @@ pub struct Args {
     #[arg(long, help_heading = "Content Options")]
     pub hex: bool,
 
-    /// Columns(s) to sort by
+    /// Columns(s) to sort by, `none` to disable sorting
     #[arg(short, long, num_args(0..), help_heading="Content Options")]
-    pub sort: Vec<String>,
+    pub sort: Option<Vec<String>>,
 
     /// RPC url [default: ETH_RPC_URL env var]
     #[arg(short, long, help_heading = "Source Options")]

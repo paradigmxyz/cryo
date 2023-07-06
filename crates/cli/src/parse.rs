@@ -107,7 +107,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
                     &args.include_columns,
                     &args.exclude_columns,
                     &args.columns,
-                    sort.get(datatype).cloned(),
+                    sort[datatype].clone(),
                 )
                 .map(|schema| (*datatype, schema))
                 .wrap_err_with(|| format!("Failed to get schema for datatype: {:?}", datatype))
@@ -170,7 +170,6 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         overwrite: args.overwrite,
         output_format,
         binary_column_format,
-        sort,
         row_group_size,
         parquet_statistics: !args.no_stats,
         parquet_compression,
@@ -285,21 +284,32 @@ fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression> {
 }
 
 fn parse_sort(
-    raw_sort: &Vec<String>,
+    raw_sort: &Option<Vec<String>>,
     datatypes: &Vec<Datatype>,
-) -> Result<HashMap<Datatype, Vec<String>>, eyre::Report> {
-    if raw_sort.is_empty() {
-        Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
-            (*datatype, datatype.dataset().default_sort())
-        })))
-    } else if datatypes.len() > 1 {
-        Err(eyre::eyre!(
-            "custom sort not supported for multiple datasets"
-        ))
-    } else {
-        match datatypes.iter().next() {
-            Some(datatype) => Ok(HashMap::from_iter([(*datatype, raw_sort.clone())])),
-            None => Err(eyre::eyre!("schemas map is empty")),
+) -> Result<HashMap<Datatype, Option<Vec<String>>>, eyre::Report> {
+    match raw_sort {
+        None => Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
+            (*datatype, Some(datatype.dataset().default_sort()))
+        }))),
+        Some(raw_sort) => {
+            if (raw_sort.len() == 1) && (raw_sort[0] == "none") {
+                Ok(HashMap::from_iter(
+                    datatypes.iter().map(|datatype| (*datatype, None)),
+                ))
+            } else if raw_sort.is_empty() {
+                Err(eyre::eyre!(
+                    "must specify columns to sort by, use `none` to disable sorting"
+                ))
+            } else if datatypes.len() > 1 {
+                Err(eyre::eyre!(
+                    "custom sort not supported for multiple datasets"
+                ))
+            } else {
+                match datatypes.iter().next() {
+                    Some(datatype) => Ok(HashMap::from_iter([(*datatype, Some(raw_sort.clone()))])),
+                    None => Err(eyre::eyre!("schemas map is empty")),
+                }
+            }
         }
     }
 }

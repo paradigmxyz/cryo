@@ -50,8 +50,6 @@ pub struct FreezeOpts {
     pub output_format: FileFormat,
     /// Format to use for binary columns
     pub binary_column_format: ColumnEncoding,
-    /// Sorting columns for each dataset
-    pub sort: HashMap<Datatype, Vec<String>>,
     /// Number of rows per parquet row group
     pub row_group_size: Option<usize>,
     /// Parquet statistics recording flag

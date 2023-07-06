@@ -75,18 +75,18 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     print_bullet("output format", opts.output_format.as_str());
     print_bullet("binary column format", opts.binary_column_format.as_str());
     print_bullet("output dir", &opts.output_dir);
-    print_schemas(&opts.schemas, opts);
+    print_schemas(&opts.schemas);
 }
 
-fn print_schemas(schemas: &HashMap<Datatype, Table>, opts: &FreezeOpts) {
+fn print_schemas(schemas: &HashMap<Datatype, Table>) {
     schemas.iter().for_each(|(name, schema)| {
         println!();
         println!();
-        print_schema(name, &schema.clone(), opts.sort.get(name))
+        print_schema(name, &schema.clone())
     })
 }
 
-fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>) {
+fn print_schema(name: &Datatype, schema: &Table) {
     print_header("schema for ".to_string() + name.dataset().name());
     for column in schema.columns() {
         if let Some(column_type) = schema.column_type(column) {
@@ -94,12 +94,14 @@ fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>) {
         }
     }
     println!();
-    if let Some(sort_cols) = sort {
+    if let Some(sort_cols) = schema.sort_columns.clone() {
         println!(
             "sorting {} by: {}",
             name.dataset().name(),
             sort_cols.join(", ")
         );
+    } else {
+        println!("sorting disabled for {}", name.dataset().name());
     }
     let other_columns: String = name
         .dataset()
