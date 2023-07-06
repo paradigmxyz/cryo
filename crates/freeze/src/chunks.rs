@@ -1,5 +1,4 @@
 use ethers::prelude::*;
-use ring::digest::{self, Digest};
 
 use crate::types::error_types;
 use crate::types::BlockChunk;
@@ -140,18 +139,18 @@ impl ChunkOps for BlockChunk {
         match self {
             BlockChunk::Numbers(numbers) => match (numbers.iter().min(), numbers.iter().max()) {
                 (Some(min), Some(max)) => {
-                    let hash = compute_numbers_hash(numbers);
+                    // let hash = compute_numbers_hash(numbers);
                     Ok(format!(
-                        "mixed_{}_to_{}_{}",
+                        "mixed_{:0>8}_to_{:0>8}",
                         min,
                         max,
-                        &hash[0..8].to_string()
+                        // &hash[0..8].to_string()
                     ))
                 }
                 _ => Err(error_types::ChunkError::StubError),
             },
             BlockChunk::Range(start_block, end_block) => {
-                Ok(format!("{}_to_{}", start_block, end_block))
+                Ok(format!("{:0>8}_to_{:0>8}", start_block, end_block))
             }
         }
     }
@@ -223,18 +222,18 @@ fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> 
     chunks
 }
 
-/// compute a hex hash of a slice of numbers
-fn compute_numbers_hash(numbers: &[u64]) -> String {
-    let joined_numbers = numbers
-        .iter()
-        .map(|num| num.to_string())
-        .collect::<Vec<String>>()
-        .join("");
+// /// compute a hex hash of a slice of numbers
+// fn compute_numbers_hash(numbers: &[u64]) -> String {
+//     let joined_numbers = numbers
+//         .iter()
+//         .map(|num| num.to_string())
+//         .collect::<Vec<String>>()
+//         .join("");
 
-    let hash: Digest = digest::digest(&digest::SHA256, joined_numbers.as_bytes());
+//     let hash: Digest = digest::digest(&digest::SHA256, joined_numbers.as_bytes());
 
-    hex::encode(hash.as_ref())
-}
+//     hex::encode(hash.as_ref())
+// }
 
 #[cfg(test)]
 mod tests {

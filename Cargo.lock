@@ -870,12 +870,10 @@ dependencies = [
  "ethers",
  "futures",
  "governor",
- "hex",
  "indexmap 2.0.0",
  "indicatif",
  "polars",
  "prefix-hex",
- "ring",
  "thiserror",
  "tokio",
 ]

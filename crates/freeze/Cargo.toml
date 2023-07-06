@@ -10,12 +10,10 @@ async-trait = "0.1.68"
 ethers = { version = "2.0.7", features = ["rustls", "ws", "ipc"] }
 futures = "0.3.28"
 governor = "0.5.1"
-hex = "0.4.3"
 indexmap = "2.0.0"
 indicatif = "0.17.5"
 polars = { version = "0.30.0", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding", "json", "dtype-struct"] }
 prefix-hex = "0.7.0"
-ring = "0.16.20"
 thiserror = "1.0.40"
 tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread", "sync"] }
 
