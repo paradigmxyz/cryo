@@ -11,10 +11,10 @@ mod args;
 mod parse;
 mod summaries;
 
-use eyre::Result;
-use std::time::SystemTime;
 pub use args::Args;
+use eyre::Result;
 pub use parse::parse_opts;
+use std::time::SystemTime;
 
 #[tokio::main]
 async fn main() -> Result<()> {

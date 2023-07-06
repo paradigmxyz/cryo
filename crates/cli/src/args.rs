@@ -21,12 +21,7 @@ pub struct Args {
 
     /// Align block chunk boundaries to regular intervals
     /// e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
-    #[arg(
-        short,
-        long,
-        help_heading = "Content Options",
-        verbatim_doc_comment,
-    )]
+    #[arg(short, long, help_heading = "Content Options", verbatim_doc_comment)]
     pub align: bool,
 
     /// Reorg buffer, save blocks only when they are this old,
@@ -36,7 +31,7 @@ pub struct Args {
         default_value_t = 0,
         value_name = "N_BLOCKS",
         help_heading = "Content Options",
-        verbatim_doc_comment,
+        verbatim_doc_comment
     )]
     pub reorg_buffer: u64,
 
