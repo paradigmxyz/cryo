@@ -29,6 +29,8 @@ impl Dataset for VmTraces {
 
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
+            ("block_number", ColumnType::Int32),
+            ("transaction_position", ColumnType::Int32),
             ("pc", ColumnType::Int64),
             ("cost", ColumnType::Int64),
             ("used", ColumnType::Int64),
@@ -38,15 +40,27 @@ impl Dataset for VmTraces {
             ("storage_key", ColumnType::Binary),
             ("storage_val", ColumnType::Binary),
             ("op", ColumnType::String),
+            ("chain_id", ColumnType::Int64),
         ])
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec!["pc", "cost", "used", "op"]
+        vec![
+            "block_number",
+            "transaction_position",
+            "pc",
+            "cost",
+            "used",
+            "op",
+        ]
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec![]
+        vec![
+            "block_number".to_string(),
+            "transaction_position".to_string(),
+            "used".to_string(),
+        ]
     }
 
     async fn collect_chunk(
@@ -73,6 +87,8 @@ async fn vm_traces_to_df(
 ) -> Result<DataFrame, CollectError> {
     let capacity = 100;
     let mut columns = VmTraceColumns {
+        block_number: Vec::with_capacity(capacity),
+        transaction_position: Vec::with_capacity(capacity),
         pc: Vec::with_capacity(capacity),
         cost: Vec::with_capacity(capacity),
         used: Vec::with_capacity(capacity),
@@ -85,15 +101,24 @@ async fn vm_traces_to_df(
         n_rows: 0,
     };
 
-    while let Some((_num, Ok(block_traces))) = rx.recv().await {
-        for block_trace in block_traces.into_iter() {
+    while let Some((number, Ok(block_traces))) = rx.recv().await {
+        for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
             if let Some(vm_trace) = block_trace.vm_trace {
-                add_ops(vm_trace, schema, &mut columns)
+                add_ops(vm_trace, schema, &mut columns, number as u32, tx_pos as u32)
             }
         }
     }
 
     let mut series = Vec::new();
+    if schema.has_column("block_number") {
+        series.push(Series::new("block_number", columns.block_number));
+    };
+    if schema.has_column("transaction_position") {
+        series.push(Series::new(
+            "transaction_position",
+            columns.transaction_position,
+        ));
+    };
     if schema.has_column("pc") {
         series.push(Series::new("pc", columns.pc));
     };
@@ -130,6 +155,8 @@ async fn vm_traces_to_df(
 }
 
 struct VmTraceColumns {
+    block_number: Vec<u32>,
+    transaction_position: Vec<u32>,
     pc: Vec<u64>,
     cost: Vec<u64>,
     used: Vec<Option<u64>>,
@@ -142,10 +169,22 @@ struct VmTraceColumns {
     n_rows: usize,
 }
 
-fn add_ops(vm_trace: VMTrace, schema: &Table, columns: &mut VmTraceColumns) {
+fn add_ops(
+    vm_trace: VMTrace,
+    schema: &Table,
+    columns: &mut VmTraceColumns,
+    number: u32,
+    tx_pos: u32,
+) {
     for opcode in vm_trace.ops {
         columns.n_rows += 1;
 
+        if schema.has_column("block_number") {
+            columns.block_number.push(number);
+        };
+        if schema.has_column("transaction_position") {
+            columns.transaction_position.push(tx_pos);
+        };
         if schema.has_column("pc") {
             columns.pc.push(opcode.pc as u64);
         };
@@ -218,7 +257,7 @@ fn add_ops(vm_trace: VMTrace, schema: &Table, columns: &mut VmTraceColumns) {
         };
 
         if let Some(sub) = opcode.sub {
-            add_ops(sub, schema, columns)
+            add_ops(sub, schema, columns, number, tx_pos)
         }
     }
 }
