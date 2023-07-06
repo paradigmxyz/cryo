@@ -28,7 +28,7 @@ impl Dataset for Traces {
     }
 
     fn name(&self) -> &'static str {
-        "blocks"
+        "traces"
     }
 
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
@@ -83,7 +83,7 @@ impl Dataset for Traces {
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec!["block_number".to_string(), "trace_position".to_string()]
+        vec!["block_number".to_string(), "transaction_position".to_string()]
     }
 
     async fn collect_chunk(
@@ -118,7 +118,10 @@ async fn fetch_traces(
                 .map_err(CollectError::ProviderError);
             match tx.send(result).await {
                 Ok(_) => {}
-                Err(tokio::sync::mpsc::error::SendError(_e)) => println!("send error"),
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
             }
         });
     }
@@ -202,227 +205,232 @@ async fn traces_to_df(
     let mut error: Vec<Option<String>> = Vec::with_capacity(capacity);
 
     let mut n_rows = 0;
-    while let Some(Ok(traces)) = rx.recv().await {
-        for trace in traces.iter() {
-            if let (Some(tx_hash), Some(tx_pos)) =
-                (trace.transaction_hash, trace.transaction_position)
-            {
-                n_rows += 1;
+    while let Some(message) = rx.recv().await {
+        match message {
+            Ok(traces) => {
+                for trace in traces.iter() {
+                    if let (Some(tx_hash), Some(tx_pos)) =
+                        (trace.transaction_hash, trace.transaction_position)
+                    {
+                        n_rows += 1;
 
-                // Call
-                // from: from,
-                // to: to,
-                // value: value,
-                // gas: gas,
-                // input: input,
-                // call_type: action_call_type, [None, Call, CallCode, DelegateCall, StaticCall]
-                //
-                // Create
-                // from: from,
-                // value: value,
-                // gas: gas,
-                // init: init,
-                //
-                // Suicide
-                // address: from,
-                // refund_address: to,
-                // balance: value,
-                //
-                // Reward
-                // author: to,
-                // value: value,
-                // reward_type: action_reward_type, [Block, Uncle, EmptyStep, External],
+                        // Call
+                        // from: from,
+                        // to: to,
+                        // value: value,
+                        // gas: gas,
+                        // input: input,
+                        // call_type: action_call_type, [None, Call, CallCode, DelegateCall, StaticCall]
+                        //
+                        // Create
+                        // from: from,
+                        // value: value,
+                        // gas: gas,
+                        // init: init,
+                        //
+                        // Suicide
+                        // address: from,
+                        // refund_address: to,
+                        // balance: value,
+                        //
+                        // Reward
+                        // author: to,
+                        // value: value,
+                        // reward_type: action_reward_type, [Block, Uncle, EmptyStep, External],
 
-                match &trace.action {
-                    Action::Call(a) => {
-                        if include_action_from {
-                            action_from.push(Some(a.from.as_bytes().to_vec()));
+                        match &trace.action {
+                            Action::Call(a) => {
+                                if include_action_from {
+                                    action_from.push(Some(a.from.as_bytes().to_vec()));
+                                }
+                                if include_action_to {
+                                    action_to.push(Some(a.to.as_bytes().to_vec()));
+                                }
+                                if include_action_value {
+                                    action_value.push(a.value.to_string());
+                                }
+                                if include_action_gas {
+                                    action_gas.push(Some(a.gas.as_u32()));
+                                }
+                                if include_action_input {
+                                    action_input.push(Some(a.input.to_vec()));
+                                }
+                                if include_action_call_type {
+                                    action_call_type.push(Some(action_call_type_to_string(&a.call_type)));
+                                }
+
+                                if include_action_init {
+                                    action_init.push(None)
+                                }
+                                if include_action_reward_type {
+                                    action_reward_type.push(None)
+                                }
+                            }
+                            Action::Create(action) => {
+                                if include_action_from {
+                                    action_from.push(Some(action.from.as_bytes().to_vec()));
+                                }
+                                if include_action_value {
+                                    action_value.push(action.value.to_string());
+                                }
+                                if include_action_gas {
+                                    action_gas.push(Some(action.gas.as_u32()));
+                                }
+                                if include_action_init {
+                                    action_init.push(Some(action.init.to_vec()));
+                                }
+
+                                if include_action_to {
+                                    action_to.push(None)
+                                }
+                                if include_action_input {
+                                    action_input.push(None)
+                                }
+                                if include_action_call_type {
+                                    action_call_type.push(None)
+                                }
+                                if include_action_reward_type {
+                                    action_reward_type.push(None)
+                                }
+                            }
+                            Action::Suicide(action) => {
+                                if include_action_from {
+                                    action_from.push(Some(action.address.as_bytes().to_vec()));
+                                }
+                                if include_action_to {
+                                    action_to.push(Some(action.refund_address.as_bytes().to_vec()));
+                                }
+                                if include_action_value {
+                                    action_value.push(action.balance.to_string());
+                                }
+
+                                if include_action_gas {
+                                    action_gas.push(None)
+                                }
+                                if include_action_input {
+                                    action_input.push(None)
+                                }
+                                if include_action_call_type {
+                                    action_call_type.push(None)
+                                }
+                                if include_action_init {
+                                    action_init.push(None)
+                                }
+                                if include_action_reward_type {
+                                    action_reward_type.push(None)
+                                }
+                            }
+                            Action::Reward(action) => {
+                                if include_action_to {
+                                    action_to.push(Some(action.author.as_bytes().to_vec()));
+                                }
+                                if include_action_value {
+                                    action_value.push(action.value.to_string());
+                                }
+                                if include_action_reward_type {
+                                    action_reward_type
+                                        .push(Some(reward_type_to_string(&action.reward_type)));
+                                }
+
+                                if include_action_from {
+                                    action_from.push(None)
+                                }
+                                if include_action_gas {
+                                    action_gas.push(None)
+                                }
+                                if include_action_input {
+                                    action_input.push(None)
+                                }
+                                if include_action_call_type {
+                                    action_call_type.push(None)
+                                }
+                                if include_action_init {
+                                    action_init.push(None)
+                                }
+                            }
                         }
-                        if include_action_to {
-                            action_to.push(Some(a.to.as_bytes().to_vec()));
-                        }
-                        if include_action_value {
-                            action_value.push(a.value.to_string());
-                        }
-                        if include_action_gas {
-                            action_gas.push(Some(a.gas.as_u32()));
-                        }
-                        if include_action_input {
-                            action_input.push(Some(a.input.to_vec()));
-                        }
-                        if include_action_call_type {
-                            action_call_type.push(Some(action_call_type_to_string(&a.call_type)));
+                        if include_action_type {
+                            action_type.push(action_type_to_string(&trace.action_type));
                         }
 
-                        if include_action_init {
-                            action_init.push(None)
+                        match &trace.result {
+                            Some(Res::Call(result)) => {
+                                if include_result_gas_used {
+                                    result_gas_used.push(Some(result.gas_used.as_u32()));
+                                }
+                                if include_result_output {
+                                    result_output.push(Some(result.output.to_vec()));
+                                }
+
+                                if include_result_code {
+                                    result_code.push(None);
+                                }
+                                if include_result_address {
+                                    result_address.push(None);
+                                }
+                            }
+                            Some(Res::Create(result)) => {
+                                if include_result_gas_used {
+                                    result_gas_used.push(Some(result.gas_used.as_u32()));
+                                }
+                                if include_result_code {
+                                    result_code.push(Some(result.code.to_vec()));
+                                }
+                                if include_result_address {
+                                    result_address.push(Some(result.address.as_bytes().to_vec()));
+                                }
+
+                                if include_result_output {
+                                    result_output.push(None);
+                                }
+                            }
+                            Some(Res::None) | None => {
+                                if include_result_gas_used {
+                                    result_gas_used.push(None);
+                                }
+                                if include_result_output {
+                                    result_output.push(None);
+                                }
+                                if include_result_code {
+                                    result_code.push(None);
+                                }
+                                if include_result_address {
+                                    result_address.push(None);
+                                }
+                            }
                         }
-                        if include_action_reward_type {
-                            action_reward_type.push(None)
+                        if include_trace_address {
+                            trace_address.push(
+                                trace
+                                    .trace_address
+                                    .iter()
+                                    .map(|n| n.to_string())
+                                    .collect::<Vec<String>>()
+                                    .join("_"),
+                            );
+                        }
+                        if include_subtraces {
+                            subtraces.push(trace.subtraces as u32);
+                        }
+                        if include_transaction_position {
+                            transaction_position.push(tx_pos as u32);
+                        }
+                        if include_transaction_hash {
+                            transaction_hash.push(tx_hash.as_bytes().to_vec());
+                        }
+                        if include_block_number {
+                            block_number.push(trace.block_number as u32);
+                        }
+                        if include_block_hash {
+                            block_hash.push(trace.block_hash.as_bytes().to_vec());
+                        }
+                        if include_error {
+                            error.push(trace.error.clone());
                         }
                     }
-                    Action::Create(action) => {
-                        if include_action_from {
-                            action_from.push(Some(action.from.as_bytes().to_vec()));
-                        }
-                        if include_action_value {
-                            action_value.push(action.value.to_string());
-                        }
-                        if include_action_gas {
-                            action_gas.push(Some(action.gas.as_u32()));
-                        }
-                        if include_action_init {
-                            action_init.push(Some(action.init.to_vec()));
-                        }
-
-                        if include_action_to {
-                            action_to.push(None)
-                        }
-                        if include_action_input {
-                            action_input.push(None)
-                        }
-                        if include_action_call_type {
-                            action_call_type.push(None)
-                        }
-                        if include_action_reward_type {
-                            action_reward_type.push(None)
-                        }
-                    }
-                    Action::Suicide(action) => {
-                        if include_action_from {
-                            action_from.push(Some(action.address.as_bytes().to_vec()));
-                        }
-                        if include_action_to {
-                            action_to.push(Some(action.refund_address.as_bytes().to_vec()));
-                        }
-                        if include_action_value {
-                            action_value.push(action.balance.to_string());
-                        }
-
-                        if include_action_gas {
-                            action_gas.push(None)
-                        }
-                        if include_action_input {
-                            action_input.push(None)
-                        }
-                        if include_action_call_type {
-                            action_call_type.push(None)
-                        }
-                        if include_action_init {
-                            action_init.push(None)
-                        }
-                        if include_action_reward_type {
-                            action_reward_type.push(None)
-                        }
-                    }
-                    Action::Reward(action) => {
-                        if include_action_to {
-                            action_to.push(Some(action.author.as_bytes().to_vec()));
-                        }
-                        if include_action_value {
-                            action_value.push(action.value.to_string());
-                        }
-                        if include_action_reward_type {
-                            action_reward_type
-                                .push(Some(reward_type_to_string(&action.reward_type)));
-                        }
-
-                        if include_action_from {
-                            action_from.push(None)
-                        }
-                        if include_action_gas {
-                            action_gas.push(None)
-                        }
-                        if include_action_input {
-                            action_input.push(None)
-                        }
-                        if include_action_call_type {
-                            action_call_type.push(None)
-                        }
-                        if include_action_init {
-                            action_init.push(None)
-                        }
-                    }
-                }
-                if include_action_type {
-                    action_type.push(action_type_to_string(&trace.action_type));
-                }
-
-                match &trace.result {
-                    Some(Res::Call(result)) => {
-                        if include_result_gas_used {
-                            result_gas_used.push(Some(result.gas_used.as_u32()));
-                        }
-                        if include_result_output {
-                            result_output.push(Some(result.output.to_vec()));
-                        }
-
-                        if include_result_code {
-                            result_code.push(None);
-                        }
-                        if include_result_address {
-                            result_address.push(None);
-                        }
-                    }
-                    Some(Res::Create(result)) => {
-                        if include_result_gas_used {
-                            result_gas_used.push(Some(result.gas_used.as_u32()));
-                        }
-                        if include_result_code {
-                            result_code.push(Some(result.code.to_vec()));
-                        }
-                        if include_result_address {
-                            result_address.push(Some(result.address.as_bytes().to_vec()));
-                        }
-
-                        if include_result_output {
-                            result_output.push(None);
-                        }
-                    }
-                    Some(Res::None) | None => {
-                        if include_result_gas_used {
-                            result_gas_used.push(None);
-                        }
-                        if include_result_output {
-                            result_output.push(None);
-                        }
-                        if include_result_code {
-                            result_code.push(None);
-                        }
-                        if include_result_address {
-                            result_address.push(None);
-                        }
-                    }
-                }
-                if include_trace_address {
-                    trace_address.push(
-                        trace
-                            .trace_address
-                            .iter()
-                            .map(|n| n.to_string())
-                            .collect::<Vec<String>>()
-                            .join("_"),
-                    );
-                }
-                if include_subtraces {
-                    subtraces.push(trace.subtraces as u32);
-                }
-                if include_transaction_position {
-                    transaction_position.push(tx_pos as u32);
-                }
-                if include_transaction_hash {
-                    transaction_hash.push(tx_hash.as_bytes().to_vec());
-                }
-                if include_block_number {
-                    block_number.push(trace.block_number as u32);
-                }
-                if include_block_hash {
-                    block_hash.push(trace.block_hash.as_bytes().to_vec());
-                }
-                if include_error {
-                    error.push(trace.error.clone());
                 }
             }
+            _ => { return Err(CollectError::TooManyRequestsError) }
         }
     }
 
