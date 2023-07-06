@@ -5,6 +5,7 @@ use color_print::cstr;
 #[derive(Parser, Debug)]
 #[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str())]
 pub struct Args {
+    /// datatype to collect
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     pub datatype: Vec<String>,
 
@@ -18,20 +19,24 @@ pub struct Args {
     )]
     pub blocks: Vec<String>,
 
+    /// Align block chunk boundaries to regular intervals
+    /// e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
     #[arg(
         short,
         long,
         help_heading = "Content Options",
-        help = "Align block chunk boundaries to regular intervals\ne.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)"
+        verbatim_doc_comment,
     )]
     pub align: bool,
 
+    /// Reorg buffer, save blocks only when they are this old,
+    /// can be a number of blocks
     #[arg(
         long,
         default_value_t = 0,
         value_name = "N_BLOCKS",
         help_heading = "Content Options",
-        help = "Reorg buffer, save blocks only when they are this old,\ncan be a number of blocks"
+        verbatim_doc_comment,
     )]
     pub reorg_buffer: u64,
 
@@ -177,7 +182,7 @@ pub struct Args {
     pub log_request_size: u64,
 }
 
-pub fn get_styles() -> clap::builder::Styles {
+pub(crate) fn get_styles() -> clap::builder::Styles {
     let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
     let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
     let grey = anstyle::Color::Rgb(anstyle::RgbColor(170, 170, 170));

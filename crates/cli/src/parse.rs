@@ -24,27 +24,6 @@ use cryo_freeze::Table;
 
 use crate::args::Args;
 
-async fn apply_reorg_buffer(
-    block_chunks: Vec<BlockChunk>,
-    reorg_filter: u64,
-    provider: &Provider<Http>,
-) -> Result<Vec<BlockChunk>, ProviderError> {
-    match reorg_filter {
-        0 => Ok(block_chunks),
-        reorg_filter => {
-            let latest_block = provider.get_block_number().await?.as_u64();
-            let max_allowed = latest_block - reorg_filter;
-            Ok(block_chunks
-                .into_iter()
-                .filter_map(|x| match x.max_block() {
-                    Some(max_block) if max_block <= max_allowed => Some(x),
-                    _ => None,
-                })
-                .collect())
-        }
-    }
-}
-
 /// parse options for running freeze
 pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse args
@@ -214,7 +193,7 @@ fn parse_datatype(datatype: &str) -> Result<Datatype> {
     Ok(datatype)
 }
 
-pub fn parse_row_group_size(
+fn parse_row_group_size(
     row_group_size: Option<usize>,
     n_row_groups: Option<usize>,
     chunk_size: Option<usize>,
@@ -226,7 +205,7 @@ pub fn parse_row_group_size(
     }
 }
 
-pub fn parse_rpc_url(args: &Args) -> String {
+fn parse_rpc_url(args: &Args) -> String {
     let mut url = match &args.rpc {
         Some(url) => url.clone(),
         _ => match env::var("ETH_RPC_URL") {
@@ -359,7 +338,7 @@ fn parse_concurrency_args(args: &Args) -> Result<(u64, u64)> {
 }
 
 /// parse block numbers to freeze
-pub async fn parse_block_inputs(
+async fn parse_block_inputs(
     inputs: &Vec<String>,
     provider: &Provider<Http>,
 ) -> Result<Vec<BlockChunk>> {
@@ -482,3 +461,25 @@ async fn parse_block_number(
             .wrap_err_with(|| format!("Error parsing block ref '{}'", block_ref)),
     }
 }
+
+async fn apply_reorg_buffer(
+    block_chunks: Vec<BlockChunk>,
+    reorg_filter: u64,
+    provider: &Provider<Http>,
+) -> Result<Vec<BlockChunk>, ProviderError> {
+    match reorg_filter {
+        0 => Ok(block_chunks),
+        reorg_filter => {
+            let latest_block = provider.get_block_number().await?.as_u64();
+            let max_allowed = latest_block - reorg_filter;
+            Ok(block_chunks
+                .into_iter()
+                .filter_map(|x| match x.max_block() {
+                    Some(max_block) if max_block <= max_allowed => Some(x),
+                    _ => None,
+                })
+                .collect())
+        }
+    }
+}
+

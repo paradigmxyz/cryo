@@ -15,7 +15,7 @@ const TITLE_R: u8 = 0;
 const TITLE_G: u8 = 225;
 const TITLE_B: u8 = 0;
 
-pub fn print_header<A: AsRef<str>>(header: A) {
+pub(crate) fn print_header<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
     let underline = "─"
         .repeat(header_str.len())
@@ -24,7 +24,7 @@ pub fn print_header<A: AsRef<str>>(header: A) {
     println!("{}", underline);
 }
 
-pub fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
+fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
     let key_str = key.as_ref().white().bold();
     let value_str = value.as_ref().truecolor(170, 170, 170);
@@ -32,7 +32,7 @@ pub fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
 }
 
-pub fn print_cryo_summary(opts: &FreezeOpts) {
+pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     print_header("cryo parameters");
     let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.dataset().name()).collect();
     print_bullet("datatypes", datatype_strs.join(", "));
@@ -78,7 +78,7 @@ pub fn print_cryo_summary(opts: &FreezeOpts) {
     print_schemas(&opts.schemas, opts);
 }
 
-pub fn print_schemas(schemas: &HashMap<Datatype, Table>, opts: &FreezeOpts) {
+fn print_schemas(schemas: &HashMap<Datatype, Table>, opts: &FreezeOpts) {
     schemas.iter().for_each(|(name, schema)| {
         println!();
         println!();
@@ -86,7 +86,7 @@ pub fn print_schemas(schemas: &HashMap<Datatype, Table>, opts: &FreezeOpts) {
     })
 }
 
-pub fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>) {
+fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>) {
     print_header("schema for ".to_string() + name.dataset().name());
     for column in schema.columns() {
         if let Some(column_type) = schema.column_type(column) {
@@ -112,7 +112,7 @@ pub fn print_schema(name: &Datatype, schema: &Table, sort: Option<&Vec<String>>)
     println!("\nother available columns: {}", other_columns);
 }
 
-pub fn print_cryo_conclusion(
+pub(crate) fn print_cryo_conclusion(
     t_start: SystemTime,
     _t_parse_done: SystemTime,
     t_data_done: SystemTime,

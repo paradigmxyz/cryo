@@ -857,12 +857,9 @@ dependencies = [
  "eyre",
  "governor",
  "hex",
- "nonzero_ext",
  "polars",
- "thiserror",
  "thousands",
  "tokio",
- "url",
 ]
 
 [[package]]
