@@ -45,6 +45,12 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         Some(name) => name.clone(),
         None => match chain_id {
             1 => "ethereum".to_string(),
+            10 => "optimism".to_string(),
+            56 => "binance".to_string(),
+            137 => "polygon".to_string(),
+            42161 => "arbitrum".to_string(),
+            43114 => "avalanche".to_string(),
+            11155111 => "sepolia".to_string(),
             chain_id => "network_".to_string() + chain_id.to_string().as_str(),
         },
     };
@@ -482,4 +488,3 @@ async fn apply_reorg_buffer(
         }
     }
 }
-
