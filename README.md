@@ -6,7 +6,7 @@
 
 `cryo` is also extremely flexible, with [many different options](#cli-options) to control how data is extracted + filtered + formatted
 
-*`cryo` is a WIP, please report bugs + feedback to the issue tracker*
+*`cryo` is an early WIP, please report bugs + feedback to the issue tracker*
 
 ## Example Usage
 
@@ -28,14 +28,14 @@ use as `cryo <dataset> [OPTIONS]`
 cryo can extract the following datasets from EVM nodes:
 - `blocks`
 - `transactions` (alias = `txs`)
-- `logs`
-- `call_traces` (alias = `traces`)
-- `storage_diffs` (alias for `slot_diffs` + `balance_diff` + `nonce_diffs` + `code_diffs`)
-- `slot_diffs`
+- `logs` (alias = `events`)
+- `traces` (alias = `call_traces`)
+- `state_diffs` (alias for `storage_diffs` + `balance_diff` + `nonce_diffs` + `code_diffs`)
 - `balance_diffs`
-- `nonce_diffs`
 - `code_diffs`
-- `opcode_traces`
+- `storage_diffs`
+- `nonce_diffs`
+- `vm_traces` (alias = `opcode_traces`)
 
 ## Installation
 

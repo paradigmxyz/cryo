@@ -194,6 +194,7 @@ fn parse_datatype(datatype: &str) -> Result<Datatype> {
         "txs" => Datatype::Transactions,
         "traces" => Datatype::Traces,
         "vm_traces" => Datatype::VmTraces,
+        "opcode_traces" => Datatype::VmTraces,
         _ => return Err(eyre::eyre!("invalid datatype {}", datatype)),
     };
     Ok(datatype)

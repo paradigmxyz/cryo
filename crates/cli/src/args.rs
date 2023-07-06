@@ -217,14 +217,14 @@ fn get_datatype_help() -> &'static str {
     cstr!(
         r#"datatype(s) to collect, one or more of:
 - <white><bold>blocks</bold></white>
-- <white><bold>logs</bold></white>
-- <white><bold>transactions</bold></white>
-- <white><bold>call_traces</bold></white>
-- <white><bold>state_diffs</bold></white>
+- <white><bold>transactions</bold></white>  (alias = <white><bold>txs</bold></white>)
+- <white><bold>logs</bold></white>          (alias = <white><bold>events</bold></white>)
+- <white><bold>traces</bold></white>        (alias = <white><bold>call_traces</bold></white>)
+- <white><bold>state_diffs</bold></white>   (= balance + code + nonce + storage diffs)
 - <white><bold>balance_diffs</bold></white>
 - <white><bold>code_diffs</bold></white>
-- <white><bold>slot_diffs</bold></white>
 - <white><bold>nonce_diffs</bold></white>
-- <white><bold>opcode_traces</bold></white>"#
+- <white><bold>storage_diffs</bold></white>
+- <white><bold>vm_traces</bold></white>     (alias = <white><bold>opcode_traces</bold></white>)"#
     )
 }
