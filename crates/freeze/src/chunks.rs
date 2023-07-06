@@ -165,7 +165,7 @@ impl ChunkOps for BlockChunk {
                 })
                 .collect(),
             BlockChunk::Range(start_block, end_block) => {
-                let chunks = range_to_chunks(start_block, end_block, log_request_size);
+                let chunks = range_to_chunks(start_block, &(end_block + 1), log_request_size);
                 chunks
                     .iter()
                     .map(|(start, end)| FilterBlockOption::Range {
