@@ -5,6 +5,16 @@ members = [
     "crates/freeze",
 ]
 
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT OR Apache-2.0"
+homepage = "https://github.com/paradigmxyz/cryo"
+repository = "https://github.com/paradigmxyz/cryo"
+exclude = [
+    ".github/",
+]
+
 [profile.dev]
 incremental = true
 debug = 1
