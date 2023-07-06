@@ -852,7 +852,7 @@ dependencies = [
  "clap",
  "color-print",
  "colored",
- "cryo_freeze",
+ "cryo_freeze 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethers",
  "eyre",
  "governor",
@@ -865,6 +865,24 @@ dependencies = [
 [[package]]
 name = "cryo_freeze"
 version = "0.1.0"
+dependencies = [
+ "async-trait",
+ "ethers",
+ "futures",
+ "governor",
+ "indexmap 2.0.0",
+ "indicatif",
+ "polars",
+ "prefix-hex",
+ "thiserror",
+ "tokio",
+]
+
+[[package]]
+name = "cryo_freeze"
+version = "0.1.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "076f5800b667146f2781e7585b907fba5dbe215a693cd30cab194a78a249c14c"
 dependencies = [
  "async-trait",
  "ethers",
