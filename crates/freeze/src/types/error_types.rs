@@ -70,6 +70,10 @@ pub enum FileError {
     #[error("Failed to build file path")]
     FilePathError(#[from] ChunkError),
 
+    /// File path not given
+    #[error("File path not given")]
+    NoFilePathError(String),
+
     /// Error in writing file
     #[error("Error writing file")]
     FileWriteError,

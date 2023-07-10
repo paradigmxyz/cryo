@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -7,10 +8,13 @@ use tokio::sync::Semaphore;
 
 use crate::outputs;
 use crate::types::BlockChunk;
+use crate::types::Datatype;
 use crate::types::FreezeChunkSummary;
 use crate::types::FreezeError;
 use crate::types::FreezeOpts;
 use crate::types::FreezeSummary;
+use crate::types::FreezeSummaryAgg;
+use crate::types::MultiDatatype;
 
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
 pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
@@ -23,94 +27,185 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     );
 
     // freeze chunks concurrently
+    let (datatypes, multi_datatypes) = cluster_datatypes(&opts.datatypes);
     let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
     let opts = Arc::new(opts);
     let mut tasks: Vec<_> = vec![];
     for block_chunk in opts.block_chunks.clone().into_iter() {
-        let sem = Arc::clone(&sem);
-        let opts = Arc::clone(&opts);
-        let bar = Arc::clone(&bar);
-        let task = tokio::spawn(freeze_chunk(block_chunk, sem, opts, bar));
-        tasks.push(task)
+
+        // datatypes
+        for datatype in &datatypes {
+            let sem = Arc::clone(&sem);
+            let opts = Arc::clone(&opts);
+            let bar = Arc::clone(&bar);
+            let task = tokio::spawn(freeze_datatype_chunk(
+                block_chunk.clone(),
+                *datatype,
+                sem,
+                opts,
+                bar,
+            ));
+            tasks.push(task)
+        }
+
+        // multi datatypes
+        for multi_datatype in &multi_datatypes {
+            let sem = Arc::clone(&sem);
+            let opts = Arc::clone(&opts);
+            let bar = Arc::clone(&bar);
+            let task = tokio::spawn(freeze_multi_datatype_chunk(
+                block_chunk.clone(),
+                *multi_datatype,
+                sem,
+                opts,
+                bar,
+            ));
+            tasks.push(task)
+        }
     }
     let chunk_summaries: Vec<FreezeChunkSummary> = join_all(tasks)
         .await
         .into_iter()
         .filter_map(Result::ok)
         .collect();
-    Ok(create_freeze_summary(chunk_summaries))
+    Ok(chunk_summaries.aggregate())
 }
 
-/// perform a bulk data extraction of multiple datatypes over a single block chunk
-async fn freeze_chunk(
+fn cluster_datatypes(dts: &[Datatype]) -> (Vec<Datatype>, Vec<MultiDatatype>) {
+    let mdts: Vec<MultiDatatype> = MultiDatatype::variants()
+        .iter()
+        .filter(|mdt| {
+            mdt.multi_dataset()
+                .datatypes()
+                .iter()
+                .all(|x| dts.contains(x))
+        })
+        .cloned()
+        .collect();
+    let mdt_dts: Vec<Datatype> = mdts
+        .iter()
+        .flat_map(|mdt| mdt.multi_dataset().datatypes())
+        .collect();
+    let other_dts = dts
+        .iter()
+        .filter(|dt| !mdt_dts.contains(dt))
+        .cloned()
+        .collect();
+    (other_dts, mdts)
+}
+
+// /// perform a bulk data extraction of multiple datatypes over a single block chunk
+// async fn freeze_chunk(
+//     block_chunk: BlockChunk,
+//     sem: Arc<Semaphore>,
+//     opts: Arc<FreezeOpts>,
+//     bar: Arc<ProgressBar>,
+// ) -> FreezeChunkSummary {
+//     let _permit = sem.acquire().await.expect("Semaphore acquire");
+//     for dt in &opts.datatypes {
+//         let ds = dt.dataset();
+//         match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
+//             Err(_e) => return FreezeChunkSummary::error(),
+//             Ok(path) => {
+//                 if Path::new(&path).exists() & !opts.overwrite {
+//                     return FreezeChunkSummary::skip();
+//                 } else {
+//                     match ds.collect_chunk(&block_chunk, &opts).await {
+//                         Ok(mut df) => {
+//                             if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
+//                                 return FreezeChunkSummary::error();
+//                             }
+//                         }
+//                         Err(_e) => {
+//                             println!("chunk failed: {:?}", _e);
+//                             return FreezeChunkSummary::error();
+//                         }
+//                     }
+//                 }
+//             }
+//         }
+//     }
+//     bar.inc(1);
+//     FreezeChunkSummary::success()
+// }
+
+async fn freeze_datatype_chunk(
     block_chunk: BlockChunk,
+    datatype: Datatype,
     sem: Arc<Semaphore>,
     opts: Arc<FreezeOpts>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {
     let _permit = sem.acquire().await.expect("Semaphore acquire");
-    for dt in &opts.datatypes {
-        let ds = dt.dataset();
-        match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
-            Ok(path) => {
-                if Path::new(&path).exists() & !opts.overwrite {
-                    return FreezeChunkSummary {
-                        skipped: true,
-                        errored: false,
-                    };
-                } else {
-                    match ds.collect_chunk(&block_chunk, &opts).await {
-                        Ok(mut df) => {
-                            if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
-                                return FreezeChunkSummary {
-                                    skipped: false,
-                                    errored: true,
-                                };
-                            }
-                        }
-                        Err(_e) => {
-                            println!("chunk failed: {:?}", _e);
-                            return FreezeChunkSummary {
-                                skipped: false,
-                                errored: true,
-                            };
-                        }
-                    }
-                }
-            }
-            _ => {
-                return FreezeChunkSummary {
-                    skipped: false,
-                    errored: true,
-                }
-            }
+
+    let ds = datatype.dataset();
+
+    // create path
+    let path = match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
+        Err(_e) => return FreezeChunkSummary::error(),
+        Ok(path) => path,
+    };
+
+    // skip path if file already exists
+    if Path::new(&path).exists() && !opts.overwrite {
+        return FreezeChunkSummary::skip();
+    }
+
+    // collect data
+    let mut df = match ds.collect_chunk(&block_chunk, &opts).await {
+        Err(_e) => {
+            println!("chunk failed: {:?}", _e);
+            return FreezeChunkSummary::error();
         }
+        Ok(df) => df,
+    };
+
+    // write data
+    if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
+        return FreezeChunkSummary::error();
     }
+
     bar.inc(1);
-    FreezeChunkSummary {
-        skipped: false,
-        errored: false,
-    }
+    FreezeChunkSummary::success()
 }
 
-fn create_freeze_summary(chunk_summaries: Vec<FreezeChunkSummary>) -> FreezeSummary {
-    let mut n_completed: u64 = 0;
-    let mut n_skipped: u64 = 0;
-    let mut n_errored: u64 = 0;
+async fn freeze_multi_datatype_chunk(
+    block_chunk: BlockChunk,
+    mdt: MultiDatatype,
+    sem: Arc<Semaphore>,
+    opts: Arc<FreezeOpts>,
+    bar: Arc<ProgressBar>,
+) -> FreezeChunkSummary {
+    let _permit = sem.acquire().await.expect("Semaphore acquire");
 
-    for chunk_summary in chunk_summaries {
-        if chunk_summary.skipped {
-            n_skipped += 1;
-        } else if chunk_summary.errored {
-            n_errored += 1;
-        } else {
-            n_completed += 1;
+    // create paths
+    let mut paths: HashMap<Datatype, String> = HashMap::new();
+    for ds in mdt.multi_dataset().datasets().values() {
+        match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
+            Err(_e) => return FreezeChunkSummary::error(),
+            Ok(path) => paths.insert(ds.datatype(), path),
+        };
+    }
+
+    // skip path if file already exists
+    if paths.values().all(|path| Path::new(&path).exists()) && !opts.overwrite {
+        return FreezeChunkSummary::skip();
+    }
+
+    // collect data
+    let mut dfs = match mdt.multi_dataset().collect_chunk(&block_chunk, &opts).await {
+        Err(_e) => {
+            println!("chunk failed: {:?}", _e);
+            return FreezeChunkSummary::error();
         }
+        Ok(dfs) => dfs,
+    };
+
+    // write data
+    if let Err(_e) = outputs::dfs_to_files(&mut dfs, &paths, &opts) {
+        return FreezeChunkSummary::error();
     }
 
-    FreezeSummary {
-        n_completed,
-        n_skipped,
-        n_errored,
-    }
+    bar.inc(1);
+    FreezeChunkSummary::success()
 }

@@ -20,6 +20,7 @@ pub mod schema_types;
 pub use cli_types::FreezeChunkSummary;
 pub use cli_types::FreezeOpts;
 pub use cli_types::FreezeSummary;
+pub(crate) use cli_types::FreezeSummaryAgg;
 pub use conversions::ToVecHex;
 pub use conversions::ToVecU8;
 pub use data_types::*;

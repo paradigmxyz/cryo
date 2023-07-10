@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::collections::HashSet;
 
 use ethers::prelude::*;
 use polars::prelude::*;
@@ -13,9 +14,33 @@ use crate::types::ColumnType;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
+use crate::types::MultiDataset;
+use crate::types::StateDiffs;
 use crate::types::Table;
 use crate::with_series;
 use crate::with_series_binary;
+
+#[async_trait::async_trait]
+impl MultiDataset for StateDiffs {
+    fn datatypes(&self) -> HashSet<Datatype> {
+        [
+            Datatype::BalanceDiffs,
+            Datatype::CodeDiffs,
+            Datatype::NonceDiffs,
+            Datatype::StorageDiffs,
+        ]
+        .into_iter()
+        .collect()
+    }
+
+    async fn collect_chunk(
+        &self,
+        _block_chunk: &BlockChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        panic!()
+    }
+}
 
 pub(crate) async fn collect_single(
     datatype: &Datatype,

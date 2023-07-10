@@ -1,5 +1,6 @@
 mod balance_diffs;
 mod blocks;
+mod blocks_and_transactions;
 mod code_diffs;
 mod logs;
 mod nonce_diffs;

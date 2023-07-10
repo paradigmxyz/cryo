@@ -1,6 +1,6 @@
 /// type specifications for collected datatypes
 use std::collections::HashMap;
-// use std::collections::HashSet;
+use std::collections::HashSet;
 
 use async_trait;
 use polars::prelude::*;
@@ -69,6 +69,41 @@ impl Datatype {
     }
 }
 
+/// Blocks and Transactions datasets
+pub struct BlocksAndTransactions;
+/// State Diff datasets
+pub struct StateDiffs;
+
+/// enum of possible sets of datatypes that cryo can collect
+/// used when multiple datatypes are collected together
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub enum MultiDatatype {
+    /// blocks and transactions
+    BlocksAndTransactions,
+
+    /// balance diffs, code diffs, nonce diffs, and storage diffs
+    StateDiffs,
+}
+
+impl MultiDatatype {
+
+    /// return all variants of multi datatype
+    pub fn variants() -> Vec<MultiDatatype> {
+        vec![
+            MultiDatatype::BlocksAndTransactions,
+            MultiDatatype::StateDiffs,
+        ]
+    }
+
+    /// return MultiDataset corresponding to MultiDatatype
+    pub fn multi_dataset(&self) -> Box<dyn MultiDataset> {
+        match self {
+            MultiDatatype::BlocksAndTransactions => Box::new(BlocksAndTransactions),
+            MultiDatatype::StateDiffs => Box::new(StateDiffs),
+        }
+    }
+}
+
 /// Dataset manages collection and management of a particular datatype
 #[async_trait::async_trait]
 pub trait Dataset: Sync + Send {
@@ -88,17 +123,25 @@ pub trait Dataset: Sync + Send {
         _block_chunk: &BlockChunk,
         _opts: &FreezeOpts,
     ) -> Result<DataFrame, error_types::CollectError>;
-
-    // async fn collect_chunk_with_extras(
-    //     &self,
-    //     block_chunk: &BlockChunk,
-    //     extras: &HashSet<Datatype>,
-    //     opts: &FreezeOpts,
-    // ) -> HashMap<Datatype, DataFrame> {
-    //     if !extras.is_empty() {
-    //         ...
-    //     }
-    //     let df = self.collect_chunk(block_chunk, opts).await;
-    //     [(self.datatype(), df)].iter().cloned().collect()
-    // }
 }
+
+/// MultiDataset manages multiple datasets that get collected together
+#[async_trait::async_trait]
+pub trait MultiDataset: Sync + Send {
+    /// return Datatypes associated with MultiDataset
+    fn datatypes(&self) -> HashSet<Datatype>;
+
+    /// return Datasets associated with MultiDataset
+    fn datasets(&self) -> HashMap<Datatype, Box<dyn Dataset>> {
+        self.datatypes().iter().map(|dt| (*dt, dt.dataset())).collect()
+    }
+
+    /// collect datasets for a particular chunk
+    async fn collect_chunk(
+        &self,
+        _block_chunk: &BlockChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<HashMap<Datatype, DataFrame>, error_types::CollectError>;
+
+}
+
