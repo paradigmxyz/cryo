@@ -6,7 +6,6 @@ use polars::prelude::*;
 use tokio::sync::mpsc;
 use tokio::task;
 
-use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
 use crate::types::conversions::ToVecHex;
 use crate::types::conversions::ToVecU8;
@@ -69,7 +68,7 @@ impl Dataset for Blocks {
         vec!["number".to_string()]
     }
 
-    async fn collect_chunk(
+    async fn collect_block_chunk(
         &self,
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,

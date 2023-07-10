@@ -48,7 +48,7 @@ impl Dataset for CodeDiffs {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_chunk(
+    async fn collect_block_chunk(
         &self,
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,

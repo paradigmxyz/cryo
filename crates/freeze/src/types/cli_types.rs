@@ -4,7 +4,7 @@ use std::sync::Arc;
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use crate::types::BlockChunk;
+use crate::types::Chunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 use crate::types::FetchOpts;
@@ -20,7 +20,7 @@ pub struct FreezeOpts {
     pub datatypes: Vec<Datatype>,
     // content options
     /// Block chunks to collect
-    pub block_chunks: Vec<BlockChunk>,
+    pub chunks: Vec<Chunk>,
     /// Schemas for each datatype to collect
     pub schemas: HashMap<Datatype, Table>,
     // source options

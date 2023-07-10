@@ -5,10 +5,10 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
-use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
 use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
+use crate::types::ChunkData;
 use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Datatype;
@@ -22,6 +22,10 @@ use crate::with_series_binary;
 
 #[async_trait::async_trait]
 impl MultiDataset for StateDiffs {
+    fn name(&self) -> &'static str {
+        "state_diffs"
+    }
+
     fn datatypes(&self) -> HashSet<Datatype> {
         [
             Datatype::BalanceDiffs,
@@ -33,7 +37,7 @@ impl MultiDataset for StateDiffs {
         .collect()
     }
 
-    async fn collect_chunk(
+    async fn collect_block_chunk(
         &self,
         _block_chunk: &BlockChunk,
         _opts: &FreezeOpts,
@@ -71,7 +75,7 @@ pub(crate) async fn fetch_block_traces(
     trace_types: &[TraceType],
     opts: &FetchOpts,
 ) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
-    let (tx, rx) = mpsc::channel(block_chunk.total_blocks() as usize);
+    let (tx, rx) = mpsc::channel(block_chunk.size() as usize);
     for number in block_chunk.numbers() {
         let tx = tx.clone();
         let provider = opts.provider.clone();

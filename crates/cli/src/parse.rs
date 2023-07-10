@@ -13,8 +13,9 @@ use polars::prelude::*;
 use std::num::NonZeroU32;
 
 use cryo_freeze::BlockChunk;
+use cryo_freeze::Chunk;
 use cryo_freeze::ChunkAgg;
-use cryo_freeze::ChunkOps;
+use cryo_freeze::ChunkData;
 use cryo_freeze::ColumnEncoding;
 use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
@@ -65,6 +66,10 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         None => block_chunks.subchunk_by_size(&args.chunk_size),
     };
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
+    let chunks: Vec<Chunk> = block_chunks
+        .iter()
+        .map(|x| Chunk::Block(x.clone()))
+        .collect();
 
     // process output directory
     let output_dir = std::fs::canonicalize(args.output_dir.clone())
@@ -128,7 +133,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let row_group_size = parse_row_group_size(
         args.row_group_size,
         args.n_row_groups,
-        block_chunks.get(0).map(|x| x.total_blocks() as usize),
+        block_chunks.get(0).map(|x| x.size() as usize),
     );
 
     let rate_limiter = match args.requests_per_second {
@@ -148,7 +153,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     let opts = FreezeOpts {
         datatypes,
         // content options
-        block_chunks,
+        chunks,
         schemas,
         // source options
         provider: Arc::new(provider),
@@ -502,7 +507,7 @@ async fn apply_reorg_buffer(
             let max_allowed = latest_block - reorg_filter;
             Ok(block_chunks
                 .into_iter()
-                .filter_map(|x| match x.max_block() {
+                .filter_map(|x| match x.max_value() {
                     Some(max_block) if max_block <= max_allowed => Some(x),
                     _ => None,
                 })

@@ -6,9 +6,13 @@ use async_trait;
 use polars::prelude::*;
 
 use crate::types::error_types;
+use crate::types::AddressChunk;
 use crate::types::BlockChunk;
+use crate::types::Chunk;
+use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::FreezeOpts;
+use crate::types::TransactionChunk;
 
 /// Balance Diffs Dataset
 pub struct BalanceDiffs;
@@ -86,7 +90,6 @@ pub enum MultiDatatype {
 }
 
 impl MultiDatatype {
-
     /// return all variants of multi datatype
     pub fn variants() -> Vec<MultiDatatype> {
         vec![
@@ -109,39 +112,126 @@ impl MultiDatatype {
 pub trait Dataset: Sync + Send {
     /// Datatype enum corresponding to Dataset
     fn datatype(&self) -> Datatype;
+
     /// name of Dataset
     fn name(&self) -> &'static str;
+
     /// column types of dataset schema
     fn column_types(&self) -> HashMap<&'static str, ColumnType>;
+
     /// default columns extracted for Dataset
     fn default_columns(&self) -> Vec<&'static str>;
+
     /// default sort order for dataset
     fn default_sort(&self) -> Vec<String>;
+
     /// collect dataset for a particular chunk
     async fn collect_chunk(
         &self,
-        _block_chunk: &BlockChunk,
+        chunk: &Chunk,
+        opts: &FreezeOpts,
+    ) -> Result<DataFrame, error_types::CollectError> {
+        match chunk {
+            Chunk::Block(chunk) => self.collect_block_chunk(chunk, opts).await,
+            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, opts).await,
+            Chunk::Address(chunk) => self.collect_address_chunk(chunk, opts).await,
+        }
+    }
+
+    /// collect dataset for a particular block chunk
+    async fn collect_block_chunk(
+        &self,
+        _chunk: &BlockChunk,
         _opts: &FreezeOpts,
-    ) -> Result<DataFrame, error_types::CollectError>;
+    ) -> Result<DataFrame, error_types::CollectError> {
+        panic!("block_chunk collection not implemented for {}", self.name())
+    }
+
+    /// collect dataset for a particular transaction chunk
+    async fn collect_transaction_chunk(
+        &self,
+        _chunk: &TransactionChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<DataFrame, error_types::CollectError> {
+        panic!(
+            "transaction_chunk collection not implemented for {}",
+            self.name()
+        )
+    }
+
+    /// collect dataset for a particular transaction chunk
+    async fn collect_address_chunk(
+        &self,
+        _chunk: &AddressChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<DataFrame, error_types::CollectError> {
+        panic!(
+            "transaction_chunk collection not implemented for {}",
+            self.name()
+        )
+    }
 }
 
 /// MultiDataset manages multiple datasets that get collected together
 #[async_trait::async_trait]
 pub trait MultiDataset: Sync + Send {
+    /// name of Dataset
+    fn name(&self) -> &'static str;
+
     /// return Datatypes associated with MultiDataset
     fn datatypes(&self) -> HashSet<Datatype>;
 
     /// return Datasets associated with MultiDataset
     fn datasets(&self) -> HashMap<Datatype, Box<dyn Dataset>> {
-        self.datatypes().iter().map(|dt| (*dt, dt.dataset())).collect()
+        self.datatypes()
+            .iter()
+            .map(|dt| (*dt, dt.dataset()))
+            .collect()
     }
 
-    /// collect datasets for a particular chunk
+    /// collect dataset for a particular chunk
     async fn collect_chunk(
         &self,
-        _block_chunk: &BlockChunk,
+        chunk: &Chunk,
+        opts: &FreezeOpts,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        match chunk {
+            Chunk::Block(chunk) => self.collect_block_chunk(chunk, opts).await,
+            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, opts).await,
+            Chunk::Address(chunk) => self.collect_address_chunk(chunk, opts).await,
+        }
+    }
+
+    /// collect dataset for a particular block chunk
+    async fn collect_block_chunk(
+        &self,
+        _chunk: &BlockChunk,
         _opts: &FreezeOpts,
-    ) -> Result<HashMap<Datatype, DataFrame>, error_types::CollectError>;
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        panic!("block_chunk collection not implemented for {}", self.name())
+    }
 
+    /// collect dataset for a particular transaction chunk
+    async fn collect_transaction_chunk(
+        &self,
+        _chunk: &TransactionChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        panic!(
+            "transaction_chunk collection not implemented for {}",
+            self.name()
+        )
+    }
+
+    /// collect dataset for a particular transaction chunk
+    async fn collect_address_chunk(
+        &self,
+        _chunk: &AddressChunk,
+        _opts: &FreezeOpts,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        panic!(
+            "transaction_chunk collection not implemented for {}",
+            self.name()
+        )
+    }
 }
-

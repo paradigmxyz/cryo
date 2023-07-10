@@ -2,49 +2,26 @@ use std::collections::HashMap;
 
 use polars::prelude::*;
 
-use crate::chunks::ChunkOps;
 use crate::types::FileError;
-use crate::types::{BlockChunk, FreezeOpts};
-
-/// get file path of output chunk
-pub(crate) fn get_chunk_path(
-    name: &str,
-    chunk: &BlockChunk,
-    opts: &FreezeOpts,
-) -> Result<String, FileError> {
-    let block_chunk_stub = chunk.stub().map_err(FileError::FilePathError)?;
-    let filename = match &opts.file_suffix {
-        Some(suffix) => format!(
-            "{}__{}__{}__{}.{}",
-            opts.network_name,
-            name,
-            block_chunk_stub,
-            suffix,
-            opts.output_format.as_str()
-        ),
-        None => format!(
-            "{}__{}__{}.{}",
-            opts.network_name,
-            name,
-            block_chunk_stub,
-            opts.output_format.as_str()
-        ),
-    };
-    match opts.output_dir.as_str() {
-        "." => Ok(filename),
-        output_dir => Ok(output_dir.to_string() + "/" + filename.as_str()),
-    }
-}
+use crate::types::FreezeOpts;
 
 pub(crate) fn dfs_to_files<T>(
     dfs: &mut HashMap<T, DataFrame>,
     filenames: &HashMap<T, String>,
     opts: &FreezeOpts,
-) -> Result<(), FileError> where T: std::cmp::Eq, T: std::hash::Hash {
+) -> Result<(), FileError>
+where
+    T: std::cmp::Eq,
+    T: std::hash::Hash,
+{
     for (name, df) in dfs.iter_mut() {
         let filename = match filenames.get(name) {
             Some(filename) => filename,
-            None => return Err(FileError::NoFilePathError("no path given for dataframe".to_string())),
+            None => {
+                return Err(FileError::NoFilePathError(
+                    "no path given for dataframe".to_string(),
+                ))
+            }
         };
         df_to_file(df, filename, opts)?
     }

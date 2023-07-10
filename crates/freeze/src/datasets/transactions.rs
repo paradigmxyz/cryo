@@ -5,7 +5,6 @@ use polars::prelude::*;
 use tokio::sync::mpsc;
 use tokio::task;
 
-use crate::chunks::ChunkAgg;
 use crate::dataframes::SortableDataFrame;
 use crate::types::conversions::ToVecHex;
 use crate::types::BlockChunk;
@@ -74,7 +73,7 @@ impl Dataset for Transactions {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_chunk(
+    async fn collect_block_chunk(
         &self,
         block_chunk: &BlockChunk,
         opts: &FreezeOpts,
