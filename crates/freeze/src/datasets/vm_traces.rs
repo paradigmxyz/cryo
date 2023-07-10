@@ -4,21 +4,15 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
-use crate::dataframes::SortableDataFrame;
-use crate::datasets::state_diffs;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::Table;
-use crate::types::ToVecU8;
-use crate::types::VmTraces;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    dataframes::SortableDataFrame,
+    datasets::state_diffs,
+    types::{
+        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, FetchOpts,
+        FreezeOpts, Table, ToVecU8, VmTraces,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for VmTraces {
@@ -48,22 +42,11 @@ impl Dataset for VmTraces {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_position",
-            "pc",
-            "cost",
-            "used",
-            "op",
-        ]
+        vec!["block_number", "transaction_position", "pc", "cost", "used", "op"]
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec![
-            "block_number".to_string(),
-            "transaction_position".to_string(),
-            "used".to_string(),
-        ]
+        vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
     }
 
     async fn collect_chunk(
@@ -135,12 +118,7 @@ async fn vm_traces_to_df(
     let mut cols = Vec::new();
 
     with_series!(cols, "block_number", columns.block_number, schema);
-    with_series!(
-        cols,
-        "transaction_position",
-        columns.transaction_position,
-        schema
-    );
+    with_series!(cols, "transaction_position", columns.transaction_position, schema);
     with_series!(cols, "pc", columns.pc, schema);
     with_series!(cols, "cost", columns.cost, schema);
     with_series!(cols, "used", columns.used, schema);
@@ -155,9 +133,7 @@ async fn vm_traces_to_df(
         cols.push(Series::new("chain_id", vec![chain_id; columns.n_rows]));
     };
 
-    DataFrame::new(cols)
-        .map_err(CollectError::PolarsError)
-        .sort_by_schema(schema)
+    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }
 
 fn add_ops(

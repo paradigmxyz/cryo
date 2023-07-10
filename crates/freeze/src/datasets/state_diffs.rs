@@ -4,18 +4,15 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
-use crate::chunks::ChunkAgg;
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::Table;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    chunks::ChunkAgg,
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Datatype, FetchOpts,
+        FreezeOpts, Table,
+    },
+    with_series, with_series_binary,
+};
 
 pub(crate) async fn collect_single(
     datatype: &Datatype,

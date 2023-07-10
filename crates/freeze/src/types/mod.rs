@@ -17,21 +17,12 @@ pub mod output_types;
 /// type specifications for data schemas
 pub mod schema_types;
 
-pub use cli_types::FreezeChunkSummary;
-pub use cli_types::FreezeOpts;
-pub use cli_types::FreezeSummary;
-pub use conversions::ToVecHex;
-pub use conversions::ToVecU8;
+pub use cli_types::{FreezeChunkSummary, FreezeOpts, FreezeSummary};
+pub use conversions::{ToVecHex, ToVecU8};
 pub use data_types::*;
 pub use external_types::RateLimiter;
-pub use fetch_types::FetchOpts;
-pub use fetch_types::LogOpts;
-pub use output_types::BlockChunk;
-pub use output_types::ColumnEncoding;
-pub use output_types::FileFormat;
-pub use schema_types::ColumnType;
-pub use schema_types::Table;
+pub use fetch_types::{FetchOpts, LogOpts};
+pub use output_types::{BlockChunk, ColumnEncoding, FileFormat};
+pub use schema_types::{ColumnType, Table};
 
-pub use error_types::CollectError;
-pub use error_types::FileError;
-pub use error_types::FreezeError;
+pub use error_types::{CollectError, FileError, FreezeError};

@@ -1,17 +1,11 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use crate::types::BlockChunk;
-use crate::types::ColumnEncoding;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FileFormat;
-use crate::types::LogOpts;
-use crate::types::RateLimiter;
-use crate::types::Table;
+use crate::types::{
+    BlockChunk, ColumnEncoding, Datatype, FetchOpts, FileFormat, LogOpts, RateLimiter, Table,
+};
 
 /// Options controling the behavior of a freeze operation
 #[derive(Clone)]
@@ -65,9 +59,7 @@ pub struct FreezeOpts {
 impl FreezeOpts {
     /// create FetchOpts for an individual chunk
     pub fn chunk_fetch_opts(&self) -> FetchOpts {
-        let sem = Arc::new(tokio::sync::Semaphore::new(
-            self.max_concurrent_blocks as usize,
-        ));
+        let sem = Arc::new(tokio::sync::Semaphore::new(self.max_concurrent_blocks as usize));
         FetchOpts {
             // provider: self.provider.clone(),
             provider: Arc::clone(&self.provider),

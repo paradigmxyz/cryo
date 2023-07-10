@@ -2,23 +2,17 @@ use std::collections::HashMap;
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
-use crate::chunks::ChunkAgg;
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::Table;
-use crate::types::Transactions;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    chunks::ChunkAgg,
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, FetchOpts,
+        FreezeOpts, Table, Transactions,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
@@ -100,10 +94,8 @@ async fn fetch_blocks_and_transactions(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let block = provider
-                .get_block_with_txs(number)
-                .await
-                .map_err(CollectError::ProviderError);
+            let block =
+                provider.get_block_with_txs(number).await.map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -188,19 +180,12 @@ async fn txs_to_df(
     with_series!(cols, "gas_limit", gas, schema);
     with_series!(cols, "gas_price", gas_price, schema);
     with_series!(cols, "transaction_type", transaction_type, schema);
-    with_series!(
-        cols,
-        "max_priority_fee_per_gas",
-        max_priority_fee_per_gas,
-        schema
-    );
+    with_series!(cols, "max_priority_fee_per_gas", max_priority_fee_per_gas, schema);
     with_series!(cols, "max_fee_per_gas", max_fee_per_gas, schema);
 
     if schema.has_column("chain_id") {
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
-    DataFrame::new(cols)
-        .map_err(CollectError::PolarsError)
-        .sort_by_schema(schema)
+    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }

@@ -1,26 +1,19 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
-use crate::chunks::ChunkAgg;
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::conversions::ToVecU8;
-use crate::types::BlockChunk;
-use crate::types::Blocks;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::Table;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    chunks::ChunkAgg,
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::{ToVecHex, ToVecU8},
+        BlockChunk, Blocks, CollectError, ColumnType, Dataset, Datatype, FetchOpts, FreezeOpts,
+        Table,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
@@ -54,15 +47,7 @@ impl Dataset for Blocks {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "number",
-            "hash",
-            "timestamp",
-            "author",
-            "gas_used",
-            "extra_data",
-            "base_fee_per_gas",
-        ]
+        vec!["number", "hash", "timestamp", "author", "gas_used", "extra_data", "base_fee_per_gas"]
     }
 
     fn default_sort(&self) -> Vec<String> {
@@ -95,10 +80,7 @@ async fn fetch_blocks(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let block = provider
-                .get_block(number)
-                .await
-                .map_err(CollectError::ProviderError);
+            let block = provider.get_block(number).await.map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -222,7 +204,5 @@ async fn blocks_to_df(
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
-    DataFrame::new(cols)
-        .map_err(CollectError::PolarsError)
-        .sort_by_schema(schema)
+    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }

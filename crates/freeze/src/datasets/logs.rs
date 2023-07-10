@@ -1,26 +1,18 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
-use crate::chunks::ChunkOps;
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::LogOpts;
-use crate::types::Logs;
-use crate::types::Table;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    chunks::ChunkOps,
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, FetchOpts,
+        FreezeOpts, LogOpts, Logs, Table,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
@@ -99,10 +91,7 @@ async fn fetch_logs(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let result = provider
-                .get_logs(&filter)
-                .await
-                .map_err(CollectError::ProviderError);
+            let result = provider.get_logs(&filter).await.map_err(CollectError::ProviderError);
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -138,7 +127,7 @@ async fn logs_to_df(
             Ok(logs) => {
                 for log in logs.iter() {
                     if let Some(true) = log.removed {
-                        continue;
+                        continue
                     }
                     if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
                         log.block_number,
@@ -180,7 +169,7 @@ async fn logs_to_df(
                                 topic3.push(Some(log.topics[3].as_bytes().to_vec()));
                             }
                             _ => {
-                                return Err(CollectError::InvalidNumberOfTopics);
+                                return Err(CollectError::InvalidNumberOfTopics)
                             }
                         }
                         data.push(log.data.clone().to_vec());
@@ -211,7 +200,5 @@ async fn logs_to_df(
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
-    DataFrame::new(cols)
-        .map_err(CollectError::PolarsError)
-        .sort_by_schema(schema)
+    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }

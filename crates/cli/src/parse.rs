@@ -1,26 +1,17 @@
-use std::collections::HashMap;
-use std::env;
-use std::fs;
+use std::{collections::HashMap, env, fs};
 
 use clap::Parser;
 use ethers::prelude::*;
-use eyre::Result;
-use eyre::WrapErr;
-use governor::Quota;
-use governor::RateLimiter;
+use eyre::{Result, WrapErr};
+use governor::{Quota, RateLimiter};
 use hex::FromHex;
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
-use cryo_freeze::BlockChunk;
-use cryo_freeze::ChunkAgg;
-use cryo_freeze::ChunkOps;
-use cryo_freeze::ColumnEncoding;
-use cryo_freeze::Datatype;
-use cryo_freeze::FileFormat;
-use cryo_freeze::FreezeOpts;
-use cryo_freeze::LogOpts;
-use cryo_freeze::Table;
+use cryo_freeze::{
+    BlockChunk, ChunkAgg, ChunkOps, ColumnEncoding, Datatype, FileFormat, FreezeOpts, LogOpts,
+    Table,
+};
 
 use crate::args::Args;
 
@@ -53,10 +44,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
     // parse block chunks
     let block_chunks = parse_block_inputs(&args.blocks, &provider).await?;
     let block_chunks = if args.align {
-        block_chunks
-            .into_iter()
-            .filter_map(|x| x.align(args.chunk_size))
-            .collect()
+        block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
     } else {
         block_chunks
     };
@@ -117,11 +105,7 @@ pub async fn parse_opts() -> Result<FreezeOpts> {
         parse_topic(&args.topic2),
         parse_topic(&args.topic3),
     ];
-    let log_opts = LogOpts {
-        address: contract,
-        topics,
-        log_request_size: args.log_request_size,
-    };
+    let log_opts = LogOpts { address: contract, topics, log_request_size: args.log_request_size };
 
     let parquet_compression = parse_compression(&args.compression)?;
 
@@ -298,22 +282,16 @@ fn parse_sort(
     datatypes: &Vec<Datatype>,
 ) -> Result<HashMap<Datatype, Option<Vec<String>>>, eyre::Report> {
     match raw_sort {
-        None => Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
-            (*datatype, Some(datatype.dataset().default_sort()))
-        }))),
+        None => Ok(HashMap::from_iter(
+            datatypes.iter().map(|datatype| (*datatype, Some(datatype.dataset().default_sort()))),
+        )),
         Some(raw_sort) => {
             if (raw_sort.len() == 1) && (raw_sort[0] == "none") {
-                Ok(HashMap::from_iter(
-                    datatypes.iter().map(|datatype| (*datatype, None)),
-                ))
+                Ok(HashMap::from_iter(datatypes.iter().map(|datatype| (*datatype, None))))
             } else if raw_sort.is_empty() {
-                Err(eyre::eyre!(
-                    "must specify columns to sort by, use `none` to disable sorting"
-                ))
+                Err(eyre::eyre!("must specify columns to sort by, use `none` to disable sorting"))
             } else if datatypes.len() > 1 {
-                Err(eyre::eyre!(
-                    "custom sort not supported for multiple datasets"
-                ))
+                Err(eyre::eyre!("custom sort not supported for multiple datasets"))
             } else {
                 match datatypes.iter().next() {
                     Some(datatype) => Ok(HashMap::from_iter([(*datatype, Some(raw_sort.clone()))])),
@@ -335,10 +313,9 @@ fn parse_concurrency_args(args: &Args) -> Result<(u64, u64)> {
             (std::cmp::max(max_concurrent_requests / 3, 1), 3)
         }
         (None, Some(max_concurrent_chunks), None) => (max_concurrent_chunks, 3),
-        (None, None, Some(max_concurrent_blocks)) => (
-            std::cmp::max(100 / max_concurrent_blocks, 1),
-            max_concurrent_blocks,
-        ),
+        (None, None, Some(max_concurrent_blocks)) => {
+            (std::cmp::max(100 / max_concurrent_blocks, 1), max_concurrent_blocks)
+        }
         (Some(max_concurrent_requests), Some(max_concurrent_chunks), None) => (
             max_concurrent_chunks,
             std::cmp::max(max_concurrent_requests / max_concurrent_chunks, 1),
@@ -371,12 +348,9 @@ async fn parse_block_inputs(
 ) -> Result<Vec<BlockChunk>> {
     match inputs.len() {
         1 => {
-            let first_input = inputs
-                .get(0)
-                .ok_or_else(|| eyre::eyre!("Failed to get the first input"))?;
-            parse_block_token(first_input, true, provider)
-                .await
-                .map(|x| vec![x])
+            let first_input =
+                inputs.get(0).ok_or_else(|| eyre::eyre!("Failed to get the first input"))?;
+            parse_block_token(first_input, true, provider).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
@@ -441,9 +415,7 @@ async fn parse_block_token(
                 Ok(BlockChunk::Numbers((start_block..=end_block).collect()))
             }
         }
-        _ => Err(eyre::eyre!(
-            "blocks must be in format block_number or start_block:end_block"
-        )),
+        _ => Err(eyre::eyre!("blocks must be in format block_number or start_block:end_block")),
     }
 }
 

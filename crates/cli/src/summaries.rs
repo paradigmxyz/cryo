@@ -5,11 +5,7 @@ use colored::Colorize;
 use std::time::SystemTime;
 use thousands::Separable;
 
-use cryo_freeze::ChunkAgg;
-use cryo_freeze::Datatype;
-use cryo_freeze::FreezeOpts;
-use cryo_freeze::FreezeSummary;
-use cryo_freeze::Table;
+use cryo_freeze::{ChunkAgg, Datatype, FreezeOpts, FreezeSummary, Table};
 
 const TITLE_R: u8 = 0;
 const TITLE_G: u8 = 225;
@@ -17,9 +13,7 @@ const TITLE_B: u8 = 0;
 
 pub(crate) fn print_header<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
-    let underline = "─"
-        .repeat(header_str.len())
-        .truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let underline = "─".repeat(header_str.len()).truecolor(TITLE_R, TITLE_G, TITLE_B);
     println!("{}", header_str);
     println!("{}", underline);
 }
@@ -45,32 +39,17 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     if let Some(max) = &opts.block_chunks.max_block() {
         print_bullet("max block", max.separate_with_commas());
     };
-    print_bullet(
-        "total blocks",
-        opts.block_chunks.total_blocks().separate_with_commas(),
-    );
+    print_bullet("total blocks", opts.block_chunks.total_blocks().separate_with_commas());
 
     if let Some(first_chunk) = opts.block_chunks.get(0) {
         let chunk_size = first_chunk.total_blocks();
         print_bullet("block chunk size", chunk_size.separate_with_commas());
     };
-    print_bullet(
-        "total block chunks",
-        opts.block_chunks.len().separate_with_commas(),
-    );
-    print_bullet(
-        "max concurrent chunks",
-        opts.max_concurrent_chunks.separate_with_commas(),
-    );
-    print_bullet(
-        "max concurrent blocks",
-        opts.max_concurrent_blocks.separate_with_commas(),
-    );
+    print_bullet("total block chunks", opts.block_chunks.len().separate_with_commas());
+    print_bullet("max concurrent chunks", opts.max_concurrent_chunks.separate_with_commas());
+    print_bullet("max concurrent blocks", opts.max_concurrent_blocks.separate_with_commas());
     if opts.datatypes.contains(&Datatype::Logs) {
-        print_bullet(
-            "log request size",
-            opts.log_opts.log_request_size.to_string(),
-        );
+        print_bullet("log request size", opts.log_opts.log_request_size.to_string());
     };
     print_bullet("output format", opts.output_format.as_str());
     print_bullet("binary column format", opts.binary_column_format.as_str());
@@ -95,11 +74,7 @@ fn print_schema(name: &Datatype, schema: &Table) {
     }
     println!();
     if let Some(sort_cols) = schema.sort_columns.clone() {
-        println!(
-            "sorting {} by: {}",
-            name.dataset().name(),
-            sort_cols.join(", ")
-        );
+        println!("sorting {} by: {}", name.dataset().name(), sort_cols.join(", "));
     } else {
         println!("sorting disabled for {}", name.dataset().name());
     }
@@ -128,7 +103,7 @@ pub(crate) fn print_cryo_conclusion(
         Ok(duration) => duration,
         Err(_e) => {
             println!("error computing system time, aborting");
-            return;
+            return
         }
     };
     let seconds = duration.as_secs();
@@ -137,30 +112,16 @@ pub(crate) fn print_cryo_conclusion(
 
     print_header("collection summary");
     print_bullet("total duration", duration_string);
-    print_bullet(
-        "t_start",
-        dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(),
-    );
+    print_bullet("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
     print_bullet(
         "t_end",
-        "  ".to_string()
-            + dt_data_done
-                .format("%Y-%m-%d %H:%M:%S%.3f")
-                .to_string()
-                .as_str(),
+        "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
     );
     let n_chunks = opts.block_chunks.len();
-    print_bullet(
-        "chunks skipped",
-        freeze_summary.n_skipped.separate_with_commas(),
-    );
+    print_bullet("chunks skipped", freeze_summary.n_skipped.separate_with_commas());
     print_bullet(
         "chunks collected",
-        format!(
-            "{} / {}",
-            freeze_summary.n_completed.separate_with_commas(),
-            n_chunks
-        ),
+        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), n_chunks),
     );
     // let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
     let total_blocks = opts.block_chunks.total_blocks() as f64;
@@ -174,14 +135,8 @@ pub(crate) fn print_cryo_conclusion(
     let blocks_per_day = blocks_per_hour * 24.0;
     print_bullet("blocks per second", format_float(blocks_per_second));
     print_bullet("blocks per minute", format_float(blocks_per_minute));
-    print_bullet(
-        "blocks per hour",
-        "  ".to_string() + format_float(blocks_per_hour).as_str(),
-    );
-    print_bullet(
-        "blocks per day",
-        "   ".to_string() + format_float(blocks_per_day).as_str(),
-    );
+    print_bullet("blocks per hour", "  ".to_string() + format_float(blocks_per_hour).as_str());
+    print_bullet("blocks per day", "   ".to_string() + format_float(blocks_per_day).as_str());
 }
 
 fn format_float(number: f64) -> String {

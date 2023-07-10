@@ -5,10 +5,7 @@ use std::collections::HashMap;
 use async_trait;
 use polars::prelude::*;
 
-use crate::types::error_types;
-use crate::types::BlockChunk;
-use crate::types::ColumnType;
-use crate::types::FreezeOpts;
+use crate::types::{error_types, BlockChunk, ColumnType, FreezeOpts};
 
 /// Balance Diffs Dataset
 pub struct BalanceDiffs;
@@ -94,11 +91,8 @@ pub trait Dataset: Sync + Send {
     //     block_chunk: &BlockChunk,
     //     extras: &HashSet<Datatype>,
     //     opts: &FreezeOpts,
-    // ) -> HashMap<Datatype, DataFrame> {
-    //     if !extras.is_empty() {
-    //         ...
-    //     }
-    //     let df = self.collect_chunk(block_chunk, opts).await;
-    //     [(self.datatype(), df)].iter().cloned().collect()
+    // ) -> HashMap<Datatype, DataFrame> { if !extras.is_empty() { ... } let df =
+    //   self.collect_chunk(block_chunk, opts).await; [(self.datatype(),
+    //   df)].iter().cloned().collect()
     // }
 }

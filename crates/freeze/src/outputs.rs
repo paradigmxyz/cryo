@@ -1,8 +1,9 @@
 use polars::prelude::*;
 
-use crate::chunks::ChunkOps;
-use crate::types::FileError;
-use crate::types::{BlockChunk, FreezeOpts};
+use crate::{
+    chunks::ChunkOps,
+    types::{BlockChunk, FileError, FreezeOpts},
+};
 
 /// get file path of output chunk
 pub(crate) fn get_chunk_path(

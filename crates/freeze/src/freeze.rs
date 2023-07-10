@@ -1,16 +1,13 @@
-use std::path::Path;
-use std::sync::Arc;
+use std::{path::Path, sync::Arc};
 
 use futures::future::join_all;
 use indicatif::ProgressBar;
 use tokio::sync::Semaphore;
 
-use crate::outputs;
-use crate::types::BlockChunk;
-use crate::types::FreezeChunkSummary;
-use crate::types::FreezeError;
-use crate::types::FreezeOpts;
-use crate::types::FreezeSummary;
+use crate::{
+    outputs,
+    types::{BlockChunk, FreezeChunkSummary, FreezeError, FreezeOpts, FreezeSummary},
+};
 
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
 pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
@@ -33,11 +30,8 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
         let task = tokio::spawn(freeze_chunk(block_chunk, sem, opts, bar));
         tasks.push(task)
     }
-    let chunk_summaries: Vec<FreezeChunkSummary> = join_all(tasks)
-        .await
-        .into_iter()
-        .filter_map(Result::ok)
-        .collect();
+    let chunk_summaries: Vec<FreezeChunkSummary> =
+        join_all(tasks).await.into_iter().filter_map(Result::ok).collect();
     Ok(create_freeze_summary(chunk_summaries))
 }
 
@@ -54,43 +48,26 @@ async fn freeze_chunk(
         match outputs::get_chunk_path(ds.name(), &block_chunk, &opts) {
             Ok(path) => {
                 if Path::new(&path).exists() & !opts.overwrite {
-                    return FreezeChunkSummary {
-                        skipped: true,
-                        errored: false,
-                    };
+                    return FreezeChunkSummary { skipped: true, errored: false }
                 } else {
                     match ds.collect_chunk(&block_chunk, &opts).await {
                         Ok(mut df) => {
                             if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
-                                return FreezeChunkSummary {
-                                    skipped: false,
-                                    errored: true,
-                                };
+                                return FreezeChunkSummary { skipped: false, errored: true }
                             }
                         }
                         Err(_e) => {
                             println!("chunk failed: {:?}", _e);
-                            return FreezeChunkSummary {
-                                skipped: false,
-                                errored: true,
-                            };
+                            return FreezeChunkSummary { skipped: false, errored: true }
                         }
                     }
                 }
             }
-            _ => {
-                return FreezeChunkSummary {
-                    skipped: false,
-                    errored: true,
-                }
-            }
+            _ => return FreezeChunkSummary { skipped: false, errored: true },
         }
     }
     bar.inc(1);
-    FreezeChunkSummary {
-        skipped: false,
-        errored: false,
-    }
+    FreezeChunkSummary { skipped: false, errored: false }
 }
 
 fn create_freeze_summary(chunk_summaries: Vec<FreezeChunkSummary>) -> FreezeSummary {
@@ -108,9 +85,5 @@ fn create_freeze_summary(chunk_summaries: Vec<FreezeChunkSummary>) -> FreezeSumm
         }
     }
 
-    FreezeSummary {
-        n_completed,
-        n_skipped,
-        n_errored,
-    }
+    FreezeSummary { n_completed, n_skipped, n_errored }
 }

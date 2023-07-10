@@ -1,7 +1,6 @@
 use ethers::prelude::*;
 
-use crate::types::error_types;
-use crate::types::BlockChunk;
+use crate::types::{error_types, BlockChunk};
 
 /// Aggregation operations related to chunks
 pub trait ChunkAgg {
