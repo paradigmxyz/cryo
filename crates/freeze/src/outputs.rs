@@ -1,3 +1,5 @@
+use std::collections::HashMap;
+
 use polars::prelude::*;
 
 use crate::chunks::ChunkOps;
@@ -32,6 +34,21 @@ pub(crate) fn get_chunk_path(
         "." => Ok(filename),
         output_dir => Ok(output_dir.to_string() + "/" + filename.as_str()),
     }
+}
+
+pub(crate) fn dfs_to_files<T>(
+    dfs: &mut HashMap<T, DataFrame>,
+    filenames: &HashMap<T, String>,
+    opts: &FreezeOpts,
+) -> Result<(), FileError> where T: std::cmp::Eq, T: std::hash::Hash {
+    for (name, df) in dfs.iter_mut() {
+        let filename = match filenames.get(name) {
+            Some(filename) => filename,
+            None => return Err(FileError::NoFilePathError("no path given for dataframe".to_string())),
+        };
+        df_to_file(df, filename, opts)?
+    }
+    Ok(())
 }
 
 /// write polars dataframe to file
