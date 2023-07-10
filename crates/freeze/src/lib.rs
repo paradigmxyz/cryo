@@ -18,6 +18,5 @@ mod outputs;
 mod types;
 
 pub use chunks::ChunkAgg;
-pub use chunks::ChunkOps;
 pub use freeze::freeze;
 pub use types::*;

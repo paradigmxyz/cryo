@@ -5,7 +5,9 @@ use colored::Colorize;
 use std::time::SystemTime;
 use thousands::Separable;
 
-use cryo_freeze::ChunkAgg;
+use cryo_freeze::BlockChunk;
+use cryo_freeze::Chunk;
+use cryo_freeze::ChunkData;
 use cryo_freeze::Datatype;
 use cryo_freeze::FreezeOpts;
 use cryo_freeze::FreezeSummary;
@@ -39,25 +41,15 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     print_bullet("network", &opts.network_name);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
-    if let Some(min) = &opts.block_chunks.min_block() {
-        print_bullet("min block", min.separate_with_commas());
-    };
-    if let Some(max) = &opts.block_chunks.max_block() {
-        print_bullet("max block", max.separate_with_commas());
-    };
-    print_bullet(
-        "total blocks",
-        opts.block_chunks.total_blocks().separate_with_commas(),
-    );
-
-    if let Some(first_chunk) = opts.block_chunks.get(0) {
-        let chunk_size = first_chunk.total_blocks();
-        print_bullet("block chunk size", chunk_size.separate_with_commas());
-    };
-    print_bullet(
-        "total block chunks",
-        opts.block_chunks.len().separate_with_commas(),
-    );
+    let block_chunks = opts
+        .chunks
+        .iter()
+        .filter_map(|x| match x.clone() {
+            Chunk::Block(chunk) => Some(chunk),
+            _ => None,
+        })
+        .collect();
+    print_block_chunks(block_chunks);
     print_bullet(
         "max concurrent chunks",
         opts.max_concurrent_chunks.separate_with_commas(),
@@ -76,6 +68,22 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     print_bullet("binary column format", opts.binary_column_format.as_str());
     print_bullet("output dir", &opts.output_dir);
     print_schemas(&opts.schemas);
+}
+
+fn print_block_chunks(chunks: Vec<BlockChunk>) {
+    if let Some(min) = chunks.min_value() {
+        print_bullet("min block", min.separate_with_commas());
+    };
+    if let Some(max) = chunks.max_value() {
+        print_bullet("max block", max.separate_with_commas());
+    };
+    print_bullet("total blocks", chunks.size().separate_with_commas());
+
+    if let Some(first_chunk) = chunks.get(0) {
+        let chunk_size = first_chunk.size();
+        print_bullet("block chunk size", chunk_size.separate_with_commas());
+    };
+    print_bullet("total block chunks", chunks.len().separate_with_commas());
 }
 
 fn print_schemas(schemas: &HashMap<Datatype, Table>) {
@@ -149,7 +157,15 @@ pub(crate) fn print_cryo_conclusion(
                 .to_string()
                 .as_str(),
     );
-    let n_chunks = opts.block_chunks.len();
+    let block_chunks: Vec<BlockChunk> = opts
+        .chunks
+        .iter()
+        .filter_map(|x| match x {
+            Chunk::Block(chunk) => Some(chunk.clone()),
+            _ => None,
+        })
+        .collect();
+    let n_chunks = block_chunks.len();
     print_bullet(
         "chunks skipped",
         freeze_summary.n_skipped.separate_with_commas(),
@@ -162,10 +178,9 @@ pub(crate) fn print_cryo_conclusion(
             n_chunks
         ),
     );
-    // let total_blocks = cryo_freeze::get_total_blocks(&opts.block_chunks) as f64;
-    let total_blocks = opts.block_chunks.total_blocks() as f64;
+    let total_blocks = block_chunks.size() as f64;
     let blocks_completed =
-        total_blocks * (freeze_summary.n_completed as f64 / opts.block_chunks.len() as f64);
+        total_blocks * (freeze_summary.n_completed as f64 / block_chunks.len() as f64);
     print_bullet("blocks collected", blocks_completed.separate_with_commas());
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let blocks_per_second = blocks_completed / total_time;

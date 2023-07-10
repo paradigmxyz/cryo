@@ -12,18 +12,19 @@ use crate::types::MultiDataset;
 
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
-    fn datatypes(&self) -> HashSet<Datatype> {
-        [
-            Datatype::Blocks,
-            Datatype::Transactions,
-        ]
-        .into_iter()
-        .collect()
+    fn name(&self) -> &'static str {
+        "blocks_and_transactions"
     }
 
-    async fn collect_chunk(
+    fn datatypes(&self) -> HashSet<Datatype> {
+        [Datatype::Blocks, Datatype::Transactions]
+            .into_iter()
+            .collect()
+    }
+
+    async fn collect_block_chunk(
         &self,
-        _block_chunk: &BlockChunk,
+        _chunk: &BlockChunk,
         _opts: &FreezeOpts,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         panic!()

@@ -1,5 +1,7 @@
 /// type specifications for cryo_freeze crate
 
+/// type specifications for chunk types
+pub mod chunk_types;
 /// type specifications for cli types
 pub mod cli_types;
 /// conversion operations
@@ -17,6 +19,11 @@ pub mod output_types;
 /// type specifications for data schemas
 pub mod schema_types;
 
+pub use chunk_types::AddressChunk;
+pub use chunk_types::BlockChunk;
+pub use chunk_types::Chunk;
+pub use chunk_types::ChunkData;
+pub use chunk_types::TransactionChunk;
 pub use cli_types::FreezeChunkSummary;
 pub use cli_types::FreezeOpts;
 pub use cli_types::FreezeSummary;
@@ -27,7 +34,6 @@ pub use data_types::*;
 pub use external_types::RateLimiter;
 pub use fetch_types::FetchOpts;
 pub use fetch_types::LogOpts;
-pub use output_types::BlockChunk;
 pub use output_types::ColumnEncoding;
 pub use output_types::FileFormat;
 pub use schema_types::ColumnType;
