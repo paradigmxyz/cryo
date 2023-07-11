@@ -6,7 +6,7 @@ use futures::future::join_all;
 use indicatif::ProgressBar;
 use tokio::sync::Semaphore;
 
-use crate::outputs;
+use crate::types::dataframes;
 use crate::types::Chunk;
 use crate::types::Datatype;
 use crate::types::FreezeChunkSummary;
@@ -125,7 +125,7 @@ async fn freeze_datatype_chunk(
     };
 
     // write data
-    if let Err(_e) = outputs::df_to_file(&mut df, &path, &opts) {
+    if let Err(_e) = dataframes::df_to_file(&mut df, &path, &opts) {
         return FreezeChunkSummary::error();
     }
 
@@ -166,7 +166,7 @@ async fn freeze_multi_datatype_chunk(
     };
 
     // write data
-    if let Err(_e) = outputs::dfs_to_files(&mut dfs, &paths, &opts) {
+    if let Err(_e) = dataframes::dfs_to_files(&mut dfs, &paths, &opts) {
         return FreezeChunkSummary::error();
     }
 
