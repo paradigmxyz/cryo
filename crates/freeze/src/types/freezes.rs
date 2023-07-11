@@ -127,7 +127,7 @@ impl FreezeChunkSummary {
     pub(crate) fn success() -> FreezeChunkSummary {
         FreezeChunkSummary {
             skipped: false,
-            errored: true,
+            errored: false,
         }
     }
 
