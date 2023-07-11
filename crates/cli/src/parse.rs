@@ -14,13 +14,13 @@ use std::num::NonZeroU32;
 
 use cryo_freeze::BlockChunk;
 use cryo_freeze::Chunk;
-use cryo_freeze::ChunkAgg;
 use cryo_freeze::ChunkData;
 use cryo_freeze::ColumnEncoding;
 use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
 use cryo_freeze::FreezeOpts;
 use cryo_freeze::LogOpts;
+use cryo_freeze::Subchunk;
 use cryo_freeze::Table;
 
 use crate::args::Args;

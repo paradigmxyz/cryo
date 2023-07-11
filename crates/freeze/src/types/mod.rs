@@ -1,44 +1,46 @@
 /// type specifications for cryo_freeze crate
 
 /// type specifications for chunk types
-pub mod chunk_types;
-/// type specifications for cli types
-pub mod cli_types;
+pub mod chunks;
+/// type specifications for fetching data
+pub mod collects;
 /// conversion operations
 pub mod conversions;
 /// type specifications for collectable types
-pub mod data_types;
+pub mod datatypes;
 /// error specifications
-pub mod error_types;
+pub mod errors;
 /// type specifications for cli types
-pub mod external_types;
-/// type specifications for fetching data
-pub mod fetch_types;
+pub mod external;
 /// type specifications for output data formats
-pub mod output_types;
+pub mod files;
+/// type specifications for cli types
+pub mod freezes;
 /// type specifications for data schemas
-pub mod schema_types;
+pub mod schemas;
 
-pub use chunk_types::AddressChunk;
-pub use chunk_types::BlockChunk;
-pub use chunk_types::Chunk;
-pub use chunk_types::ChunkData;
-pub use chunk_types::TransactionChunk;
-pub use cli_types::FreezeChunkSummary;
-pub use cli_types::FreezeOpts;
-pub use cli_types::FreezeSummary;
-pub(crate) use cli_types::FreezeSummaryAgg;
+pub use chunks::AddressChunk;
+pub use chunks::BlockChunk;
+pub use chunks::Chunk;
+pub use chunks::ChunkData;
+pub use chunks::Subchunk;
+pub use chunks::TransactionChunk;
+pub use collects::FetchOpts;
+pub use collects::LogOpts;
 pub use conversions::ToVecHex;
 pub use conversions::ToVecU8;
-pub use data_types::*;
-pub use external_types::RateLimiter;
-pub use fetch_types::FetchOpts;
-pub use fetch_types::LogOpts;
-pub use output_types::ColumnEncoding;
-pub use output_types::FileFormat;
-pub use schema_types::ColumnType;
-pub use schema_types::Table;
+pub use datatypes::*;
+pub use external::RateLimiter;
+pub use files::ColumnEncoding;
+pub use files::FileFormat;
+pub use freezes::FreezeChunkSummary;
+pub use freezes::FreezeOpts;
+pub use freezes::FreezeSummary;
+pub(crate) use freezes::FreezeSummaryAgg;
+pub use schemas::ColumnType;
+pub use schemas::Table;
 
-pub use error_types::CollectError;
-pub use error_types::FileError;
-pub use error_types::FreezeError;
+pub use errors::ChunkError;
+pub use errors::CollectError;
+pub use errors::FileError;
+pub use errors::FreezeError;

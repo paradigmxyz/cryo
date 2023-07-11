@@ -167,6 +167,10 @@ pub(crate) fn print_cryo_conclusion(
         .collect();
     let n_chunks = block_chunks.len();
     print_bullet(
+        "chunks errored",
+        freeze_summary.n_errored.separate_with_commas(),
+    );
+    print_bullet(
         "chunks skipped",
         freeze_summary.n_skipped.separate_with_commas(),
     );
