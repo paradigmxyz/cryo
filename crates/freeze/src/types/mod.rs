@@ -8,6 +8,11 @@ pub mod collects;
 pub mod conversions;
 /// type specifications for collectable types
 pub mod datatypes;
+
+/// type specifications for dataframes
+#[macro_use]
+pub mod dataframes;
+
 /// error specifications
 pub mod errors;
 /// type specifications for cli types
