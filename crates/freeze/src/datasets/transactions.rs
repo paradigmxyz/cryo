@@ -88,4 +88,3 @@ impl Dataset for Transactions {
         }
     }
 }
-

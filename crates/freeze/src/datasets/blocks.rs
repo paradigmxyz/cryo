@@ -458,4 +458,3 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
             .push(tx.max_fee_per_gas.map(|value| value.as_u64()));
     }
 }
-

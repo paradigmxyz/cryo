@@ -11,9 +11,9 @@ use crate::types::BlockChunk;
 use crate::types::BlocksAndTransactions;
 use crate::types::CollectError;
 use crate::types::Datatype;
+use crate::types::FetchOpts;
 use crate::types::FreezeOpts;
 use crate::types::MultiDataset;
-use crate::types::FetchOpts;
 
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
