@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::env;
 use std::fs;
 
-use clap::Parser;
 use ethers::prelude::*;
 use eyre::Result;
 use eyre::WrapErr;
@@ -26,10 +25,7 @@ use cryo_freeze::Table;
 use crate::args::Args;
 
 /// parse options for running freeze
-pub async fn parse_opts() -> Result<FreezeOpts> {
-    // parse args
-    let args = Args::parse();
-
+pub async fn parse_opts(args: Args) -> Result<FreezeOpts> {
     // parse datatypes
     let datatypes = parse_datatypes(&args.datatype)?;
 

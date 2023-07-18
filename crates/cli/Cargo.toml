@@ -7,6 +7,10 @@ license.workspace = true
 homepage.workspace = true
 repository.workspace = true
 
+[lib]
+name = "cryo_cli"
+path = "src/lib.rs"
+
 [[bin]]
 name = "cryo"
 path = "src/main.rs"
