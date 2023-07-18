@@ -19,6 +19,8 @@ pub mod errors;
 pub mod external;
 /// type specifications for output data formats
 pub mod files;
+/// builder for FreezeOpts
+pub mod freeze_builder;
 /// type specifications for cli types
 pub mod freezes;
 /// type specifications for data schemas
@@ -38,6 +40,7 @@ pub use datatypes::*;
 pub use external::RateLimiter;
 pub use files::ColumnEncoding;
 pub use files::FileFormat;
+pub use freeze_builder::FreezeOptsBuilder;
 pub use freezes::FreezeChunkSummary;
 pub use freezes::FreezeOpts;
 pub use freezes::FreezeSummary;
