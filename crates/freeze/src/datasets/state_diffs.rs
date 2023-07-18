@@ -39,10 +39,11 @@ impl MultiDataset for StateDiffs {
 
     async fn collect_block_chunk(
         &self,
-        _block_chunk: &BlockChunk,
-        _opts: &FreezeOpts,
+        block_chunk: &BlockChunk,
+        opts: &FreezeOpts,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!()
+        let rx = fetch_state_diffs(block_chunk, &opts.chunk_fetch_opts()).await;
+        state_diffs_to_df(rx, &opts.schemas, opts.chain_id).await
     }
 }
 
