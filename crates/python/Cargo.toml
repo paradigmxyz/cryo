@@ -1,0 +1,15 @@
+[package]
+name = "cryo_python"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+[lib]
+name = "cryo"
+crate-type = ["cdylib"]
+
+[dependencies]
+cryo_cli = { version = "0.1.0", path = "../cli" }
+pyo3 = { version = "0.18.0", features = ["extension-module"] }
+pyo3-asyncio = { version = "0.18.0", features = ["tokio-runtime"] }
+tokio = "1.29.0"

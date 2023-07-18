@@ -3,6 +3,7 @@
 members = [
     "crates/cli",
     "crates/freeze",
+    "crates/python",
 ]
 
 [workspace.package]
