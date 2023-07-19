@@ -1,10 +1,7 @@
-from .cryo import *
+"""cryo is a tool to extract EVM data"""
 
-__doc__ = cryo.__doc__
-if hasattr(cryo, "__all__"):
-    __all__ = cryo.__all__
-
-
-async def freeze(*args, **kwargs):
-    return await _freeze(*args, **kwargs)
+from ._freeze import async_freeze
+from ._freeze import freeze
+from ._collect import async_collect
+from ._collect import collect
 
