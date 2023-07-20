@@ -12,11 +12,11 @@ use crate::types::ChunkData;
 use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
+use crate::types::Source;
 use crate::types::MultiDataset;
 use crate::types::StateDiffs;
 use crate::types::Table;
+use crate::types::RowFilter;
 use crate::with_series;
 use crate::with_series_binary;
 
@@ -39,21 +39,27 @@ impl MultiDataset for StateDiffs {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        let rx = fetch_state_diffs(block_chunk, &opts.chunk_fetch_opts()).await;
-        state_diffs_to_df(rx, &opts.schemas, opts.chain_id).await
+        let rx = fetch_state_diffs(chunk, source).await;
+        state_diffs_to_df(rx, &schemas, source.chain_id).await
     }
 }
 
 pub(crate) async fn collect_single(
     datatype: &Datatype,
-    block_chunk: &BlockChunk,
-    opts: &FreezeOpts,
+    chunk: &BlockChunk,
+    source: &Source,
+    schema: &Table,
+    _filter: Option<&RowFilter>,
 ) -> Result<DataFrame, CollectError> {
-    let rx = fetch_state_diffs(block_chunk, &opts.chunk_fetch_opts()).await;
-    let dfs = state_diffs_to_df(rx, &opts.schemas, opts.chain_id).await;
+    let rx = fetch_state_diffs(chunk, source).await;
+    let mut schemas: HashMap<Datatype, Table> = HashMap::new();
+    schemas.insert(*datatype, schema.clone());
+    let dfs = state_diffs_to_df(rx, &schemas, source.chain_id).await;
 
     // get single df out of result
     let df = match dfs {
@@ -64,24 +70,20 @@ pub(crate) async fn collect_single(
         Err(e) => Err(e),
     };
 
-    if let Some(schema) = &opts.schemas.get(datatype) {
-        df.sort_by_schema(schema)
-    } else {
-        df
-    }
+    df.sort_by_schema(schema)
 }
 
 pub(crate) async fn fetch_block_traces(
     block_chunk: &BlockChunk,
     trace_types: &[TraceType],
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
     let (tx, rx) = mpsc::channel(block_chunk.size() as usize);
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = opts.provider.clone();
-        let semaphore = opts.semaphore.clone();
-        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        let provider = source.provider.clone();
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         let trace_types = trace_types.to_vec();
         tokio::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
@@ -107,9 +109,9 @@ pub(crate) async fn fetch_block_traces(
 
 pub(crate) async fn fetch_state_diffs(
     block_chunk: &BlockChunk,
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
-    fetch_block_traces(block_chunk, &[TraceType::StateDiff], opts).await
+    fetch_block_traces(block_chunk, &[TraceType::StateDiff], source).await
 }
 
 async fn state_diffs_to_df(

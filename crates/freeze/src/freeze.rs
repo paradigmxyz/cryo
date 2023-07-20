@@ -116,7 +116,19 @@ async fn freeze_datatype_chunk(
     }
 
     // collect data
-    let mut df = match ds.collect_chunk(&chunk, &opts).await {
+    let schema = match opts.schemas.get(&datatype) {
+        Some(schema) => schema,
+        _ => return FreezeChunkSummary::error(),
+    };
+    let collect_output = ds
+        .collect_chunk(
+            &chunk,
+            &opts.build_source(),
+            schema,
+            opts.row_filter.as_ref(),
+        )
+        .await;
+    let mut df = match collect_output {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
             return FreezeChunkSummary::error();
@@ -157,7 +169,11 @@ async fn freeze_multi_datatype_chunk(
     }
 
     // collect data
-    let mut dfs = match mdt.multi_dataset().collect_chunk(&chunk, &opts).await {
+    let collect_result = mdt
+        .multi_dataset()
+        .collect_chunk(&chunk, &opts.build_source(), opts.schemas.clone(), HashMap::new())
+        .await;
+    let mut dfs = match collect_result {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
             return FreezeChunkSummary::error();

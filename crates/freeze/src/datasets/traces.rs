@@ -13,8 +13,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
+use crate::types::Source;
+use crate::types::RowFilter;
 use crate::types::Table;
 use crate::types::Traces;
 use crate::with_series;
@@ -90,25 +90,27 @@ impl Dataset for Traces {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_traces(block_chunk, &opts.chunk_fetch_opts()).await;
-        traces_to_df(rx, &opts.schemas[&Datatype::Traces], opts.chain_id).await
+        let rx = fetch_traces(chunk, source).await;
+        traces_to_df(rx, &schema, source.chain_id).await
     }
 }
 
 async fn fetch_traces(
     block_chunk: &BlockChunk,
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = opts.provider.clone();
-        let semaphore = opts.semaphore.clone();
-        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        let provider = source.provider.clone();
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
             if let Some(limiter) = rate_limiter {

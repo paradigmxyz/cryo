@@ -9,8 +9,8 @@ use crate::types::Chunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
 use crate::types::FileFormat;
-use crate::types::LogOpts;
 use crate::types::RateLimiter;
+use crate::types::RowFilter;
 use crate::types::Table;
 
 /// Builder struct for FreezeOpts
@@ -33,7 +33,8 @@ pub struct FreezeOptsBuilder {
     row_group_size: Option<usize>,
     parquet_statistics: Option<bool>,
     parquet_compression: Option<ParquetCompression>,
-    log_opts: Option<LogOpts>,
+    row_filter: Option<RowFilter>,
+    inner_request_size: Option<u64>,
 }
 
 impl Default for FreezeOptsBuilder {
@@ -64,7 +65,8 @@ impl FreezeOptsBuilder {
             row_group_size: None,
             parquet_statistics: None,
             parquet_compression: None,
-            log_opts: None,
+            row_filter: None,
+            inner_request_size: None,
         }
     }
 
@@ -176,9 +178,15 @@ impl FreezeOptsBuilder {
         self
     }
 
-    /// log_opts field of FreezeOptsBuilder
-    pub fn log_opts(&mut self, log_opts: LogOpts) -> &mut Self {
-        self.log_opts = Some(log_opts);
+    /// row_filter field of FreezeOptsBuilder
+    pub fn row_filter(&mut self, row_filter: RowFilter) -> &mut Self {
+        self.row_filter = Some(row_filter);
+        self
+    }
+
+    /// inner_request_size field of FreezeOptsBuilder
+    pub fn inner_request_size(&mut self, inner_request_size: u64) -> &mut Self {
+        self.inner_request_size = Some(inner_request_size);
         self
     }
 
@@ -203,7 +211,8 @@ impl FreezeOptsBuilder {
             row_group_size,
             Some(parquet_statistics),
             Some(parquet_compression),
-            Some(log_opts),
+            Some(row_filter),
+            Some(inner_request_size),
         ) = (
             self.datatypes,
             self.chunks,
@@ -223,7 +232,8 @@ impl FreezeOptsBuilder {
             self.row_group_size,
             self.parquet_statistics,
             self.parquet_compression,
-            self.log_opts,
+            self.row_filter,
+            self.inner_request_size,
         ) {
             Ok(FreezeOpts {
                 datatypes,
@@ -244,7 +254,8 @@ impl FreezeOptsBuilder {
                 row_group_size,
                 parquet_statistics,
                 parquet_compression,
-                log_opts,
+                row_filter: Some(row_filter),
+                inner_request_size,
             })
         } else {
             Err("All fields need to be set")

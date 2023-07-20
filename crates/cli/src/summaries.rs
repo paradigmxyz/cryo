@@ -60,8 +60,8 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     );
     if opts.datatypes.contains(&Datatype::Logs) {
         print_bullet(
-            "log request size",
-            opts.log_opts.log_request_size.to_string(),
+            "inner request size",
+            opts.inner_request_size.to_string(),
         );
     };
     print_bullet("output format", opts.output_format.as_str());

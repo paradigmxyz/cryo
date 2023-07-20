@@ -176,7 +176,7 @@ pub struct Args {
         default_value_t = 1,
         help_heading = "Dataset-specific Options"
     )]
-    pub log_request_size: u64,
+    pub inner_request_size: u64,
 }
 
 pub(crate) fn get_styles() -> clap::builder::Styles {

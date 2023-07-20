@@ -12,8 +12,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
 use crate::types::Table;
 use crate::types::ToVecU8;
 use crate::types::VmTraces;
@@ -68,19 +68,21 @@ impl Dataset for VmTraces {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_vm_traces(block_chunk, &opts.chunk_fetch_opts()).await;
-        vm_traces_to_df(rx, &opts.schemas[&Datatype::VmTraces], opts.chain_id).await
+        let rx = fetch_vm_traces(chunk, source).await;
+        vm_traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
 async fn fetch_vm_traces(
     block_chunk: &BlockChunk,
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
-    state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], opts).await
+    state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], source).await
 }
 
 struct VmTraceColumns {

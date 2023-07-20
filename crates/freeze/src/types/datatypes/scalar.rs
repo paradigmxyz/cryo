@@ -8,7 +8,9 @@ use crate::types::BlockChunk;
 use crate::types::Chunk;
 use crate::types::CollectError;
 use crate::types::ColumnType;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
+use crate::types::Table;
 use crate::types::TransactionChunk;
 
 /// Balance Diffs Dataset
@@ -73,6 +75,8 @@ impl Datatype {
 /// Dataset manages collection and management of a particular datatype
 #[async_trait::async_trait]
 pub trait Dataset: Sync + Send {
+    // type CollectOpts;
+
     /// Datatype enum corresponding to Dataset
     fn datatype(&self) -> Datatype;
 
@@ -92,12 +96,23 @@ pub trait Dataset: Sync + Send {
     async fn collect_chunk(
         &self,
         chunk: &Chunk,
-        opts: &FreezeOpts,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         match chunk {
-            Chunk::Block(chunk) => self.collect_block_chunk(chunk, opts).await,
-            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, opts).await,
-            Chunk::Address(chunk) => self.collect_address_chunk(chunk, opts).await,
+            Chunk::Block(chunk) => {
+                self.collect_block_chunk(chunk, source, schema, filter)
+                    .await
+            }
+            Chunk::Transaction(chunk) => {
+                self.collect_transaction_chunk(chunk, source, schema, filter)
+                    .await
+            }
+            Chunk::Address(chunk) => {
+                self.collect_address_chunk(chunk, source, schema, filter)
+                    .await
+            }
         }
     }
 
@@ -105,7 +120,9 @@ pub trait Dataset: Sync + Send {
     async fn collect_block_chunk(
         &self,
         _chunk: &BlockChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         panic!("block_chunk collection not implemented for {}", self.name())
     }
@@ -114,7 +131,9 @@ pub trait Dataset: Sync + Send {
     async fn collect_transaction_chunk(
         &self,
         _chunk: &TransactionChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         panic!(
             "transaction_chunk collection not implemented for {}",
@@ -126,7 +145,9 @@ pub trait Dataset: Sync + Send {
     async fn collect_address_chunk(
         &self,
         _chunk: &AddressChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         panic!(
             "transaction_chunk collection not implemented for {}",

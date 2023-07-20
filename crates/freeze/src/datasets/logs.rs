@@ -13,11 +13,10 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
-use crate::types::LogOpts;
+use crate::types::Source;
 use crate::types::Logs;
 use crate::types::Table;
+use crate::types::RowFilter;
 use crate::with_series;
 use crate::with_series_binary;
 
@@ -68,30 +67,39 @@ impl Dataset for Logs {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_logs(block_chunk, &opts.log_opts, &opts.chunk_fetch_opts()).await;
-        logs_to_df(rx, &opts.schemas[&Datatype::Logs], opts.chain_id).await
+        let rx = fetch_logs(chunk, source, filter).await;
+        logs_to_df(rx, &schema, source.chain_id).await
     }
 }
 
 async fn fetch_logs(
     block_chunk: &BlockChunk,
-    log_opts: &LogOpts,
-    opts: &FetchOpts,
+    source: &Source,
+    filter: Option<&RowFilter>,
 ) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
-    let request_chunks = block_chunk.to_log_filter_options(&log_opts.log_request_size);
+    let request_chunks = block_chunk.to_log_filter_options(&source.inner_request_size);
     let (tx, rx) = mpsc::channel(request_chunks.len());
     for request_chunk in request_chunks.iter() {
         let tx = tx.clone();
-        let provider = opts.provider.clone();
-        let semaphore = opts.semaphore.clone();
-        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
-        let filter = Filter {
-            block_option: *request_chunk,
-            address: log_opts.address.clone(),
-            topics: log_opts.topics.clone(),
+        let provider = source.provider.clone();
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let log_filter = match filter {
+            Some(filter) => Filter {
+                block_option: *request_chunk,
+                address: filter.address.clone(),
+                topics: filter.topics.clone(),
+            },
+            None => Filter {
+                block_option: *request_chunk,
+                address: None,
+                topics: [None, None, None, None],
+            },
         };
         task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
@@ -99,7 +107,7 @@ async fn fetch_logs(
                 Arc::clone(&limiter).until_ready().await;
             }
             let result = provider
-                .get_logs(&filter)
+                .get_logs(&log_filter)
                 .await
                 .map_err(CollectError::ProviderError);
             match tx.send(result).await {

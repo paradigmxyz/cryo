@@ -11,8 +11,9 @@ use crate::types::BlockChunk;
 use crate::types::BlocksAndTransactions;
 use crate::types::CollectError;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
+use crate::types::Table;
 use crate::types::MultiDataset;
 
 #[async_trait::async_trait]
@@ -30,14 +31,16 @@ impl MultiDataset for BlocksAndTransactions {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        source: &Source,
+        schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        let rx = fetch_blocks_and_transactions(chunk, &opts.chunk_fetch_opts()).await;
+        let rx = fetch_blocks_and_transactions(chunk, &source).await;
         let output = blocks::blocks_to_dfs(
             rx,
-            &opts.schemas.get(&Datatype::Blocks),
-            &opts.schemas.get(&Datatype::Transactions),
-            opts.chain_id,
+            &schemas.get(&Datatype::Blocks),
+            &schemas.get(&Datatype::Transactions),
+            source.chain_id,
         )
         .await;
         match output {
@@ -55,15 +58,15 @@ impl MultiDataset for BlocksAndTransactions {
 
 pub(crate) async fn fetch_blocks_and_transactions(
     block_chunk: &BlockChunk,
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<Result<Option<Block<Transaction>>, CollectError>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = opts.provider.clone();
-        let semaphore = opts.semaphore.clone();
-        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        let provider = source.provider.clone();
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
             if let Some(limiter) = rate_limiter {

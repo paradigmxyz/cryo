@@ -9,7 +9,9 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
+use crate::types::Table;
 
 #[async_trait::async_trait]
 impl Dataset for CodeDiffs {
@@ -50,9 +52,11 @@ impl Dataset for CodeDiffs {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        state_diffs::collect_single(&Datatype::CodeDiffs, block_chunk, opts).await
+        state_diffs::collect_single(&Datatype::CodeDiffs, chunk, source, schema, filter).await
     }
 }

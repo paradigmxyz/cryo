@@ -7,10 +7,10 @@ use polars::prelude::*;
 use crate::types::Chunk;
 use crate::types::ColumnEncoding;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
+use crate::types::Source;
 use crate::types::FileFormat;
-use crate::types::LogOpts;
 use crate::types::RateLimiter;
+use crate::types::RowFilter;
 use crate::types::Table;
 
 /// Options controling the behavior of a freeze operation
@@ -58,21 +58,26 @@ pub struct FreezeOpts {
     pub parquet_compression: ParquetCompression,
     // dataset-specific options
     // pub gas_used: bool,
-    /// Options for collecting logs
-    pub log_opts: LogOpts,
+    // /// Options for collecting logs
+    // pub log_opts: LogOpts,
+    /// Row filter
+    pub row_filter: Option<RowFilter>,
+    /// Inner request size
+    pub inner_request_size: u64,
 }
 
 impl FreezeOpts {
-    /// create FetchOpts for an individual chunk
-    pub fn chunk_fetch_opts(&self) -> FetchOpts {
+    /// create Source for an individual chunk
+    pub fn build_source(&self) -> Source {
         let sem = Arc::new(tokio::sync::Semaphore::new(
             self.max_concurrent_blocks as usize,
         ));
-        FetchOpts {
-            // provider: self.provider.clone(),
+        Source {
             provider: Arc::clone(&self.provider),
             rate_limiter: self.rate_limiter.as_ref().map(Arc::clone),
             semaphore: sem,
+            chain_id: self.chain_id,
+            inner_request_size: self.inner_request_size,
         }
     }
 }

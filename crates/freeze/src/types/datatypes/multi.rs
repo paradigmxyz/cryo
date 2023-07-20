@@ -10,8 +10,10 @@ use crate::types::Chunk;
 use crate::types::CollectError;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
 use crate::types::TransactionChunk;
+use crate::types::Table;
 
 /// Blocks and Transactions datasets
 pub struct BlocksAndTransactions;
@@ -68,12 +70,14 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_chunk(
         &self,
         chunk: &Chunk,
-        opts: &FreezeOpts,
+        source: &Source,
+        schemas: HashMap<Datatype, Table>,
+        filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         match chunk {
-            Chunk::Block(chunk) => self.collect_block_chunk(chunk, opts).await,
-            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, opts).await,
-            Chunk::Address(chunk) => self.collect_address_chunk(chunk, opts).await,
+            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schemas, filter).await,
+            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, source, schemas, filter).await,
+            Chunk::Address(chunk) => self.collect_address_chunk(chunk, source, schemas, filter).await,
         }
     }
 
@@ -81,7 +85,9 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_block_chunk(
         &self,
         _chunk: &BlockChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         panic!("block_chunk collection not implemented for {}", self.name())
     }
@@ -90,7 +96,9 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_transaction_chunk(
         &self,
         _chunk: &TransactionChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         panic!(
             "transaction_chunk collection not implemented for {}",
@@ -102,7 +110,9 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_address_chunk(
         &self,
         _chunk: &AddressChunk,
-        _opts: &FreezeOpts,
+        _source: &Source,
+        _schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         panic!(
             "transaction_chunk collection not implemented for {}",

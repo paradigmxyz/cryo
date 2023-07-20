@@ -9,7 +9,9 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
+use crate::types::Table;
 use crate::types::Transactions;
 
 #[async_trait::async_trait]
@@ -69,18 +71,12 @@ impl Dataset for Transactions {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        source: &Source,
+        schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx =
-            blocks_and_transactions::fetch_blocks_and_transactions(chunk, &opts.chunk_fetch_opts())
-                .await;
-        let output = blocks::blocks_to_dfs(
-            rx,
-            &None,
-            &opts.schemas.get(&Datatype::Transactions),
-            opts.chain_id,
-        )
-        .await;
+        let rx = blocks_and_transactions::fetch_blocks_and_transactions(chunk, source).await;
+        let output = blocks::blocks_to_dfs(rx, &None, &Some(schema), source.chain_id).await;
         match output {
             Ok((_, Some(txs_df))) => Ok(txs_df),
             Ok((_, _)) => Err(CollectError::BadSchemaError),

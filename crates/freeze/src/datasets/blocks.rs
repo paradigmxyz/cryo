@@ -15,8 +15,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::FetchOpts;
-use crate::types::FreezeOpts;
+use crate::types::RowFilter;
+use crate::types::Source;
 use crate::types::Table;
 use crate::with_series;
 use crate::with_series_binary;
@@ -70,17 +70,13 @@ impl Dataset for Blocks {
 
     async fn collect_block_chunk(
         &self,
-        block_chunk: &BlockChunk,
-        opts: &FreezeOpts,
+        chunk: &BlockChunk,
+        source: &Source,
+        schema: &Table,
+        _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_blocks(block_chunk, &opts.chunk_fetch_opts()).await;
-        let output = blocks_to_dfs(
-            rx,
-            &opts.schemas.get(&Datatype::Blocks),
-            &None,
-            opts.chain_id,
-        )
-        .await;
+        let rx = fetch_blocks(chunk, source).await;
+        let output = blocks_to_dfs(rx, &Some(schema), &None, source.chain_id).await;
         match output {
             Ok((Some(blocks_df), _)) => Ok(blocks_df),
             Ok((None, _)) => Err(CollectError::BadSchemaError),
@@ -91,15 +87,15 @@ impl Dataset for Blocks {
 
 async fn fetch_blocks(
     block_chunk: &BlockChunk,
-    opts: &FetchOpts,
+    source: &Source,
 ) -> mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = opts.provider.clone();
-        let semaphore = opts.semaphore.clone();
-        let rate_limiter = opts.rate_limiter.as_ref().map(Arc::clone);
+        let provider = source.provider.clone();
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
             let _permit = Arc::clone(&semaphore).acquire_owned().await;
             if let Some(limiter) = rate_limiter {
