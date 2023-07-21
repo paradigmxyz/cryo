@@ -21,7 +21,6 @@ use cryo_cli::Args;
         requests_per_second = None,
         max_concurrent_requests = None,
         max_concurrent_chunks = None,
-        max_concurrent_blocks = None,
         dry = false,
         chunk_size = 1000,
         n_chunks = None,
@@ -39,7 +38,7 @@ use cryo_cli::Args;
         topic1 = None,
         topic2 = None,
         topic3 = None,
-        log_request_size = 1,
+        inner_request_size = 1,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -59,7 +58,6 @@ pub fn _freeze(
     requests_per_second: Option<u32>,
     max_concurrent_requests: Option<u64>,
     max_concurrent_chunks: Option<u64>,
-    max_concurrent_blocks: Option<u64>,
     dry: bool,
     chunk_size: u64,
     n_chunks: Option<u64>,
@@ -77,7 +75,7 @@ pub fn _freeze(
     topic1: Option<String>,
     topic2: Option<String>,
     topic3: Option<String>,
-    log_request_size: u64,
+    inner_request_size: u64,
 ) -> PyResult<&PyAny> {
     let args = Args {
         datatype,
@@ -94,7 +92,6 @@ pub fn _freeze(
         requests_per_second,
         max_concurrent_requests,
         max_concurrent_chunks,
-        max_concurrent_blocks,
         dry,
         chunk_size,
         n_chunks,
@@ -112,7 +109,7 @@ pub fn _freeze(
         topic1,
         topic2,
         topic3,
-        log_request_size,
+        inner_request_size,
     };
 
     pyo3_asyncio::tokio::future_into_py(py, async move {

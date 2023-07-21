@@ -9,17 +9,23 @@ use tokio::sync::Semaphore;
 use crate::types::dataframes;
 use crate::types::Chunk;
 use crate::types::Datatype;
+use crate::types::FileOutput;
 use crate::types::FreezeChunkSummary;
 use crate::types::FreezeError;
-use crate::types::FreezeOpts;
 use crate::types::FreezeSummary;
 use crate::types::FreezeSummaryAgg;
 use crate::types::MultiDatatype;
+use crate::types::MultiQuery;
+use crate::types::Source;
 
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
-pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
+pub async fn freeze(
+    query: &MultiQuery,
+    source: &Source,
+    sink: &FileOutput,
+) -> Result<FreezeSummary, FreezeError> {
     // create progress bar
-    let bar = Arc::new(ProgressBar::new(opts.chunks.len() as u64));
+    let bar = Arc::new(ProgressBar::new(query.chunks.len() as u64));
     bar.set_style(
         indicatif::ProgressStyle::default_bar()
             .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
@@ -27,37 +33,38 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     );
 
     // freeze chunks concurrently
-    let (datatypes, multi_datatypes) = cluster_datatypes(&opts.datatypes);
-    let sem = Arc::new(Semaphore::new(opts.max_concurrent_chunks as usize));
-    let opts = Arc::new(opts);
+    let (datatypes, multi_datatypes) = cluster_datatypes(query.schemas.keys().collect());
+    let sem = Arc::new(Semaphore::new(source.max_concurrent_chunks as usize));
+    let query = Arc::new(query.clone());
+    let source = Arc::new(source.clone());
+    let sink = Arc::new(sink.clone());
     let mut tasks: Vec<_> = vec![];
-    for chunk in opts.chunks.clone().into_iter() {
+    for chunk in query.chunks.clone().into_iter() {
         // datatypes
         for datatype in &datatypes {
-            let sem = Arc::clone(&sem);
-            let opts = Arc::clone(&opts);
-            let bar = Arc::clone(&bar);
             let task = tokio::spawn(freeze_datatype_chunk(
                 chunk.clone(),
                 *datatype,
-                sem,
-                opts,
-                bar,
+                Arc::clone(&sem),
+                Arc::clone(&query),
+                Arc::clone(&source),
+                Arc::clone(&sink),
+                Arc::clone(&bar),
             ));
             tasks.push(task)
         }
 
         // multi datatypes
         for multi_datatype in &multi_datatypes {
-            let sem = Arc::clone(&sem);
-            let opts = Arc::clone(&opts);
             let bar = Arc::clone(&bar);
             let task = tokio::spawn(freeze_multi_datatype_chunk(
                 chunk.clone(),
                 *multi_datatype,
-                sem,
-                opts,
-                bar,
+                Arc::clone(&sem),
+                Arc::clone(&query),
+                Arc::clone(&source),
+                Arc::clone(&sink),
+                Arc::clone(&bar),
             ));
             tasks.push(task)
         }
@@ -70,14 +77,14 @@ pub async fn freeze(opts: FreezeOpts) -> Result<FreezeSummary, FreezeError> {
     Ok(chunk_summaries.aggregate())
 }
 
-fn cluster_datatypes(dts: &[Datatype]) -> (Vec<Datatype>, Vec<MultiDatatype>) {
+fn cluster_datatypes(dts: Vec<&Datatype>) -> (Vec<Datatype>, Vec<MultiDatatype>) {
     let mdts: Vec<MultiDatatype> = MultiDatatype::variants()
         .iter()
         .filter(|mdt| {
             mdt.multi_dataset()
                 .datatypes()
                 .iter()
-                .all(|x| dts.contains(x))
+                .all(|x| dts.contains(&x))
         })
         .cloned()
         .collect();
@@ -88,7 +95,7 @@ fn cluster_datatypes(dts: &[Datatype]) -> (Vec<Datatype>, Vec<MultiDatatype>) {
     let other_dts = dts
         .iter()
         .filter(|dt| !mdt_dts.contains(dt))
-        .cloned()
+        .map(|x| **x)
         .collect();
     (other_dts, mdts)
 }
@@ -97,7 +104,9 @@ async fn freeze_datatype_chunk(
     chunk: Chunk,
     datatype: Datatype,
     sem: Arc<Semaphore>,
-    opts: Arc<FreezeOpts>,
+    query: Arc<MultiQuery>,
+    source: Arc<Source>,
+    sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {
     let _permit = sem.acquire().await.expect("Semaphore acquire");
@@ -105,28 +114,23 @@ async fn freeze_datatype_chunk(
     let ds = datatype.dataset();
 
     // create path
-    let path = match chunk.filepath(ds.name(), &opts) {
+    let path = match chunk.filepath(ds.name(), &sink) {
         Err(_e) => return FreezeChunkSummary::error(),
         Ok(path) => path,
     };
 
     // skip path if file already exists
-    if Path::new(&path).exists() && !opts.overwrite {
+    if Path::new(&path).exists() && !sink.overwrite {
         return FreezeChunkSummary::skip();
     }
 
     // collect data
-    let schema = match opts.schemas.get(&datatype) {
+    let schema = match query.schemas.get(&datatype) {
         Some(schema) => schema,
         _ => return FreezeChunkSummary::error(),
     };
     let collect_output = ds
-        .collect_chunk(
-            &chunk,
-            &opts.build_source(),
-            schema,
-            opts.row_filter.as_ref(),
-        )
+        .collect_chunk(&chunk, &source, schema, query.row_filters.get(&datatype))
         .await;
     let mut df = match collect_output {
         Err(_e) => {
@@ -137,7 +141,7 @@ async fn freeze_datatype_chunk(
     };
 
     // write data
-    if let Err(_e) = dataframes::df_to_file(&mut df, &path, &opts) {
+    if let Err(_e) = dataframes::df_to_file(&mut df, &path, &sink) {
         return FreezeChunkSummary::error();
     }
 
@@ -149,7 +153,9 @@ async fn freeze_multi_datatype_chunk(
     chunk: Chunk,
     mdt: MultiDatatype,
     sem: Arc<Semaphore>,
-    opts: Arc<FreezeOpts>,
+    query: Arc<MultiQuery>,
+    source: Arc<Source>,
+    sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {
     let _permit = sem.acquire().await.expect("Semaphore acquire");
@@ -157,21 +163,21 @@ async fn freeze_multi_datatype_chunk(
     // create paths
     let mut paths: HashMap<Datatype, String> = HashMap::new();
     for ds in mdt.multi_dataset().datasets().values() {
-        match chunk.filepath(ds.name(), &opts) {
+        match chunk.filepath(ds.name(), &sink) {
             Err(_e) => return FreezeChunkSummary::error(),
             Ok(path) => paths.insert(ds.datatype(), path),
         };
     }
 
     // skip path if file already exists
-    if paths.values().all(|path| Path::new(&path).exists()) && !opts.overwrite {
+    if paths.values().all(|path| Path::new(&path).exists()) && !sink.overwrite {
         return FreezeChunkSummary::skip();
     }
 
     // collect data
     let collect_result = mdt
         .multi_dataset()
-        .collect_chunk(&chunk, &opts.build_source(), opts.schemas.clone(), HashMap::new())
+        .collect_chunk(&chunk, &source, query.schemas.clone(), HashMap::new())
         .await;
     let mut dfs = match collect_result {
         Err(_e) => {
@@ -182,7 +188,7 @@ async fn freeze_multi_datatype_chunk(
     };
 
     // write data
-    if let Err(_e) = dataframes::dfs_to_files(&mut dfs, &paths, &opts) {
+    if let Err(_e) = dataframes::dfs_to_files(&mut dfs, &paths, &sink) {
         return FreezeChunkSummary::error();
     }
 

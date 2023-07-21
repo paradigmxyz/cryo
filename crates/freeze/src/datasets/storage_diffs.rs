@@ -10,8 +10,8 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::RowFilter;
 use crate::types::Source;
-use crate::types::Table;
 use crate::types::StorageDiffs;
+use crate::types::Table;
 
 #[async_trait::async_trait]
 impl Dataset for StorageDiffs {

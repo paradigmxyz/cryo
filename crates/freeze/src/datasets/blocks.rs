@@ -97,7 +97,9 @@ async fn fetch_blocks(
         let semaphore = source.semaphore.clone();
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
-            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(semaphore) = &semaphore {
+                let _permit = Arc::clone(semaphore).acquire_owned().await;
+            }
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }

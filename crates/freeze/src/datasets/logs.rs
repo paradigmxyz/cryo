@@ -13,10 +13,10 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::Source;
 use crate::types::Logs;
-use crate::types::Table;
 use crate::types::RowFilter;
+use crate::types::Source;
+use crate::types::Table;
 use crate::with_series;
 use crate::with_series_binary;
 
@@ -73,7 +73,7 @@ impl Dataset for Logs {
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_logs(chunk, source, filter).await;
-        logs_to_df(rx, &schema, source.chain_id).await
+        logs_to_df(rx, schema, source.chain_id).await
     }
 }
 
@@ -102,7 +102,9 @@ async fn fetch_logs(
             },
         };
         task::spawn(async move {
-            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(semaphore) = semaphore {
+                let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            };
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }

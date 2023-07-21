@@ -1,9 +1,19 @@
 from __future__ import annotations
 
+import typing
+
+if typing.TYPE_CHECKING:
+    from . import _spec
+
 
 async def async_freeze(
-    datatype: str,
     *args,
+    datatype: str,
+    start_block: _spec.BlockReference = 0,
+    end_block: _spec.BlockReference = 'latest',
+    hex: bool = False,
+    file_format: _spec.FileFormat = 'parquet',
+    compresion: _spec.FileCompression,
     **kwargs,
 ) -> None:
     """asynchronously collect data and save to files"""
@@ -17,9 +27,20 @@ async def async_freeze(
     else:
         raise Exception('invalid format for datatype(s)')
 
+    if file_format == 'parquet':
+        pass
+    elif file_format == 'json':
+        kwargs['json'] = True
+    elif file_format == 'csv':
+        kwargs['csv'] = True
+    elif file_format == 'avro':
+        kwargs['avro'] = True
+    else:
+        raise Exception('unknown file_format')
+
     return await _cryo_rust._freeze(
-        datatype=datatypes,
         *args,
+        datatype=datatypes,
         **kwargs,
     )
 

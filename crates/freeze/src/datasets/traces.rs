@@ -13,8 +13,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::Source;
 use crate::types::RowFilter;
+use crate::types::Source;
 use crate::types::Table;
 use crate::types::Traces;
 use crate::with_series;
@@ -96,7 +96,7 @@ impl Dataset for Traces {
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         let rx = fetch_traces(chunk, source).await;
-        traces_to_df(rx, &schema, source.chain_id).await
+        traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
@@ -112,7 +112,9 @@ async fn fetch_traces(
         let semaphore = source.semaphore.clone();
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
-            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(semaphore) = semaphore {
+                let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            };
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }

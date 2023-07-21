@@ -8,8 +8,8 @@ use crate::types::CollectError;
 use crate::types::ColumnType;
 use crate::types::Dataset;
 use crate::types::Datatype;
-use crate::types::RowFilter;
 use crate::types::NonceDiffs;
+use crate::types::RowFilter;
 use crate::types::Source;
 use crate::types::Table;
 

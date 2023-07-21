@@ -90,10 +90,6 @@ pub struct Args {
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     pub max_concurrent_chunks: Option<u64>,
 
-    /// Number blocks within a chunk processed concurrently
-    #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
-    pub max_concurrent_blocks: Option<u64>,
-
     /// Dry run, collect no data
     #[arg(short, long, help_heading = "Acquisition Options")]
     pub dry: bool,
@@ -172,7 +168,7 @@ pub struct Args {
     /// [logs] Number of blocks per log request
     #[arg(
         long,
-        value_name = "N_BLOCKS",
+        value_name = "BLOCKS",
         default_value_t = 1,
         help_heading = "Dataset-specific Options"
     )]

@@ -1,6 +1,6 @@
 use crate::ChunkError;
 use crate::FileError;
-use crate::FreezeOpts;
+use crate::FileOutput;
 
 /// Trait for common chunk methods
 pub trait ChunkData: Sized {
@@ -32,14 +32,14 @@ pub trait ChunkData: Sized {
     }
 
     /// get filepath for chunk
-    fn filepath(&self, name: &str, opts: &FreezeOpts) -> Result<String, FileError> {
-        let network_name = opts.network_name.clone();
-        let pieces: Vec<String> = match &opts.file_suffix {
+    fn filepath(&self, name: &str, file_output: &FileOutput) -> Result<String, FileError> {
+        let network_name = file_output.prefix.clone();
+        let pieces: Vec<String> = match &file_output.suffix {
             Some(suffix) => vec![network_name, name.to_string(), self.stub()?, suffix.clone()],
             None => vec![network_name, name.to_string(), self.stub()?],
         };
-        let filename = format!("{}.{}", pieces.join("__"), opts.output_format.as_str());
-        match opts.output_dir.as_str() {
+        let filename = format!("{}.{}", pieces.join("__"), file_output.format.as_str());
+        match file_output.output_dir.as_str() {
             "." => Ok(filename),
             output_dir => Ok(output_dir.to_string() + "/" + filename.as_str()),
         }

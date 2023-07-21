@@ -11,10 +11,10 @@ use crate::types::BlockChunk;
 use crate::types::BlocksAndTransactions;
 use crate::types::CollectError;
 use crate::types::Datatype;
+use crate::types::MultiDataset;
 use crate::types::RowFilter;
 use crate::types::Source;
 use crate::types::Table;
-use crate::types::MultiDataset;
 
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
@@ -35,7 +35,7 @@ impl MultiDataset for BlocksAndTransactions {
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        let rx = fetch_blocks_and_transactions(chunk, &source).await;
+        let rx = fetch_blocks_and_transactions(chunk, source).await;
         let output = blocks::blocks_to_dfs(
             rx,
             &schemas.get(&Datatype::Blocks),
@@ -68,7 +68,9 @@ pub(crate) async fn fetch_blocks_and_transactions(
         let semaphore = source.semaphore.clone();
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
-            let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            if let Some(semaphore) = semaphore {
+                let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            };
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }

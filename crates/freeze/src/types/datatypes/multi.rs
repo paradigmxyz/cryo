@@ -12,8 +12,8 @@ use crate::types::Dataset;
 use crate::types::Datatype;
 use crate::types::RowFilter;
 use crate::types::Source;
-use crate::types::TransactionChunk;
 use crate::types::Table;
+use crate::types::TransactionChunk;
 
 /// Blocks and Transactions datasets
 pub struct BlocksAndTransactions;
@@ -75,9 +75,18 @@ pub trait MultiDataset: Sync + Send {
         filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         match chunk {
-            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schemas, filter).await,
-            Chunk::Transaction(chunk) => self.collect_transaction_chunk(chunk, source, schemas, filter).await,
-            Chunk::Address(chunk) => self.collect_address_chunk(chunk, source, schemas, filter).await,
+            Chunk::Block(chunk) => {
+                self.collect_block_chunk(chunk, source, schemas, filter)
+                    .await
+            }
+            Chunk::Transaction(chunk) => {
+                self.collect_transaction_chunk(chunk, source, schemas, filter)
+                    .await
+            }
+            Chunk::Address(chunk) => {
+                self.collect_address_chunk(chunk, source, schemas, filter)
+                    .await
+            }
         }
     }
 

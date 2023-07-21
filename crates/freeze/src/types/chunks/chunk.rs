@@ -1,5 +1,5 @@
 use crate::types::FileError;
-use crate::types::FreezeOpts;
+use crate::types::FileOutput;
 
 use super::binary_chunk::BinaryChunk;
 use super::chunk_ops::ChunkData;
@@ -30,11 +30,11 @@ pub enum Chunk {
 /// Chunk methods
 impl Chunk {
     /// get filepath for chunk
-    pub fn filepath(&self, name: &str, opts: &FreezeOpts) -> Result<String, FileError> {
+    pub fn filepath(&self, name: &str, file_output: &FileOutput) -> Result<String, FileError> {
         match self {
-            Chunk::Block(chunk) => chunk.filepath(name, opts),
-            Chunk::Transaction(chunk) => chunk.filepath(name, opts),
-            Chunk::Address(chunk) => chunk.filepath(name, opts),
+            Chunk::Block(chunk) => chunk.filepath(name, file_output),
+            Chunk::Transaction(chunk) => chunk.filepath(name, file_output),
+            Chunk::Address(chunk) => chunk.filepath(name, file_output),
         }
     }
 }

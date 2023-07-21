@@ -9,8 +9,10 @@ use cryo_freeze::BlockChunk;
 use cryo_freeze::Chunk;
 use cryo_freeze::ChunkData;
 use cryo_freeze::Datatype;
-use cryo_freeze::FreezeOpts;
+use cryo_freeze::FileOutput;
 use cryo_freeze::FreezeSummary;
+use cryo_freeze::MultiQuery;
+use cryo_freeze::Source;
 use cryo_freeze::Table;
 
 const TITLE_R: u8 = 0;
@@ -34,14 +36,14 @@ fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
 }
 
-pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
+pub(crate) fn print_cryo_summary(query: &MultiQuery, source: &Source, sink: &FileOutput) {
     print_header("cryo parameters");
-    let datatype_strs: Vec<_> = opts.datatypes.iter().map(|d| d.dataset().name()).collect();
+    let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.dataset().name()).collect();
     print_bullet("datatypes", datatype_strs.join(", "));
-    print_bullet("network", &opts.network_name);
+    print_bullet("network", &sink.prefix);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
-    let block_chunks = opts
+    let block_chunks = query
         .chunks
         .iter()
         .filter_map(|x| match x.clone() {
@@ -52,22 +54,14 @@ pub(crate) fn print_cryo_summary(opts: &FreezeOpts) {
     print_block_chunks(block_chunks);
     print_bullet(
         "max concurrent chunks",
-        opts.max_concurrent_chunks.separate_with_commas(),
+        source.max_concurrent_chunks.separate_with_commas(),
     );
-    print_bullet(
-        "max concurrent blocks",
-        opts.max_concurrent_blocks.separate_with_commas(),
-    );
-    if opts.datatypes.contains(&Datatype::Logs) {
-        print_bullet(
-            "inner request size",
-            opts.inner_request_size.to_string(),
-        );
+    if query.schemas.contains_key(&Datatype::Logs) {
+        print_bullet("inner request size", source.inner_request_size.to_string());
     };
-    print_bullet("output format", opts.output_format.as_str());
-    print_bullet("binary column format", opts.binary_column_format.as_str());
-    print_bullet("output dir", &opts.output_dir);
-    print_schemas(&opts.schemas);
+    print_bullet("output format", sink.format.as_str());
+    print_bullet("output dir", &sink.output_dir);
+    print_schemas(&query.schemas);
 }
 
 fn print_block_chunks(chunks: Vec<BlockChunk>) {
@@ -126,7 +120,7 @@ pub(crate) fn print_cryo_conclusion(
     t_start: SystemTime,
     _t_parse_done: SystemTime,
     t_data_done: SystemTime,
-    opts: &FreezeOpts,
+    query: &MultiQuery,
     freeze_summary: &FreezeSummary,
 ) {
     let dt_start: DateTime<Local> = t_start.into();
@@ -157,7 +151,7 @@ pub(crate) fn print_cryo_conclusion(
                 .to_string()
                 .as_str(),
     );
-    let block_chunks: Vec<BlockChunk> = opts
+    let block_chunks: Vec<BlockChunk> = query
         .chunks
         .iter()
         .filter_map(|x| match x {
