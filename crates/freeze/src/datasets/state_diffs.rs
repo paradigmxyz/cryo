@@ -86,8 +86,9 @@ pub(crate) async fn fetch_block_traces(
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         let trace_types = trace_types.to_vec();
         tokio::spawn(async move {
-            if let Some(semaphore) = semaphore {
-                let _permit = Arc::clone(&semaphore).acquire_owned().await;
+            let _permit = match semaphore {
+                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
+                _ => None,
             };
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;

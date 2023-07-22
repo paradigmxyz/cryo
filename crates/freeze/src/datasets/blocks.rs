@@ -93,13 +93,14 @@ async fn fetch_blocks(
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = source.provider.clone();
+        let provider = Arc::clone(&source.provider);
         let semaphore = source.semaphore.clone();
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
-            if let Some(semaphore) = &semaphore {
-                let _permit = Arc::clone(semaphore).acquire_owned().await;
-            }
+            let _permit = match semaphore {
+                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
+                _ => None,
+            };
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
@@ -170,7 +171,15 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
                     }
                 }
             }
-            _ => return Err(CollectError::TooManyRequestsError),
+            // _ => return Err(CollectError::TooManyRequestsError),
+            Err(e) => {
+                println!("{:?}", e);
+                return Err(CollectError::TooManyRequestsError);
+            }
+            Ok(None) => {
+                println!("NONE");
+                return Err(CollectError::TooManyRequestsError);
+            }
         }
     }
 
