@@ -12,7 +12,7 @@ async def async_collect(
 
     from . import _cryo_rust
 
-    result = _cryo_rust._collect(*args, **kwargs)
+    result = await _cryo_rust._collect(*args, **kwargs)
 
     if output_format == 'polars':
         return result

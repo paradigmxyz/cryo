@@ -883,8 +883,11 @@ name = "cryo_python"
 version = "0.1.0"
 dependencies = [
  "cryo_cli",
+ "cryo_freeze",
+ "polars",
  "pyo3",
  "pyo3-asyncio",
+ "pyo3-polars",
  "tokio",
 ]
 
@@ -3279,6 +3282,19 @@ dependencies = [
  "proc-macro2",
  "quote",
  "syn 1.0.109",
+]
+
+[[package]]
+name = "pyo3-polars"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "34c152494a8a1cd682ca767ed49e8717e25fa3ee94123ed9a6723345b786bb0f"
+dependencies = [
+ "arrow2",
+ "polars",
+ "polars-core",
+ "pyo3",
+ "thiserror",
 ]
 
 [[package]]

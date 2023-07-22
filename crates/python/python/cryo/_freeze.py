@@ -13,7 +13,7 @@ async def async_freeze(
     end_block: _spec.BlockReference = 'latest',
     hex: bool = False,
     file_format: _spec.FileFormat = 'parquet',
-    compresion: _spec.FileCompression,
+    compresion: _spec.FileCompression = 'lz4',
     **kwargs,
 ) -> None:
     """asynchronously collect data and save to files"""
@@ -22,10 +22,20 @@ async def async_freeze(
 
     if isinstance(datatype, str):
         datatypes = [datatype]
-    elif isinstance(datatypes, list):
+    elif isinstance(datatype, list):
         datatypes = datatype
     else:
         raise Exception('invalid format for datatype(s)')
+
+    if start_block is not None and end_block is not None:
+        blocks = str(start_block) + ':' + str(end_block)
+    elif start_block is not None:
+        blocks = str(start_block) + ':'
+    elif end_block is not None:
+        blocks = ':' + str(end_block)
+    else:
+        blocks = None
+    kwargs['blocks'] = [blocks]
 
     if file_format == 'parquet':
         pass
