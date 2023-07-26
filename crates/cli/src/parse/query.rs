@@ -2,14 +2,13 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use ethers::prelude::*;
-use eyre::Result;
-use eyre::WrapErr;
 use hex::FromHex;
 
 use cryo_freeze::ColumnEncoding;
 use cryo_freeze::Datatype;
 use cryo_freeze::FileFormat;
 use cryo_freeze::MultiQuery;
+use cryo_freeze::ParseError;
 use cryo_freeze::RowFilter;
 use cryo_freeze::Table;
 
@@ -17,7 +16,10 @@ use super::blocks;
 use super::file_output;
 use crate::args::Args;
 
-pub(crate) async fn parse_query(args: &Args, provider: Arc<Provider<Http>>) -> Result<MultiQuery> {
+pub(crate) async fn parse_query(
+    args: &Args,
+    provider: Arc<Provider<Http>>,
+) -> Result<MultiQuery, ParseError> {
     let chunks = blocks::parse_blocks(args, provider).await?;
 
     // process schemas
@@ -46,7 +48,7 @@ pub(crate) async fn parse_query(args: &Args, provider: Arc<Provider<Http>>) -> R
     Ok(query)
 }
 
-fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>> {
+fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError> {
     let mut datatypes = Vec::new();
 
     for raw_input in raw_inputs {
@@ -71,7 +73,12 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>> {
                     "traces" => Datatype::Traces,
                     "vm_traces" => Datatype::VmTraces,
                     "opcode_traces" => Datatype::VmTraces,
-                    _ => return Err(eyre::eyre!("invalid datatype {}", datatype)),
+                    _ => {
+                        return Err(ParseError::ParseError(format!(
+                            "invalid datatype {}",
+                            datatype
+                        )))
+                    }
                 };
                 datatypes.push(datatype)
             }
@@ -80,7 +87,7 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>> {
     Ok(datatypes)
 }
 
-fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>> {
+fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
     let datatypes = parse_datatypes(&args.datatype)?;
     let output_format = file_output::parse_output_format(args)?;
     let binary_column_format = match args.hex | (output_format != FileFormat::Parquet) {
@@ -89,7 +96,7 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>> {
     };
 
     let sort = parse_sort(&args.sort, &datatypes)?;
-    let schemas: Result<HashMap<Datatype, Table>, eyre::Report> = datatypes
+    let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
         .map(|datatype| {
             datatype
@@ -101,7 +108,11 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>> {
                     sort[datatype].clone(),
                 )
                 .map(|schema| (*datatype, schema))
-                .wrap_err_with(|| format!("Failed to get schema for datatype: {:?}", datatype))
+                .map_err(|_e| {
+                    ParseError::ParseError(
+                        format!("Failed to get schema for datatype: {:?}", datatype),
+                    )
+                })
         })
         .collect();
     schemas
@@ -110,7 +121,7 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>> {
 fn parse_sort(
     raw_sort: &Option<Vec<String>>,
     datatypes: &Vec<Datatype>,
-) -> Result<HashMap<Datatype, Option<Vec<String>>>, eyre::Report> {
+) -> Result<HashMap<Datatype, Option<Vec<String>>>, ParseError> {
     match raw_sort {
         None => Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
             (*datatype, Some(datatype.dataset().default_sort()))
@@ -121,17 +132,17 @@ fn parse_sort(
                     datatypes.iter().map(|datatype| (*datatype, None)),
                 ))
             } else if raw_sort.is_empty() {
-                Err(eyre::eyre!(
-                    "must specify columns to sort by, use `none` to disable sorting"
+                Err(ParseError::ParseError(
+                    "must specify columns to sort by, use `none` to disable sorting".to_string(),
                 ))
             } else if datatypes.len() > 1 {
-                Err(eyre::eyre!(
-                    "custom sort not supported for multiple datasets"
+                Err(ParseError::ParseError(
+                    "custom sort not supported for multiple datasets".to_string(),
                 ))
             } else {
                 match datatypes.iter().next() {
                     Some(datatype) => Ok(HashMap::from_iter([(*datatype, Some(raw_sort.clone()))])),
-                    None => Err(eyre::eyre!("schemas map is empty")),
+                    None => Err(ParseError::ParseError("schemas map is empty".to_string())),
                 }
             }
         }

@@ -1,21 +1,23 @@
-use eyre::Result;
 use std::time::SystemTime;
 
 use crate::args;
 use crate::parse;
 use crate::summaries;
+use cryo_freeze::FreezeSummary;
+use cryo_freeze::FreezeError;
 
 /// run freeze for given Args
-pub async fn run(args: args::Args) -> Result<()> {
+pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError> {
     let t_start = SystemTime::now();
     let (query, source, sink) = match parse::parse_opts(&args).await {
         Ok(opts) => opts,
-        Err(e) => return Err(e),
+        Err(e) => return Err(e.into()),
     };
     let t_parse_done = SystemTime::now();
     summaries::print_cryo_summary(&query, &source, &sink);
-    if args.dry {
+    let summary = if args.dry {
         println!("\n\n[dry run, exiting]");
+        None
     } else {
         summaries::print_header("\n\ncollecting data");
         match cryo_freeze::freeze(&query, &source, &sink).await {
@@ -29,11 +31,13 @@ pub async fn run(args: args::Args) -> Result<()> {
                     &query,
                     &freeze_summary,
                 );
+                Some(freeze_summary)
             }
             Err(e) => {
-                println!("{}", e)
+                println!("{}", e);
+                return Err(e);
             }
         }
     };
-    Ok(())
+    Ok(summary)
 }

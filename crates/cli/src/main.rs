@@ -13,5 +13,9 @@ use eyre::Result;
 #[tokio::main]
 async fn main() -> Result<()> {
     let args = Args::parse();
-    run::run(args).await
+    match run::run(args).await {
+        Ok(Some(_freeze_summary)) => { Ok(()) },
+        Ok(None) => { Ok(()) },
+        Err(e) => Err(eyre::Report::from(e)),
+    }
 }

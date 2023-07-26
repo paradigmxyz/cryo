@@ -1,21 +1,26 @@
 use std::env;
 
 use ethers::prelude::*;
-use eyre::Result;
 use governor::Quota;
 use governor::RateLimiter;
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
+use cryo_freeze::ParseError;
 use cryo_freeze::Source;
 
 use crate::args::Args;
 
-pub(crate) async fn parse_source(args: &Args) -> Result<Source> {
+pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args);
-    let provider = Provider::<Http>::try_from(rpc_url)?;
-    let chain_id = provider.get_chainid().await?.as_u64();
+    let provider = Provider::<Http>::try_from(rpc_url)
+        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
+    let chain_id = provider
+        .get_chainid()
+        .await
+        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?
+        .as_u64();
 
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match NonZeroU32::new(rate_limit) {
