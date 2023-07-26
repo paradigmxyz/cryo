@@ -179,9 +179,7 @@ async fn logs_to_df(
                                 topic2.push(Some(log.topics[2].as_bytes().to_vec()));
                                 topic3.push(Some(log.topics[3].as_bytes().to_vec()));
                             }
-                            _ => {
-                                return Err(CollectError::InvalidNumberOfTopics)
-                            }
+                            _ => return Err(CollectError::InvalidNumberOfTopics),
                         }
                         data.push(log.data.clone().to_vec());
                         block_number.push(bn.as_u32());
