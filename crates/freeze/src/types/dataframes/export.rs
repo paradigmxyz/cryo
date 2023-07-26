@@ -2,8 +2,7 @@ use std::collections::HashMap;
 
 use polars::prelude::*;
 
-use crate::types::FileError;
-use crate::types::FileOutput;
+use crate::types::{FileError, FileOutput};
 
 pub(crate) fn dfs_to_files<T>(
     dfs: &mut HashMap<T, DataFrame>,
@@ -18,9 +17,7 @@ where
         let filename = match filenames.get(name) {
             Some(filename) => filename,
             None => {
-                return Err(FileError::NoFilePathError(
-                    "no path given for dataframe".to_string(),
-                ))
+                return Err(FileError::NoFilePathError("no path given for dataframe".to_string()))
             }
         };
         df_to_file(df, filename, file_output)?
@@ -79,9 +76,7 @@ fn df_to_csv(df: &mut DataFrame, filename: &str) -> Result<(), FileError> {
 /// write polars dataframe to json file
 fn df_to_json(df: &mut DataFrame, filename: &str) -> Result<(), FileError> {
     let file = std::fs::File::create(filename).map_err(|_e| FileError::FileWriteError)?;
-    let result = JsonWriter::new(file)
-        .with_json_format(JsonFormat::Json)
-        .finish(df);
+    let result = JsonWriter::new(file).with_json_format(JsonFormat::Json).finish(df);
     match result {
         Err(_e) => Err(FileError::FileWriteError),
         _ => Ok(()),

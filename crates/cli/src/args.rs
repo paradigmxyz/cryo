@@ -40,8 +40,8 @@ pub struct Args {
     //     long,
     //     allow_hyphen_values(true),
     //     help_heading = "Content Options",
-    //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see syntax below",
-    // )]
+    //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see
+    // syntax below", )]
     // pub txs: Vec<String>,
     /// Columns to include alongside the default output,
     /// use `all` to include all available columns
@@ -74,12 +74,7 @@ pub struct Args {
     pub network_name: Option<String>,
 
     /// Ratelimit on requests per second
-    #[arg(
-        short('l'),
-        long,
-        value_name = "limit",
-        help_heading = "Acquisition Options"
-    )]
+    #[arg(short('l'), long, value_name = "limit", help_heading = "Acquisition Options")]
     pub requests_per_second: Option<u32>,
 
     /// Global number of concurrent requests
@@ -146,11 +141,7 @@ pub struct Args {
     pub contract: Option<String>,
 
     /// [logs] filter logs by topic0
-    #[arg(
-        long,
-        visible_alias = "event",
-        help_heading = "Dataset-specific Options"
-    )]
+    #[arg(long, visible_alias = "event", help_heading = "Dataset-specific Options")]
     pub topic0: Option<String>,
 
     /// [logs] filter logs by topic1

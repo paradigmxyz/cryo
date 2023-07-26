@@ -1,24 +1,17 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
-use crate::types::Traces;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter,
+        Source, Table, Traces,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Traces {
@@ -82,10 +75,7 @@ impl Dataset for Traces {
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec![
-            "block_number".to_string(),
-            "transaction_position".to_string(),
-        ]
+        vec!["block_number".to_string(), "transaction_position".to_string()]
     }
 
     async fn collect_block_chunk(
@@ -227,7 +217,8 @@ async fn traces_to_df(
                         // value: value,
                         // gas: gas,
                         // input: input,
-                        // call_type: action_call_type, [None, Call, CallCode, DelegateCall, StaticCall]
+                        // call_type: action_call_type, [None, Call, CallCode, DelegateCall,
+                        // StaticCall]
                         //
                         // Create
                         // from: from,
@@ -469,7 +460,5 @@ async fn traces_to_df(
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
-    DataFrame::new(cols)
-        .map_err(CollectError::PolarsError)
-        .sort_by_schema(schema)
+    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }

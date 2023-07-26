@@ -1,19 +1,12 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use async_trait;
 use polars::prelude::*;
 
-use crate::types::AddressChunk;
-use crate::types::BlockChunk;
-use crate::types::Chunk;
-use crate::types::CollectError;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
-use crate::types::TransactionChunk;
+use crate::types::{
+    AddressChunk, BlockChunk, Chunk, CollectError, Dataset, Datatype, RowFilter, Source, Table,
+    TransactionChunk,
+};
 
 /// Blocks and Transactions datasets
 pub struct BlocksAndTransactions;
@@ -34,10 +27,7 @@ pub enum MultiDatatype {
 impl MultiDatatype {
     /// return all variants of multi datatype
     pub fn variants() -> Vec<MultiDatatype> {
-        vec![
-            MultiDatatype::BlocksAndTransactions,
-            MultiDatatype::StateDiffs,
-        ]
+        vec![MultiDatatype::BlocksAndTransactions, MultiDatatype::StateDiffs]
     }
 
     /// return MultiDataset corresponding to MultiDatatype
@@ -60,10 +50,7 @@ pub trait MultiDataset: Sync + Send {
 
     /// return Datasets associated with MultiDataset
     fn datasets(&self) -> HashMap<Datatype, Box<dyn Dataset>> {
-        self.datatypes()
-            .iter()
-            .map(|dt| (*dt, dt.dataset()))
-            .collect()
+        self.datatypes().iter().map(|dt| (*dt, dt.dataset())).collect()
     }
 
     /// collect dataset for a particular chunk
@@ -75,17 +62,12 @@ pub trait MultiDataset: Sync + Send {
         filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         match chunk {
-            Chunk::Block(chunk) => {
-                self.collect_block_chunk(chunk, source, schemas, filter)
-                    .await
-            }
+            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schemas, filter).await,
             Chunk::Transaction(chunk) => {
-                self.collect_transaction_chunk(chunk, source, schemas, filter)
-                    .await
+                self.collect_transaction_chunk(chunk, source, schemas, filter).await
             }
             Chunk::Address(chunk) => {
-                self.collect_address_chunk(chunk, source, schemas, filter)
-                    .await
+                self.collect_address_chunk(chunk, source, schemas, filter).await
             }
         }
     }
@@ -109,10 +91,7 @@ pub trait MultiDataset: Sync + Send {
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!(
-            "transaction_chunk collection not implemented for {}",
-            self.name()
-        )
+        panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 
     /// collect dataset for a particular transaction chunk
@@ -123,9 +102,6 @@ pub trait MultiDataset: Sync + Send {
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!(
-            "transaction_chunk collection not implemented for {}",
-            self.name()
-        )
+        panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 }

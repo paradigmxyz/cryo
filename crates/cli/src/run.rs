@@ -1,10 +1,7 @@
 use std::time::SystemTime;
 
-use crate::args;
-use crate::parse;
-use crate::summaries;
-use cryo_freeze::FreezeError;
-use cryo_freeze::FreezeSummary;
+use crate::{args, parse, summaries};
+use cryo_freeze::{FreezeError, FreezeSummary};
 
 /// run freeze for given Args
 pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError> {
@@ -35,7 +32,7 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError>
             }
             Err(e) => {
                 println!("{}", e);
-                return Err(e);
+                return Err(e)
             }
         }
     };

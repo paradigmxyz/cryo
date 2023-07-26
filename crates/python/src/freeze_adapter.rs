@@ -1,10 +1,10 @@
-use pyo3::exceptions::PyTypeError;
-use pyo3::prelude::*;
-use pyo3::types::IntoPyDict;
-use pyo3::types::PyDict;
+use pyo3::{
+    exceptions::PyTypeError,
+    prelude::*,
+    types::{IntoPyDict, PyDict},
+};
 
-use cryo_cli::run;
-use cryo_cli::Args;
+use cryo_cli::{run, Args};
 
 #[pyfunction(
     signature = (

@@ -1,25 +1,17 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::conversions::ToVecU8;
-use crate::types::BlockChunk;
-use crate::types::Blocks;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::{ToVecHex, ToVecU8},
+        BlockChunk, Blocks, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
@@ -53,15 +45,7 @@ impl Dataset for Blocks {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "number",
-            "hash",
-            "timestamp",
-            "author",
-            "gas_used",
-            "extra_data",
-            "base_fee_per_gas",
-        ]
+        vec!["number", "hash", "timestamp", "author", "gas_used", "extra_data", "base_fee_per_gas"]
     }
 
     fn default_sort(&self) -> Vec<String> {
@@ -104,10 +88,7 @@ async fn fetch_blocks(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let block = provider
-                .get_block(number)
-                .await
-                .map_err(CollectError::ProviderError);
+            let block = provider.get_block(number).await.map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -143,11 +124,8 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
     chain_id: u64,
 ) -> Result<(Option<DataFrame>, Option<DataFrame>), CollectError> {
     // initialize
-    let mut block_columns = if blocks_schema.is_none() {
-        BlockColumns::new(0)
-    } else {
-        BlockColumns::new(100)
-    };
+    let mut block_columns =
+        if blocks_schema.is_none() { BlockColumns::new(0) } else { BlockColumns::new(100) };
     let mut transaction_columns = if transactions_schema.is_none() {
         TransactionColumns::new(0)
     } else {
@@ -174,11 +152,11 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
             // _ => return Err(CollectError::TooManyRequestsError),
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
             Ok(None) => {
                 println!("NONE");
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
         }
     }
@@ -258,9 +236,7 @@ impl BlockColumns {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows as usize]));
         }
 
-        DataFrame::new(cols)
-            .map_err(CollectError::PolarsError)
-            .sort_by_schema(schema)
+        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
     }
 }
 
@@ -317,21 +293,14 @@ impl TransactionColumns {
         with_series!(cols, "gas_limit", self.gas_limit, schema);
         with_series!(cols, "gas_price", self.gas_price, schema);
         with_series!(cols, "transaction_type", self.transaction_type, schema);
-        with_series!(
-            cols,
-            "max_priority_fee_per_gas",
-            self.max_priority_fee_per_gas,
-            schema
-        );
+        with_series!(cols, "max_priority_fee_per_gas", self.max_priority_fee_per_gas, schema);
         with_series!(cols, "max_fee_per_gas", self.max_fee_per_gas, schema);
 
         if schema.has_column("chain_id") {
             cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
         }
 
-        DataFrame::new(cols)
-            .map_err(CollectError::PolarsError)
-            .sort_by_schema(schema)
+        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
     }
 }
 
@@ -343,9 +312,7 @@ fn process_block<TX>(block: &Block<TX>, schema: &Table, columns: &mut BlockColum
         }
     }
     if schema.has_column("parent_hash") {
-        columns
-            .parent_hash
-            .push(block.parent_hash.as_bytes().to_vec());
+        columns.parent_hash.push(block.parent_hash.as_bytes().to_vec());
     }
     if schema.has_column("author") {
         match block.author {
@@ -354,19 +321,13 @@ fn process_block<TX>(block: &Block<TX>, schema: &Table, columns: &mut BlockColum
         }
     }
     if schema.has_column("state_root") {
-        columns
-            .state_root
-            .push(block.state_root.as_bytes().to_vec());
+        columns.state_root.push(block.state_root.as_bytes().to_vec());
     }
     if schema.has_column("transactions_root") {
-        columns
-            .transactions_root
-            .push(block.transactions_root.as_bytes().to_vec());
+        columns.transactions_root.push(block.transactions_root.as_bytes().to_vec());
     }
     if schema.has_column("receipts_root") {
-        columns
-            .receipts_root
-            .push(block.receipts_root.as_bytes().to_vec());
+        columns.receipts_root.push(block.receipts_root.as_bytes().to_vec());
     }
     if schema.has_column("number") {
         match block.number {
@@ -381,25 +342,19 @@ fn process_block<TX>(block: &Block<TX>, schema: &Table, columns: &mut BlockColum
         columns.extra_data.push(block.extra_data.to_vec());
     }
     if schema.has_column("logs_bloom") {
-        columns
-            .logs_bloom
-            .push(block.logs_bloom.map(|x| x.0.to_vec()));
+        columns.logs_bloom.push(block.logs_bloom.map(|x| x.0.to_vec()));
     }
     if schema.has_column("timestamp") {
         columns.timestamp.push(block.timestamp.as_u32());
     }
     if schema.has_column("total_difficulty") {
-        columns
-            .total_difficulty
-            .push(block.total_difficulty.map(|x| x.to_vec_u8()));
+        columns.total_difficulty.push(block.total_difficulty.map(|x| x.to_vec_u8()));
     }
     if schema.has_column("size") {
         columns.size.push(block.size.map(|x| x.as_u32()));
     }
     if schema.has_column("base_fee_per_gas") {
-        columns
-            .base_fee_per_gas
-            .push(block.base_fee_per_gas.map(|value| value.as_u64()));
+        columns.base_fee_per_gas.push(block.base_fee_per_gas.map(|value| value.as_u64()));
     }
 }
 
@@ -412,9 +367,9 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
     }
     if schema.has_column("transaction_index") {
         match tx.transaction_index {
-            Some(transaction_index) => columns
-                .transaction_index
-                .push(Some(transaction_index.as_u64())),
+            Some(transaction_index) => {
+                columns.transaction_index.push(Some(transaction_index.as_u64()))
+            }
             None => columns.transaction_index.push(None),
         }
     }
@@ -426,9 +381,7 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
     }
     if schema.has_column("to_address") {
         match tx.to {
-            Some(to_address) => columns
-                .to_address
-                .push(Some(to_address.as_bytes().to_vec())),
+            Some(to_address) => columns.to_address.push(Some(to_address.as_bytes().to_vec())),
             None => columns.to_address.push(None),
         }
     }
@@ -445,14 +398,10 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
         columns.gas_limit.push(tx.gas.as_u32());
     }
     if schema.has_column("gas_price") {
-        columns
-            .gas_price
-            .push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
+        columns.gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
     }
     if schema.has_column("transaction_type") {
-        columns
-            .transaction_type
-            .push(tx.transaction_type.map(|value| value.as_u32()));
+        columns.transaction_type.push(tx.transaction_type.map(|value| value.as_u32()));
     }
     if schema.has_column("max_priority_fee_per_gas") {
         columns
@@ -460,8 +409,6 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
             .push(tx.max_priority_fee_per_gas.map(|value| value.as_u64()));
     }
     if schema.has_column("max_fee_per_gas") {
-        columns
-            .max_fee_per_gas
-            .push(tx.max_fee_per_gas.map(|value| value.as_u64()));
+        columns.max_fee_per_gas.push(tx.max_fee_per_gas.map(|value| value.as_u64()));
     }
 }

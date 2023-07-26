@@ -33,19 +33,11 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
                 n_completed += 1;
             }
             for (datatype, path) in chunk_summary.paths {
-                paths_by_type
-                    .entry(datatype)
-                    .or_insert_with(Vec::new)
-                    .push(path);
+                paths_by_type.entry(datatype).or_insert_with(Vec::new).push(path);
             }
         }
 
-        FreezeSummary {
-            n_completed,
-            n_skipped,
-            n_errored,
-            paths_by_type,
-        }
+        FreezeSummary { n_completed, n_skipped, n_errored, paths_by_type }
     }
 }
 
@@ -61,26 +53,14 @@ pub struct FreezeChunkSummary {
 
 impl FreezeChunkSummary {
     pub(crate) fn success(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
-        FreezeChunkSummary {
-            skipped: false,
-            errored: false,
-            paths,
-        }
+        FreezeChunkSummary { skipped: false, errored: false, paths }
     }
 
     pub(crate) fn error(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
-        FreezeChunkSummary {
-            skipped: false,
-            errored: true,
-            paths,
-        }
+        FreezeChunkSummary { skipped: false, errored: true, paths }
     }
 
     pub(crate) fn skip(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
-        FreezeChunkSummary {
-            skipped: true,
-            errored: false,
-            paths,
-        }
+        FreezeChunkSummary { skipped: true, errored: false, paths }
     }
 }

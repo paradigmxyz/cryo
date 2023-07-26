@@ -1,10 +1,11 @@
 use std::sync::Arc;
 
 use ethers::prelude::*;
-use governor::clock::DefaultClock;
-use governor::middleware::NoOpMiddleware;
-use governor::state::direct::NotKeyed;
-use governor::state::InMemoryState;
+use governor::{
+    clock::DefaultClock,
+    middleware::NoOpMiddleware,
+    state::{direct::NotKeyed, InMemoryState},
+};
 use tokio::sync::Semaphore;
 
 /// RateLimiter based on governor crate
@@ -102,21 +103,10 @@ pub struct Source {
 //             Some(chain_id),
 //             Some(inner_request_size),
 //             Some(max_concurrent_chunks),
-//         ) = (
-//             self.provider,
-//             self.semaphore,
-//             self.chain_id,
-//             self.inner_request_size,
-//             self.max_concurrent_chunks,
-//         ) {
-//             Ok(Source {
-//                 provider,
-//                 semaphore,
-//                 rate_limiter: self.rate_limiter,
-//                 chain_id,
-//                 inner_request_size,
-//                 max_concurrent_chunks,
-//             })
+//         ) = ( self.provider, self.semaphore, self.chain_id, self.inner_request_size,
+//           self.max_concurrent_chunks,
+//         ) { Ok(Source { provider, semaphore, rate_limiter: self.rate_limiter, chain_id,
+//           inner_request_size, max_concurrent_chunks, })
 //         } else {
 //             Err("Cannot build Source. Missing fields.")
 //         }

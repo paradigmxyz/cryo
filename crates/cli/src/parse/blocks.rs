@@ -2,11 +2,7 @@ use std::sync::Arc;
 
 use ethers::prelude::*;
 
-use cryo_freeze::BlockChunk;
-use cryo_freeze::Chunk;
-use cryo_freeze::ChunkData;
-use cryo_freeze::ParseError;
-use cryo_freeze::Subchunk;
+use cryo_freeze::{BlockChunk, Chunk, ChunkData, ParseError, Subchunk};
 
 use crate::args::Args;
 
@@ -16,10 +12,7 @@ pub(crate) async fn parse_blocks(
 ) -> Result<Vec<Chunk>, ParseError> {
     let block_chunks = parse_block_inputs(&args.blocks, &provider).await?;
     let block_chunks = if args.align {
-        block_chunks
-            .into_iter()
-            .filter_map(|x| x.align(args.chunk_size))
-            .collect()
+        block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
     } else {
         block_chunks
     };
@@ -28,10 +21,7 @@ pub(crate) async fn parse_blocks(
         None => block_chunks.subchunk_by_size(&args.chunk_size),
     };
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
-    let chunks: Vec<Chunk> = block_chunks
-        .iter()
-        .map(|x| Chunk::Block(x.clone()))
-        .collect();
+    let chunks: Vec<Chunk> = block_chunks.iter().map(|x| Chunk::Block(x.clone())).collect();
     Ok(chunks)
 }
 
@@ -45,9 +35,7 @@ async fn parse_block_inputs(
             let first_input = inputs.get(0).ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
-            parse_block_token(first_input, true, provider)
-                .await
-                .map(|x| vec![x])
+            parse_block_token(first_input, true, provider).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
@@ -132,19 +120,15 @@ async fn parse_block_number(
     provider: &Provider<Http>,
 ) -> Result<u64, ParseError> {
     match (block_ref, range_position) {
-        ("latest", _) => provider
-            .get_block_number()
-            .await
-            .map(|n| n.as_u64())
-            .map_err(|_e| {
-                ParseError::ParseError("Error retrieving latest block number".to_string())
-            }),
+        ("latest", _) => provider.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
+            ParseError::ParseError("Error retrieving latest block number".to_string())
+        }),
         ("", RangePosition::First) => Ok(0),
-        ("", RangePosition::Last) => provider
-            .get_block_number()
-            .await
-            .map(|n| n.as_u64())
-            .map_err(|_e| ParseError::ParseError("Error retrieving last block number".to_string())),
+        ("", RangePosition::Last) => {
+            provider.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
+                ParseError::ParseError("Error retrieving last block number".to_string())
+            })
+        }
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
         _ if block_ref.ends_with('B') | block_ref.ends_with('b') => {
             let s = &block_ref[..block_ref.len() - 1];
@@ -182,9 +166,7 @@ async fn apply_reorg_buffer(
             let latest_block = match provider.get_block_number().await {
                 Ok(result) => result.as_u64(),
                 Err(_e) => {
-                    return Err(ParseError::ParseError(
-                        "reorg buffer parse error".to_string(),
-                    ))
+                    return Err(ParseError::ParseError("reorg buffer parse error".to_string()))
                 }
             };
             let max_allowed = latest_block - reorg_filter;

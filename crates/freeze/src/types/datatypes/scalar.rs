@@ -3,15 +3,10 @@ use std::collections::HashMap;
 use async_trait;
 use polars::prelude::*;
 
-use crate::types::AddressChunk;
-use crate::types::BlockChunk;
-use crate::types::Chunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
-use crate::types::TransactionChunk;
+use crate::types::{
+    AddressChunk, BlockChunk, Chunk, CollectError, ColumnType, RowFilter, Source, Table,
+    TransactionChunk,
+};
 
 /// Balance Diffs Dataset
 pub struct BalanceDiffs;
@@ -101,17 +96,12 @@ pub trait Dataset: Sync + Send {
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
         match chunk {
-            Chunk::Block(chunk) => {
-                self.collect_block_chunk(chunk, source, schema, filter)
-                    .await
-            }
+            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schema, filter).await,
             Chunk::Transaction(chunk) => {
-                self.collect_transaction_chunk(chunk, source, schema, filter)
-                    .await
+                self.collect_transaction_chunk(chunk, source, schema, filter).await
             }
             Chunk::Address(chunk) => {
-                self.collect_address_chunk(chunk, source, schema, filter)
-                    .await
+                self.collect_address_chunk(chunk, source, schema, filter).await
             }
         }
     }
@@ -135,10 +125,7 @@ pub trait Dataset: Sync + Send {
         _schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        panic!(
-            "transaction_chunk collection not implemented for {}",
-            self.name()
-        )
+        panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 
     /// collect dataset for a particular transaction chunk
@@ -149,9 +136,6 @@ pub trait Dataset: Sync + Send {
         _schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        panic!(
-            "transaction_chunk collection not implemented for {}",
-            self.name()
-        )
+        panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 }

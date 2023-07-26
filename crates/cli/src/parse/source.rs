@@ -1,13 +1,11 @@
 use std::env;
 
 use ethers::prelude::*;
-use governor::Quota;
-use governor::RateLimiter;
+use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
-use cryo_freeze::ParseError;
-use cryo_freeze::Source;
+use cryo_freeze::{ParseError, Source};
 
 use crate::args::Args;
 

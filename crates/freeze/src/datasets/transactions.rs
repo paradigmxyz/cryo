@@ -2,17 +2,10 @@ use std::collections::HashMap;
 
 use polars::prelude::*;
 
-use super::blocks;
-use super::blocks_and_transactions;
-use crate::types::BlockChunk;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
-use crate::types::Transactions;
+use super::{blocks, blocks_and_transactions};
+use crate::types::{
+    BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table, Transactions,
+};
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {

@@ -1,15 +1,10 @@
 use std::sync::Arc;
 
-use cryo_freeze::FileOutput;
-use cryo_freeze::MultiQuery;
-use cryo_freeze::ParseError;
-use cryo_freeze::Source;
+use cryo_freeze::{FileOutput, MultiQuery, ParseError, Source};
 
 use crate::args::Args;
 
-use super::file_output;
-use super::query;
-use super::source;
+use super::{file_output, query, source};
 
 /// parse options for running freeze
 pub async fn parse_opts(args: &Args) -> Result<(MultiQuery, Source, FileOutput), ParseError> {

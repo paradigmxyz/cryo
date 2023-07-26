@@ -1,9 +1,6 @@
-use crate::types::FileError;
-use crate::types::FileOutput;
+use crate::types::{FileError, FileOutput};
 
-use super::binary_chunk::BinaryChunk;
-use super::chunk_ops::ChunkData;
-use super::number_chunk::NumberChunk;
+use super::{binary_chunk::BinaryChunk, chunk_ops::ChunkData, number_chunk::NumberChunk};
 
 /// block chunk
 pub type BlockChunk = NumberChunk;

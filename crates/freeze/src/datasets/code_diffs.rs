@@ -3,15 +3,9 @@ use std::collections::HashMap;
 use polars::prelude::*;
 
 use super::state_diffs;
-use crate::types::BlockChunk;
-use crate::types::CodeDiffs;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Dataset;
-use crate::types::Datatype;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
+use crate::types::{
+    BlockChunk, CodeDiffs, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
+};
 
 #[async_trait::async_trait]
 impl Dataset for CodeDiffs {

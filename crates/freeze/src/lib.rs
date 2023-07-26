@@ -12,7 +12,6 @@ mod datasets;
 mod freeze;
 mod types;
 
-pub use collect::collect;
-pub use collect::collect_multiple;
+pub use collect::{collect, collect_multiple};
 pub use freeze::freeze;
 pub use types::*;

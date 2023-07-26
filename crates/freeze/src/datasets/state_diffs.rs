@@ -1,24 +1,17 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
-use crate::dataframes::SortableDataFrame;
-use crate::types::conversions::ToVecHex;
-use crate::types::BlockChunk;
-use crate::types::ChunkData;
-use crate::types::CollectError;
-use crate::types::ColumnType;
-use crate::types::Datatype;
-use crate::types::MultiDataset;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::StateDiffs;
-use crate::types::Table;
-use crate::with_series;
-use crate::with_series_binary;
+use crate::{
+    dataframes::SortableDataFrame,
+    types::{
+        conversions::ToVecHex, BlockChunk, ChunkData, CollectError, ColumnType, Datatype,
+        MultiDataset, RowFilter, Source, StateDiffs, Table,
+    },
+    with_series, with_series_binary,
+};
 
 #[async_trait::async_trait]
 impl MultiDataset for StateDiffs {
@@ -27,14 +20,9 @@ impl MultiDataset for StateDiffs {
     }
 
     fn datatypes(&self) -> HashSet<Datatype> {
-        [
-            Datatype::BalanceDiffs,
-            Datatype::CodeDiffs,
-            Datatype::NonceDiffs,
-            Datatype::StorageDiffs,
-        ]
-        .into_iter()
-        .collect()
+        [Datatype::BalanceDiffs, Datatype::CodeDiffs, Datatype::NonceDiffs, Datatype::StorageDiffs]
+            .into_iter()
+            .collect()
     }
 
     async fn collect_block_chunk(

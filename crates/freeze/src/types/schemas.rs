@@ -3,8 +3,7 @@ use std::collections::HashSet;
 use indexmap::IndexMap;
 use thiserror::Error;
 
-use crate::types::ColumnEncoding;
-use crate::types::Datatype;
+use crate::types::{ColumnEncoding, Datatype};
 
 /// Schema for a particular table
 #[derive(Clone, Debug, Eq, PartialEq)]
@@ -95,28 +94,17 @@ impl Datatype {
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
-        let used_columns = compute_used_columns(
-            default_columns,
-            include_columns,
-            exclude_columns,
-            columns,
-            self,
-        );
+        let used_columns =
+            compute_used_columns(default_columns, include_columns, exclude_columns, columns, self);
         let mut columns = IndexMap::new();
         for column in used_columns {
-            let mut ctype = column_types
-                .get(column.as_str())
-                .ok_or(SchemaError::InvalidColumn)?;
+            let mut ctype = column_types.get(column.as_str()).ok_or(SchemaError::InvalidColumn)?;
             if (*binary_column_format == ColumnEncoding::Hex) & (ctype == &ColumnType::Binary) {
                 ctype = &ColumnType::Hex;
             }
             columns.insert((*column.clone()).to_string(), *ctype);
         }
-        let schema = Table {
-            datatype: *self,
-            sort_columns: sort,
-            columns,
-        };
+        let schema = Table { datatype: *self, sort_columns: sort, columns };
         Ok(schema)
     }
 }
@@ -130,30 +118,17 @@ fn compute_used_columns(
 ) -> Vec<String> {
     match (columns, include_columns, exclude_columns) {
         (Some(columns), _, _) if ((columns.len() == 1) & columns.contains(&"all".to_string())) => {
-            datatype
-                .dataset()
-                .column_types()
-                .keys()
-                .map(|k| k.to_string())
-                .collect()
+            datatype.dataset().column_types().keys().map(|k| k.to_string()).collect()
         }
         (Some(columns), _, _) => columns.iter().map(|x| x.to_string()).collect(),
         (_, Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
-            datatype
-                .dataset()
-                .column_types()
-                .keys()
-                .map(|k| k.to_string())
-                .collect()
+            datatype.dataset().column_types().keys().map(|k| k.to_string()).collect()
         }
         (_, Some(include), Some(exclude)) => {
             let include_set: HashSet<_> = include.iter().collect();
             let exclude_set: HashSet<_> = exclude.iter().collect();
             let intersection: HashSet<_> = include_set.intersection(&exclude_set).collect();
-            assert!(
-                intersection.is_empty(),
-                "include and exclude should be non-overlapping"
-            );
+            assert!(intersection.is_empty(), "include and exclude should be non-overlapping");
             include.to_vec()
         }
         (_, Some(include), None) => include.to_vec(),

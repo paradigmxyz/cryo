@@ -1,6 +1,4 @@
-use crate::ChunkError;
-use crate::FileError;
-use crate::FileOutput;
+use crate::{ChunkError, FileError, FileOutput};
 
 /// Trait for common chunk methods
 pub trait ChunkData: Sized {
@@ -22,11 +20,9 @@ pub trait ChunkData: Sized {
     /// convert chunk to string representation
     fn stub(&self) -> Result<String, ChunkError> {
         match (self.min_value(), self.max_value()) {
-            (Some(min), Some(max)) => Ok(format!(
-                "{}_to_{}",
-                Self::format_item(min),
-                Self::format_item(max),
-            )),
+            (Some(min), Some(max)) => {
+                Ok(format!("{}_to_{}", Self::format_item(min), Self::format_item(max),))
+            }
             _ => Err(ChunkError::InvalidChunk),
         }
     }

@@ -1,19 +1,11 @@
-use std::collections::HashMap;
-use std::sync::Arc;
+use std::{collections::HashMap, sync::Arc};
 
 use ethers::prelude::*;
 use hex::FromHex;
 
-use cryo_freeze::ColumnEncoding;
-use cryo_freeze::Datatype;
-use cryo_freeze::FileFormat;
-use cryo_freeze::MultiQuery;
-use cryo_freeze::ParseError;
-use cryo_freeze::RowFilter;
-use cryo_freeze::Table;
+use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiQuery, ParseError, RowFilter, Table};
 
-use super::blocks;
-use super::file_output;
+use super::{blocks, file_output};
 use crate::args::Args;
 
 pub(crate) async fn parse_query(
@@ -33,18 +25,11 @@ pub(crate) async fn parse_query(
         parse_topic(&args.topic2),
         parse_topic(&args.topic3),
     ];
-    let row_filter = RowFilter {
-        address: contract,
-        topics,
-    };
+    let row_filter = RowFilter { address: contract, topics };
     let mut row_filters: HashMap<Datatype, RowFilter> = HashMap::new();
     row_filters.insert(Datatype::Logs, row_filter);
 
-    let query = MultiQuery {
-        schemas,
-        chunks,
-        row_filters,
-    };
+    let query = MultiQuery { schemas, chunks, row_filters };
     Ok(query)
 }
 
@@ -74,10 +59,7 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
                     "vm_traces" => Datatype::VmTraces,
                     "opcode_traces" => Datatype::VmTraces,
                     _ => {
-                        return Err(ParseError::ParseError(format!(
-                            "invalid datatype {}",
-                            datatype
-                        )))
+                        return Err(ParseError::ParseError(format!("invalid datatype {}", datatype)))
                     }
                 };
                 datatypes.push(datatype)
@@ -124,14 +106,12 @@ fn parse_sort(
     datatypes: &Vec<Datatype>,
 ) -> Result<HashMap<Datatype, Option<Vec<String>>>, ParseError> {
     match raw_sort {
-        None => Ok(HashMap::from_iter(datatypes.iter().map(|datatype| {
-            (*datatype, Some(datatype.dataset().default_sort()))
-        }))),
+        None => Ok(HashMap::from_iter(
+            datatypes.iter().map(|datatype| (*datatype, Some(datatype.dataset().default_sort()))),
+        )),
         Some(raw_sort) => {
             if (raw_sort.len() == 1) && (raw_sort[0] == "none") {
-                Ok(HashMap::from_iter(
-                    datatypes.iter().map(|datatype| (*datatype, None)),
-                ))
+                Ok(HashMap::from_iter(datatypes.iter().map(|datatype| (*datatype, None))))
             } else if raw_sort.is_empty() {
                 Err(ParseError::ParseError(
                     "must specify columns to sort by, use `none` to disable sorting".to_string(),

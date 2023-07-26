@@ -1,6 +1,4 @@
-use super::chunk::BlockChunk;
-use super::chunk_ops::ChunkData;
-use super::number_chunk::range_to_chunks;
+use super::{chunk::BlockChunk, chunk_ops::ChunkData, number_chunk::range_to_chunks};
 
 /// Aggregation operations related to chunks
 pub trait Subchunk {

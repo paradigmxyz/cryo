@@ -1,10 +1,8 @@
 use polars::prelude::*;
-use pyo3::exceptions::PyTypeError;
-use pyo3::prelude::*;
+use pyo3::{exceptions::PyTypeError, prelude::*};
 use pyo3_polars::PyDataFrame;
 
-use cryo_cli::parse_opts;
-use cryo_cli::Args;
+use cryo_cli::{parse_opts, Args};
 use cryo_freeze::collect;
 
 #[pyfunction(

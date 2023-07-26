@@ -2,10 +2,7 @@ use std::fs;
 
 use polars::prelude::*;
 
-use cryo_freeze::FileFormat;
-use cryo_freeze::FileOutput;
-use cryo_freeze::ParseError;
-use cryo_freeze::Source;
+use cryo_freeze::{FileFormat, FileOutput, ParseError, Source};
 
 use crate::args::Args;
 
@@ -19,12 +16,7 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
         .into_owned();
     match fs::create_dir_all(&output_dir) {
         Ok(_) => {}
-        Err(e) => {
-            return Err(ParseError::ParseError(format!(
-                "Error creating directory: {}",
-                e
-            )))
-        }
+        Err(e) => return Err(ParseError::ParseError(format!("Error creating directory: {}", e))),
     };
 
     let file_suffix = &args.file_suffix;
@@ -72,9 +64,9 @@ pub(crate) fn parse_network_name(args: &Args, chain_id: u64) -> String {
 
 pub(crate) fn parse_output_format(args: &Args) -> Result<FileFormat, ParseError> {
     match (args.csv, args.json) {
-        (true, true) => Err(ParseError::ParseError(
-            "choose one of parquet, csv, or json".to_string(),
-        )),
+        (true, true) => {
+            Err(ParseError::ParseError("choose one of parquet, csv, or json".to_string()))
+        }
         (true, _) => Ok(FileFormat::Csv),
         (_, true) => Ok(FileFormat::Json),
         (false, false) => Ok(FileFormat::Parquet),
@@ -90,44 +82,30 @@ fn parse_compression(input: &Vec<String>) -> Result<ParquetCompression, ParseErr
         [algorithm, level_str] if algorithm.as_str() == "gzip" => match level_str.parse::<u8>() {
             Ok(level) => match GzipLevel::try_new(level) {
                 Ok(gzip_level) => Ok(ParquetCompression::Gzip(Some(gzip_level))),
-                Err(_) => Err(ParseError::ParseError(
-                    "Invalid compression level".to_string(),
-                )),
+                Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
             },
-            Err(_) => Err(ParseError::ParseError(
-                "Invalid compression level".to_string(),
-            )),
+            Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
         },
         [algorithm, level_str] if algorithm.as_str() == "brotli" => {
             match level_str.parse::<u32>() {
                 Ok(level) => match BrotliLevel::try_new(level) {
                     Ok(brotli_level) => Ok(ParquetCompression::Brotli(Some(brotli_level))),
-                    Err(_) => Err(ParseError::ParseError(
-                        "Invalid compression level".to_string(),
-                    )),
+                    Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
                 },
-                Err(_) => Err(ParseError::ParseError(
-                    "Invalid compression level".to_string(),
-                )),
+                Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
             }
         }
         [algorithm, level_str] if algorithm.as_str() == "zstd" => match level_str.parse::<i32>() {
             Ok(level) => match ZstdLevel::try_new(level) {
                 Ok(zstd_level) => Ok(ParquetCompression::Zstd(Some(zstd_level))),
-                Err(_) => Err(ParseError::ParseError(
-                    "Invalid compression level".to_string(),
-                )),
+                Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
             },
-            Err(_) => Err(ParseError::ParseError(
-                "Invalid compression level".to_string(),
-            )),
+            Err(_) => Err(ParseError::ParseError("Invalid compression level".to_string())),
         },
-        [algorithm] if ["gzip", "brotli", "zstd"].contains(&algorithm.as_str()) => Err(
-            ParseError::ParseError("Missing compression level".to_string()),
-        ),
-        _ => Err(ParseError::ParseError(
-            "Invalid compression algorithm".to_string(),
-        )),
+        [algorithm] if ["gzip", "brotli", "zstd"].contains(&algorithm.as_str()) => {
+            Err(ParseError::ParseError("Missing compression level".to_string()))
+        }
+        _ => Err(ParseError::ParseError("Invalid compression algorithm".to_string())),
     }
 }
 

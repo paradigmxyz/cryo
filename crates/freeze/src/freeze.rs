@@ -1,22 +1,13 @@
-use std::collections::HashMap;
-use std::path::Path;
-use std::sync::Arc;
+use std::{collections::HashMap, path::Path, sync::Arc};
 
 use futures::future::join_all;
 use indicatif::ProgressBar;
 use tokio::sync::Semaphore;
 
-use crate::types::dataframes;
-use crate::types::Chunk;
-use crate::types::Datatype;
-use crate::types::FileOutput;
-use crate::types::FreezeChunkSummary;
-use crate::types::FreezeError;
-use crate::types::FreezeSummary;
-use crate::types::FreezeSummaryAgg;
-use crate::types::MultiDatatype;
-use crate::types::MultiQuery;
-use crate::types::Source;
+use crate::types::{
+    dataframes, Chunk, Datatype, FileOutput, FreezeChunkSummary, FreezeError, FreezeSummary,
+    FreezeSummaryAgg, MultiDatatype, MultiQuery, Source,
+};
 
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
 pub async fn freeze(
@@ -69,34 +60,20 @@ pub async fn freeze(
             tasks.push(task)
         }
     }
-    let chunk_summaries: Vec<FreezeChunkSummary> = join_all(tasks)
-        .await
-        .into_iter()
-        .filter_map(Result::ok)
-        .collect();
+    let chunk_summaries: Vec<FreezeChunkSummary> =
+        join_all(tasks).await.into_iter().filter_map(Result::ok).collect();
     Ok(chunk_summaries.aggregate())
 }
 
 fn cluster_datatypes(dts: Vec<&Datatype>) -> (Vec<Datatype>, Vec<MultiDatatype>) {
     let mdts: Vec<MultiDatatype> = MultiDatatype::variants()
         .iter()
-        .filter(|mdt| {
-            mdt.multi_dataset()
-                .datatypes()
-                .iter()
-                .all(|x| dts.contains(&x))
-        })
+        .filter(|mdt| mdt.multi_dataset().datatypes().iter().all(|x| dts.contains(&x)))
         .cloned()
         .collect();
-    let mdt_dts: Vec<Datatype> = mdts
-        .iter()
-        .flat_map(|mdt| mdt.multi_dataset().datatypes())
-        .collect();
-    let other_dts = dts
-        .iter()
-        .filter(|dt| !mdt_dts.contains(dt))
-        .map(|x| **x)
-        .collect();
+    let mdt_dts: Vec<Datatype> =
+        mdts.iter().flat_map(|mdt| mdt.multi_dataset().datatypes()).collect();
+    let other_dts = dts.iter().filter(|dt| !mdt_dts.contains(dt)).map(|x| **x).collect();
     (other_dts, mdts)
 }
 
@@ -122,7 +99,7 @@ async fn freeze_datatype_chunk(
 
     // skip path if file already exists
     if Path::new(&path).exists() && !sink.overwrite {
-        return FreezeChunkSummary::skip(paths);
+        return FreezeChunkSummary::skip(paths)
     }
 
     // collect data
@@ -130,20 +107,19 @@ async fn freeze_datatype_chunk(
         Some(schema) => schema,
         _ => return FreezeChunkSummary::error(paths),
     };
-    let collect_output = ds
-        .collect_chunk(&chunk, &source, schema, query.row_filters.get(&datatype))
-        .await;
+    let collect_output =
+        ds.collect_chunk(&chunk, &source, schema, query.row_filters.get(&datatype)).await;
     let mut df = match collect_output {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
-            return FreezeChunkSummary::error(paths);
+            return FreezeChunkSummary::error(paths)
         }
         Ok(df) => df,
     };
 
     // write data
     if let Err(_e) = dataframes::df_to_file(&mut df, &path, &sink) {
-        return FreezeChunkSummary::error(paths);
+        return FreezeChunkSummary::error(paths)
     }
 
     bar.inc(1);
@@ -172,7 +148,7 @@ async fn freeze_multi_datatype_chunk(
 
     // skip path if file already exists
     if paths.values().all(|path| Path::new(&path).exists()) && !sink.overwrite {
-        return FreezeChunkSummary::skip(paths);
+        return FreezeChunkSummary::skip(paths)
     }
 
     // collect data
@@ -183,14 +159,14 @@ async fn freeze_multi_datatype_chunk(
     let mut dfs = match collect_result {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
-            return FreezeChunkSummary::error(paths);
+            return FreezeChunkSummary::error(paths)
         }
         Ok(dfs) => dfs,
     };
 
     // write data
     if let Err(_e) = dataframes::dfs_to_files(&mut dfs, &paths, &sink) {
-        return FreezeChunkSummary::error(paths);
+        return FreezeChunkSummary::error(paths)
     }
 
     bar.inc(1);

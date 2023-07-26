@@ -1,20 +1,14 @@
-use std::collections::HashMap;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
-use tokio::task;
+use tokio::{sync::mpsc, task};
 
 use super::blocks;
-use crate::types::BlockChunk;
-use crate::types::BlocksAndTransactions;
-use crate::types::CollectError;
-use crate::types::Datatype;
-use crate::types::MultiDataset;
-use crate::types::RowFilter;
-use crate::types::Source;
-use crate::types::Table;
+use crate::types::{
+    BlockChunk, BlocksAndTransactions, CollectError, Datatype, MultiDataset, RowFilter, Source,
+    Table,
+};
 
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
@@ -23,9 +17,7 @@ impl MultiDataset for BlocksAndTransactions {
     }
 
     fn datatypes(&self) -> HashSet<Datatype> {
-        [Datatype::Blocks, Datatype::Transactions]
-            .into_iter()
-            .collect()
+        [Datatype::Blocks, Datatype::Transactions].into_iter().collect()
     }
 
     async fn collect_block_chunk(
@@ -75,10 +67,8 @@ pub(crate) async fn fetch_blocks_and_transactions(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let block = provider
-                .get_block_with_txs(number)
-                .await
-                .map_err(CollectError::ProviderError);
+            let block =
+                provider.get_block_with_txs(number).await.map_err(CollectError::ProviderError);
             match tx.send(block).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
