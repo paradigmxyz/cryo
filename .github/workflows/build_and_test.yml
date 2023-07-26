@@ -42,13 +42,23 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
 
   fmt:
-      name: fmt
-      runs-on: ubuntu-latest
-      timeout-minutes: 30
-      steps:
-          - uses: actions/checkout@v3
-          - uses: dtolnay/rust-toolchain@nightly
-            with:
-                components: rustfmt
-          - run: cargo +nightly fmt --all --check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v2
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          profile: minimal
+          components: rustfmt, clippy
+          override: true
+
+      - uses: Swatinem/rust-cache@v1
+        with:
+          cache-on-failure: true
+
+      - name: cargo fmt
+        run: cargo +nightly fmt --all -- --check
 
