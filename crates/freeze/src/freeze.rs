@@ -115,19 +115,20 @@ async fn freeze_datatype_chunk(
 
     // create path
     let path = match chunk.filepath(ds.name(), &sink) {
-        Err(_e) => return FreezeChunkSummary::error(),
+        Err(_e) => return FreezeChunkSummary::error(HashMap::new()),
         Ok(path) => path,
     };
+    let paths = HashMap::from([(datatype, path.clone())]);
 
     // skip path if file already exists
     if Path::new(&path).exists() && !sink.overwrite {
-        return FreezeChunkSummary::skip();
+        return FreezeChunkSummary::skip(paths);
     }
 
     // collect data
     let schema = match query.schemas.get(&datatype) {
         Some(schema) => schema,
-        _ => return FreezeChunkSummary::error(),
+        _ => return FreezeChunkSummary::error(paths),
     };
     let collect_output = ds
         .collect_chunk(&chunk, &source, schema, query.row_filters.get(&datatype))
@@ -135,18 +136,18 @@ async fn freeze_datatype_chunk(
     let mut df = match collect_output {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
-            return FreezeChunkSummary::error();
+            return FreezeChunkSummary::error(paths);
         }
         Ok(df) => df,
     };
 
     // write data
     if let Err(_e) = dataframes::df_to_file(&mut df, &path, &sink) {
-        return FreezeChunkSummary::error();
+        return FreezeChunkSummary::error(paths);
     }
 
     bar.inc(1);
-    FreezeChunkSummary::success()
+    FreezeChunkSummary::success(paths)
 }
 
 async fn freeze_multi_datatype_chunk(
@@ -164,14 +165,14 @@ async fn freeze_multi_datatype_chunk(
     let mut paths: HashMap<Datatype, String> = HashMap::new();
     for ds in mdt.multi_dataset().datasets().values() {
         match chunk.filepath(ds.name(), &sink) {
-            Err(_e) => return FreezeChunkSummary::error(),
+            Err(_e) => return FreezeChunkSummary::error(paths),
             Ok(path) => paths.insert(ds.datatype(), path),
         };
     }
 
     // skip path if file already exists
     if paths.values().all(|path| Path::new(&path).exists()) && !sink.overwrite {
-        return FreezeChunkSummary::skip();
+        return FreezeChunkSummary::skip(paths);
     }
 
     // collect data
@@ -182,16 +183,16 @@ async fn freeze_multi_datatype_chunk(
     let mut dfs = match collect_result {
         Err(_e) => {
             println!("chunk failed: {:?}", _e);
-            return FreezeChunkSummary::error();
+            return FreezeChunkSummary::error(paths);
         }
         Ok(dfs) => dfs,
     };
 
     // write data
     if let Err(_e) = dataframes::dfs_to_files(&mut dfs, &paths, &sink) {
-        return FreezeChunkSummary::error();
+        return FreezeChunkSummary::error(paths);
     }
 
     bar.inc(1);
-    FreezeChunkSummary::success()
+    FreezeChunkSummary::success(paths)
 }

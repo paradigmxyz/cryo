@@ -1,3 +1,6 @@
+use std::collections::HashMap;
+use crate::types::Datatype;
+
 /// Summary of freeze operation
 pub struct FreezeSummary {
     /// number of chunks completed successfully
@@ -6,6 +9,8 @@ pub struct FreezeSummary {
     pub n_skipped: u64,
     /// number of chunks that encountered an error
     pub n_errored: u64,
+    /// paths_by_type
+    pub paths_by_type: HashMap<Datatype, Vec<String>>,
 }
 
 pub(crate) trait FreezeSummaryAgg {
@@ -18,6 +23,7 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
         let mut n_skipped: u64 = 0;
         let mut n_errored: u64 = 0;
 
+        let mut paths_by_type = HashMap::new();
         for chunk_summary in self {
             if chunk_summary.skipped {
                 n_skipped += 1;
@@ -26,12 +32,19 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
             } else {
                 n_completed += 1;
             }
+            for (datatype, path) in chunk_summary.paths {
+                paths_by_type
+                .entry(datatype)
+                .or_insert_with(Vec::new)
+                .push(path);
+            }
         }
 
         FreezeSummary {
             n_completed,
             n_skipped,
             n_errored,
+            paths_by_type,
         }
     }
 }
@@ -42,27 +55,32 @@ pub struct FreezeChunkSummary {
     pub skipped: bool,
     /// whether chunk encountered an error
     pub errored: bool,
+    /// output paths
+    pub paths: HashMap<Datatype, String>,
 }
 
 impl FreezeChunkSummary {
-    pub(crate) fn success() -> FreezeChunkSummary {
+    pub(crate) fn success(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
         FreezeChunkSummary {
             skipped: false,
             errored: false,
+            paths,
         }
     }
 
-    pub(crate) fn error() -> FreezeChunkSummary {
+    pub(crate) fn error(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
         FreezeChunkSummary {
             skipped: false,
             errored: true,
+            paths,
         }
     }
 
-    pub(crate) fn skip() -> FreezeChunkSummary {
+    pub(crate) fn skip(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
         FreezeChunkSummary {
             skipped: true,
             errored: false,
+            paths,
         }
     }
 }
