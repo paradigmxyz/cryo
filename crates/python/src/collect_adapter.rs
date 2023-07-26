@@ -47,7 +47,7 @@ use cryo_freeze::collect;
 #[allow(clippy::too_many_arguments)]
 pub fn _collect(
     py: Python<'_>,
-    datatype: Vec<String>,
+    datatype: String,
     blocks: Vec<String>,
     align: bool,
     reorg_buffer: u64,
@@ -81,7 +81,7 @@ pub fn _collect(
     inner_request_size: u64,
 ) -> PyResult<&PyAny> {
     let args = Args {
-        datatype,
+        datatype: vec![datatype],
         blocks,
         align,
         reorg_buffer,

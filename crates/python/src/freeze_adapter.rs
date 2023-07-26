@@ -1,5 +1,7 @@
 use pyo3::exceptions::PyTypeError;
 use pyo3::prelude::*;
+use pyo3::types::IntoPyDict;
+use pyo3::types::PyDict;
 
 use cryo_cli::run;
 use cryo_cli::Args;
@@ -114,8 +116,26 @@ pub fn _freeze(
 
     pyo3_asyncio::tokio::future_into_py(py, async move {
         match run(args).await {
-            Ok(()) => Ok(Python::with_gil(|py| py.None())),
-            Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            Ok(Some(result)) => Python::with_gil(|py| {
+                let paths_by_type = PyDict::new(py);
+                for (key, values) in &result.paths_by_type {
+                    let key = key.dataset().name();
+                    let values: Vec<&str> = values.iter().map(AsRef::as_ref).collect();
+                    paths_by_type.set_item(key, values).unwrap();
+                }
+                let paths_by_type = paths_by_type.to_object(py);
+
+                let dict = [
+                    ("n_completed".to_string(), result.n_completed.into_py(py)),
+                    ("n_skipped".to_string(), result.n_skipped.into_py(py)),
+                    ("n_errored".to_string(), result.n_errored.into_py(py)),
+                    ("paths_by_type".to_string(), paths_by_type),
+                ]
+                .into_py_dict(py);
+                Ok(dict.to_object(py))
+            }),
+            Ok(None) => Ok(Python::with_gil(|py| py.None())),
+            _ => Err(PyErr::new::<PyTypeError, _>("failed")),
         }
     })
 }
