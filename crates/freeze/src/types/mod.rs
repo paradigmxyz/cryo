@@ -51,3 +51,4 @@ pub use errors::ChunkError;
 pub use errors::CollectError;
 pub use errors::FileError;
 pub use errors::FreezeError;
+pub use errors::ParseError;

@@ -21,6 +21,10 @@ pub enum FreezeError {
     /// Error related to progress bar
     #[error("Progress bar error")]
     ProgressBarError(#[from] indicatif::style::TemplateError),
+
+    /// Parse error
+    #[error("Parsing error")]
+    ParseError(#[from] ParseError),
 }
 
 /// Error related to data collection
@@ -50,6 +54,19 @@ pub enum CollectError {
     #[error("try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests")]
     TooManyRequestsError,
 }
+
+/// Error related to parsing
+#[derive(Error, Debug)]
+pub enum ParseError {
+    /// Error related to parsing
+    #[error("Parsing error")]
+    ParseError(String),
+
+    /// Parse int error
+    #[error("Parsing error")]
+    ParseIntError(#[from] std::num::ParseIntError),
+}
+
 
 /// Error performing a chunk operation
 #[derive(Error, Debug)]
