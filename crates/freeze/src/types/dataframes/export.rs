@@ -79,7 +79,7 @@ fn df_to_csv(df: &mut DataFrame, filename: &str) -> Result<(), FileError> {
 /// write polars dataframe to json file
 fn df_to_json(df: &mut DataFrame, filename: &str) -> Result<(), FileError> {
     let file = std::fs::File::create(filename).map_err(|_e| FileError::FileWriteError)?;
-    let result = JsonWriter::new(file).finish(df);
+    let result = JsonWriter::new(file).with_json_format(JsonFormat::Json).finish(df);
     match result {
         Err(_e) => Err(FileError::FileWriteError),
         _ => Ok(()),
