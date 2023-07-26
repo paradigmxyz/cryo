@@ -16,3 +16,10 @@ classifiers = [
 python-source = "python"
 module-name = "cryo._cryo_rust"
 features = ["pyo3/extension-module"]
+
+
+[tool.mypy]
+strict = true
+files = ["python/cryo"]
+enable_incomplete_feature = "Unpack"
+
