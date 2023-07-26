@@ -109,9 +109,10 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|_e| {
-                    ParseError::ParseError(
-                        format!("Failed to get schema for datatype: {:?}", datatype),
-                    )
+                    ParseError::ParseError(format!(
+                        "Failed to get schema for datatype: {:?}",
+                        datatype
+                    ))
                 })
         })
         .collect();

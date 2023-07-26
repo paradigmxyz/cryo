@@ -3,8 +3,8 @@ use std::time::SystemTime;
 use crate::args;
 use crate::parse;
 use crate::summaries;
-use cryo_freeze::FreezeSummary;
 use cryo_freeze::FreezeError;
+use cryo_freeze::FreezeSummary;
 
 /// run freeze for given Args
 pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError> {

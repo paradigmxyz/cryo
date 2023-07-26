@@ -2,8 +2,8 @@ use std::sync::Arc;
 
 use cryo_freeze::FileOutput;
 use cryo_freeze::MultiQuery;
-use cryo_freeze::Source;
 use cryo_freeze::ParseError;
+use cryo_freeze::Source;
 
 use crate::args::Args;
 

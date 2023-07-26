@@ -14,8 +14,8 @@ use eyre::Result;
 async fn main() -> Result<()> {
     let args = Args::parse();
     match run::run(args).await {
-        Ok(Some(_freeze_summary)) => { Ok(()) },
-        Ok(None) => { Ok(()) },
+        Ok(Some(_freeze_summary)) => Ok(()),
+        Ok(None) => Ok(()),
         Err(e) => Err(eyre::Report::from(e)),
     }
 }

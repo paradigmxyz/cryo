@@ -67,7 +67,6 @@ pub enum ParseError {
     ParseIntError(#[from] std::num::ParseIntError),
 }
 
-
 /// Error performing a chunk operation
 #[derive(Error, Debug)]
 pub enum ChunkError {

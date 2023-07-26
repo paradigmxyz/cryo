@@ -13,8 +13,8 @@ mod run;
 mod summaries;
 
 // used in main.rs but not lib.rs
-use tokio as _;
 use eyre as _;
+use tokio as _;
 
 pub use args::Args;
 pub use parse::parse_opts;

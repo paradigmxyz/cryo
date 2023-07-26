@@ -1,5 +1,5 @@
-use std::collections::HashMap;
 use crate::types::Datatype;
+use std::collections::HashMap;
 
 /// Summary of freeze operation
 pub struct FreezeSummary {
@@ -34,9 +34,9 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
             }
             for (datatype, path) in chunk_summary.paths {
                 paths_by_type
-                .entry(datatype)
-                .or_insert_with(Vec::new)
-                .push(path);
+                    .entry(datatype)
+                    .or_insert_with(Vec::new)
+                    .push(path);
             }
         }
 
