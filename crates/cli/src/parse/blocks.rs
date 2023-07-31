@@ -26,10 +26,13 @@ pub(crate) async fn parse_blocks(
 }
 
 /// parse block numbers to freeze
-async fn parse_block_inputs(
+async fn parse_block_inputs<P>(
     inputs: &Vec<String>,
-    provider: &Provider<Http>,
-) -> Result<Vec<BlockChunk>, ParseError> {
+    provider: &Provider<P>,
+) -> Result<Vec<BlockChunk>, ParseError>
+where
+    P: JsonRpcClient,
+{
     match inputs.len() {
         1 => {
             let first_input = inputs.get(0).ok_or_else(|| {
@@ -240,10 +243,67 @@ mod tests {
         }
     }
 
+    enum BlockInputTest<'a> {
+        WithoutMock((&'a Vec<String>, Vec<BlockChunk>)), // Token | Expected
+        WithMock((&'a Vec<String>, Vec<BlockChunk>, u64)), // Token | Expected | Mock Block Response
+    }
+
+    async fn block_input_test_helper(tests: Vec<(BlockInputTest<'_>, bool)>) {
+        let (provider, mock) = Provider::mocked();
+        for (test, res) in tests {
+            match test {
+                BlockInputTest::WithMock((inputs, expected, latest)) => {
+                    mock.push(U64::from(latest)).unwrap();
+                    assert_eq!(block_input_test_executor(&inputs, expected, &provider).await, res);
+                }
+                BlockInputTest::WithoutMock((inputs, expected)) => {
+                    assert_eq!(block_input_test_executor(&inputs, expected, &provider).await, res);
+                }
+            }
+        }
+    }
+
+    async fn block_input_test_executor<P>(
+        inputs: &Vec<String>,
+        expected: Vec<BlockChunk>,
+        provider: &Provider<P>,
+    ) -> bool
+    where
+        P: JsonRpcClient,
+    {
+        let block_chunks = parse_block_inputs(inputs, &provider).await.unwrap();
+        assert_eq!(block_chunks.len(), expected.len());
+        for (i, block_chunk) in block_chunks.iter().enumerate() {
+            let expected_chunk = &expected[i];
+            match expected_chunk {
+                BlockChunk::Numbers(expected_block_numbers) => {
+                    assert!(matches!(block_chunk, BlockChunk::Numbers { .. }));
+                    let BlockChunk::Numbers(block_numbers) = block_chunk else {
+                    panic!("Unexpected shape")
+                };
+                    if expected_block_numbers != block_numbers {
+                        return false;
+                    }
+                }
+                BlockChunk::Range(expected_range_start, expected_range_end) => {
+                    assert!(matches!(block_chunk, BlockChunk::Range { .. }));
+                    let BlockChunk::Range(range_start, range_end) = block_chunk else {
+                    panic!("Unexpected shape")
+                };
+                    if expected_range_start != range_start || expected_range_end != range_end {
+                        return false;
+                    }
+                }
+            }
+        }
+        return true;
+    }
+
     enum BlockNumberTest<'a> {
         WithoutMock((&'a str, RangePosition, u64)),
         WithMock((&'a str, RangePosition, u64, u64)),
     }
+
     async fn block_number_test_helper(tests: Vec<(BlockNumberTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
         for (test, res) in tests {
@@ -285,7 +345,7 @@ mod tests {
         // Ranges
         let tests: Vec<(BlockTokenTest<'_>, bool)> = vec![
             // Range Type
-            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1,2))), true), // Single block range
+            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 2))), true), // Single block range
             (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 2))), true), // Implicit start
             (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(90, 100))), true), // Relative negative
             (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), // Relative positive
@@ -293,9 +353,39 @@ mod tests {
             (BlockTokenTest::WithMock((r"1:", BlockChunk::Range(1, 12), 12)), true), // Implicit latest
             // Number type
             (BlockTokenTest::WithoutMock((r"1", BlockChunk::Numbers(vec![1]))), true), // Single block
-            // (BlockTokenTest::WithoutMock((r"1 2", BlockChunk::Numbers(vec![1, 2]))), true), // Multi block
         ];
         block_token_test_helper(tests).await;
+    }
+
+    #[tokio::test]
+    async fn block_inputs_parsing() {
+        // Ranges
+        let block_inputs_single = vec![String::from(r"1:2")];
+        let block_inputs_multiple = vec![String::from(r"1"), String::from(r"2")];
+        let block_inputs_latest = vec![String::from(r"1:latest")];
+        let tests: Vec<(BlockInputTest<'_>, bool)> = vec![
+            // Range Type
+            (
+                BlockInputTest::WithoutMock((&block_inputs_single, vec![BlockChunk::Range(1, 2)])),
+                true,
+            ), // Single input
+            (
+                BlockInputTest::WithoutMock((
+                    &block_inputs_multiple,
+                    vec![BlockChunk::Numbers(vec![1]), BlockChunk::Numbers(vec![2])],
+                )),
+                true,
+            ), // Multi input
+            (
+                BlockInputTest::WithMock((
+                    &block_inputs_latest,
+                    vec![BlockChunk::Range(1, 12)],
+                    12,
+                )),
+                true,
+            ), // Single input latest
+        ];
+        block_input_test_helper(tests).await;
     }
 
     #[tokio::test]
@@ -316,4 +406,3 @@ mod tests {
         block_number_test_helper(tests).await;
     }
 }
-

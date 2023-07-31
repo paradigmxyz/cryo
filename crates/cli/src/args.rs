@@ -14,6 +14,8 @@ pub struct Args {
         short,
         long,
         default_value = "0:latest",
+        num_args = 1..,
+        value_terminator = ";",
         allow_hyphen_values(true),
         help_heading = "Content Options"
     )]
