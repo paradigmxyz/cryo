@@ -53,12 +53,16 @@ enum RangePosition {
     None,
 }
 
-async fn parse_block_token(
+async fn parse_block_token<P>(
     s: &str,
     as_range: bool,
-    provider: &Provider<Http>,
-) -> Result<BlockChunk, ParseError> {
+    provider: &Provider<P>,
+) -> Result<BlockChunk, ParseError>
+where
+    P: JsonRpcClient,
+{
     let s = s.replace('_', "");
+
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
         [block_ref] => {
@@ -114,11 +118,14 @@ async fn parse_block_token(
     }
 }
 
-async fn parse_block_number(
+async fn parse_block_number<P>(
     block_ref: &str,
     range_position: RangePosition,
-    provider: &Provider<Http>,
-) -> Result<u64, ParseError> {
+    provider: &Provider<P>,
+) -> Result<u64, ParseError>
+where
+    P: JsonRpcClient,
+{
     match (block_ref, range_position) {
         ("latest", _) => provider.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
             ParseError::ParseError("Error retrieving latest block number".to_string())
@@ -166,7 +173,7 @@ async fn apply_reorg_buffer(
             let latest_block = match provider.get_block_number().await {
                 Ok(result) => result.as_u64(),
                 Err(_e) => {
-                    return Err(ParseError::ParseError("reorg buffer parse error".to_string()))
+                    return Err(ParseError::ParseError("reorg buffer parse error".to_string()));
                 }
             };
             let max_allowed = latest_block - reorg_filter;
@@ -180,3 +187,133 @@ async fn apply_reorg_buffer(
         }
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    enum BlockTokenTest<'a> {
+        WithoutMock((&'a str, BlockChunk)),   // Token | Expected
+        WithMock((&'a str, BlockChunk, u64)), // Token | Expected | Mock Block Response
+    }
+
+    async fn block_token_test_helper(tests: Vec<(BlockTokenTest<'_>, bool)>) {
+        let (provider, mock) = Provider::mocked();
+        for (test, res) in tests {
+            match test {
+                BlockTokenTest::WithMock((token, expected, latest)) => {
+                    mock.push(U64::from(latest)).unwrap();
+                    assert_eq!(block_token_test_executor(&token, expected, &provider).await, res);
+                }
+                BlockTokenTest::WithoutMock((token, expected)) => {
+                    assert_eq!(block_token_test_executor(&token, expected, &provider).await, res);
+                }
+            }
+        }
+    }
+
+    async fn block_token_test_executor<P>(
+        token: &str,
+        expected: BlockChunk,
+        provider: &Provider<P>,
+    ) -> bool
+    where
+        P: JsonRpcClient,
+    {
+        match expected {
+            BlockChunk::Numbers(expected_block_numbers) => {
+                let block_chunks = parse_block_token(token, false, &provider).await.unwrap();
+                assert!(matches!(block_chunks, BlockChunk::Numbers { .. }));
+                let BlockChunk::Numbers(block_numbers) = block_chunks else {
+                    panic!("Unexpected shape")
+                };
+                return block_numbers == expected_block_numbers;
+            }
+            BlockChunk::Range(expected_range_start, expected_range_end) => {
+                let block_chunks = parse_block_token(token, true, &provider).await.unwrap();
+                assert!(matches!(block_chunks, BlockChunk::Range { .. }));
+                let BlockChunk::Range(range_start, range_end) = block_chunks else {
+                    panic!("Unexpected shape")
+                };
+                return expected_range_start == range_start && expected_range_end == range_end;
+            }
+        }
+    }
+
+    enum BlockNumberTest<'a> {
+        WithoutMock((&'a str, RangePosition, u64)),
+        WithMock((&'a str, RangePosition, u64, u64)),
+    }
+    async fn block_number_test_helper(tests: Vec<(BlockNumberTest<'_>, bool)>) {
+        let (provider, mock) = Provider::mocked();
+        for (test, res) in tests {
+            match test {
+                BlockNumberTest::WithMock((block_ref, range_position, expected, latest)) => {
+                    mock.push(U64::from(latest)).unwrap();
+                    assert_eq!(
+                        block_number_test_executor(&block_ref, range_position, expected, &provider)
+                            .await,
+                        res
+                    );
+                }
+                BlockNumberTest::WithoutMock((block_ref, range_position, expected)) => {
+                    assert_eq!(
+                        block_number_test_executor(&block_ref, range_position, expected, &provider)
+                            .await,
+                        res
+                    );
+                }
+            }
+        }
+    }
+
+    async fn block_number_test_executor<P>(
+        block_ref: &str,
+        range_position: RangePosition,
+        expected: u64,
+        provider: &Provider<P>,
+    ) -> bool
+    where
+        P: JsonRpcClient,
+    {
+        let block_number = parse_block_number(block_ref, range_position, &provider).await.unwrap();
+        return block_number == expected;
+    }
+
+    #[tokio::test]
+    async fn block_token_parsing() {
+        // Ranges
+        let tests: Vec<(BlockTokenTest<'_>, bool)> = vec![
+            // Range Type
+            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1,2))), true), // Single block range
+            (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 2))), true), // Implicit start
+            (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(90, 100))), true), // Relative negative
+            (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), // Relative positive
+            (BlockTokenTest::WithMock((r"1:latest", BlockChunk::Range(1, 12), 12)), true), // Explicit latest
+            (BlockTokenTest::WithMock((r"1:", BlockChunk::Range(1, 12), 12)), true), // Implicit latest
+            // Number type
+            (BlockTokenTest::WithoutMock((r"1", BlockChunk::Numbers(vec![1]))), true), // Single block
+            // (BlockTokenTest::WithoutMock((r"1 2", BlockChunk::Numbers(vec![1, 2]))), true), // Multi block
+        ];
+        block_token_test_helper(tests).await;
+    }
+
+    #[tokio::test]
+    async fn block_number_parsing() {
+        // Ranges
+        let tests: Vec<(BlockNumberTest<'_>, bool)> = vec![
+            (BlockNumberTest::WithoutMock((r"1", RangePosition::None, 1)), true), // Integer
+            (BlockNumberTest::WithMock((r"latest", RangePosition::None, 12, 12)), true), // Lastest block
+            (BlockNumberTest::WithoutMock((r"", RangePosition::First, 0)), true), // First block
+            (BlockNumberTest::WithMock((r"", RangePosition::Last, 12, 12)), true), // Last block
+            (BlockNumberTest::WithoutMock((r"1B", RangePosition::None, 1000000000)), true), // B
+            (BlockNumberTest::WithoutMock((r"1M", RangePosition::None, 1000000)), true), // M
+            (BlockNumberTest::WithoutMock((r"1K", RangePosition::None, 1000)), true), // K
+            (BlockNumberTest::WithoutMock((r"1b", RangePosition::None, 1000000000)), true), // b
+            (BlockNumberTest::WithoutMock((r"1m", RangePosition::None, 1000000)), true), // m
+            (BlockNumberTest::WithoutMock((r"1k", RangePosition::None, 1000)), true), // k
+        ];
+        block_number_test_helper(tests).await;
+    }
+}
+
