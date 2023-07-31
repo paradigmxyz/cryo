@@ -157,7 +157,8 @@ Dataset-specific Options:
 
 
 Block specification syntax
-- can use numbers                    --blocks 5000 6000 7000
+- can use numbers                    --blocks 5000
+- can use numbers list (include ;)   --blocks 5000 6000 7000;
 - can use ranges                     --blocks 12M:13M 15M:16M
 - numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
 - omiting range end means latest     15.5M: == 15.5M:latest
