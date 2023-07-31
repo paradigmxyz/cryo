@@ -166,3 +166,21 @@ Block specification syntax
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
 ```
 
+## Build Troubleshooting
+
+On macOS there are sometimes issues compiling py03 dependencies. To resolve this add the following to ~/.cargo/config.toml
+[Ref](https://pyo3.rs/v0.14.2/building_and_distribution.html#macos)
+
+```
+[target.x86_64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+
+[target.aarch64-apple-darwin]
+rustflags = [
+  "-C", "link-arg=-undefined",
+  "-C", "link-arg=dynamic_lookup",
+]
+```
