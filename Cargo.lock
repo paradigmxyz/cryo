@@ -887,6 +887,7 @@ dependencies = [
  "polars",
  "pyo3",
  "pyo3-asyncio",
+ "pyo3-build-config",
  "pyo3-polars",
  "tokio",
 ]
