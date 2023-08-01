@@ -166,7 +166,17 @@ Block specification syntax
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
 ```
 
-## Build Troubleshooting
+## Development
+
+### Formatting
+
+`cargo +nightly fmt --all -- --check`
+
+*To enable +nightly commands on macOS install the following toolchain*
+
+`rustup toolchain install nightly-aarch64-apple-darwin`
+
+### Build Troubleshooting
 
 On macOS there are sometimes issues compiling py03 dependencies. To resolve this add the following to ~/.cargo/config.toml
 [Ref](https://pyo3.rs/v0.14.2/building_and_distribution.html#macos)
