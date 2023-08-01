@@ -176,7 +176,7 @@ async fn apply_reorg_buffer(
             let latest_block = match provider.get_block_number().await {
                 Ok(result) => result.as_u64(),
                 Err(_e) => {
-                    return Err(ParseError::ParseError("reorg buffer parse error".to_string()));
+                    return Err(ParseError::ParseError("reorg buffer parse error".to_string()))
                 }
             };
             let max_allowed = latest_block - reorg_filter;
@@ -230,7 +230,7 @@ mod tests {
                 let BlockChunk::Numbers(block_numbers) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return block_numbers == expected_block_numbers;
+                return block_numbers == expected_block_numbers
             }
             BlockChunk::Range(expected_range_start, expected_range_end) => {
                 let block_chunks = parse_block_token(token, true, &provider).await.unwrap();
@@ -238,7 +238,7 @@ mod tests {
                 let BlockChunk::Range(range_start, range_end) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return expected_range_start == range_start && expected_range_end == range_end;
+                return expected_range_start == range_start && expected_range_end == range_end
             }
         }
     }
@@ -279,24 +279,24 @@ mod tests {
                 BlockChunk::Numbers(expected_block_numbers) => {
                     assert!(matches!(block_chunk, BlockChunk::Numbers { .. }));
                     let BlockChunk::Numbers(block_numbers) = block_chunk else {
-                    panic!("Unexpected shape")
-                };
+                        panic!("Unexpected shape")
+                    };
                     if expected_block_numbers != block_numbers {
-                        return false;
+                        return false
                     }
                 }
                 BlockChunk::Range(expected_range_start, expected_range_end) => {
                     assert!(matches!(block_chunk, BlockChunk::Range { .. }));
                     let BlockChunk::Range(range_start, range_end) = block_chunk else {
-                    panic!("Unexpected shape")
-                };
+                        panic!("Unexpected shape")
+                    };
                     if expected_range_start != range_start || expected_range_end != range_end {
-                        return false;
+                        return false
                     }
                 }
             }
         }
-        return true;
+        return true
     }
 
     enum BlockNumberTest<'a> {
@@ -337,7 +337,7 @@ mod tests {
         P: JsonRpcClient,
     {
         let block_number = parse_block_number(block_ref, range_position, &provider).await.unwrap();
-        return block_number == expected;
+        return block_number == expected
     }
 
     #[tokio::test]
@@ -345,14 +345,14 @@ mod tests {
         // Ranges
         let tests: Vec<(BlockTokenTest<'_>, bool)> = vec![
             // Range Type
-            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 2))), true), // Single block range
-            (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 2))), true), // Implicit start
-            (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(90, 100))), true), // Relative negative
-            (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), // Relative positive
-            (BlockTokenTest::WithMock((r"1:latest", BlockChunk::Range(1, 12), 12)), true), // Explicit latest
-            (BlockTokenTest::WithMock((r"1:", BlockChunk::Range(1, 12), 12)), true), // Implicit latest
+            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 2))), true), /* Single block range */
+            (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 2))), true), /* Implicit start */
+            (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(90, 100))), true), /* Relative negative */
+            (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), /* Relative positive */
+            (BlockTokenTest::WithMock((r"1:latest", BlockChunk::Range(1, 12), 12)), true), /* Explicit latest */
+            (BlockTokenTest::WithMock((r"1:", BlockChunk::Range(1, 12), 12)), true), /* Implicit latest */
             // Number type
-            (BlockTokenTest::WithoutMock((r"1", BlockChunk::Numbers(vec![1]))), true), // Single block
+            (BlockTokenTest::WithoutMock((r"1", BlockChunk::Numbers(vec![1]))), true), /* Single block */
         ];
         block_token_test_helper(tests).await;
     }
@@ -393,7 +393,7 @@ mod tests {
         // Ranges
         let tests: Vec<(BlockNumberTest<'_>, bool)> = vec![
             (BlockNumberTest::WithoutMock((r"1", RangePosition::None, 1)), true), // Integer
-            (BlockNumberTest::WithMock((r"latest", RangePosition::None, 12, 12)), true), // Lastest block
+            (BlockNumberTest::WithMock((r"latest", RangePosition::None, 12, 12)), true), /* Lastest block */
             (BlockNumberTest::WithoutMock((r"", RangePosition::First, 0)), true), // First block
             (BlockNumberTest::WithMock((r"", RangePosition::Last, 12, 12)), true), // Last block
             (BlockNumberTest::WithoutMock((r"1B", RangePosition::None, 1000000000)), true), // B
