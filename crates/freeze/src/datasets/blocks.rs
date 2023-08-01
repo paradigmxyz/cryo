@@ -13,6 +13,8 @@ use crate::{
     with_series, with_series_binary,
 };
 
+pub(crate) type BlockTxGasTuple<TX> = Result<(Block<TX>, Option<Vec<u32>>), CollectError>;
+
 #[async_trait::async_trait]
 impl Dataset for Blocks {
     fn datatype(&self) -> Datatype {
@@ -72,7 +74,7 @@ impl Dataset for Blocks {
 async fn fetch_blocks(
     block_chunk: &BlockChunk,
     source: &Source,
-) -> mpsc::Receiver<Result<Option<Block<TxHash>>, CollectError>> {
+) -> mpsc::Receiver<BlockTxGasTuple<TxHash>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
@@ -88,8 +90,13 @@ async fn fetch_blocks(
             if let Some(limiter) = rate_limiter {
                 Arc::clone(&limiter).until_ready().await;
             }
-            let block = provider.get_block(number).await.map_err(CollectError::ProviderError);
-            match tx.send(block).await {
+            let block = provider.get_block(number).await;
+            let result = match block {
+                Ok(Some(block)) => Ok((block, None)),
+                Ok(None) => Err(CollectError::CollectError("block not in node".to_string())),
+                Err(e) => Err(CollectError::ProviderError(e)),
+            };
+            match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
                     eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
@@ -102,23 +109,23 @@ async fn fetch_blocks(
 }
 
 pub(crate) trait ProcessTransactions {
-    fn process(&self, schema: &Table, columns: &mut TransactionColumns);
+    fn process(&self, schema: &Table, columns: &mut TransactionColumns, gas_used: Option<u32>);
 }
 
 impl ProcessTransactions for TxHash {
-    fn process(&self, _schema: &Table, _columns: &mut TransactionColumns) {
+    fn process(&self, _schema: &Table, _columns: &mut TransactionColumns, _gas_used: Option<u32>) {
         panic!("transaction data not available to process")
     }
 }
 
 impl ProcessTransactions for Transaction {
-    fn process(&self, schema: &Table, columns: &mut TransactionColumns) {
-        process_transaction(self, schema, columns)
+    fn process(&self, schema: &Table, columns: &mut TransactionColumns, gas_used: Option<u32>) {
+        process_transaction(self, schema, columns, gas_used)
     }
 }
 
 pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
-    mut blocks: mpsc::Receiver<Result<Option<Block<TX>>, CollectError>>,
+    mut blocks: mpsc::Receiver<BlockTxGasTuple<TX>>,
     blocks_schema: &Option<&Table>,
     transactions_schema: &Option<&Table>,
     chain_id: u64,
@@ -137,26 +144,31 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
     let mut n_txs = 0;
     while let Some(message) = blocks.recv().await {
         match message {
-            Ok(Some(block)) => {
+            Ok((block, gas_used)) => {
                 n_blocks += 1;
                 if let Some(schema) = blocks_schema {
                     process_block(&block, schema, &mut block_columns)
                 }
                 if let Some(schema) = transactions_schema {
-                    for tx in block.transactions.iter() {
-                        n_txs += 1;
-                        tx.process(schema, &mut transaction_columns)
+                    match gas_used {
+                        Some(gas_used) => {
+                            for (tx, gas_used) in block.transactions.iter().zip(gas_used) {
+                                n_txs += 1;
+                                tx.process(schema, &mut transaction_columns, Some(gas_used))
+                            }
+                        }
+                        None => {
+                            for tx in block.transactions.iter() {
+                                n_txs += 1;
+                                tx.process(schema, &mut transaction_columns, None)
+                            }
+                        }
                     }
                 }
             }
-            // _ => return Err(CollectError::TooManyRequestsError),
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError)
-            }
-            Ok(None) => {
-                println!("NONE");
-                return Err(CollectError::TooManyRequestsError)
+                return Err(CollectError::TooManyRequestsError);
             }
         }
     }
@@ -250,6 +262,7 @@ pub(crate) struct TransactionColumns {
     value: Vec<String>,
     input: Vec<Vec<u8>>,
     gas_limit: Vec<u32>,
+    gas_used: Vec<u32>,
     gas_price: Vec<Option<u64>>,
     transaction_type: Vec<Option<u32>>,
     max_priority_fee_per_gas: Vec<Option<u64>>,
@@ -268,6 +281,7 @@ impl TransactionColumns {
             value: Vec::with_capacity(n),
             input: Vec::with_capacity(n),
             gas_limit: Vec::with_capacity(n),
+            gas_used: Vec::with_capacity(n),
             gas_price: Vec::with_capacity(n),
             transaction_type: Vec::with_capacity(n),
             max_priority_fee_per_gas: Vec::with_capacity(n),
@@ -291,6 +305,7 @@ impl TransactionColumns {
         with_series!(cols, "value", self.value, schema);
         with_series_binary!(cols, "input", self.input, schema);
         with_series!(cols, "gas_limit", self.gas_limit, schema);
+        with_series!(cols, "gas_used", self.gas_used, schema);
         with_series!(cols, "gas_price", self.gas_price, schema);
         with_series!(cols, "transaction_type", self.transaction_type, schema);
         with_series!(cols, "max_priority_fee_per_gas", self.max_priority_fee_per_gas, schema);
@@ -358,7 +373,12 @@ fn process_block<TX>(block: &Block<TX>, schema: &Table, columns: &mut BlockColum
     }
 }
 
-fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut TransactionColumns) {
+fn process_transaction(
+    tx: &Transaction,
+    schema: &Table,
+    columns: &mut TransactionColumns,
+    gas_used: Option<u32>,
+) {
     if schema.has_column("block_number") {
         match tx.block_number {
             Some(block_number) => columns.block_number.push(Some(block_number.as_u64())),
@@ -396,6 +416,9 @@ fn process_transaction(tx: &Transaction, schema: &Table, columns: &mut Transacti
     }
     if schema.has_column("gas_limit") {
         columns.gas_limit.push(tx.gas.as_u32());
+    }
+    if schema.has_column("gas_used") {
+        columns.gas_used.push(gas_used.unwrap())
     }
     if schema.has_column("gas_price") {
         columns.gas_price.push(tx.gas_price.map(|gas_price| gas_price.as_u64()));
