@@ -168,7 +168,7 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
             }
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
         }
     }

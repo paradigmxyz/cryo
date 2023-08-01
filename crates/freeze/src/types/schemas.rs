@@ -128,7 +128,8 @@ fn compute_used_columns(
             let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
             let mut result_set: HashSet<String> = result.iter().cloned().collect();
             let exclude_set: HashSet<String> = exclude.iter().cloned().collect();
-            include.iter()
+            include
+                .iter()
                 .filter(|item| !exclude_set.contains(*item) && result_set.insert(item.to_string()))
                 .for_each(|item| result.push(item.clone()));
             result
@@ -136,7 +137,8 @@ fn compute_used_columns(
         (_, Some(include), None) => {
             let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
             let mut result_set: HashSet<String> = result.iter().cloned().collect();
-            include.iter()
+            include
+                .iter()
                 .filter(|item| result_set.insert(item.to_string()))
                 .for_each(|item| result.push(item.clone()));
             result

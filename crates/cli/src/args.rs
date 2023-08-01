@@ -15,7 +15,8 @@ pub struct Args {
         long,
         default_value = "0:latest",
         allow_hyphen_values(true),
-        help_heading = "Content Options"
+        help_heading = "Content Options",
+        num_args = 1..
     )]
     pub blocks: Vec<String>,
 
