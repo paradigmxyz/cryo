@@ -125,13 +125,22 @@ fn compute_used_columns(
             datatype.dataset().column_types().keys().map(|k| k.to_string()).collect()
         }
         (_, Some(include), Some(exclude)) => {
-            let include_set: HashSet<_> = include.iter().collect();
-            let exclude_set: HashSet<_> = exclude.iter().collect();
-            let intersection: HashSet<_> = include_set.intersection(&exclude_set).collect();
-            assert!(intersection.is_empty(), "include and exclude should be non-overlapping");
-            include.to_vec()
+            let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
+            let mut result_set: HashSet<String> = result.iter().cloned().collect();
+            let exclude_set: HashSet<String> = exclude.iter().cloned().collect();
+            include.iter()
+                .filter(|item| !exclude_set.contains(*item) && result_set.insert(item.to_string()))
+                .for_each(|item| result.push(item.clone()));
+            result
         }
-        (_, Some(include), None) => include.to_vec(),
+        (_, Some(include), None) => {
+            let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
+            let mut result_set: HashSet<String> = result.iter().cloned().collect();
+            include.iter()
+                .filter(|item| result_set.insert(item.to_string()))
+                .for_each(|item| result.push(item.clone()));
+            result
+        }
         (_, None, Some(exclude)) => {
             let exclude_set: HashSet<_> = exclude.iter().collect();
             default_columns
