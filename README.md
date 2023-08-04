@@ -2,7 +2,7 @@
 
 [![Rust](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml)
 
-`cryo` is the easiest way to extract blockchain data to parquet, csv, or json
+`cryo` is the easiest way to extract blockchain data to parquet, csv, json, or a python dataframe.
 
 `cryo` is also extremely flexible, with [many different options](#cli-options) to control how data is extracted + filtered + formatted
 
@@ -61,6 +61,24 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
+#### Installing `cryo_python` from pypi
+
+(make sure rust is installed first, see [rustup](https://www.rust-lang.org/tools/install))
+
+```bash
+pip install maturin
+pip install cryo_python
+```
+
+#### Installing `cryo_python` from source
+
+```bash
+pip install maturin
+git clone https://github.com/paradigmxyz/cryo
+cd cryo/crates/python
+maturin build --release
+pip install <OUTPUT_OF_MATURIN_BUILD>.whl
+```
 
 ## Data Schema
 
