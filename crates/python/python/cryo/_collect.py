@@ -54,7 +54,15 @@ def collect(
 
     import asyncio
 
-    return asyncio.run(
-        async_collect(datatype, output_format=output_format, **kwargs)
-    )
+    coroutine = async_collect(datatype, output_format=output_format, **kwargs)
+
+    try:
+        import concurrent.futures
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
+            return future.result()  # type: ignore
+    except RuntimeError:
+        return asyncio.run(coroutine)
 
