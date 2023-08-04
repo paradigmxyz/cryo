@@ -23,9 +23,16 @@ async def async_collect(
     from . import _args
     from . import _cryo_rust  # type: ignore
 
+    # parse inputs
     cli_args = _args.parse_cli_args(**kwargs)
+
+    # fix chunk size
+    cli_args['chunk_size'] = 20_000_000
+
+    # collect data
     result: pl.DataFrame = await _cryo_rust._collect(datatype, **cli_args)
 
+    # format output
     if output_format == 'polars':
         return result
     elif output_format == 'pandas':
