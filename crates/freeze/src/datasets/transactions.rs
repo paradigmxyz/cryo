@@ -50,7 +50,6 @@ impl Dataset for Transactions {
             "value",
             "input",
             "gas_limit",
-            "gas_used",
             "gas_price",
             "transaction_type",
             "max_priority_fee_per_gas",
