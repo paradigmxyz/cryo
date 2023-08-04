@@ -53,4 +53,5 @@ if typing.TYPE_CHECKING:
         topic2: str | bytes | None
         topic3: str | bytes | None
         inner_request_size: int | None
+        no_verbose: bool
 

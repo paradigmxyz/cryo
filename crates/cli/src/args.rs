@@ -90,6 +90,10 @@ pub struct Args {
     #[arg(short, long, help_heading = "Acquisition Options")]
     pub dry: bool,
 
+    /// Run quietly without printing information to stdout
+    #[arg(long)]
+    pub no_verbose: bool,
+
     /// Number of blocks per file
     #[arg(short, long, default_value_t = 1000, help_heading = "Output Options")]
     pub chunk_size: u64,
