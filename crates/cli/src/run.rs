@@ -23,7 +23,7 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError>
         if !args.no_verbose {
             println!("\n\n[dry run, exiting]");
         }
-        return Ok(None);
+        return Ok(None)
     };
 
     // collect data
