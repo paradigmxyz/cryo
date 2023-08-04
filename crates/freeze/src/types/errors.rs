@@ -57,6 +57,10 @@ pub enum CollectError {
     /// Error related to too many requests
     #[error("try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests")]
     TooManyRequestsError,
+
+    /// Generic RPC Error
+    #[error("RPC call error")]
+    RPCError(String),
 }
 
 /// Error related to parsing
