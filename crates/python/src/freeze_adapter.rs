@@ -9,8 +9,9 @@ use cryo_cli::{run, Args};
 #[pyfunction(
     signature = (
         datatype,
-        blocks,
+        blocks = None,
         *,
+        txs = None,
         align = false,
         reorg_buffer = 0,
         include_columns = None,
@@ -47,7 +48,8 @@ use cryo_cli::{run, Args};
 pub fn _freeze(
     py: Python<'_>,
     datatype: Vec<String>,
-    blocks: Vec<String>,
+    blocks: Option<Vec<String>>,
+    txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
     include_columns: Option<Vec<String>>,
@@ -82,6 +84,7 @@ pub fn _freeze(
     let args = Args {
         datatype,
         blocks,
+        txs,
         align,
         reorg_buffer,
         include_columns,
