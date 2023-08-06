@@ -10,20 +10,15 @@ pub struct Args {
     pub datatype: Vec<String>,
 
     /// Block numbers, see syntax below
-    #[arg(
-        short,
-        long,
-        default_value = "0:latest",
-        allow_hyphen_values(true),
-        help_heading = "Content Options"
-    )]
+    #[arg(short, long, allow_hyphen_values(true), help_heading = "Content Options")]
     pub blocks: Option<Vec<String>>,
 
     /// Transaction hashes, see syntax below
     #[arg(
         short,
         long,
-        help_heading = "Content Options"
+        help_heading = "Content Options",
+        num_args(1..),
     )]
     pub txs: Option<Vec<String>>,
 

@@ -48,7 +48,7 @@ async fn postprocess_block_chunks(
 
 pub(crate) async fn get_default_block_chunks(
     args: &Args,
-    provider: Arc<Provider<Http>>
+    provider: Arc<Provider<Http>>,
 ) -> Result<Vec<Chunk>, ParseError> {
     let block_chunks = parse_block_inputs(&vec!["0:latest".to_string()], &provider).await?;
     postprocess_block_chunks(block_chunks, args, provider).await

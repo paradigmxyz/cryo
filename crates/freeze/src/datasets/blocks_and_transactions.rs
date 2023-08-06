@@ -110,7 +110,6 @@ async fn get_txs_gas_used(
     block: &Block<Transaction>,
     source: Arc<Source>,
 ) -> Result<Vec<u32>, CollectError> {
-
     let source = Arc::new(source);
     let mut tasks = Vec::new();
     for tx in &block.transactions {
@@ -128,7 +127,9 @@ async fn get_txs_gas_used(
             };
             match provider.get_transaction_receipt(tx_clone).await {
                 Ok(Some(receipt)) => Ok(receipt.gas_used),
-                Ok(None) => Err(CollectError::CollectError("could not find tx receipt".to_string())),
+                Ok(None) => {
+                    Err(CollectError::CollectError("could not find tx receipt".to_string()))
+                }
                 Err(e) => Err(CollectError::ProviderError(e)),
             }
         });
@@ -139,9 +140,7 @@ async fn get_txs_gas_used(
     for task in tasks {
         match task.await {
             Ok(Ok(Some(value))) => gas_used.push(value.as_u32()),
-            _ => {
-                return Err(CollectError::CollectError("gas_used not available from node".into()))
-            },
+            _ => return Err(CollectError::CollectError("gas_used not available from node".into())),
         }
     }
 
