@@ -10,19 +10,48 @@ pub(crate) async fn parse_blocks(
     args: &Args,
     provider: Arc<Provider<Http>>,
 ) -> Result<Vec<Chunk>, ParseError> {
-    let block_chunks = parse_block_inputs(&args.blocks, &provider).await?;
+    // parse inputs into BlockChunks
+    let block_chunks = match &args.blocks {
+        Some(inputs) => parse_block_inputs(inputs, &provider).await?,
+        None => return Err(ParseError::ParseError("could not parse block inputs".to_string())),
+    };
+
+    postprocess_block_chunks(block_chunks, args, provider).await
+}
+
+async fn postprocess_block_chunks(
+    block_chunks: Vec<BlockChunk>,
+    args: &Args,
+    provider: Arc<Provider<Http>>,
+) -> Result<Vec<Chunk>, ParseError> {
+    // align
     let block_chunks = if args.align {
         block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
     } else {
         block_chunks
     };
+
+    // split block range into chunks
     let block_chunks = match args.n_chunks {
         Some(n_chunks) => block_chunks.subchunk_by_count(&n_chunks),
         None => block_chunks.subchunk_by_size(&args.chunk_size),
     };
+
+    // apply reorg buffer
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
+
+    // put into Chunk enums
     let chunks: Vec<Chunk> = block_chunks.iter().map(|x| Chunk::Block(x.clone())).collect();
+
     Ok(chunks)
+}
+
+pub(crate) async fn get_default_block_chunks(
+    args: &Args,
+    provider: Arc<Provider<Http>>,
+) -> Result<Vec<Chunk>, ParseError> {
+    let block_chunks = parse_block_inputs(&vec!["0:latest".to_string()], &provider).await?;
+    postprocess_block_chunks(block_chunks, args, provider).await
 }
 
 /// parse block numbers to freeze

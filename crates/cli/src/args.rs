@@ -10,15 +10,17 @@ pub struct Args {
     pub datatype: Vec<String>,
 
     /// Block numbers, see syntax below
+    #[arg(short, long, allow_hyphen_values(true), help_heading = "Content Options")]
+    pub blocks: Option<Vec<String>>,
+
+    /// Transaction hashes, see syntax below
     #[arg(
         short,
         long,
-        default_value = "0:latest",
-        allow_hyphen_values(true),
         help_heading = "Content Options",
-        num_args = 1..
+        num_args(1..),
     )]
-    pub blocks: Vec<String>,
+    pub txs: Option<Vec<String>>,
 
     /// Align block chunk boundaries to regular intervals,
     /// e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
@@ -36,14 +38,6 @@ pub struct Args {
     )]
     pub reorg_buffer: u64,
 
-    // #[arg(
-    //     short,
-    //     long,
-    //     allow_hyphen_values(true),
-    //     help_heading = "Content Options",
-    //     help = "Select by data transaction instead of by block,\ncan be a list or a file, see
-    // syntax below", )]
-    // pub txs: Vec<String>,
     /// Columns to include alongside the default output,
     /// use `all` to include all available columns
     #[arg(short, long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
@@ -203,6 +197,12 @@ fn get_after_str() -> &'static str {
 - omitting range start means 0       <white><bold>:700</bold></white> == <white><bold>0:700</bold></white>
 - minus on start means minus end     <white><bold>-1000:7000</bold></white> == <white><bold>6000:7000</bold></white>
 - plus sign on end means plus start  <white><bold>15M:+1000</bold></white> == <white><bold>15M:15.001K</bold></white>
+
+<white><bold>Transaction hash specification syntax</bold></white>
+- can use transaction hashes         <white><bold>--txs TX_HASH1 TX_HASH2 TX_HASH3</bold></white>
+- can use a parquet file             <white><bold>--txs ./path/to/file.parquet[:COLUMN_NAME]</bold></white>
+                                     (default column name is <white><bold>transaction_hash</bold></white>)
+- can use multiple parquet files     <white><bold>--txs ./path/to/ethereum__logs*.parquet</bold></white>
 "#
     )
 }

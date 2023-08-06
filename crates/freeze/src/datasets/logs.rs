@@ -8,7 +8,7 @@ use crate::{
     dataframes::SortableDataFrame,
     types::{
         conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, Logs,
-        RowFilter, Source, Table,
+        RowFilter, Source, Table, TransactionChunk,
     },
     with_series, with_series_binary,
 };
@@ -65,16 +65,33 @@ impl Dataset for Logs {
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_logs(chunk, source, filter).await;
+        let rx = fetch_block_logs(chunk, source, filter).await;
+        logs_to_df(rx, schema, source.chain_id).await
+    }
+
+    async fn collect_transaction_chunk(
+        &self,
+        chunk: &TransactionChunk,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
+    ) -> Result<DataFrame, CollectError> {
+        // if let Some(_filter) = filter {
+        //     return Err(CollectError::CollectError(
+        //         "filters not supported when using --txs".to_string(),
+        //     ));
+        // };
+        let rx = fetch_transaction_logs(chunk, source, filter).await;
         logs_to_df(rx, schema, source.chain_id).await
     }
 }
 
-async fn fetch_logs(
+async fn fetch_block_logs(
     block_chunk: &BlockChunk,
     source: &Source,
     filter: Option<&RowFilter>,
 ) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
+    // todo: need to modify these functions so they turn a result
     let request_chunks = block_chunk.to_log_filter_options(&source.inner_request_size);
     let (tx, rx) = mpsc::channel(request_chunks.len());
     for request_chunk in request_chunks.iter() {
@@ -113,6 +130,64 @@ async fn fetch_logs(
         });
     }
     rx
+}
+
+async fn fetch_transaction_logs(
+    transaction_chunk: &TransactionChunk,
+    source: &Source,
+    _filter: Option<&RowFilter>,
+) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
+    match transaction_chunk {
+        TransactionChunk::Values(tx_hashes) => {
+            let (tx, rx) = mpsc::channel(tx_hashes.len() * 200);
+            for tx_hash in tx_hashes.iter() {
+                let tx_hash = tx_hash.clone();
+                let tx = tx.clone();
+                let provider = source.provider.clone();
+                let semaphore = source.semaphore.clone();
+                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                task::spawn(async move {
+                    let _permit = match semaphore {
+                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
+                        _ => None,
+                    };
+                    if let Some(limiter) = rate_limiter {
+                        Arc::clone(&limiter).until_ready().await;
+                    }
+                    let receipt = provider
+                        .get_transaction_receipt(H256::from_slice(&tx_hash))
+                        .await
+                        .map_err(CollectError::ProviderError);
+                    let logs = match receipt {
+                        Ok(Some(receipt)) => Ok(receipt.logs),
+                        _ => Err(CollectError::CollectError("".to_string())),
+                    };
+                    match tx.send(logs).await {
+                        Ok(_) => {}
+                        Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                            eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                            std::process::exit(1)
+                        }
+                    }
+                });
+            }
+            rx
+        }
+        _ => {
+            let (tx, rx) = mpsc::channel(1);
+            let result = Err(CollectError::CollectError(
+                "transaction value ranges not supported".to_string(),
+            ));
+            match tx.send(result).await {
+                Ok(_) => {}
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
+            }
+            rx
+        }
+    }
 }
 
 async fn logs_to_df(

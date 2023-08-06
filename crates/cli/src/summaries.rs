@@ -7,6 +7,7 @@ use thousands::Separable;
 
 use cryo_freeze::{
     BlockChunk, Chunk, ChunkData, Datatype, FileOutput, FreezeSummary, MultiQuery, Source, Table,
+    TransactionChunk,
 };
 
 const TITLE_R: u8 = 0;
@@ -35,15 +36,8 @@ pub(crate) fn print_cryo_summary(query: &MultiQuery, source: &Source, sink: &Fil
     print_bullet("network", &sink.prefix);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
-    let block_chunks = query
-        .chunks
-        .iter()
-        .filter_map(|x| match x.clone() {
-            Chunk::Block(chunk) => Some(chunk),
-            _ => None,
-        })
-        .collect();
-    print_block_chunks(block_chunks);
+    print_block_chunks(query);
+    print_transaction_chunks(query);
     print_bullet("max concurrent chunks", source.max_concurrent_chunks.separate_with_commas());
     if query.schemas.contains_key(&Datatype::Logs) {
         print_bullet("inner request size", source.inner_request_size.to_string());
@@ -53,20 +47,51 @@ pub(crate) fn print_cryo_summary(query: &MultiQuery, source: &Source, sink: &Fil
     print_schemas(&query.schemas);
 }
 
-fn print_block_chunks(chunks: Vec<BlockChunk>) {
-    if let Some(min) = chunks.min_value() {
-        print_bullet("min block", min.separate_with_commas());
-    };
-    if let Some(max) = chunks.max_value() {
-        print_bullet("max block", max.separate_with_commas());
-    };
-    print_bullet("total blocks", chunks.size().separate_with_commas());
+fn print_block_chunks(query: &MultiQuery) {
+    let block_chunks: Vec<BlockChunk> = query
+        .chunks
+        .iter()
+        .filter_map(|x| match x.clone() {
+            Chunk::Block(chunk) => Some(chunk),
+            _ => None,
+        })
+        .collect();
+    if !block_chunks.is_empty() {
+        if let Some(min) = block_chunks.min_value() {
+            print_bullet("min block", min.separate_with_commas());
+        };
+        if let Some(max) = block_chunks.max_value() {
+            print_bullet("max block", max.separate_with_commas());
+        };
+        print_bullet("total blocks", block_chunks.size().separate_with_commas());
+        if let Some(first_chunk) = block_chunks.get(0) {
+            let chunk_size = first_chunk.size();
+            print_bullet("block chunk size", chunk_size.separate_with_commas());
+        };
+        print_bullet("total block chunks", block_chunks.len().separate_with_commas());
+    }
+}
 
-    if let Some(first_chunk) = chunks.get(0) {
-        let chunk_size = first_chunk.size();
-        print_bullet("block chunk size", chunk_size.separate_with_commas());
-    };
-    print_bullet("total block chunks", chunks.len().separate_with_commas());
+fn print_transaction_chunks(query: &MultiQuery) {
+    let transaction_chunks: Vec<TransactionChunk> = query
+        .chunks
+        .iter()
+        .filter_map(|x| match x.clone() {
+            Chunk::Transaction(chunk) => Some(chunk),
+            _ => None,
+        })
+        .collect();
+    if !transaction_chunks.is_empty() {
+        let total_transactions = transaction_chunks
+            .iter()
+            .map(|chunk| match chunk {
+                TransactionChunk::Values(values) => values.len() as u64,
+                TransactionChunk::Range(_, _) => todo!(),
+            })
+            .sum::<u64>();
+        print_bullet("total transactions", total_transactions.to_string());
+        print_bullet("total transaction chunks", transaction_chunks.len().separate_with_commas());
+    }
 }
 
 fn print_schemas(schemas: &HashMap<Datatype, Table>) {
@@ -120,6 +145,7 @@ pub(crate) fn print_cryo_conclusion(
     };
     let seconds = duration.as_secs();
     let millis = duration.subsec_millis();
+    let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
     let duration_string = format!("{}.{:03} seconds", seconds, millis);
 
     print_header("collection summary");
@@ -129,6 +155,18 @@ pub(crate) fn print_cryo_conclusion(
         "t_end",
         "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
     );
+    print_bullet("chunks errored", freeze_summary.n_errored.separate_with_commas());
+    print_bullet("chunks skipped", freeze_summary.n_skipped.separate_with_commas());
+    print_bullet(
+        "chunks collected",
+        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), query.chunks.len()),
+    );
+
+    print_block_chunk_summary(query, freeze_summary, total_time);
+    print_transaction_chunk_summary(query, freeze_summary, total_time);
+}
+
+fn print_block_chunk_summary(query: &MultiQuery, freeze_summary: &FreezeSummary, total_time: f64) {
     let block_chunks: Vec<BlockChunk> = query
         .chunks
         .iter()
@@ -137,26 +175,62 @@ pub(crate) fn print_cryo_conclusion(
             _ => None,
         })
         .collect();
-    let n_chunks = block_chunks.len();
-    print_bullet("chunks errored", freeze_summary.n_errored.separate_with_commas());
-    print_bullet("chunks skipped", freeze_summary.n_skipped.separate_with_commas());
-    print_bullet(
-        "chunks collected",
-        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), n_chunks),
-    );
-    let total_blocks = block_chunks.size() as f64;
-    let blocks_completed =
-        total_blocks * (freeze_summary.n_completed as f64 / block_chunks.len() as f64);
-    print_bullet("blocks collected", blocks_completed.separate_with_commas());
-    let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
-    let blocks_per_second = blocks_completed / total_time;
-    let blocks_per_minute = blocks_per_second * 60.0;
-    let blocks_per_hour = blocks_per_minute * 60.0;
-    let blocks_per_day = blocks_per_hour * 24.0;
-    print_bullet("blocks per second", format_float(blocks_per_second));
-    print_bullet("blocks per minute", format_float(blocks_per_minute));
-    print_bullet("blocks per hour", "  ".to_string() + format_float(blocks_per_hour).as_str());
-    print_bullet("blocks per day", "   ".to_string() + format_float(blocks_per_day).as_str());
+    if !block_chunks.is_empty() {
+        let total_blocks = block_chunks.size() as f64;
+        let blocks_completed =
+            total_blocks * (freeze_summary.n_completed as f64 / block_chunks.len() as f64);
+        print_bullet("blocks collected", blocks_completed.separate_with_commas());
+        let blocks_per_second = blocks_completed / total_time;
+        let blocks_per_minute = blocks_per_second * 60.0;
+        let blocks_per_hour = blocks_per_minute * 60.0;
+        let blocks_per_day = blocks_per_hour * 24.0;
+        print_bullet("blocks per second", format_float(blocks_per_second));
+        print_bullet("blocks per minute", format_float(blocks_per_minute));
+        print_bullet("blocks per hour", "  ".to_string() + format_float(blocks_per_hour).as_str());
+        print_bullet("blocks per day", "   ".to_string() + format_float(blocks_per_day).as_str());
+    };
+}
+
+fn print_transaction_chunk_summary(
+    query: &MultiQuery,
+    freeze_summary: &FreezeSummary,
+    total_time: f64,
+) {
+    let transaction_chunks: Vec<TransactionChunk> = query
+        .chunks
+        .iter()
+        .filter_map(|x| match x {
+            Chunk::Transaction(chunk) => Some(chunk.clone()),
+            _ => None,
+        })
+        .collect();
+    if !transaction_chunks.is_empty() {
+        // let total_transactions = transaction_chunks.size() as f64;
+        let total_transactions = transaction_chunks
+            .iter()
+            .map(|chunk| match chunk {
+                TransactionChunk::Values(values) => values.len() as u64,
+                TransactionChunk::Range(_, _) => todo!(),
+            })
+            .sum::<u64>();
+        let transactions_completed: u64 =
+            total_transactions * (freeze_summary.n_completed / transaction_chunks.len() as u64);
+        print_bullet("transactions collected", transactions_completed.separate_with_commas());
+        let transactions_per_second = transactions_completed as f64 / total_time;
+        let transactions_per_minute = transactions_per_second * 60.0;
+        let transactions_per_hour = transactions_per_minute * 60.0;
+        let transactions_per_day = transactions_per_hour * 24.0;
+        print_bullet("transactions per second", format_float(transactions_per_second));
+        print_bullet("transactions per minute", format_float(transactions_per_minute));
+        print_bullet(
+            "transactions per hour",
+            "  ".to_string() + format_float(transactions_per_hour).as_str(),
+        );
+        print_bullet(
+            "transactions per day",
+            "   ".to_string() + format_float(transactions_per_day).as_str(),
+        );
+    };
 }
 
 fn format_float(number: f64) -> String {

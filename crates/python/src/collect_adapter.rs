@@ -8,8 +8,9 @@ use cryo_freeze::collect;
 #[pyfunction(
     signature = (
         datatype,
-        blocks,
+        blocks = None,
         *,
+        txs = None,
         align = false,
         reorg_buffer = 0,
         include_columns = None,
@@ -47,7 +48,8 @@ use cryo_freeze::collect;
 pub fn _collect(
     py: Python<'_>,
     datatype: String,
-    blocks: Vec<String>,
+    blocks: Option<Vec<String>>,
+    txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
     include_columns: Option<Vec<String>>,
@@ -83,6 +85,7 @@ pub fn _collect(
     let args = Args {
         datatype: vec![datatype],
         blocks,
+        txs,
         align,
         reorg_buffer,
         include_columns,

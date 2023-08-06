@@ -5,14 +5,21 @@ use hex::FromHex;
 
 use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiQuery, ParseError, RowFilter, Table};
 
-use super::{blocks, file_output};
+use super::{blocks, file_output, transactions};
 use crate::args::Args;
 
 pub(crate) async fn parse_query(
     args: &Args,
     provider: Arc<Provider<Http>>,
 ) -> Result<MultiQuery, ParseError> {
-    let chunks = blocks::parse_blocks(args, provider).await?;
+    let chunks = match (&args.blocks, &args.txs) {
+        (Some(_), None) => blocks::parse_blocks(args, provider).await?,
+        (None, Some(txs)) => transactions::parse_transactions(txs)?,
+        (None, None) => blocks::get_default_block_chunks(args, provider).await?,
+        (Some(_), Some(_)) => {
+            return Err(ParseError::ParseError("specify only one of --blocks or --txs".to_string()))
+        }
+    };
 
     // process schemas
     let schemas = parse_schemas(args)?;
