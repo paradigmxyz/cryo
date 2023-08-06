@@ -9,8 +9,8 @@ pub struct FreezeSummary {
     pub n_skipped: u64,
     /// number of chunks that encountered an error
     pub n_errored: u64,
-    /// paths_by_type
-    pub paths_by_type: HashMap<Datatype, Vec<String>>,
+    /// paths
+    pub paths: HashMap<Datatype, Vec<String>>,
 }
 
 pub(crate) trait FreezeSummaryAgg {
@@ -23,7 +23,7 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
         let mut n_skipped: u64 = 0;
         let mut n_errored: u64 = 0;
 
-        let mut paths_by_type = HashMap::new();
+        let mut paths = HashMap::new();
         for chunk_summary in self {
             if chunk_summary.skipped {
                 n_skipped += 1;
@@ -33,11 +33,11 @@ impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
                 n_completed += 1;
             }
             for (datatype, path) in chunk_summary.paths {
-                paths_by_type.entry(datatype).or_insert_with(Vec::new).push(path);
+                paths.entry(datatype).or_insert_with(Vec::new).push(path);
             }
         }
 
-        FreezeSummary { n_completed, n_skipped, n_errored, paths_by_type }
+        FreezeSummary { n_completed, n_skipped, n_errored, paths }
     }
 }
 

@@ -186,7 +186,8 @@ async fn state_diffs_to_df(
     while let Some(message) = rx.recv().await {
         match message {
             (block_num, Ok(blocks_traces)) => {
-                for ts in blocks_traces.iter() {
+                for (t_index, ts) in blocks_traces.iter().enumerate() {
+                    let t_index = t_index as u32;
                     if let (Some(tx), Some(StateDiff(state_diff))) =
                         (ts.transaction_hash, &ts.state_diff)
                     {
@@ -206,7 +207,7 @@ async fn state_diffs_to_df(
                                         storage_block_number.push(block_num);
                                     };
                                     if include_storage_transaction_index {
-                                        storage_transaction_index.push(block_num);
+                                        storage_transaction_index.push(t_index);
                                     };
                                     if include_storage_transaction_hash {
                                         storage_transaction_hash.push(tx.as_bytes().to_vec());
@@ -240,7 +241,7 @@ async fn state_diffs_to_df(
                                     balance_block_number.push(block_num);
                                 };
                                 if include_balance_transaction_index {
-                                    balance_transaction_index.push(block_num);
+                                    balance_transaction_index.push(t_index);
                                 };
                                 if include_balance_transaction_hash {
                                     balance_transaction_hash.push(tx.as_bytes().to_vec());
@@ -270,7 +271,7 @@ async fn state_diffs_to_df(
                                     nonce_block_number.push(block_num);
                                 };
                                 if include_nonce_transaction_index {
-                                    nonce_transaction_index.push(block_num);
+                                    nonce_transaction_index.push(t_index);
                                 };
                                 if include_nonce_transaction_hash {
                                     nonce_transaction_hash.push(tx.as_bytes().to_vec());
@@ -307,7 +308,7 @@ async fn state_diffs_to_df(
                                     code_block_number.push(block_num);
                                 };
                                 if include_code_transaction_index {
-                                    code_transaction_index.push(block_num);
+                                    code_transaction_index.push(t_index);
                                 };
                                 if include_code_transaction_hash {
                                     code_transaction_hash.push(tx.as_bytes().to_vec());

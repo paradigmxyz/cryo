@@ -429,7 +429,7 @@ async fn traces_to_df(
                     }
                 }
             }
-            _ => return Err(CollectError::TooManyRequestsError),
+            Err(e) => return Err(CollectError::RPCError(e.to_string())),
         }
     }
 
