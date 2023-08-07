@@ -11,7 +11,7 @@ pub struct Args {
 
     /// Block numbers, see syntax below
     #[arg(short, long, allow_hyphen_values(true), help_heading = "Content Options")]
-    pub blocks: Option<Vec<String>>,
+    pub blocks: Option<String>,
 
     /// Transaction hashes, see syntax below
     #[arg(

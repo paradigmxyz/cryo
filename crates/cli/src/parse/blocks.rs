@@ -50,29 +50,30 @@ pub(crate) async fn get_default_block_chunks(
     args: &Args,
     provider: Arc<Provider<Http>>,
 ) -> Result<Vec<Chunk>, ParseError> {
-    let block_chunks = parse_block_inputs(&vec!["0:latest".to_string()], &provider).await?;
+    let block_chunks = parse_block_inputs(&String::from(r"0:latest"), &provider).await?;
     postprocess_block_chunks(block_chunks, args, provider).await
 }
 
 /// parse block numbers to freeze
 async fn parse_block_inputs<P>(
-    inputs: &Vec<String>,
+    inputs: &str,
     provider: &Provider<P>,
 ) -> Result<Vec<BlockChunk>, ParseError>
 where
     P: JsonRpcClient,
 {
-    match inputs.len() {
+    let parts: Vec<&str> = inputs.split(' ').collect();
+    match parts.len() {
         1 => {
-            let first_input = inputs.get(0).ok_or_else(|| {
+            let first_input = parts.get(0).ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
             parse_block_token(first_input, true, provider).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
-            for input in inputs {
-                chunks.push(parse_block_token(input, false, provider).await?);
+            for part in parts {
+                chunks.push(parse_block_token(part, false, provider).await?);
             }
             Ok(chunks)
         }
@@ -273,8 +274,8 @@ mod tests {
     }
 
     enum BlockInputTest<'a> {
-        WithoutMock((&'a Vec<String>, Vec<BlockChunk>)), // Token | Expected
-        WithMock((&'a Vec<String>, Vec<BlockChunk>, u64)), // Token | Expected | Mock Block Response
+        WithoutMock((&'a String, Vec<BlockChunk>)), // Token | Expected
+        WithMock((&'a String, Vec<BlockChunk>, u64)), // Token | Expected | Mock Block Response
     }
 
     async fn block_input_test_helper(tests: Vec<(BlockInputTest<'_>, bool)>) {
@@ -293,7 +294,7 @@ mod tests {
     }
 
     async fn block_input_test_executor<P>(
-        inputs: &Vec<String>,
+        inputs: &String,
         expected: Vec<BlockChunk>,
         provider: &Provider<P>,
     ) -> bool
@@ -389,9 +390,10 @@ mod tests {
     #[tokio::test]
     async fn block_inputs_parsing() {
         // Ranges
-        let block_inputs_single = vec![String::from(r"1:2")];
-        let block_inputs_multiple = vec![String::from(r"1"), String::from(r"2")];
-        let block_inputs_latest = vec![String::from(r"1:latest")];
+        let block_inputs_single = String::from(r"1:2");
+        let block_inputs_multiple = String::from(r"1 2");
+        let block_inputs_latest = String::from(r"1:latest");
+        let block_inputs_multiple_complex = String::from(r"15M:+1 1000:1002 -3:1b 2000");
         let tests: Vec<(BlockInputTest<'_>, bool)> = vec![
             // Range Type
             (
@@ -413,6 +415,18 @@ mod tests {
                 )),
                 true,
             ), // Single input latest
+            (
+                BlockInputTest::WithoutMock((
+                    &block_inputs_multiple_complex,
+                    vec![
+                        BlockChunk::Numbers(vec![15000000, 15000001]),
+                        BlockChunk::Numbers(vec![1000, 1001, 1002]),
+                        BlockChunk::Numbers(vec![999999997, 999999998, 999999999, 1000000000]),
+                        BlockChunk::Numbers(vec![2000]),
+                    ],
+                )),
+                true,
+            ), // Multi input complex
         ];
         block_input_test_helper(tests).await;
     }
