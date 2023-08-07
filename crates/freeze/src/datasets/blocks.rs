@@ -9,6 +9,7 @@ use crate::{
     types::{
         conversions::{ToVecHex, ToVecU8},
         BlockChunk, Blocks, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
+        TransactionChunk,
     },
     with_series, with_series_binary,
 };
@@ -69,6 +70,67 @@ impl Dataset for Blocks {
             Err(e) => Err(e),
         }
     }
+
+    async fn collect_transaction_chunk(
+        &self,
+        chunk: &TransactionChunk,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
+    ) -> Result<DataFrame, CollectError> {
+        let block_numbers = match chunk {
+            TransactionChunk::Values(tx_hashes) => {
+                fetch_tx_block_numbers(tx_hashes, source).await?
+            }
+            _ => return Err(CollectError::CollectError("".to_string())),
+        };
+        let block_chunk = BlockChunk::Numbers(block_numbers);
+        self.collect_block_chunk(&block_chunk, source, schema, filter).await
+    }
+}
+
+async fn fetch_tx_block_numbers(
+    tx_hashes: &Vec<Vec<u8>>,
+    source: &Source,
+) -> Result<Vec<u64>, CollectError> {
+    let mut tasks = Vec::new();
+    for tx_hash in tx_hashes {
+        let provider = Arc::clone(&source.provider);
+        let semaphore = source.semaphore.clone();
+        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let tx_hash = tx_hash.clone();
+        let task = tokio::task::spawn(async move {
+            let _permit = match semaphore {
+                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
+                _ => None,
+            };
+            if let Some(limiter) = rate_limiter {
+                Arc::clone(&limiter).until_ready().await;
+            };
+            provider.get_transaction(H256::from_slice(&tx_hash)).await
+        });
+        tasks.push(task);
+    }
+    let results = futures::future::join_all(tasks).await;
+    let mut block_numbers = Vec::new();
+    for res in results {
+        let task_result =
+            res.map_err(|_| CollectError::CollectError("Task join error".to_string()))?;
+        let tx =
+            task_result.map_err(|_| CollectError::CollectError("Provider error".to_string()))?;
+        match tx {
+            Some(transaction) => match transaction.block_number {
+                Some(block_number) => block_numbers.push(block_number.as_u64()),
+                None => {
+                    return Err(CollectError::CollectError("No block number for tx".to_string()))
+                }
+            },
+            None => return Err(CollectError::CollectError("Transaction not found".to_string())),
+        }
+    }
+    block_numbers.sort();
+    block_numbers.dedup();
+    Ok(block_numbers)
 }
 
 async fn fetch_blocks(
