@@ -270,7 +270,7 @@ pub(crate) struct TransactionColumns {
 }
 
 impl TransactionColumns {
-    fn new(n: usize) -> Self {
+    pub(crate) fn new(n: usize) -> Self {
         Self {
             block_number: Vec::with_capacity(n),
             transaction_index: Vec::with_capacity(n),
@@ -289,7 +289,7 @@ impl TransactionColumns {
         }
     }
 
-    fn create_df(
+    pub(crate) fn create_df(
         self,
         schema: &Table,
         chain_id: u64,
