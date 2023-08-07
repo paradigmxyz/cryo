@@ -23,9 +23,16 @@ async def async_collect(
     from . import _args
     from . import _cryo_rust  # type: ignore
 
+    # parse inputs
     cli_args = _args.parse_cli_args(**kwargs)
+
+    # fix chunk size
+    cli_args['chunk_size'] = 20_000_000
+
+    # collect data
     result: pl.DataFrame = await _cryo_rust._collect(datatype, **cli_args)
 
+    # format output
     if output_format == 'polars':
         return result
     elif output_format == 'pandas':
@@ -47,7 +54,15 @@ def collect(
 
     import asyncio
 
-    return asyncio.run(
-        async_collect(datatype, output_format=output_format, **kwargs)
-    )
+    coroutine = async_collect(datatype, output_format=output_format, **kwargs)
+
+    try:
+        import concurrent.futures
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
+            return future.result()  # type: ignore
+    except RuntimeError:
+        return asyncio.run(coroutine)
 

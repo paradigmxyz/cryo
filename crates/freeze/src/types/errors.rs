@@ -30,6 +30,10 @@ pub enum FreezeError {
 /// Error related to data collection
 #[derive(Error, Debug)]
 pub enum CollectError {
+    /// General Collection error
+    #[error("Collect failed: {0}")]
+    CollectError(String),
+
     /// Error related to provider operations
     #[error("Failed to get block: {0}")]
     ProviderError(#[source] ProviderError),
@@ -53,6 +57,10 @@ pub enum CollectError {
     /// Error related to too many requests
     #[error("try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests")]
     TooManyRequestsError,
+
+    /// Generic RPC Error
+    #[error("RPC call error")]
+    RPCError(String),
 }
 
 /// Error related to parsing

@@ -9,8 +9,9 @@ use cryo_cli::{run, Args};
 #[pyfunction(
     signature = (
         datatype,
-        blocks,
+        blocks = None,
         *,
+        txs = None,
         align = false,
         reorg_buffer = 0,
         include_columns = None,
@@ -41,13 +42,15 @@ use cryo_cli::{run, Args};
         topic2 = None,
         topic3 = None,
         inner_request_size = 1,
+        no_verbose = false,
     )
 )]
 #[allow(clippy::too_many_arguments)]
 pub fn _freeze(
     py: Python<'_>,
     datatype: Vec<String>,
-    blocks: Vec<String>,
+    blocks: Option<Vec<String>>,
+    txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
     include_columns: Option<Vec<String>>,
@@ -78,10 +81,12 @@ pub fn _freeze(
     topic2: Option<String>,
     topic3: Option<String>,
     inner_request_size: u64,
+    no_verbose: bool,
 ) -> PyResult<&PyAny> {
     let args = Args {
         datatype,
         blocks,
+        txs,
         align,
         reorg_buffer,
         include_columns,
@@ -112,24 +117,25 @@ pub fn _freeze(
         topic2,
         topic3,
         inner_request_size,
+        no_verbose,
     };
 
     pyo3_asyncio::tokio::future_into_py(py, async move {
         match run(args).await {
             Ok(Some(result)) => Python::with_gil(|py| {
-                let paths_by_type = PyDict::new(py);
-                for (key, values) in &result.paths_by_type {
+                let paths = PyDict::new(py);
+                for (key, values) in &result.paths {
                     let key = key.dataset().name();
                     let values: Vec<&str> = values.iter().map(AsRef::as_ref).collect();
-                    paths_by_type.set_item(key, values).unwrap();
+                    paths.set_item(key, values).unwrap();
                 }
-                let paths_by_type = paths_by_type.to_object(py);
+                let paths = paths.to_object(py);
 
                 let dict = [
                     ("n_completed".to_string(), result.n_completed.into_py(py)),
                     ("n_skipped".to_string(), result.n_skipped.into_py(py)),
                     ("n_errored".to_string(), result.n_errored.into_py(py)),
-                    ("paths_by_type".to_string(), paths_by_type),
+                    ("paths".to_string(), paths),
                 ]
                 .into_py_dict(py);
                 Ok(dict.to_object(py))

@@ -31,7 +31,7 @@ def test_file_output(query, format):
         query = dict(query, **{extension: True})
     result = cryo.freeze(output_dir=output_dir, **query)
     for datatype in query['datatype']:
-        path = result['paths_by_type'][datatype]
+        path = result['paths'][datatype]
         assert isinstance(path, list) and len(path) == 1
         path = path[0]
         df_freeze = reader(path)

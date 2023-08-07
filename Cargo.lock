@@ -880,13 +880,14 @@ dependencies = [
 
 [[package]]
 name = "cryo_python"
-version = "0.1.0"
+version = "0.1.2"
 dependencies = [
  "cryo_cli",
  "cryo_freeze",
  "polars",
  "pyo3",
  "pyo3-asyncio",
+ "pyo3-build-config",
  "pyo3-polars",
  "tokio",
 ]

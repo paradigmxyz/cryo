@@ -30,6 +30,7 @@ impl Dataset for Transactions {
             ("value_float", ColumnType::Float64),
             ("input", ColumnType::Binary),
             ("gas_limit", ColumnType::UInt32),
+            ("gas_used", ColumnType::UInt32),
             ("gas_price", ColumnType::UInt64),
             ("transaction_type", ColumnType::UInt32),
             ("max_priority_fee_per_gas", ColumnType::UInt64),
@@ -68,7 +69,10 @@ impl Dataset for Transactions {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = blocks_and_transactions::fetch_blocks_and_transactions(chunk, source).await;
+        let include_gas_used = schema.has_column("gas_used");
+        let rx =
+            blocks_and_transactions::fetch_blocks_and_transactions(chunk, source, include_gas_used)
+                .await;
         let output = blocks::blocks_to_dfs(rx, &None, &Some(schema), source.chain_id).await;
         match output {
             Ok((_, Some(txs_df))) => Ok(txs_df),

@@ -39,5 +39,16 @@ def freeze(
 
     import asyncio
 
-    return asyncio.run(async_freeze(datatype, **kwargs))
+    coroutine = async_freeze(datatype, **kwargs)
+
+    try:
+        import concurrent.futures
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        with concurrent.futures.ThreadPoolExecutor() as executor:
+            future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
+            return future.result()  # type: ignore
+    except RuntimeError:
+        return asyncio.run(coroutine)
 

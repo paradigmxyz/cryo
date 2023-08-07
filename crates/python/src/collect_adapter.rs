@@ -8,8 +8,9 @@ use cryo_freeze::collect;
 #[pyfunction(
     signature = (
         datatype,
-        blocks,
+        blocks = None,
         *,
+        txs = None,
         align = false,
         reorg_buffer = 0,
         include_columns = None,
@@ -40,13 +41,15 @@ use cryo_freeze::collect;
         topic2 = None,
         topic3 = None,
         inner_request_size = 1,
+        no_verbose = false,
     )
 )]
 #[allow(clippy::too_many_arguments)]
 pub fn _collect(
     py: Python<'_>,
     datatype: String,
-    blocks: Vec<String>,
+    blocks: Option<Vec<String>>,
+    txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
     include_columns: Option<Vec<String>>,
@@ -77,10 +80,12 @@ pub fn _collect(
     topic2: Option<String>,
     topic3: Option<String>,
     inner_request_size: u64,
+    no_verbose: bool,
 ) -> PyResult<&PyAny> {
     let args = Args {
         datatype: vec![datatype],
         blocks,
+        txs,
         align,
         reorg_buffer,
         include_columns,
@@ -111,6 +116,7 @@ pub fn _collect(
         topic2,
         topic3,
         inner_request_size,
+        no_verbose,
     };
 
     pyo3_asyncio::tokio::future_into_py(py, async move {
