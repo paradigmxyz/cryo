@@ -70,6 +70,10 @@ pub enum ParseError {
     #[error("Parsing error")]
     ParseError(String),
 
+    /// Error related to provider operations
+    #[error("Failed to get block: {0}")]
+    ProviderError(#[source] ProviderError),
+
     /// Parse int error
     #[error("Parsing error")]
     ParseIntError(#[from] std::num::ParseIntError),

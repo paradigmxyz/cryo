@@ -17,7 +17,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let chain_id = provider
         .get_chainid()
         .await
-        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?
+        .map_err(|e| ParseError::ProviderError(e))?
         .as_u64();
 
     let rate_limiter = match args.requests_per_second {
