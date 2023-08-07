@@ -30,11 +30,11 @@ pub async fn freeze(
     let source = Arc::new(source.clone());
     let sink = Arc::new(sink.clone());
     let mut tasks: Vec<_> = vec![];
-    for chunk in query.chunks.clone().into_iter() {
+    for (chunk, chunk_label) in query.chunks.iter() {
         // datatypes
         for datatype in &datatypes {
             let task = tokio::spawn(freeze_datatype_chunk(
-                chunk.clone(),
+                (chunk.clone(), chunk_label.clone()),
                 *datatype,
                 Arc::clone(&sem),
                 Arc::clone(&query),
@@ -49,7 +49,7 @@ pub async fn freeze(
         for multi_datatype in &multi_datatypes {
             let bar = Arc::clone(&bar);
             let task = tokio::spawn(freeze_multi_datatype_chunk(
-                chunk.clone(),
+                (chunk.clone(), chunk_label.clone()),
                 *multi_datatype,
                 Arc::clone(&sem),
                 Arc::clone(&query),
@@ -78,7 +78,7 @@ fn cluster_datatypes(dts: Vec<&Datatype>) -> (Vec<Datatype>, Vec<MultiDatatype>)
 }
 
 async fn freeze_datatype_chunk(
-    chunk: Chunk,
+    chunk: (Chunk, Option<String>),
     datatype: Datatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
@@ -91,7 +91,8 @@ async fn freeze_datatype_chunk(
     let ds = datatype.dataset();
 
     // create path
-    let path = match chunk.filepath(ds.name(), &sink) {
+    let (chunk, chunk_label) = chunk;
+    let path = match chunk.filepath(ds.name(), &sink, &chunk_label) {
         Err(_e) => return FreezeChunkSummary::error(HashMap::new()),
         Ok(path) => path,
     };
@@ -127,7 +128,7 @@ async fn freeze_datatype_chunk(
 }
 
 async fn freeze_multi_datatype_chunk(
-    chunk: Chunk,
+    chunk: (Chunk, Option<String>),
     mdt: MultiDatatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
@@ -138,9 +139,10 @@ async fn freeze_multi_datatype_chunk(
     let _permit = sem.acquire().await.expect("Semaphore acquire");
 
     // create paths
+    let (chunk, chunk_label) = chunk;
     let mut paths: HashMap<Datatype, String> = HashMap::new();
     for ds in mdt.multi_dataset().datasets().values() {
-        match chunk.filepath(ds.name(), &sink) {
+        match chunk.filepath(ds.name(), &sink, &chunk_label) {
             Err(_e) => return FreezeChunkSummary::error(paths),
             Ok(path) => paths.insert(ds.datatype(), path),
         };

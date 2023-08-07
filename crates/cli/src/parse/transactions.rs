@@ -1,7 +1,9 @@
 use cryo_freeze::{Chunk, ParseError, TransactionChunk};
 use polars::prelude::*;
 
-pub(crate) fn parse_transactions(txs: &[String]) -> Result<Vec<Chunk>, ParseError> {
+pub(crate) fn parse_transactions(
+    txs: &[String],
+) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     let (files, hashes): (Vec<&String>, Vec<&String>) =
         txs.iter().partition(|tx| std::path::Path::new(tx).exists());
 
@@ -18,7 +20,11 @@ pub(crate) fn parse_transactions(txs: &[String]) -> Result<Vec<Chunk>, ParseErro
             let tx_hashes = read_binary_column(path, column)
                 .map_err(|_e| ParseError::ParseError("could not read input".to_string()))?;
             let chunk = TransactionChunk::Values(tx_hashes);
-            file_chunks.push(Chunk::Transaction(chunk));
+            let chunk_label = path
+                .split("__")
+                .last()
+                .and_then(|s| s.strip_suffix(".parquet").map(|s| s.to_string()));
+            file_chunks.push((Chunk::Transaction(chunk), chunk_label));
         }
         file_chunks
     } else {
@@ -30,7 +36,7 @@ pub(crate) fn parse_transactions(txs: &[String]) -> Result<Vec<Chunk>, ParseErro
         let values =
             values.map_err(|_e| ParseError::ParseError("could not parse txs".to_string()))?;
         let chunk = Chunk::Transaction(TransactionChunk::Values(values));
-        vec![chunk]
+        vec![(chunk, None)]
     } else {
         Vec::new()
     };
@@ -50,6 +56,8 @@ fn read_binary_column(path: &str, column: &str) -> Result<Vec<Vec<u8>>, ParseErr
 
     let series = df
         .column(column)
+        .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?
+        .unique()
         .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?;
 
     let ca = series

@@ -28,11 +28,20 @@ pub trait ChunkData: Sized {
     }
 
     /// get filepath for chunk
-    fn filepath(&self, name: &str, file_output: &FileOutput) -> Result<String, FileError> {
+    fn filepath(
+        &self,
+        name: &str,
+        file_output: &FileOutput,
+        chunk_label: &Option<String>,
+    ) -> Result<String, FileError> {
         let network_name = file_output.prefix.clone();
+        let stub = match chunk_label {
+            Some(chunk_label) => chunk_label.clone(),
+            None => self.stub()?,
+        };
         let pieces: Vec<String> = match &file_output.suffix {
-            Some(suffix) => vec![network_name, name.to_string(), self.stub()?, suffix.clone()],
-            None => vec![network_name, name.to_string(), self.stub()?],
+            Some(suffix) => vec![network_name, name.to_string(), stub, suffix.clone()],
+            None => vec![network_name, name.to_string(), stub],
         };
         let filename = format!("{}.{}", pieces.join("__"), file_output.format.as_str());
         match file_output.output_dir.as_str() {
