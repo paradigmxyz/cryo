@@ -66,7 +66,7 @@ where
     let parts: Vec<&str> = inputs.split(' ').collect();
     match parts.len() {
         1 => {
-            let first_input = parts.get(0).ok_or_else(|| {
+            let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
             parse_block_token(first_input, true, provider).await.map(|x| vec![x])
