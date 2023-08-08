@@ -4,7 +4,8 @@ use polars::prelude::*;
 
 use super::state_diffs;
 use crate::types::{
-    BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, StorageDiffs, Table,
+    BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, StorageDiffs,
+    Table, TransactionChunk,
 };
 
 #[async_trait::async_trait]
@@ -53,6 +54,30 @@ impl Dataset for StorageDiffs {
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        state_diffs::collect_single(&Datatype::StorageDiffs, chunk, source, schema, filter).await
+        state_diffs::collect_block_state_diffs(
+            &Datatype::StorageDiffs,
+            chunk,
+            source,
+            schema,
+            filter,
+        )
+        .await
+    }
+
+    async fn collect_transaction_chunk(
+        &self,
+        chunk: &TransactionChunk,
+        source: &Source,
+        schema: &Table,
+        filter: Option<&RowFilter>,
+    ) -> Result<DataFrame, CollectError> {
+        state_diffs::collect_transaction_state_diffs(
+            &Datatype::StorageDiffs,
+            chunk,
+            source,
+            schema,
+            filter,
+        )
+        .await
     }
 }

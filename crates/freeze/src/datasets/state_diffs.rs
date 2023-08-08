@@ -8,10 +8,14 @@ use crate::{
     dataframes::SortableDataFrame,
     types::{
         conversions::ToVecHex, BlockChunk, ChunkData, CollectError, ColumnType, Datatype,
-        MultiDataset, RowFilter, Source, StateDiffs, Table,
+        MultiDataset, RowFilter, Source, StateDiffs, Table, TransactionChunk,
     },
     with_series, with_series_binary,
 };
+
+// entries: block_number, transaction_indices, transaction_traces
+pub(crate) type BlockNumberTransactionsTraces =
+    Result<(Option<u32>, Vec<(u32, BlockTrace)>), CollectError>;
 
 #[async_trait::async_trait]
 impl MultiDataset for StateDiffs {
@@ -32,19 +36,56 @@ impl MultiDataset for StateDiffs {
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        let rx = fetch_state_diffs(chunk, source).await;
+        let rx = fetch_block_state_diffs(chunk, source).await;
+        state_diffs_to_df(rx, &schemas, source.chain_id).await
+    }
+
+    async fn collect_transaction_chunk(
+        &self,
+        chunk: &TransactionChunk,
+        source: &Source,
+        schemas: HashMap<Datatype, Table>,
+        _filter: HashMap<Datatype, RowFilter>,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+        let include_indices = schemas.values().any(|schema| schema.has_column("block_number"));
+        let rx = fetch_transaction_state_diffs(chunk, source, include_indices).await;
         state_diffs_to_df(rx, &schemas, source.chain_id).await
     }
 }
 
-pub(crate) async fn collect_single(
+pub(crate) async fn collect_block_state_diffs(
     datatype: &Datatype,
     chunk: &BlockChunk,
     source: &Source,
     schema: &Table,
     _filter: Option<&RowFilter>,
 ) -> Result<DataFrame, CollectError> {
-    let rx = fetch_state_diffs(chunk, source).await;
+    let rx = fetch_block_state_diffs(chunk, source).await;
+    let mut schemas: HashMap<Datatype, Table> = HashMap::new();
+    schemas.insert(*datatype, schema.clone());
+    let dfs = state_diffs_to_df(rx, &schemas, source.chain_id).await;
+
+    // get single df out of result
+    let df = match dfs {
+        Ok(mut dfs) => match dfs.remove(datatype) {
+            Some(df) => Ok(df),
+            None => Err(CollectError::BadSchemaError),
+        },
+        Err(e) => Err(e),
+    };
+
+    df.sort_by_schema(schema)
+}
+
+pub(crate) async fn collect_transaction_state_diffs(
+    datatype: &Datatype,
+    chunk: &TransactionChunk,
+    source: &Source,
+    schema: &Table,
+    _filter: Option<&RowFilter>,
+) -> Result<DataFrame, CollectError> {
+    let include_indices = schema.has_column("block_number");
+    let rx = fetch_transaction_state_diffs(chunk, source, include_indices).await;
     let mut schemas: HashMap<Datatype, Table> = HashMap::new();
     schemas.insert(*datatype, schema.clone());
     let dfs = state_diffs_to_df(rx, &schemas, source.chain_id).await;
@@ -65,7 +106,7 @@ pub(crate) async fn fetch_block_traces(
     block_chunk: &BlockChunk,
     trace_types: &[TraceType],
     source: &Source,
-) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
+) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
     let (tx, rx) = mpsc::channel(block_chunk.size() as usize);
     for number in block_chunk.numbers() {
         let tx = tx.clone();
@@ -84,8 +125,17 @@ pub(crate) async fn fetch_block_traces(
             let result = provider
                 .trace_replay_block_transactions(BlockNumber::Number(number.into()), trace_types)
                 .await
+                .map(|res| {
+                    (
+                        Some(number as u32),
+                        res.into_iter()
+                            .enumerate()
+                            .map(|(index, traces)| (index as u32, traces))
+                            .collect(),
+                    )
+                })
                 .map_err(CollectError::ProviderError);
-            match tx.send((number as u32, result)).await {
+            match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
                     eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
@@ -98,15 +148,109 @@ pub(crate) async fn fetch_block_traces(
     rx
 }
 
-pub(crate) async fn fetch_state_diffs(
-    block_chunk: &BlockChunk,
+pub(crate) async fn fetch_transaction_traces(
+    transaction_chunk: &TransactionChunk,
+    trace_types: &[TraceType],
     source: &Source,
-) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
-    fetch_block_traces(block_chunk, &[TraceType::StateDiff], source).await
+    include_indices: bool,
+) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+    match transaction_chunk {
+        TransactionChunk::Values(tx_hashes) => {
+            let (tx, rx) = mpsc::channel(tx_hashes.len());
+            for tx_hash in tx_hashes.iter() {
+                let tx_hash = tx_hash.clone();
+                let tx = tx.clone();
+                let provider = source.provider.clone();
+                let semaphore = source.semaphore.clone();
+                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                let trace_types = trace_types.to_vec();
+                tokio::spawn(async move {
+                    let _permit = match semaphore {
+                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
+                        _ => None,
+                    };
+                    if let Some(limiter) = &rate_limiter {
+                        Arc::clone(limiter).until_ready().await;
+                    }
+                    let tx_hash = H256::from_slice(&tx_hash);
+                    let result = provider
+                        .trace_replay_transaction(tx_hash, trace_types)
+                        .await
+                        .map_err(CollectError::ProviderError);
+                    let result = match result {
+                        Ok(trace) => {
+                            let trace = BlockTrace { transaction_hash: Some(tx_hash), ..trace };
+                            if include_indices {
+                                if let Some(limiter) = rate_limiter {
+                                    Arc::clone(&limiter).until_ready().await;
+                                };
+                                match provider.get_transaction(tx_hash).await {
+                                    Ok(Some(tx)) => match (tx.block_number, tx.transaction_index) {
+                                        (Some(block_number), Some(tx_index)) => Ok((
+                                            Some(block_number.as_u32()),
+                                            vec![(tx_index.as_u32(), trace)],
+                                        )),
+                                        _ => Err(CollectError::CollectError(
+                                            "could not get block number".to_string(),
+                                        )),
+                                    },
+                                    _ => Err(CollectError::CollectError(
+                                        "could not get block number".to_string(),
+                                    )),
+                                }
+                            } else {
+                                Ok((None, vec![(0, trace)]))
+                            }
+                        }
+                        Err(_e) => {
+                            Err(CollectError::CollectError("failed to collect tx".to_string()))
+                        }
+                    };
+                    match tx.send(result).await {
+                        Ok(_) => {}
+                        Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                            eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                            std::process::exit(1)
+                        }
+                    }
+                });
+            }
+            rx
+        }
+        _ => {
+            let (tx, rx) = mpsc::channel(1);
+            let result = Err(CollectError::CollectError(
+                "transaction value ranges not supported".to_string(),
+            ));
+            match tx.send(result).await {
+                Ok(_) => {}
+                Err(tokio::sync::mpsc::error::SendError(_e)) => {
+                    eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
+                    std::process::exit(1)
+                }
+            }
+            rx
+        }
+    }
+}
+
+pub(crate) async fn fetch_block_state_diffs(
+    chunk: &BlockChunk,
+    source: &Source,
+) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+    fetch_block_traces(chunk, &[TraceType::StateDiff], source).await
+}
+
+pub(crate) async fn fetch_transaction_state_diffs(
+    chunk: &TransactionChunk,
+    source: &Source,
+    include_indices: bool,
+) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+    fetch_transaction_traces(chunk, &[TraceType::StateDiff], source, include_indices).await
 }
 
 async fn state_diffs_to_df(
-    mut rx: mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)>,
+    mut rx: mpsc::Receiver<BlockNumberTransactionsTraces>,
     schemas: &HashMap<Datatype, Table>,
     chain_id: u64,
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
@@ -185,9 +329,8 @@ async fn state_diffs_to_df(
     let mut n_rows = 0;
     while let Some(message) = rx.recv().await {
         match message {
-            (block_num, Ok(blocks_traces)) => {
-                for (t_index, ts) in blocks_traces.iter().enumerate() {
-                    let t_index = t_index as u32;
+            Ok((block_num, blocks_traces)) => {
+                for (t_index, ts) in blocks_traces.iter() {
                     if let (Some(tx), Some(StateDiff(state_diff))) =
                         (ts.transaction_hash, &ts.state_diff)
                     {
@@ -204,10 +347,17 @@ async fn state_diffs_to_df(
                                         Diff::Changed(ChangedType { from, to }) => (*from, *to),
                                     };
                                     if include_storage_block_number {
-                                        storage_block_number.push(block_num);
+                                        match block_num {
+                                            Some(block_num) => storage_block_number.push(block_num),
+                                            None => {
+                                                return Err(CollectError::CollectError(
+                                                    "block number not given".to_string(),
+                                                ))
+                                            }
+                                        }
                                     };
                                     if include_storage_transaction_index {
-                                        storage_transaction_index.push(t_index);
+                                        storage_transaction_index.push(*t_index);
                                     };
                                     if include_storage_transaction_hash {
                                         storage_transaction_hash.push(tx.as_bytes().to_vec());
@@ -238,10 +388,17 @@ async fn state_diffs_to_df(
                                     }
                                 };
                                 if include_balance_block_number {
-                                    balance_block_number.push(block_num);
+                                    match block_num {
+                                        Some(block_num) => balance_block_number.push(block_num),
+                                        None => {
+                                            return Err(CollectError::CollectError(
+                                                "block number not given".to_string(),
+                                            ))
+                                        }
+                                    }
                                 };
                                 if include_balance_transaction_index {
-                                    balance_transaction_index.push(t_index);
+                                    balance_transaction_index.push(*t_index);
                                 };
                                 if include_balance_transaction_hash {
                                     balance_transaction_hash.push(tx.as_bytes().to_vec());
@@ -268,10 +425,17 @@ async fn state_diffs_to_df(
                                     }
                                 };
                                 if include_nonce_block_number {
-                                    nonce_block_number.push(block_num);
+                                    match block_num {
+                                        Some(block_num) => nonce_block_number.push(block_num),
+                                        None => {
+                                            return Err(CollectError::CollectError(
+                                                "block number not given".to_string(),
+                                            ))
+                                        }
+                                    }
                                 };
                                 if include_nonce_transaction_index {
-                                    nonce_transaction_index.push(t_index);
+                                    nonce_transaction_index.push(*t_index);
                                 };
                                 if include_nonce_transaction_hash {
                                     nonce_transaction_hash.push(tx.as_bytes().to_vec());
@@ -305,10 +469,17 @@ async fn state_diffs_to_df(
                                     }
                                 };
                                 if include_code_block_number {
-                                    code_block_number.push(block_num);
+                                    match block_num {
+                                        Some(block_num) => code_block_number.push(block_num),
+                                        None => {
+                                            return Err(CollectError::CollectError(
+                                                "block number not given".to_string(),
+                                            ))
+                                        }
+                                    }
                                 };
                                 if include_code_transaction_index {
-                                    code_transaction_index.push(t_index);
+                                    code_transaction_index.push(*t_index);
                                 };
                                 if include_code_transaction_hash {
                                     code_transaction_hash.push(tx.as_bytes().to_vec());

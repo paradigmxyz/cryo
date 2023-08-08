@@ -9,7 +9,7 @@ use crate::{
     datasets::state_diffs,
     types::{
         conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter,
-        Source, Table, ToVecU8, VmTraces,
+        Source, Table, ToVecU8, TransactionChunk, VmTraces,
     },
     with_series, with_series_binary,
 };
@@ -56,16 +56,37 @@ impl Dataset for VmTraces {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_vm_traces(chunk, source).await;
+        let rx = fetch_block_vm_traces(chunk, source).await;
+        vm_traces_to_df(rx, schema, source.chain_id).await
+    }
+
+    async fn collect_transaction_chunk(
+        &self,
+        chunk: &TransactionChunk,
+        source: &Source,
+        schema: &Table,
+        _filter: Option<&RowFilter>,
+    ) -> Result<DataFrame, CollectError> {
+        let include_indices = schema.has_column("block_number");
+        let rx = fetch_transaction_vm_traces(chunk, source, include_indices).await;
         vm_traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
-async fn fetch_vm_traces(
+async fn fetch_block_vm_traces(
     block_chunk: &BlockChunk,
     source: &Source,
-) -> mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)> {
+) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
     state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], source).await
+}
+
+async fn fetch_transaction_vm_traces(
+    chunk: &TransactionChunk,
+    source: &Source,
+    include_indices: bool,
+) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
+    state_diffs::fetch_transaction_traces(chunk, &[TraceType::VmTrace], source, include_indices)
+        .await
 }
 
 struct VmTraceColumns {
@@ -84,7 +105,7 @@ struct VmTraceColumns {
 }
 
 async fn vm_traces_to_df(
-    mut rx: mpsc::Receiver<(u32, Result<Vec<BlockTrace>, CollectError>)>,
+    mut rx: mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces>,
     schema: &Table,
     chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
@@ -106,10 +127,10 @@ async fn vm_traces_to_df(
 
     while let Some(message) = rx.recv().await {
         match message {
-            (number, Ok(block_traces)) => {
-                for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
+            Ok((number, block_traces)) => {
+                for (tx_pos, block_trace) in block_traces.into_iter() {
                     if let Some(vm_trace) = block_trace.vm_trace {
-                        add_ops(vm_trace, schema, &mut columns, number, tx_pos as u32)
+                        add_ops(vm_trace, schema, &mut columns, number, tx_pos)?;
                     }
                 }
             }
@@ -142,14 +163,17 @@ fn add_ops(
     vm_trace: VMTrace,
     schema: &Table,
     columns: &mut VmTraceColumns,
-    number: u32,
+    number: Option<u32>,
     tx_pos: u32,
-) {
+) -> Result<(), CollectError> {
     for opcode in vm_trace.ops {
         columns.n_rows += 1;
 
         if schema.has_column("block_number") {
-            columns.block_number.push(number);
+            match number {
+                Some(number) => columns.block_number.push(number),
+                None => return Err(CollectError::CollectError("block number not give".to_string())),
+            }
         };
         if schema.has_column("transaction_position") {
             columns.transaction_position.push(tx_pos);
@@ -226,7 +250,9 @@ fn add_ops(
         };
 
         if let Some(sub) = opcode.sub {
-            add_ops(sub, schema, columns, number, tx_pos)
+            add_ops(sub, schema, columns, number, tx_pos)?
         }
     }
+
+    Ok(())
 }
