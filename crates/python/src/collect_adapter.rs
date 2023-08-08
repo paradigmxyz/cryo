@@ -48,7 +48,7 @@ use cryo_freeze::collect;
 pub fn _collect(
     py: Python<'_>,
     datatype: String,
-    blocks: Option<Vec<String>>,
+    blocks: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,

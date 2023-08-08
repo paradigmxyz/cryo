@@ -175,12 +175,14 @@ Dataset-specific Options:
 
 
 Block specification syntax
-- can use numbers                    --blocks 5000 6000 7000
+- can use numbers                    --blocks 5000
+- can use numbers list (use "")      --blocks "5000 6000 7000"
 - can use ranges                     --blocks 12M:13M 15M:16M
 - numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
 - omiting range end means latest     15.5M: == 15.5M:latest
 - omitting range start means 0       :700 == 0:700
 - minus on start means minus end     -1000:7000 == 6000:7000
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
+- mix formats                        "15M:+1 1000:1002 -3:1b 2000"
 ```
 
