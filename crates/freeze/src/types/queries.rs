@@ -12,7 +12,7 @@ pub struct SingleQuery {
     /// Schemas for each datatype to collect
     pub schema: Table,
     /// Block chunks to collect
-    pub chunks: Vec<Chunk>,
+    pub chunks: Vec<(Chunk, Option<String>)>,
     /// Row filter
     pub row_filter: Option<RowFilter>,
 }
@@ -23,7 +23,7 @@ pub struct MultiQuery {
     /// Schemas for each datatype to collect
     pub schemas: HashMap<Datatype, Table>,
     /// Block chunks to collect
-    pub chunks: Vec<Chunk>,
+    pub chunks: Vec<(Chunk, Option<String>)>,
     /// Row filter
     pub row_filters: HashMap<Datatype, RowFilter>,
 }

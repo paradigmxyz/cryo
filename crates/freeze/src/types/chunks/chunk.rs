@@ -27,11 +27,16 @@ pub enum Chunk {
 /// Chunk methods
 impl Chunk {
     /// get filepath for chunk
-    pub fn filepath(&self, name: &str, file_output: &FileOutput) -> Result<String, FileError> {
+    pub fn filepath(
+        &self,
+        name: &str,
+        file_output: &FileOutput,
+        chunk_label: &Option<String>,
+    ) -> Result<String, FileError> {
         match self {
-            Chunk::Block(chunk) => chunk.filepath(name, file_output),
-            Chunk::Transaction(chunk) => chunk.filepath(name, file_output),
-            Chunk::Address(chunk) => chunk.filepath(name, file_output),
+            Chunk::Block(chunk) => chunk.filepath(name, file_output, chunk_label),
+            Chunk::Transaction(chunk) => chunk.filepath(name, file_output, chunk_label),
+            Chunk::Address(chunk) => chunk.filepath(name, file_output, chunk_label),
         }
     }
 }

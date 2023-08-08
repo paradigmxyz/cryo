@@ -52,7 +52,7 @@ fn print_block_chunks(query: &MultiQuery) {
         .chunks
         .iter()
         .filter_map(|x| match x.clone() {
-            Chunk::Block(chunk) => Some(chunk),
+            (Chunk::Block(chunk), _) => Some(chunk),
             _ => None,
         })
         .collect();
@@ -77,7 +77,7 @@ fn print_transaction_chunks(query: &MultiQuery) {
         .chunks
         .iter()
         .filter_map(|x| match x.clone() {
-            Chunk::Transaction(chunk) => Some(chunk),
+            (Chunk::Transaction(chunk), _) => Some(chunk),
             _ => None,
         })
         .collect();
@@ -171,7 +171,7 @@ fn print_block_chunk_summary(query: &MultiQuery, freeze_summary: &FreezeSummary,
         .chunks
         .iter()
         .filter_map(|x| match x {
-            Chunk::Block(chunk) => Some(chunk.clone()),
+            (Chunk::Block(chunk), _) => Some(chunk.clone()),
             _ => None,
         })
         .collect();
@@ -200,7 +200,7 @@ fn print_transaction_chunk_summary(
         .chunks
         .iter()
         .filter_map(|x| match x {
-            Chunk::Transaction(chunk) => Some(chunk.clone()),
+            (Chunk::Transaction(chunk), _) => Some(chunk.clone()),
             _ => None,
         })
         .collect();

@@ -9,7 +9,7 @@ use crate::args::Args;
 pub(crate) async fn parse_blocks(
     args: &Args,
     provider: Arc<Provider<Http>>,
-) -> Result<Vec<Chunk>, ParseError> {
+) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     // parse inputs into BlockChunks
     let block_chunks = match &args.blocks {
         Some(inputs) => parse_block_inputs(inputs, &provider).await?,
@@ -23,7 +23,7 @@ async fn postprocess_block_chunks(
     block_chunks: Vec<BlockChunk>,
     args: &Args,
     provider: Arc<Provider<Http>>,
-) -> Result<Vec<Chunk>, ParseError> {
+) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     // align
     let block_chunks = if args.align {
         block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
@@ -41,7 +41,8 @@ async fn postprocess_block_chunks(
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
 
     // put into Chunk enums
-    let chunks: Vec<Chunk> = block_chunks.iter().map(|x| Chunk::Block(x.clone())).collect();
+    let chunks: Vec<(Chunk, Option<String>)> =
+        block_chunks.iter().map(|x| (Chunk::Block(x.clone()), None)).collect();
 
     Ok(chunks)
 }
@@ -49,7 +50,7 @@ async fn postprocess_block_chunks(
 pub(crate) async fn get_default_block_chunks(
     args: &Args,
     provider: Arc<Provider<Http>>,
-) -> Result<Vec<Chunk>, ParseError> {
+) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     let block_chunks = parse_block_inputs(&String::from(r"0:latest"), &provider).await?;
     postprocess_block_chunks(block_chunks, args, provider).await
 }
@@ -65,7 +66,7 @@ where
     let parts: Vec<&str> = inputs.split(' ').collect();
     match parts.len() {
         1 => {
-            let first_input = parts.get(0).ok_or_else(|| {
+            let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
             parse_block_token(first_input, true, provider).await.map(|x| vec![x])
