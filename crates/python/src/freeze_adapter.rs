@@ -49,7 +49,7 @@ use cryo_cli::{run, Args};
 pub fn _freeze(
     py: Python<'_>,
     datatype: Vec<String>,
-    blocks: Option<Vec<String>>,
+    blocks: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
