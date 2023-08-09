@@ -1,6 +1,7 @@
 use std::sync::Arc;
 
 use ethers::prelude::*;
+use polars::prelude::*;
 
 use cryo_freeze::{BlockChunk, Chunk, ChunkData, ParseError, Subchunk};
 
@@ -10,13 +11,87 @@ pub(crate) async fn parse_blocks(
     args: &Args,
     provider: Arc<Provider<Http>>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
-    // parse inputs into BlockChunks
-    let block_chunks = match &args.blocks {
-        Some(inputs) => parse_block_inputs(inputs, &provider).await?,
-        None => return Err(ParseError::ParseError("could not parse block inputs".to_string())),
+    let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.blocks {
+        Some(blocks) => blocks.iter().partition(|tx| std::path::Path::new(tx).exists()),
+        None => return Err(ParseError::ParseError("no blocks specified".to_string())),
     };
 
-    postprocess_block_chunks(block_chunks, args, provider).await
+    let mut file_chunks = if !files.is_empty() {
+        let mut file_chunks = Vec::new();
+        for path in files {
+            let column = if path.contains(':') {
+                path.split(':')
+                    .last()
+                    .ok_or(ParseError::ParseError("could not parse txs path column".to_string()))?
+            } else {
+                "block_number"
+            };
+            let integers = read_integer_column(path, column)
+                .map_err(|_e| ParseError::ParseError("could not read input".to_string()))?;
+            let chunk = BlockChunk::Numbers(integers);
+            let chunk_label = path
+                .split("__")
+                .last()
+                .and_then(|s| s.strip_suffix(".parquet").map(|s| s.to_string()));
+            file_chunks.push((Chunk::Block(chunk), chunk_label));
+        }
+        file_chunks
+    } else {
+        Vec::new()
+    };
+
+    let explicit_chunks = if !explicit_numbers.is_empty() {
+        // parse inputs into BlockChunks
+        let mut block_chunks = Vec::new();
+        for explicit_number in explicit_numbers {
+            let outputs = parse_block_inputs(explicit_number, &provider).await?;
+            block_chunks.extend(outputs.into_iter());
+        }
+        postprocess_block_chunks(block_chunks, args, provider).await?
+    } else {
+        Vec::new()
+    };
+
+    file_chunks.extend(explicit_chunks.into_iter());
+    Ok(file_chunks)
+}
+
+fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError> {
+    let file = std::fs::File::open(path)
+        .map_err(|_e| ParseError::ParseError("could not open file path".to_string()))?;
+
+    let df = ParquetReader::new(file)
+        .with_columns(Some(vec![column.to_string()]))
+        .finish()
+        .map_err(|_e| ParseError::ParseError("could not read data from column".to_string()))?;
+
+    let series = df
+        .column(column)
+        .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?
+        .unique()
+        .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?;
+
+    println!("{:?}", series);
+    match series.u32() {
+        Ok(ca) => ca
+            .into_iter()
+            .map(|v| {
+                v.ok_or_else(|| ParseError::ParseError("block number missing".to_string()))
+                    .map(|data| data.into())
+            })
+            .collect(),
+        Err(_e) => match series.u64() {
+            Ok(ca) => ca
+                .into_iter()
+                .map(|v| {
+                    v.ok_or_else(|| ParseError::ParseError("block number missing".to_string()))
+                })
+                .collect(),
+            Err(_e) => {
+                Err(ParseError::ParseError("could not convert to integer column".to_string()))
+            }
+        },
+    }
 }
 
 async fn postprocess_block_chunks(

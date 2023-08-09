@@ -1,17 +1,17 @@
-use clap::Parser;
+use clap_cryo::Parser;
 use color_print::cstr;
 
 /// Command line arguments
 #[derive(Parser, Debug)]
-#[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str())]
+#[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str(), allow_negative_numbers = true)]
 pub struct Args {
     /// datatype to collect
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
     pub datatype: Vec<String>,
 
     /// Block numbers, see syntax below
-    #[arg(short, long, allow_hyphen_values(true), help_heading = "Content Options")]
-    pub blocks: Option<String>,
+    #[arg(short, long, allow_negative_numbers = true, help_heading = "Content Options", num_args(1..))]
+    pub blocks: Option<Vec<String>>,
 
     /// Transaction hashes, see syntax below
     #[arg(
@@ -165,14 +165,14 @@ pub struct Args {
     pub inner_request_size: u64,
 }
 
-pub(crate) fn get_styles() -> clap::builder::Styles {
+pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
     let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
     let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
     let grey = anstyle::Color::Rgb(anstyle::RgbColor(170, 170, 170));
     let title = anstyle::Style::new().bold().fg_color(Some(green));
     let arg = anstyle::Style::new().bold().fg_color(Some(white));
     let comment = anstyle::Style::new().fg_color(Some(grey));
-    clap::builder::Styles::styled()
+    clap_cryo::builder::Styles::styled()
         .header(title)
         .error(comment)
         .usage(title)

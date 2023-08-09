@@ -574,33 +574,33 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap"
-version = "4.3.10"
+name = "clap_builder_cryo"
+version = "4.3.21-cryo"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "384e169cc618c613d5e3ca6404dda77a8685a63e08660dcc64abaf7da7cb0c7a"
-dependencies = [
- "clap_builder",
- "clap_derive",
- "once_cell",
-]
-
-[[package]]
-name = "clap_builder"
-version = "4.3.10"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "ef137bbe35aab78bdb468ccfba75a5f4d8321ae011d34063770780545176af2d"
+checksum = "e9e3a8989ce9e79041f7681f82e669c1a06724975fb8f5b7bd60e359e572da76"
 dependencies = [
  "anstream",
  "anstyle",
- "clap_lex",
+ "clap_lex_cryo",
  "strsim",
 ]
 
 [[package]]
-name = "clap_derive"
-version = "4.3.2"
+name = "clap_cryo"
+version = "4.3.21-cryo"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b8cd2b2a819ad6eec39e8f1d6b53001af1e5469f8c177579cdaeb313115b825f"
+checksum = "053a8216426fdf2f5ce7fa46197e3517adf8b1c0ab96d3dbf73469bc15f34ad6"
+dependencies = [
+ "clap_builder_cryo",
+ "clap_derive_cryo",
+ "once_cell",
+]
+
+[[package]]
+name = "clap_derive_cryo"
+version = "4.3.12"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fd1cd2cebdb1ec98182edb745382a2b65d6bc254782de26316e4366d83d39988"
 dependencies = [
  "heck",
  "proc-macro2",
@@ -609,10 +609,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "clap_lex"
+name = "clap_lex_cryo"
 version = "0.5.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2da6da31387c7e4ef160ffab6d5e7f00c42626fe39aea70a7b0f1773f7dd6c1b"
+checksum = "98979652585ac7c8d6267e363229b6a26bc4bf469c69e96442f85830ebc89f45"
 
 [[package]]
 name = "coins-bip32"
@@ -849,7 +849,7 @@ version = "0.1.0"
 dependencies = [
  "anstyle",
  "chrono",
- "clap",
+ "clap_cryo",
  "color-print",
  "colored",
  "cryo_freeze",
