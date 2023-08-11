@@ -29,7 +29,12 @@ fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
 }
 
-pub(crate) fn print_cryo_summary(query: &MultiQuery, source: &Source, sink: &FileOutput) {
+pub(crate) fn print_cryo_summary(
+    query: &MultiQuery,
+    source: &Source,
+    sink: &FileOutput,
+    n_chunks_remaining: u64,
+) {
     print_header("cryo parameters");
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.dataset().name()).collect();
     print_bullet("datatypes", datatype_strs.join(", "));
@@ -38,6 +43,14 @@ pub(crate) fn print_cryo_summary(query: &MultiQuery, source: &Source, sink: &Fil
     // print_bullet("provider", rpc_url);
     print_block_chunks(query);
     print_transaction_chunks(query);
+    print_bullet(
+        "chunks to collect",
+        format!(
+            "{} / {}",
+            n_chunks_remaining.separate_with_commas(),
+            query.chunks.len().separate_with_commas()
+        ),
+    );
     print_bullet("max concurrent chunks", source.max_concurrent_chunks.separate_with_commas());
     if query.schemas.contains_key(&Datatype::Logs) {
         print_bullet("inner request size", source.inner_request_size.to_string());
@@ -68,7 +81,6 @@ fn print_block_chunks(query: &MultiQuery) {
             let chunk_size = first_chunk.size();
             print_bullet("block chunk size", chunk_size.separate_with_commas());
         };
-        print_bullet("total block chunks", block_chunks.len().separate_with_commas());
     }
 }
 
@@ -155,11 +167,18 @@ pub(crate) fn print_cryo_conclusion(
         "t_end",
         "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
     );
-    print_bullet("chunks errored", freeze_summary.n_errored.separate_with_commas());
-    print_bullet("chunks skipped", freeze_summary.n_skipped.separate_with_commas());
+    let n_chunks = query.chunks.len();
+    print_bullet(
+        "chunks errored",
+        format!("  {} / {}", freeze_summary.n_errored.separate_with_commas(), n_chunks),
+    );
+    print_bullet(
+        "chunks skipped",
+        format!("  {} / {}", freeze_summary.n_skipped.separate_with_commas(), n_chunks),
+    );
     print_bullet(
         "chunks collected",
-        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), query.chunks.len()),
+        format!("{} / {}", freeze_summary.n_completed.separate_with_commas(), n_chunks),
     );
 
     print_block_chunk_summary(query, freeze_summary, total_time);

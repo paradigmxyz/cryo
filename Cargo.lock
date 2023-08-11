@@ -857,6 +857,7 @@ dependencies = [
  "eyre",
  "governor",
  "hex",
+ "indicatif",
  "polars",
  "thousands",
  "tokio",

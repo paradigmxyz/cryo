@@ -14,15 +14,8 @@ pub async fn freeze(
     query: &MultiQuery,
     source: &Source,
     sink: &FileOutput,
+    bar: Arc<ProgressBar>,
 ) -> Result<FreezeSummary, FreezeError> {
-    // create progress bar
-    let bar = Arc::new(ProgressBar::new(query.chunks.len() as u64));
-    bar.set_style(
-        indicatif::ProgressStyle::default_bar()
-            .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
-            .map_err(FreezeError::ProgressBarError)?,
-    );
-
     // freeze chunks concurrently
     let (datatypes, multi_datatypes) = cluster_datatypes(query.schemas.keys().collect());
     let sem = Arc::new(Semaphore::new(source.max_concurrent_chunks as usize));
@@ -92,7 +85,7 @@ async fn freeze_datatype_chunk(
 
     // create path
     let (chunk, chunk_label) = chunk;
-    let path = match chunk.filepath(ds.name(), &sink, &chunk_label) {
+    let path = match chunk.filepath(&datatype, &sink, &chunk_label) {
         Err(_e) => return FreezeChunkSummary::error(HashMap::new()),
         Ok(path) => path,
     };
@@ -140,13 +133,14 @@ async fn freeze_multi_datatype_chunk(
 
     // create paths
     let (chunk, chunk_label) = chunk;
-    let mut paths: HashMap<Datatype, String> = HashMap::new();
-    for ds in mdt.multi_dataset().datasets().values() {
-        match chunk.filepath(ds.name(), &sink, &chunk_label) {
-            Err(_e) => return FreezeChunkSummary::error(paths),
-            Ok(path) => paths.insert(ds.datatype(), path),
-        };
-    }
+    let paths = match chunk.filepaths(
+        mdt.multi_dataset().datatypes().iter().collect(),
+        &sink,
+        &chunk_label,
+    ) {
+        Err(_e) => return FreezeChunkSummary::error(HashMap::new()),
+        Ok(paths) => paths,
+    };
 
     // skip path if file already exists
     if paths.values().all(|path| Path::new(&path).exists()) && !sink.overwrite {

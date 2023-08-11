@@ -1,8 +1,11 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use ethers::prelude::*;
 
-use crate::types::{Chunk, Datatype, Table};
+use crate::{
+    types::{Chunk, Datatype, Table},
+    CollectError, FileOutput, FreezeError,
+};
 
 /// Query multiple data types
 #[derive(Clone)]
@@ -26,6 +29,39 @@ pub struct MultiQuery {
     pub chunks: Vec<(Chunk, Option<String>)>,
     /// Row filter
     pub row_filters: HashMap<Datatype, RowFilter>,
+}
+
+impl MultiQuery {
+    /// get number of chunks that have not yet been collected
+    pub fn get_n_chunks_remaining(&self, sink: &FileOutput) -> Result<u64, FreezeError> {
+        let actual_files: HashSet<String> = list_files(&sink.output_dir)
+            .map_err(|_e| {
+                FreezeError::CollectError(CollectError::CollectError(
+                    "could not list files in output dir".to_string(),
+                ))
+            })?
+            .into_iter()
+            .collect();
+        let mut n_chunks_remaining: u64 = 0;
+        for (chunk, chunk_label) in &self.chunks {
+            let chunk_files = chunk.filepaths(self.schemas.keys().collect(), sink, chunk_label)?;
+            if !chunk_files.values().all(|file| actual_files.contains(file)) {
+                n_chunks_remaining += 1;
+            }
+        }
+        Ok(n_chunks_remaining)
+    }
+}
+
+fn list_files(dir: &str) -> Result<Vec<String>, std::io::Error> {
+    let mut file_list = Vec::new();
+    for entry in std::fs::read_dir(dir)? {
+        let entry = entry?;
+        if let Some(filename) = entry.path().to_str() {
+            file_list.push(filename.to_string());
+        }
+    }
+    Ok(file_list)
 }
 
 /// Options for fetching logs

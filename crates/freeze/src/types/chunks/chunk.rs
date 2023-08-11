@@ -1,4 +1,5 @@
-use crate::types::{FileError, FileOutput};
+use crate::types::{Datatype, FileError, FileOutput};
+use std::collections::HashMap;
 
 use super::{binary_chunk::BinaryChunk, chunk_ops::ChunkData, number_chunk::NumberChunk};
 
@@ -29,15 +30,30 @@ impl Chunk {
     /// get filepath for chunk
     pub fn filepath(
         &self,
-        name: &str,
+        datatype: &Datatype,
         file_output: &FileOutput,
         chunk_label: &Option<String>,
     ) -> Result<String, FileError> {
         match self {
-            Chunk::Block(chunk) => chunk.filepath(name, file_output, chunk_label),
-            Chunk::Transaction(chunk) => chunk.filepath(name, file_output, chunk_label),
-            Chunk::Address(chunk) => chunk.filepath(name, file_output, chunk_label),
+            Chunk::Block(chunk) => chunk.filepath(datatype, file_output, chunk_label),
+            Chunk::Transaction(chunk) => chunk.filepath(datatype, file_output, chunk_label),
+            Chunk::Address(chunk) => chunk.filepath(datatype, file_output, chunk_label),
         }
+    }
+
+    /// get filepath for chunk
+    pub fn filepaths(
+        &self,
+        datatypes: Vec<&Datatype>,
+        file_output: &FileOutput,
+        chunk_label: &Option<String>,
+    ) -> Result<HashMap<Datatype, String>, FileError> {
+        let mut paths = HashMap::new();
+        for datatype in datatypes {
+            let path = self.filepath(datatype, file_output, chunk_label)?;
+            paths.insert(*datatype, path);
+        }
+        Ok(paths)
     }
 }
 
