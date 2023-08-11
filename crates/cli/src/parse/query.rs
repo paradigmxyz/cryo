@@ -65,6 +65,8 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
                     "traces" => Datatype::Traces,
                     "vm_traces" => Datatype::VmTraces,
                     "opcode_traces" => Datatype::VmTraces,
+                    "native_transfers" => Datatype::NativeTransfers,
+                    "contracts" => Datatype::Contracts,
                     _ => {
                         return Err(ParseError::ParseError(format!("invalid datatype {}", datatype)))
                     }

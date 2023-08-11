@@ -12,6 +12,7 @@ repository.workspace = true
 [dependencies]
 async-trait = "0.1.68"
 ethers = { version = "2.0.7", features = ["rustls", "ws", "ipc"] }
+ethers-core = "2.0.8"
 futures = "0.3.28"
 governor = "0.5.1"
 indexmap = "2.0.0"
