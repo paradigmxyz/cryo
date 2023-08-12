@@ -23,6 +23,7 @@ pub async fn freeze(
     let source = Arc::new(source.clone());
     let sink = Arc::new(sink.clone());
     let mut tasks: Vec<_> = vec![];
+    bar.inc(0);
     for (chunk, chunk_label) in query.chunks.iter() {
         // datatypes
         for datatype in &datatypes {
