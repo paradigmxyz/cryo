@@ -25,6 +25,18 @@ pub enum FreezeError {
     /// Parse error
     #[error("Parsing error")]
     ParseError(#[from] ParseError),
+
+    /// Error from serializing report
+    #[error("JSON error")]
+    ReportSerializeError(#[from] serde_json::Error),
+
+    /// Error from serializing report
+    #[error("File creation error")]
+    ReportFileCreationError(#[from] std::io::Error),
+
+    /// General Error
+    #[error("{0}")]
+    GeneralError(String),
 }
 
 /// Error related to data collection

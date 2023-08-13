@@ -32,7 +32,7 @@ pub struct NativeTransfers;
 pub struct Contracts;
 
 /// enum of possible datatypes that cryo can collect
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
 pub enum Datatype {
     /// Balance Diffs
     BalanceDiffs,

@@ -18,7 +18,13 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError>
 
     // print summary
     if !args.no_verbose {
-        summaries::print_cryo_summary(&query, &source, &sink, n_chunks_remaining);
+        let report_path = if !args.no_report && n_chunks_remaining > 0 {
+            let report_path = crate::reports::get_report_path(&args, t_start, true)?;
+            Some(report_path.strip_prefix("./").unwrap_or(&report_path).to_string())
+        } else {
+            None
+        };
+        summaries::print_cryo_summary(&query, &source, &sink, n_chunks_remaining, report_path);
     }
 
     // check dry run
@@ -27,6 +33,11 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError>
             println!("\n\n[dry run, exiting]");
         }
         return Ok(None)
+    };
+
+    // create initial report
+    if !args.no_report && n_chunks_remaining > 0 {
+        crate::reports::write_report(&args, None, t_start)?;
     };
 
     // create progress bar
@@ -55,6 +66,14 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, FreezeError>
                     &freeze_summary,
                 )
             }
+
+            let n_attempts = freeze_summary.n_completed + freeze_summary.n_errored;
+            if !args.no_report && n_attempts > 0 {
+                crate::reports::write_report(&args, Some(&freeze_summary), t_start)?;
+                let incomplete_report_path =
+                    crate::reports::get_report_path(&args, t_start, false)?;
+                std::fs::remove_file(incomplete_report_path)?;
+            };
 
             // return summary
             Ok(Some(freeze_summary))

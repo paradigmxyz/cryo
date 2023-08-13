@@ -1,8 +1,9 @@
 use clap_cryo::Parser;
 use color_print::cstr;
+use serde::{Deserialize, Serialize};
 
 /// Command line arguments
-#[derive(Parser, Debug)]
+#[derive(Parser, Debug, Serialize, Deserialize)]
 #[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str(), allow_negative_numbers = true)]
 pub struct Args {
     /// datatype to collect
@@ -132,9 +133,15 @@ pub struct Args {
     #[arg(long, help_heading="Output Options", value_name="NAME [#]", num_args(1..=2), default_value = "lz4")]
     pub compression: Vec<String>,
 
-    // /// [transactions] track gas used by each transaction
-    // #[arg(long, help_heading = "Dataset-specific Options")]
-    // pub gas_used: bool,
+    /// Directory to save summary report
+    /// [default: {output_dir}/.cryo_reports]
+    #[arg(long, help_heading = "Output Options")]
+    pub report_dir: Option<String>,
+
+    /// Avoid saving a summary report
+    #[arg(long, help_heading = "Output Options")]
+    pub no_report: bool,
+
     /// [logs] filter logs by contract address
     #[arg(long, help_heading = "Dataset-specific Options")]
     pub contract: Option<String>,

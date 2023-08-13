@@ -34,6 +34,7 @@ pub(crate) fn print_cryo_summary(
     source: &Source,
     sink: &FileOutput,
     n_chunks_remaining: u64,
+    report_path: Option<String>,
 ) {
     print_header("cryo parameters");
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.dataset().name()).collect();
@@ -57,6 +58,10 @@ pub(crate) fn print_cryo_summary(
     };
     print_bullet("output format", sink.format.as_str());
     print_bullet("output dir", &sink.output_dir);
+    match report_path {
+        None => print_bullet("report file", "None"),
+        Some(path) => print_bullet("report file", path),
+    };
     print_schemas(&query.schemas);
 }
 

@@ -2,6 +2,7 @@ use crate::types::Datatype;
 use std::collections::HashMap;
 
 /// Summary of freeze operation
+#[derive(serde::Serialize, Debug)]
 pub struct FreezeSummary {
     /// number of chunks completed successfully
     pub n_completed: u64,

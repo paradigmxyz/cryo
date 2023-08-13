@@ -9,6 +9,7 @@
 
 mod args;
 mod parse;
+mod reports;
 mod run;
 mod summaries;
 

@@ -1,5 +1,6 @@
 [package]
 name = "cryo_cli"
+build = "build.rs"
 description = "cryo is the easiest way to extract blockchain data to parquet, csv, or json"
 version.workspace = true
 edition.workspace = true
@@ -32,3 +33,5 @@ chrono = "0.4.26"
 anstyle = "1.0.1"
 eyre = "0.6.8"
 governor = "0.5.1"
+serde = { version = "1.0.183", features = ["derive"] }
+serde_json = "1.0.104"
