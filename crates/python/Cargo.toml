@@ -1,6 +1,6 @@
 [package]
 name = "cryo_python"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 build = "build.rs"
 
@@ -10,8 +10,8 @@ name = "cryo"
 crate-type = ["cdylib"]
 
 [dependencies]
-cryo_cli = { version = "0.1.0", path = "../cli" }
-cryo_freeze = { version = "0.1.0", path = "../freeze" }
+cryo_cli = { version = "0.2.0", path = "../cli" }
+cryo_freeze = { version = "0.2.0", path = "../freeze" }
 polars = { version = "0.30.0", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding", "json", "dtype-struct"] }
 pyo3 = { version = "0.18.0", features = ["extension-module"] }
 pyo3-asyncio = { version = "0.18.0", features = ["tokio-runtime"] }

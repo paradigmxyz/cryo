@@ -845,7 +845,7 @@ checksum = "7a81dae078cea95a014a339291cec439d2f232ebe854a9d672b796c6afafa9b7"
 
 [[package]]
 name = "cryo_cli"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "anstyle",
  "chrono",
@@ -867,7 +867,7 @@ dependencies = [
 
 [[package]]
 name = "cryo_freeze"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "async-trait",
  "ethers",
@@ -886,7 +886,7 @@ dependencies = [
 
 [[package]]
 name = "cryo_python"
-version = "0.1.2"
+version = "0.2.0"
 dependencies = [
  "cryo_cli",
  "cryo_freeze",
