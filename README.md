@@ -31,6 +31,7 @@ cryo can extract the following datasets from EVM nodes:
 - `blocks`
 - `transactions` (alias = `txs`)
 - `logs` (alias = `events`)
+- `contracts`
 - `traces` (alias = `call_traces`)
 - `state_diffs` (alias for `storage_diffs` + `balance_diff` + `nonce_diffs` + `code_diffs`)
 - `balance_diffs`
@@ -95,6 +96,7 @@ Many `cryo` cli options will affect output schemas by adding/removing columns or
 |Blocks|1|1|`eth_getBlockByNumber`|
 |Transactions|1|multiple|`eth_getBlockByNumber`|
 |Logs|multiple|multiple|`eth_getLogs`|
+|Contracts|1|multiple|`trace_block`|
 |Traces|1|multiple|`trace_block`|
 |State Diffs|1|multiple|`trace_replayBlockTransactions`|
 |Vm Traces|1|multiple|`trace_replayBlockTransactions`|
@@ -117,6 +119,7 @@ Arguments:
                  - blocks
                  - transactions  (alias = txs)
                  - logs          (alias = events)
+                 - contracts
                  - traces        (alias = call_traces)
                  - state_diffs   (= balance + code + nonce + storage diffs)
                  - balance_diffs
