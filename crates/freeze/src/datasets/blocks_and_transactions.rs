@@ -110,6 +110,41 @@ async fn get_txs_gas_used(
     block: &Block<Transaction>,
     source: Arc<Source>,
 ) -> Result<Vec<u32>, CollectError> {
+    match get_txs_gas_used_per_block(block, source.clone()).await {
+        Ok(value) => Ok(value),
+        Err(_) => get_txs_gas_used_per_tx(block, source).await,
+    }
+}
+
+async fn get_txs_gas_used_per_block(
+    block: &Block<Transaction>,
+    source: Arc<Source>,
+) -> Result<Vec<u32>, CollectError> {
+    let block_number = match block.number {
+        Some(number) => number,
+        None => return Err(CollectError::CollectError("no block number".to_string())),
+    };
+    match source.provider.get_block_receipts(block_number).await {
+        Ok(receipts) => {
+            let mut gas_used: Vec<u32> = Vec::new();
+            for receipt in receipts {
+                match receipt.gas_used {
+                    Some(value) => gas_used.push(value.as_u32()),
+                    None => {
+                        return Err(CollectError::CollectError("no gas_used for tx".to_string()))
+                    }
+                }
+            }
+            Ok(gas_used)
+        }
+        Err(_) => Err(CollectError::CollectError("error in eth_getBlockReceipts".to_string())),
+    }
+}
+
+async fn get_txs_gas_used_per_tx(
+    block: &Block<Transaction>,
+    source: Arc<Source>,
+) -> Result<Vec<u32>, CollectError> {
     let source = Arc::new(source);
     let mut tasks = Vec::new();
     for tx in &block.transactions {
