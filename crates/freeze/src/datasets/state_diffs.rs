@@ -109,6 +109,9 @@ pub(crate) async fn fetch_block_traces(
 ) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
     let (tx, rx) = mpsc::channel(block_chunk.size() as usize);
     for number in block_chunk.numbers() {
+        if number == 0 {
+            continue
+        };
         let tx = tx.clone();
         let provider = source.provider.clone();
         let semaphore = source.semaphore.clone();
