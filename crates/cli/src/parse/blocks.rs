@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ethers::prelude::*;
 use polars::prelude::*;
 
@@ -388,7 +386,7 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_block_numbers != block_numbers {
-                        return false
+                        return false;
                     }
                 }
                 BlockChunk::Range(expected_range_start, expected_range_end) => {
@@ -397,7 +395,7 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_range_start != range_start || expected_range_end != range_end {
-                        return false
+                        return false;
                     }
                 }
             }
