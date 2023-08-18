@@ -220,6 +220,7 @@ fn get_datatype_help() -> &'static str {
 - <white><bold>blocks</bold></white>
 - <white><bold>transactions</bold></white>  (alias = <white><bold>txs</bold></white>)
 - <white><bold>logs</bold></white>          (alias = <white><bold>events</bold></white>)
+- <white><bold>contracts</bold></white>
 - <white><bold>traces</bold></white>        (alias = <white><bold>call_traces</bold></white>)
 - <white><bold>state_diffs</bold></white>   (= balance + code + nonce + storage diffs)
 - <white><bold>balance_diffs</bold></white>

@@ -11,6 +11,7 @@ datatypes = [
     'transactions',
     'txs',
     'logs',
+    'contracts',
     'traces',
     'nonce_diffs',
     'balance_diffs',
