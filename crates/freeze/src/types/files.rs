@@ -4,7 +4,7 @@ use polars::prelude::*;
 #[derive(Clone)]
 pub struct FileOutput {
     /// Path of directory where to save files
-    pub output_dir: String,
+    pub output_dir: std::path::PathBuf,
     /// Prefix of file name
     pub prefix: String,
     /// Suffix to use at the end of file names

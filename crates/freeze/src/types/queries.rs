@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::{collections::{HashMap, HashSet}, path::{Path, PathBuf}};
 
 use ethers::prelude::*;
 
@@ -34,7 +34,7 @@ pub struct MultiQuery {
 impl MultiQuery {
     /// get number of chunks that have not yet been collected
     pub fn get_n_chunks_remaining(&self, sink: &FileOutput) -> Result<u64, FreezeError> {
-        let actual_files: HashSet<String> = list_files(&sink.output_dir)
+        let actual_files: HashSet<PathBuf> = list_files(&sink.output_dir)
             .map_err(|_e| {
                 FreezeError::CollectError(CollectError::CollectError(
                     "could not list files in output dir".to_string(),
@@ -53,13 +53,11 @@ impl MultiQuery {
     }
 }
 
-fn list_files(dir: &str) -> Result<Vec<String>, std::io::Error> {
+fn list_files(dir: &Path) -> Result<Vec<PathBuf>, std::io::Error> {
     let mut file_list = Vec::new();
     for entry in std::fs::read_dir(dir)? {
         let entry = entry?;
-        if let Some(filename) = entry.path().to_str() {
-            file_list.push(filename.to_string());
-        }
+        file_list.push(entry.path());
     }
     Ok(file_list)
 }

@@ -1,5 +1,5 @@
 use crate::types::Datatype;
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 /// Summary of freeze operation
 #[derive(serde::Serialize, Debug)]
@@ -11,7 +11,7 @@ pub struct FreezeSummary {
     /// number of chunks that encountered an error
     pub n_errored: u64,
     /// paths
-    pub paths: HashMap<Datatype, Vec<String>>,
+    pub paths: HashMap<Datatype, Vec<PathBuf>>,
 }
 
 pub(crate) trait FreezeSummaryAgg {
@@ -49,19 +49,19 @@ pub struct FreezeChunkSummary {
     /// whether chunk encountered an error
     pub errored: bool,
     /// output paths
-    pub paths: HashMap<Datatype, String>,
+    pub paths: HashMap<Datatype, PathBuf>,
 }
 
 impl FreezeChunkSummary {
-    pub(crate) fn success(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
+    pub(crate) fn success(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
         FreezeChunkSummary { skipped: false, errored: false, paths }
     }
 
-    pub(crate) fn error(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
+    pub(crate) fn error(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
         FreezeChunkSummary { skipped: false, errored: true, paths }
     }
 
-    pub(crate) fn skip(paths: HashMap<Datatype, String>) -> FreezeChunkSummary {
+    pub(crate) fn skip(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
         FreezeChunkSummary { skipped: true, errored: false, paths }
     }
 }
