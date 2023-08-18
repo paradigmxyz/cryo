@@ -31,7 +31,6 @@ cryo can extract the following datasets from EVM nodes:
 - `blocks`
 - `transactions` (alias = `txs`)
 - `logs` (alias = `events`)
-- `contracts`
 - `traces` (alias = `call_traces`)
 - `state_diffs` (alias for `storage_diffs` + `balance_diff` + `nonce_diffs` + `code_diffs`)
 - `balance_diffs`
@@ -62,7 +61,7 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
-#### Installing `cryo_python` from pypi
+#### Method 3: Installing `cryo_python` from pypi
 
 (make sure rust is installed first, see [rustup](https://www.rust-lang.org/tools/install))
 
@@ -71,7 +70,7 @@ pip install maturin
 pip install cryo_python
 ```
 
-#### Installing `cryo_python` from source
+#### Method 4: Installing `cryo_python` from source
 
 ```bash
 pip install maturin
@@ -80,6 +79,16 @@ cd cryo/crates/python
 maturin build --release
 pip install <OUTPUT_OF_MATURIN_BUILD>.whl
 ```
+
+#### Method 5: Docker 
+
+In order to run `cryo` in a docker  container 
+
+```shell
+docker build -t <CONTAINER_NAME> .
+docker run -it <CONTAINER_NAME> <CRYO_SUBCOMMAND>
+```
+
 
 ## Data Schema
 
@@ -96,7 +105,6 @@ Many `cryo` cli options will affect output schemas by adding/removing columns or
 |Blocks|1|1|`eth_getBlockByNumber`|
 |Transactions|1|multiple|`eth_getBlockByNumber`|
 |Logs|multiple|multiple|`eth_getLogs`|
-|Contracts|1|multiple|`trace_block`|
 |Traces|1|multiple|`trace_block`|
 |State Diffs|1|multiple|`trace_replayBlockTransactions`|
 |Vm Traces|1|multiple|`trace_replayBlockTransactions`|
@@ -119,7 +127,6 @@ Arguments:
                  - blocks
                  - transactions  (alias = txs)
                  - logs          (alias = events)
-                 - contracts
                  - traces        (alias = call_traces)
                  - state_diffs   (= balance + code + nonce + storage diffs)
                  - balance_diffs
