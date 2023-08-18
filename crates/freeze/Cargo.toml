@@ -10,17 +10,17 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-async-trait = "0.1.68"
-ethers = { version = "2.0.7", features = ["rustls", "ws", "ipc"] }
-ethers-core = "2.0.8"
-futures = "0.3.28"
-governor = "0.5.1"
-indexmap = "2.0.0"
-indicatif = "0.17.5"
-polars = { version = "0.32.1", features = ["parquet", "string_encoding", "polars-lazy", "lazy", "binary_encoding", "json", "dtype-struct"] }
-prefix-hex = "0.7.0"
-serde = { version = "1.0.183", features = ["derive"] }
-serde_json = "1.0.104"
-thiserror = "1.0.40"
-tokio = { version = "1.28.2", features = ["macros", "rt-multi-thread", "sync"] }
-
+async-trait = { workspace = true }
+chrono = { workspace = true }
+ethers = { workspace = true }
+ethers-core = { workspace = true }
+futures = { workspace = true }
+governor = { workspace = true }
+indexmap = { workspace = true }
+indicatif = { workspace = true }
+polars = { workspace = true }
+prefix-hex = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+thiserror = { workspace = true }
+tokio = { workspace = true }

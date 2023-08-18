@@ -1,10 +1,6 @@
 
 [workspace]
-members = [
-    "crates/cli",
-    "crates/freeze",
-    "crates/python",
-]
+members = ["crates/cli", "crates/freeze", "crates/python"]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021 but not virtual workspaces.
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
@@ -16,12 +12,49 @@ edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/paradigmxyz/cryo"
 repository = "https://github.com/paradigmxyz/cryo"
-exclude = [
-    ".github/",
-]
+exclude = [".github/"]
+
+[workspace.dependencies]
+anstyle = "1.0.1"
+async-trait = "0.1.68"
+chrono = { version = "0.4.26", features = ["serde"] }
+clap_cryo = { version = "4.3.21-cryo", features = [
+    "derive",
+    "color",
+    "unstable-styles",
+] }
+colored = "2.0.0"
+color-print = "0.3.4"
+ethers = { version = "2.0.8", features = ["rustls", "ws", "ipc"] }
+ethers-core = "2.0.8"
+eyre = "0.6.8"
+futures = "0.3.28"
+governor = "0.5.1"
+hex = "0.4.3"
+indexmap = "2.0.0"
+indicatif = "0.17.5"
+polars = { version = "0.32.1", features = [
+    "parquet",
+    "string_encoding",
+    "polars-lazy",
+    "lazy",
+    "binary_encoding",
+    "json",
+    "dtype-struct",
+] }
+prefix-hex = "0.7.0"
+pyo3 = { version = "0.19.2", features = ["extension-module"] }
+pyo3-build-config = "0.19.0"
+pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
+pyo3-polars = "0.6.0"
+serde = { version = "1.0.183", features = ["derive"] }
+serde_json = "1.0.104"
+thiserror = "1.0.40"
+thousands = "0.2.0"
+tokio = { version = "1.29.0", features = ["macros", "rt-multi-thread", "sync"] }
+toml = "0.7"
 
 [profile.dev]
 incremental = true
 debug = 1
 codegen-units = 32
-
