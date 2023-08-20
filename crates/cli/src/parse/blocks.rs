@@ -45,14 +45,14 @@ pub(crate) async fn parse_blocks(
         let mut block_chunks = Vec::new();
         for explicit_number in explicit_numbers {
             let outputs = parse_block_inputs(explicit_number, &provider).await?;
-            block_chunks.extend(outputs.into_iter());
+            block_chunks.extend(outputs);
         }
         postprocess_block_chunks(block_chunks, args, provider).await?
     } else {
         Vec::new()
     };
 
-    file_chunks.extend(explicit_chunks.into_iter());
+    file_chunks.extend(explicit_chunks);
     Ok(file_chunks)
 }
 
@@ -312,10 +312,10 @@ mod tests {
             match test {
                 BlockTokenTest::WithMock((token, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
-                    assert_eq!(block_token_test_executor(&token, expected, &provider).await, res);
+                    assert_eq!(block_token_test_executor(token, expected, &provider).await, res);
                 }
                 BlockTokenTest::WithoutMock((token, expected)) => {
-                    assert_eq!(block_token_test_executor(&token, expected, &provider).await, res);
+                    assert_eq!(block_token_test_executor(token, expected, &provider).await, res);
                 }
             }
         }
@@ -331,20 +331,20 @@ mod tests {
     {
         match expected {
             BlockChunk::Numbers(expected_block_numbers) => {
-                let block_chunks = parse_block_token(token, false, &provider).await.unwrap();
+                let block_chunks = parse_block_token(token, false, provider).await.unwrap();
                 assert!(matches!(block_chunks, BlockChunk::Numbers { .. }));
                 let BlockChunk::Numbers(block_numbers) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return block_numbers == expected_block_numbers
+                block_numbers == expected_block_numbers
             }
             BlockChunk::Range(expected_range_start, expected_range_end) => {
-                let block_chunks = parse_block_token(token, true, &provider).await.unwrap();
+                let block_chunks = parse_block_token(token, true, provider).await.unwrap();
                 assert!(matches!(block_chunks, BlockChunk::Range { .. }));
                 let BlockChunk::Range(range_start, range_end) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return expected_range_start == range_start && expected_range_end == range_end
+                expected_range_start == range_start && expected_range_end == range_end
             }
         }
     }
@@ -360,24 +360,24 @@ mod tests {
             match test {
                 BlockInputTest::WithMock((inputs, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
-                    assert_eq!(block_input_test_executor(&inputs, expected, &provider).await, res);
+                    assert_eq!(block_input_test_executor(inputs, expected, &provider).await, res);
                 }
                 BlockInputTest::WithoutMock((inputs, expected)) => {
-                    assert_eq!(block_input_test_executor(&inputs, expected, &provider).await, res);
+                    assert_eq!(block_input_test_executor(inputs, expected, &provider).await, res);
                 }
             }
         }
     }
 
     async fn block_input_test_executor<P>(
-        inputs: &String,
+        inputs: &str,
         expected: Vec<BlockChunk>,
         provider: &Provider<P>,
     ) -> bool
     where
         P: JsonRpcClient,
     {
-        let block_chunks = parse_block_inputs(inputs, &provider).await.unwrap();
+        let block_chunks = parse_block_inputs(inputs, provider).await.unwrap();
         assert_eq!(block_chunks.len(), expected.len());
         for (i, block_chunk) in block_chunks.iter().enumerate() {
             let expected_chunk = &expected[i];
@@ -402,7 +402,7 @@ mod tests {
                 }
             }
         }
-        return true
+        true
     }
 
     enum BlockNumberTest<'a> {
@@ -417,14 +417,14 @@ mod tests {
                 BlockNumberTest::WithMock((block_ref, range_position, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
                     assert_eq!(
-                        block_number_test_executor(&block_ref, range_position, expected, &provider)
+                        block_number_test_executor(block_ref, range_position, expected, &provider)
                             .await,
                         res
                     );
                 }
                 BlockNumberTest::WithoutMock((block_ref, range_position, expected)) => {
                     assert_eq!(
-                        block_number_test_executor(&block_ref, range_position, expected, &provider)
+                        block_number_test_executor(block_ref, range_position, expected, &provider)
                             .await,
                         res
                     );
@@ -442,8 +442,8 @@ mod tests {
     where
         P: JsonRpcClient,
     {
-        let block_number = parse_block_number(block_ref, range_position, &provider).await.unwrap();
-        return block_number == expected
+        let block_number = parse_block_number(block_ref, range_position, provider).await.unwrap();
+        block_number == expected
     }
 
     #[tokio::test]
