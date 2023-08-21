@@ -52,7 +52,6 @@ serde_json = "1.0.104"
 thiserror = "1.0.40"
 thousands = "0.2.0"
 tokio = { version = "1.29.0", features = ["macros", "rt-multi-thread", "sync"] }
-toml = "0.7"
 
 [profile.dev]
 incremental = true
