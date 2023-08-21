@@ -93,9 +93,15 @@ impl Datatype {
         sort: Option<Vec<String>>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
+        let all_columns = column_types.keys().map(|k| k.to_string()).collect();
         let default_columns = self.dataset().default_columns();
-        let used_columns =
-            compute_used_columns(default_columns, include_columns, exclude_columns, columns, self);
+        let used_columns = compute_used_columns(
+            all_columns,
+            default_columns,
+            include_columns,
+            exclude_columns,
+            columns,
+        );
         let mut columns = IndexMap::new();
         for column in used_columns {
             let mut ctype = column_types.get(column.as_str()).ok_or(SchemaError::InvalidColumn)?;
@@ -110,38 +116,35 @@ impl Datatype {
 }
 
 fn compute_used_columns(
+    all_columns: HashSet<String>,
     default_columns: Vec<&str>,
     include_columns: &Option<Vec<String>>,
     exclude_columns: &Option<Vec<String>>,
     columns: &Option<Vec<String>>,
-    datatype: &Datatype,
-) -> Vec<String> {
+) -> HashSet<String> {
     match (columns, include_columns, exclude_columns) {
         (Some(columns), _, _) if ((columns.len() == 1) & columns.contains(&"all".to_string())) => {
-            datatype.dataset().column_types().keys().map(|k| k.to_string()).collect()
+            all_columns
         }
         (Some(columns), _, _) => columns.iter().map(|x| x.to_string()).collect(),
         (_, Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
-            datatype.dataset().column_types().keys().map(|k| k.to_string()).collect()
+            all_columns
         }
         (_, Some(include), Some(exclude)) => {
-            let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
-            let mut result_set: HashSet<String> = result.iter().cloned().collect();
+            let mut result_set: HashSet<String> =
+                default_columns.iter().map(|s| s.to_string()).collect();
             let exclude_set: HashSet<String> = exclude.iter().cloned().collect();
-            include
-                .iter()
-                .filter(|item| !exclude_set.contains(*item) && result_set.insert(item.to_string()))
-                .for_each(|item| result.push(item.clone()));
-            result
+            result_set.extend(include.iter().cloned());
+            result_set = result_set.difference(&exclude_set).cloned().collect();
+            // Permissively skip `include` columns that are not in this dataset (they might apply to other dataset)
+            result_set.intersection(&all_columns).cloned().collect()
         }
         (_, Some(include), None) => {
-            let mut result: Vec<String> = default_columns.iter().map(|s| s.to_string()).collect();
-            let mut result_set: HashSet<String> = result.iter().cloned().collect();
-            include
-                .iter()
-                .filter(|item| result_set.insert(item.to_string()))
-                .for_each(|item| result.push(item.clone()));
-            result
+            let mut result_set: HashSet<String> =
+                default_columns.iter().map(|s| s.to_string()).collect();
+            result_set.extend(include.iter().cloned());
+            // Permissively skip `include` columns that are not in this dataset (they might apply to other dataset)
+            result_set.intersection(&all_columns).cloned().collect()
         }
         (_, None, Some(exclude)) => {
             let exclude_set: HashSet<_> = exclude.iter().collect();
