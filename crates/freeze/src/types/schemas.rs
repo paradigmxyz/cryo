@@ -1,6 +1,4 @@
-use std::collections::HashSet;
-
-use indexmap::IndexMap;
+use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
 use crate::types::{ColumnEncoding, Datatype};
@@ -116,44 +114,119 @@ impl Datatype {
 }
 
 fn compute_used_columns(
-    all_columns: HashSet<String>,
+    all_columns: IndexSet<String>,
     default_columns: Vec<&str>,
     include_columns: &Option<Vec<String>>,
     exclude_columns: &Option<Vec<String>>,
     columns: &Option<Vec<String>>,
-) -> HashSet<String> {
-    match (columns, include_columns, exclude_columns) {
-        (Some(columns), _, _) if ((columns.len() == 1) & columns.contains(&"all".to_string())) => {
-            all_columns
+) -> IndexSet<String> {
+    if let Some(columns) = columns {
+        if (columns.len() == 1) & columns.contains(&"all".to_string()) {
+            return all_columns
         }
-        (Some(columns), _, _) => columns.iter().map(|x| x.to_string()).collect(),
-        (_, Some(include), _) if ((include.len() == 1) & include.contains(&"all".to_string())) => {
-            all_columns
+        return columns.iter().map(|x| x.to_string()).collect()
+    }
+    let mut result_set = IndexSet::from_iter(default_columns.iter().map(|s| s.to_string()));
+    if let Some(include) = include_columns {
+        if (include.len() == 1) & include.contains(&"all".to_string()) {
+            return all_columns
         }
-        (_, Some(include), Some(exclude)) => {
-            let mut result_set: HashSet<String> =
-                default_columns.iter().map(|s| s.to_string()).collect();
-            let exclude_set: HashSet<String> = exclude.iter().cloned().collect();
-            result_set.extend(include.iter().cloned());
-            result_set = result_set.difference(&exclude_set).cloned().collect();
-            // Permissively skip `include` columns that are not in this dataset (they might apply to other dataset)
-            result_set.intersection(&all_columns).cloned().collect()
-        }
-        (_, Some(include), None) => {
-            let mut result_set: HashSet<String> =
-                default_columns.iter().map(|s| s.to_string()).collect();
-            result_set.extend(include.iter().cloned());
-            // Permissively skip `include` columns that are not in this dataset (they might apply to other dataset)
-            result_set.intersection(&all_columns).cloned().collect()
-        }
-        (_, None, Some(exclude)) => {
-            let exclude_set: HashSet<_> = exclude.iter().collect();
-            default_columns
-                .into_iter()
-                .filter(|s| !exclude_set.contains(&s.to_string()))
-                .map(|s| s.to_string())
-                .collect()
-        }
-        (_, None, None) => default_columns.iter().map(|s| s.to_string()).collect(),
+        // Permissively skip `include` columns that are not in this dataset (they might apply to
+        // other dataset)
+        result_set.extend(include.iter().cloned());
+        result_set = result_set.intersection(&all_columns).cloned().collect()
+    }
+    if let Some(exclude) = exclude_columns {
+        let exclude_set = IndexSet::<String>::from_iter(exclude.iter().cloned());
+        result_set = result_set.difference(&exclude_set).cloned().collect()
+    }
+    result_set
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_table_schema_explicit_cols() {
+        let cols = Some(vec!["number".to_string(), "hash".to_string()]);
+        let table =
+            Datatype::Blocks.table_schema(&ColumnEncoding::Hex, &None, &None, &cols, None).unwrap();
+        assert_eq!(vec!["number", "hash"], table.columns());
+
+        // "all" marker support
+        let cols = Some(vec!["all".to_string()]);
+        let table =
+            Datatype::Blocks.table_schema(&ColumnEncoding::Hex, &None, &None, &cols, None).unwrap();
+        assert_eq!(15, table.columns().len());
+        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"transactions_root"));
+    }
+
+    #[test]
+    fn test_table_schema_include_cols() {
+        let inc_cols = Some(vec!["chain_id".to_string(), "receipts_root".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .unwrap();
+        assert_eq!(9, table.columns().len());
+        assert_eq!(["chain_id", "receipts_root"], table.columns()[7..9]);
+
+        // Non-existing include is skipped
+        let inc_cols = Some(vec!["chain_id".to_string(), "foo_bar".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .unwrap();
+        assert_eq!(Some(&"chain_id"), table.columns().last());
+        assert!(!table.columns().contains(&"foo_bar"));
+
+        // "all" marker support
+        let inc_cols = Some(vec!["all".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .unwrap();
+        assert_eq!(15, table.columns().len());
+        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"transactions_root"));
+    }
+
+    #[test]
+    fn test_table_schema_exclude_cols() {
+        // defaults
+        let table =
+            Datatype::Blocks.table_schema(&ColumnEncoding::Hex, &None, &None, &None, None).unwrap();
+        assert_eq!(7, table.columns().len());
+        assert!(table.columns().contains(&"author"));
+        assert!(table.columns().contains(&"extra_data"));
+
+        let ex_cols = Some(vec!["author".to_string(), "extra_data".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &None, &ex_cols, &None, None)
+            .unwrap();
+        assert_eq!(5, table.columns().len());
+        assert!(!table.columns().contains(&"author"));
+        assert!(!table.columns().contains(&"extra_data"));
+
+        // Non-existing exclude is ignored
+        let ex_cols = Some(vec!["timestamp".to_string(), "foo_bar".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &None, &ex_cols, &None, None)
+            .unwrap();
+        assert_eq!(6, table.columns().len());
+        assert!(!table.columns().contains(&"timestamp"));
+        assert!(!table.columns().contains(&"foo_bar"));
+    }
+
+    #[test]
+    fn test_table_schema_include_and_exclude_cols() {
+        let inc_cols = Some(vec!["chain_id".to_string(), "receipts_root".to_string()]);
+        let ex_cols = Some(vec!["author".to_string(), "extra_data".to_string()]);
+        let table = Datatype::Blocks
+            .table_schema(&ColumnEncoding::Hex, &inc_cols, &ex_cols, &None, None)
+            .unwrap();
+        assert!(!table.columns().contains(&"author"));
+        assert!(!table.columns().contains(&"extra_data"));
+        assert_eq!(7, table.columns().len());
+        assert_eq!(["chain_id", "receipts_root"], table.columns()[5..7]);
     }
 }
