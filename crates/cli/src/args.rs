@@ -40,7 +40,9 @@ pub struct Args {
     pub reorg_buffer: u64,
 
     /// Columns to include alongside the default output,
-    /// use `all` to include all available columns
+    /// use `all` to include all available columns.
+    /// Unknown columns are ignored per dataset, so a superset of columns can be specified for
+    /// multiset download.
     #[arg(short, long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
 
