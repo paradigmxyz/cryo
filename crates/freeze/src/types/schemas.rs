@@ -2,11 +2,12 @@ use std::collections::HashSet;
 
 use indexmap::IndexMap;
 use thiserror::Error;
+use crate::datasets::LogDecoder;
 
 use crate::types::{ColumnEncoding, Datatype};
 
 /// Schema for a particular table
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Table {
     columns: IndexMap<String, ColumnType>,
 
@@ -15,6 +16,15 @@ pub struct Table {
 
     /// sort order for rows
     pub sort_columns: Option<Vec<String>>,
+
+    // metadata
+    pub meta: Option<TableMeta>
+}
+
+/// metadata to associated with a table
+#[derive(Clone, Debug, PartialEq)]
+pub struct TableMeta {
+    pub log_decoder: Option<LogDecoder>,
 }
 
 impl Table {
@@ -91,6 +101,7 @@ impl Datatype {
         exclude_columns: &Option<Vec<String>>,
         columns: &Option<Vec<String>>,
         sort: Option<Vec<String>>,
+        table_meta: Option<TableMeta>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let default_columns = self.dataset().default_columns();
@@ -104,7 +115,7 @@ impl Datatype {
             }
             columns.insert((*column.clone()).to_string(), *ctype);
         }
-        let schema = Table { datatype: *self, sort_columns: sort, columns };
+        let schema = Table { datatype: *self, sort_columns: sort, columns, meta: table_meta };
         Ok(schema)
     }
 }

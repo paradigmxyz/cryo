@@ -11,3 +11,5 @@ mod storage_diffs;
 mod traces;
 mod transactions;
 mod vm_traces;
+
+pub use logs::LogDecoder;

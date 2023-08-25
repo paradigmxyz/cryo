@@ -209,15 +209,9 @@ async fn logs_to_df(
     let mut data: Vec<Vec<u8>> = Vec::new();
 
 
-    let event = match std::env::var("EVENT_ABI") {
-        Ok(abi) => match HumanReadableParser::parse_event(abi.as_str()) {
-            Ok(event) => Some(event),
-            Err(_) => {
-                eprintln!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount)", abi);
-                None
-            }
-        },
-        Err(_) => None
+    let decoder = match schema.clone().meta {
+        Some(tm) => tm.log_decoder,
+        None => None,
     };
 
     let mut event_cols: HashMap<String, Vec<Token>> = HashMap::new();
@@ -279,8 +273,8 @@ async fn logs_to_df(
                         log_index.push(li.as_u32());
                     }
                 }
-                if let Some(event) = event.clone() {
-                    parse_log_from_event(event.clone(), logs).into_iter().for_each(|(k, v)| {
+                if let Some(decoder) = decoder.clone() {
+                    decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
                         event_cols.entry(k).or_insert(Vec::new()).extend(v);
                     });
                 }
@@ -290,7 +284,7 @@ async fn logs_to_df(
     }
 
     let mut cols = Vec::new();
-    with_series!(cols, "block_number", block_number, schema);
+    with_series!(cols, "block_number", block_number.clone(), schema);
     with_series!(cols, "transaction_index", transaction_index, schema);
     with_series!(cols, "log_index", log_index, schema);
     with_series_binary!(cols, "transaction_hash", transaction_hash, schema);
@@ -305,10 +299,23 @@ async fn logs_to_df(
         cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
     }
 
-    for (name, data) in event_cols {
-        match to_series(name, data) {
-            Ok(s) => cols.push(s),
-            Err(e) => eprintln!("error creating frame: {}", e), // TODO: see how best to bubble up error
+    if let Some(decoder) = decoder {
+        // Write columns even if there are no values decoded - indicates empty dataframe
+        let chunk_len = block_number.len();
+        if event_cols.is_empty() {
+            for name in decoder.field_names().iter() {
+                cols.push(Series::new(name.as_str(), vec![None::<u64>; chunk_len]));
+            }
+        } else {
+            for (name, data) in event_cols {
+                match LogDecoder::make_series(name.clone(), data, chunk_len.clone()) {
+                    Ok(s) => {
+                        println!("Pushing col {:?}", name.clone());
+                        cols.push(s);
+                    }
+                    Err(e) => eprintln!("error creating frame: {}", e), // TODO: see how best to bubble up error
+                }
+            }
         }
     }
 
@@ -317,94 +324,119 @@ async fn logs_to_df(
 }
 
 
-// this function assumes all logs are of the same type and skips fields if they don't match the passed event definition
-fn parse_log_from_event(event: ethers::abi::Event, logs: Vec<Log>) -> HashMap<String, Vec<Token>> {
-    let mut map: HashMap<String, Vec<Token>> = HashMap::new();
-    let known_keys = event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
+#[derive(Clone, Debug, PartialEq)]
+pub struct LogDecoder {
+    pub raw: String,
+    pub event: abi::Event,
+}
 
-    for log in logs {
-        if let Ok(log) = event.parse_log(RawLog::from(log)) {
-            for param in log.params {
-                if known_keys.contains(param.name.as_str()) {
-                    let tokens = map.entry(param.name).or_insert(Vec::new());
-                    tokens.push(param.value);
+impl LogDecoder {
+    /// create a new LogDecoder from an event signature
+    /// ex: LogDecoder::new("event Transfer(address indexed from, address indexed to, uint256 amount)".to_string())
+    pub fn new(event_signature: String) -> Option<Self> {
+        match HumanReadableParser::parse_event(event_signature.as_str())
+        {
+            Ok(event) => Some(Self { event, raw: event_signature.clone() }),
+            Err(_) => {
+                eprintln!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount)", event_signature);
+                None
+            }
+        }
+    }
+
+    fn field_names(&self) -> Vec<String> {
+        self.event.inputs.iter().map(|i| i.name.clone()).collect()
+    }
+
+    /// converts from a log type to an abi token type
+    /// this function assumes all logs are of the same type and skips fields if they don't match the passed event definition
+    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> HashMap<String, Vec<Token>> {
+        let mut map: HashMap<String, Vec<Token>> = HashMap::new();
+        let known_keys = self.event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
+
+        for log in logs {
+            if let Ok(log) = self.event.parse_log(RawLog::from(log)) {
+                for param in log.params {
+                    if known_keys.contains(param.name.as_str()) {
+                        let tokens = map.entry(param.name).or_insert(Vec::new());
+                        tokens.push(param.value);
+                    }
                 }
             }
         }
+        map
     }
-    map
-}
 
-/// data should never be mixed type, otherwise this will return inconsistent results
-fn to_series(name: String, data: Vec<Token>) -> Result<Series, String> {
+    /// data should never be mixed type, otherwise this will return inconsistent results
+    pub fn make_series(name: String, data: Vec<Token>, chunk_len: usize) -> Result<Series, String> {
 
-    // This is a smooth brain way of doing this, but I can't think of a better way right now
-    let mut ints: Vec<u64> = vec![];
-    let mut str_ints: Vec<String> = vec![];
-    let mut bytes: Vec<String> = vec![];
-    let mut bools: Vec<bool> = vec![];
-    let mut strings: Vec<String> = vec![];
-    let mut addresses: Vec<String> = vec![];
-    // TODO: support array & tuple types
+        // This is a smooth brain way of doing this, but I can't think of a better way right now
+        let mut ints: Vec<u64> = vec![];
+        let mut str_ints: Vec<String> = vec![];
+        let mut bytes: Vec<String> = vec![];
+        let mut bools: Vec<bool> = vec![];
+        let mut strings: Vec<String> = vec![];
+        let mut addresses: Vec<String> = vec![];
+        // TODO: support array & tuple types
 
-    for token in data.clone() {
-        match token {
-            Token::Address(a) => addresses.push(format!("{:?}", a)),
-            Token::FixedBytes(b) => bytes.push(b.encode_hex()),
-            Token::Bytes(b) => bytes.push(b.encode_hex()),
-            // LogParam and Token both don't specify the size of the int, so we have to guess.
-            // try to cast the all to u64, if that fails store as string and collect the ones that
-            // succeed at the end.
-            // this may get problematic if 1 batch of logs happens to contain all u64-able ints and
-            // the next batch contains u256s. Might be worth just casting all as strings
-            Token::Int(i) | Token::Uint(i) => match i.try_into() {
-                Ok(i) => ints.push(i),
-                Err(_) => str_ints.push(i.to_string()),
-            },
-            Token::Bool(b) => bools.push(b),
-            Token::String(s) => strings.push(s),
-            Token::Array(_) | Token::FixedArray(_) => {}
-            Token::Tuple(_) => {}
+        for token in data.clone() {
+            match token {
+                Token::Address(a) => addresses.push(format!("{:?}", a)),
+                Token::FixedBytes(b) => bytes.push(b.encode_hex()),
+                Token::Bytes(b) => bytes.push(b.encode_hex()),
+                // LogParam and Token both don't specify the size of the int, so we have to guess.
+                // try to cast the all to u64, if that fails store as string and collect the ones that
+                // succeed at the end.
+                // this may get problematic if 1 batch of logs happens to contain all u64-able ints and
+                // the next batch contains u256s. Might be worth just casting all as strings
+                Token::Int(i) | Token::Uint(i) => match i.try_into() {
+                    Ok(i) => ints.push(i),
+                    Err(_) => str_ints.push(i.to_string()),
+                },
+                Token::Bool(b) => bools.push(b),
+                Token::String(s) => strings.push(s),
+                Token::Array(_) | Token::FixedArray(_) => {}
+                Token::Tuple(_) => {}
+            }
         }
-    }
-    let mixed_length_err = format!("could not parse column {}, mixed type", name);
+        let mixed_length_err = format!("could not parse column {}, mixed type", name);
 
 
-    let data_len = data.clone().len();
-
-    // check each vector, see if it contains any values, if it does, check if it's the same length
-    // as the input data and map to a series
-    if ints.len() > 0 || str_ints.len() > 0 {
-        if str_ints.len() > 0 {
-            str_ints.extend(ints.into_iter().map(|i| i.to_string()));
-            if str_ints.len() != data_len {
+        // check each vector, see if it contains any values, if it does, check if it's the same length
+        // as the input data and map to a series
+        if ints.len() > 0 || str_ints.len() > 0 {
+            if str_ints.len() > 0 {
+                str_ints.extend(ints.into_iter().map(|i| i.to_string()));
+                if str_ints.len() != chunk_len {
+                    return Err(mixed_length_err);
+                }
+                return Ok(Series::new(name.as_str(), str_ints));
+            }
+            Ok(Series::new(name.as_str(), ints))
+        } else if bytes.len() > 0 {
+            if bytes.len() != chunk_len {
                 return Err(mixed_length_err);
             }
-            return Ok(Series::new(name.as_str(), str_ints));
+            Ok(Series::new(name.as_str(), bytes))
+        } else if bools.len() > 0 {
+            if bools.len() != chunk_len {
+                return Err(mixed_length_err);
+            }
+            Ok(Series::new(name.as_str(), bools))
+        } else if strings.len() > 0 {
+            if strings.len() != chunk_len {
+                return Err(mixed_length_err);
+            }
+            Ok(Series::new(name.as_str(), strings))
+        } else if addresses.len() > 0 {
+            if addresses.len() != chunk_len {
+                return Err(mixed_length_err);
+            }
+            Ok(Series::new(name.as_str(), addresses))
+        } else {
+            // case where no data was passed
+            Ok(Series::new(name.as_str(), vec![None::<u64>; chunk_len]))
         }
-        Ok(Series::new(name.as_str(), ints))
-    } else if bytes.len() > 0 {
-        if bytes.len() != data_len {
-            return Err(mixed_length_err);
-        }
-        Ok(Series::new(name.as_str(), bytes))
-    } else if bools.len() > 0 {
-        if bools.len() != data_len {
-            return Err(mixed_length_err);
-        }
-        Ok(Series::new(name.as_str(), bools))
-    } else if strings.len() > 0 {
-        if strings.len() != data_len {
-            return Err(mixed_length_err);
-        }
-        Ok(Series::new(name.as_str(), strings))
-    } else if addresses.len() > 0 {
-        if addresses.len() != data_len {
-            return Err(mixed_length_err);
-        }
-        Ok(Series::new(name.as_str(), addresses))
-    } else {
-        Err(format!("could not parse column {}", name))
     }
 }
 
@@ -415,7 +447,8 @@ mod test {
 
     #[test]
     fn test_mapping_log_into_type_columns() {
-        let e = HumanReadableParser::parse_event("event NewMint(address indexed msgSender, uint256 indexed mintQuantity)").unwrap();
+        let raw = "event NewMint(address indexed msgSender, uint256 indexed mintQuantity)";
+        let e = HumanReadableParser::parse_event(raw).unwrap();
 
         let raw_log = r#"{
             "address": "0x0000000000000000000000000000000000000000",
@@ -427,8 +460,10 @@ mod test {
             "data": "0x"
         }"#;
 
+        let decoder = LogDecoder { raw: raw.to_string(), event: e.clone() };
+
         let log = serde_json::from_str::<Log>(raw_log).unwrap();
-        let m = parse_log_from_event(e, vec![log]);
+        let m = decoder.parse_log_from_event(vec![log]);
         assert_eq!(m.len(), 2);
         assert_eq!(m.get("msgSender").unwrap().len(), 1);
         assert_eq!(m.get("mintQuantity").unwrap().len(), 1);
@@ -436,28 +471,28 @@ mod test {
 
     #[test]
     fn test_parsing_bools() {
-        let s = to_series("bools".to_string(), vec![Token::Bool(true), Token::Bool(false)]).unwrap();
+        let s = LogDecoder::make_series("bools".to_string(), vec![Token::Bool(true), Token::Bool(false)]).unwrap();
         assert_eq!(s.dtype(), &Boolean);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_ints() {
-        let s = to_series("ints".to_string(), vec![Token::Int(1.into()), Token::Int(2.into())]).unwrap();
+        let s = LogDecoder::make_series("ints".to_string(), vec![Token::Int(1.into()), Token::Int(2.into())]).unwrap();
         assert_eq!(s.dtype(), &DataType::UInt64);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_big_ints() {
-        let s = to_series("ints".to_string(), vec![Token::Int(U256::max_value()), Token::Int(2.into())]).unwrap();
+        let s = LogDecoder::make_series("ints".to_string(), vec![Token::Int(U256::max_value()), Token::Int(2.into())]).unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_addresses() {
-        let s = to_series("ints".to_string(), vec![Token::Address(Address::zero()), Token::Address(Address::zero())]).unwrap();
+        let s = LogDecoder::make_series("ints".to_string(), vec![Token::Address(Address::zero()), Token::Address(Address::zero())]).unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }

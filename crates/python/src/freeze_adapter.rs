@@ -45,6 +45,7 @@ use cryo_cli::{run, Args};
         topic3 = None,
         inner_request_size = 1,
         no_verbose = false,
+        event_signature = None,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -86,6 +87,7 @@ pub fn _freeze(
     topic3: Option<String>,
     inner_request_size: u64,
     no_verbose: bool,
+    event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
     let args = Args {
         datatype,
@@ -124,6 +126,7 @@ pub fn _freeze(
         topic3,
         inner_request_size,
         no_verbose,
+        event_signature,
     };
 
     pyo3_asyncio::tokio::future_into_py(py, async move {

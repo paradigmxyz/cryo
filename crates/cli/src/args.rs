@@ -170,6 +170,10 @@ pub struct Args {
         help_heading = "Dataset-specific Options"
     )]
     pub inner_request_size: u64,
+
+    /// [logs] event signature to parse
+    #[arg(long, help_heading = "Dataset-specific Options")]
+    pub event_signature: Option<String>,
 }
 
 pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
