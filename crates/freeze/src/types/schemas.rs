@@ -1,8 +1,8 @@
 use std::collections::HashSet;
 
+use crate::datasets::LogDecoder;
 use indexmap::IndexMap;
 use thiserror::Error;
-use crate::datasets::LogDecoder;
 
 use crate::types::{ColumnEncoding, Datatype};
 
@@ -18,7 +18,7 @@ pub struct Table {
     pub sort_columns: Option<Vec<String>>,
 
     // metadata
-    pub meta: Option<TableMeta>
+    pub meta: Option<TableMeta>,
 }
 
 /// metadata to associated with a table

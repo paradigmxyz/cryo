@@ -13,6 +13,6 @@ mod freeze;
 mod types;
 
 pub use collect::{collect, collect_multiple};
+pub use datasets::LogDecoder;
 pub use freeze::freeze;
 pub use types::*;
-pub use datasets::LogDecoder;
