@@ -107,6 +107,32 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
                 })
         })
         .collect();
+
+    // make sure all included columns ended up in at least one schema
+    if let (Ok(schemas), Some(include_columns)) = (&schemas, &args.include_columns) {
+        let mut unknown_columns = Vec::new();
+        for column in include_columns.iter() {
+            let mut in_a_schema = false;
+
+            for schema in schemas.values() {
+                if schema.has_column(column) {
+                    in_a_schema = true;
+                    break
+                }
+            }
+
+            if !in_a_schema {
+                unknown_columns.push(column);
+            }
+        }
+        if !unknown_columns.is_empty() {
+            return Err(ParseError::ParseError(format!(
+                "datatypes do not support these columns: {:?}",
+                unknown_columns
+            )))
+        }
+    };
+
     schemas
 }
 

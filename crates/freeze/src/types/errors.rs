@@ -79,7 +79,7 @@ pub enum CollectError {
 #[derive(Error, Debug)]
 pub enum ParseError {
     /// Error related to parsing
-    #[error("Parsing error")]
+    #[error("Parsing error: {0}")]
     ParseError(String),
 
     /// Error related to provider operations
