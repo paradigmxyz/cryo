@@ -57,7 +57,7 @@ pub(crate) fn print_cryo_summary(
         print_bullet("inner request size", source.inner_request_size.to_string());
     };
     print_bullet("output format", sink.format.as_str());
-    print_bullet("output dir", &sink.output_dir);
+    print_bullet("output dir", sink.output_dir.to_string_lossy());
     match report_path {
         None => print_bullet("report file", "None"),
         Some(path) => print_bullet("report file", path),

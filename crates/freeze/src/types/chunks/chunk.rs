@@ -1,5 +1,5 @@
 use crate::types::{Datatype, FileError, FileOutput};
-use std::collections::HashMap;
+use std::{collections::HashMap, path::PathBuf};
 
 use super::{binary_chunk::BinaryChunk, chunk_ops::ChunkData, number_chunk::NumberChunk};
 
@@ -33,7 +33,7 @@ impl Chunk {
         datatype: &Datatype,
         file_output: &FileOutput,
         chunk_label: &Option<String>,
-    ) -> Result<String, FileError> {
+    ) -> Result<PathBuf, FileError> {
         match self {
             Chunk::Block(chunk) => chunk.filepath(datatype, file_output, chunk_label),
             Chunk::Transaction(chunk) => chunk.filepath(datatype, file_output, chunk_label),
@@ -47,7 +47,7 @@ impl Chunk {
         datatypes: Vec<&Datatype>,
         file_output: &FileOutput,
         chunk_label: &Option<String>,
-    ) -> Result<HashMap<Datatype, String>, FileError> {
+    ) -> Result<HashMap<Datatype, PathBuf>, FileError> {
         let mut paths = HashMap::new();
         for datatype in datatypes {
             let path = self.filepath(datatype, file_output, chunk_label)?;
