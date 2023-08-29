@@ -179,51 +179,73 @@ where
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
-            let (start_block, end_block) = match (first_ref, second_ref) {
-                _ if first_ref.starts_with('-') => {
-                    let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, provider).await?;
-                    let start_block = end_block
-                        .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
-                            ParseError::ParseError("start_block parse error".to_string())
-                        })?)
-                        .ok_or_else(|| {
-                            ParseError::ParseError("start_block underflow".to_string())
-                        })?;
-                    (start_block, end_block)
-                }
-                _ if second_ref.starts_with('+') => {
-                    let start_block =
-                        parse_block_number(first_ref, RangePosition::First, provider).await?;
-                    let end_block = start_block
-                        .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
-                            ParseError::ParseError("start_block parse error".to_string())
-                        })?)
-                        .ok_or_else(|| ParseError::ParseError("end_block underflow".to_string()))?;
-                    (start_block, end_block)
-                }
-                _ => {
-                    let start_block =
-                        parse_block_number(first_ref, RangePosition::First, provider).await?;
-                    let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, provider).await?;
-                    (start_block, end_block)
-                }
-            };
-
-            if end_block <= start_block {
-                Err(ParseError::ParseError(
-                    "end_block should not be less than start_block".to_string(),
-                ))
-            } else if as_range {
-                Ok(BlockChunk::Range(start_block, end_block))
-            } else {
-                Ok(BlockChunk::Numbers((start_block..=end_block).collect()))
-            }
+            let (start_block, end_block) =
+                parse_block_range(first_ref, second_ref, provider).await?;
+            block_range_to_block_chunk(start_block, end_block, as_range, 1)
+        }
+        [first_ref, second_ref, third_ref] => {
+            let (start_block, end_block) =
+                parse_block_range(first_ref, second_ref, provider).await?;
+            let range_size = third_ref
+                .parse::<usize>()
+                .map_err(|_e| ParseError::ParseError("start_block parse error".to_string()))?;
+            block_range_to_block_chunk(start_block, end_block, as_range, range_size)
         }
         _ => Err(ParseError::ParseError(
             "blocks must be in format block_number or start_block:end_block".to_string(),
         )),
+    }
+}
+
+fn block_range_to_block_chunk(
+    start_block: u64,
+    end_block: u64,
+    as_range: bool,
+    range_size: usize,
+) -> Result<BlockChunk, ParseError> {
+    if end_block <= start_block {
+        Err(ParseError::ParseError("end_block should not be less than start_block".to_string()))
+    } else if as_range {
+        Ok(BlockChunk::Range(start_block, end_block))
+    } else {
+        Ok(BlockChunk::Numbers((start_block..=end_block).step_by(range_size).collect()))
+    }
+}
+
+async fn parse_block_range<P>(
+    first_ref: &str,
+    second_ref: &str,
+    provider: &Provider<P>,
+) -> Result<(u64, u64), ParseError>
+where
+    P: JsonRpcClient,
+{
+    match (first_ref, second_ref) {
+        _ if first_ref.starts_with('-') => {
+            let end_block = parse_block_number(second_ref, RangePosition::Last, provider).await?;
+            let start_block =
+                end_block
+                    .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_block parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("start_block underflow".to_string()))?;
+            Ok((start_block, end_block))
+        }
+        _ if second_ref.starts_with('+') => {
+            let start_block = parse_block_number(first_ref, RangePosition::First, provider).await?;
+            let end_block =
+                start_block
+                    .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_block parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("end_block underflow".to_string()))?;
+            Ok((start_block, end_block))
+        }
+        _ => {
+            let start_block = parse_block_number(first_ref, RangePosition::First, provider).await?;
+            let end_block = parse_block_number(second_ref, RangePosition::Last, provider).await?;
+            Ok((start_block, end_block))
+        }
     }
 }
 
@@ -336,7 +358,7 @@ mod tests {
                 let BlockChunk::Numbers(block_numbers) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return block_numbers == expected_block_numbers
+                return block_numbers == expected_block_numbers;
             }
             BlockChunk::Range(expected_range_start, expected_range_end) => {
                 let block_chunks = parse_block_token(token, true, &provider).await.unwrap();
@@ -344,7 +366,7 @@ mod tests {
                 let BlockChunk::Range(range_start, range_end) = block_chunks else {
                     panic!("Unexpected shape")
                 };
-                return expected_range_start == range_start && expected_range_end == range_end
+                return expected_range_start == range_start && expected_range_end == range_end;
             }
         }
     }
@@ -388,7 +410,7 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_block_numbers != block_numbers {
-                        return false
+                        return false;
                     }
                 }
                 BlockChunk::Range(expected_range_start, expected_range_end) => {
@@ -397,12 +419,12 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_range_start != range_start || expected_range_end != range_end {
-                        return false
+                        return false;
                     }
                 }
             }
         }
-        return true
+        return true;
     }
 
     enum BlockNumberTest<'a> {
@@ -443,7 +465,7 @@ mod tests {
         P: JsonRpcClient,
     {
         let block_number = parse_block_number(block_ref, range_position, &provider).await.unwrap();
-        return block_number == expected
+        return block_number == expected;
     }
 
     #[tokio::test]
