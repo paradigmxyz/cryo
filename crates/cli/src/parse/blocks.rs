@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use ethers::prelude::*;
 use polars::prelude::*;
 
