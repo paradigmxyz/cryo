@@ -37,6 +37,9 @@ pub struct MultiQuery {
 impl MultiQuery {
     /// get number of chunks that have not yet been collected
     pub fn get_n_chunks_remaining(&self, sink: &FileOutput) -> Result<u64, FreezeError> {
+        if sink.overwrite {
+            return Ok(self.chunks.len() as u64)
+        };
         let actual_files: HashSet<PathBuf> = list_files(&sink.output_dir)
             .map_err(|_e| {
                 FreezeError::CollectError(CollectError::CollectError(

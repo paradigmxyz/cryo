@@ -1,7 +1,7 @@
 use polars::prelude::*;
 
 /// Options for file output
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct FileOutput {
     /// Path of directory where to save files
     pub output_dir: std::path::PathBuf,
@@ -22,7 +22,7 @@ pub struct FileOutput {
 }
 
 /// File format
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum FileFormat {
     /// Parquet file format
     Parquet,
