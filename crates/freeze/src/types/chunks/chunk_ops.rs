@@ -33,7 +33,7 @@ pub trait ChunkData: Sized {
         datatype: &Datatype,
         file_output: &FileOutput,
         chunk_label: &Option<String>,
-    ) -> Result<String, FileError> {
+    ) -> Result<std::path::PathBuf, FileError> {
         let network_name = file_output.prefix.clone();
         let stub = match chunk_label {
             Some(chunk_label) => chunk_label.clone(),
@@ -46,10 +46,7 @@ pub trait ChunkData: Sized {
             None => vec![network_name, datatype.dataset().name().to_string(), stub],
         };
         let filename = format!("{}.{}", pieces.join("__"), file_output.format.as_str());
-        match file_output.output_dir.as_str() {
-            "." => Ok(filename),
-            output_dir => Ok(output_dir.to_string() + "/" + filename.as_str()),
-        }
+        Ok(file_output.output_dir.join(filename))
     }
 }
 

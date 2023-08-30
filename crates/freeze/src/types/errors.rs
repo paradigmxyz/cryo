@@ -7,7 +7,7 @@ use thiserror::Error;
 #[derive(Error, Debug)]
 pub enum FreezeError {
     /// Error related to processing file path
-    #[error("Failed to create file path")]
+    #[error(transparent)]
     FilePathError(#[from] FileError),
 
     /// Error related to joining a tokio task
@@ -15,7 +15,7 @@ pub enum FreezeError {
     TaskFailed(#[source] tokio::task::JoinError),
 
     /// Error related to collecting data
-    #[error("Collect error")]
+    #[error(transparent)]
     CollectError(#[from] CollectError),
 
     /// Error related to progress bar
@@ -23,7 +23,7 @@ pub enum FreezeError {
     ProgressBarError(#[from] indicatif::style::TemplateError),
 
     /// Parse error
-    #[error("Parsing error")]
+    #[error(transparent)]
     ParseError(#[from] ParseError),
 
     /// Error from serializing report

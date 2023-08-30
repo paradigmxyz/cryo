@@ -132,7 +132,7 @@ pub fn _freeze(
                 let paths = PyDict::new(py);
                 for (key, values) in &result.paths {
                     let key = key.dataset().name();
-                    let values: Vec<&str> = values.iter().map(AsRef::as_ref).collect();
+                    let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
                     paths.set_item(key, values).unwrap();
                 }
                 let paths = paths.to_object(py);
