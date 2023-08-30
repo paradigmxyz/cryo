@@ -17,13 +17,14 @@ pub struct Table {
     /// sort order for rows
     pub sort_columns: Option<Vec<String>>,
 
-    // metadata
+    /// metadata about a table
     pub meta: Option<TableMeta>,
 }
 
 /// metadata to associated with a table
 #[derive(Clone, Debug, PartialEq)]
 pub struct TableMeta {
+    /// log decoder for table
     pub log_decoder: Option<LogDecoder>,
 }
 

@@ -221,7 +221,7 @@ async fn logs_to_df(
             Ok(logs) => {
                 for log in logs.iter() {
                     if let Some(true) = log.removed {
-                        continue
+                        continue;
                     }
                     if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
                         log.block_number,
@@ -308,7 +308,6 @@ async fn logs_to_df(
             for (name, data) in event_cols {
                 match LogDecoder::make_series(name.clone(), data, chunk_len.clone()) {
                     Ok(s) => {
-                        println!("Pushing col {:?}", name.clone());
                         cols.push(s);
                     }
                     Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best to
@@ -321,9 +320,12 @@ async fn logs_to_df(
     DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
 }
 
+/// container for log decoding context
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogDecoder {
+    /// the raw event signature string ex: event Transfer(address indexed from, address indexed to, uint256 amount)
     pub raw: String,
+    /// decoded abi type of event signature string
     pub event: abi::Event,
 }
 
@@ -354,13 +356,16 @@ impl LogDecoder {
             self.event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
 
         for log in logs {
-            if let Ok(log) = self.event.parse_log(RawLog::from(log)) {
-                for param in log.params {
-                    if known_keys.contains(param.name.as_str()) {
-                        let tokens = map.entry(param.name).or_insert(Vec::new());
-                        tokens.push(param.value);
+            match self.event.parse_log(RawLog::from(log)) {
+                Ok(log) => {
+                    for param in log.params {
+                        if known_keys.contains(param.name.as_str()) {
+                            let tokens = map.entry(param.name).or_insert(Vec::new());
+                            tokens.push(param.value);
+                        }
                     }
                 }
+                Err(e) => eprintln!("error parsing log: {:?}", e),
             }
         }
         map
@@ -406,29 +411,29 @@ impl LogDecoder {
             if str_ints.len() > 0 {
                 str_ints.extend(ints.into_iter().map(|i| i.to_string()));
                 if str_ints.len() != chunk_len {
-                    return Err(mixed_length_err)
+                    return Err(mixed_length_err);
                 }
-                return Ok(Series::new(name.as_str(), str_ints))
+                return Ok(Series::new(name.as_str(), str_ints));
             }
             Ok(Series::new(name.as_str(), ints))
         } else if bytes.len() > 0 {
             if bytes.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(mixed_length_err);
             }
             Ok(Series::new(name.as_str(), bytes))
         } else if bools.len() > 0 {
             if bools.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(mixed_length_err);
             }
             Ok(Series::new(name.as_str(), bools))
         } else if strings.len() > 0 {
             if strings.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(mixed_length_err);
             }
             Ok(Series::new(name.as_str(), strings))
         } else if addresses.len() > 0 {
             if addresses.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(mixed_length_err);
             }
             Ok(Series::new(name.as_str(), addresses))
         } else {
@@ -472,8 +477,9 @@ mod test {
         let s = LogDecoder::make_series(
             "bools".to_string(),
             vec![Token::Bool(true), Token::Bool(false)],
+            2,
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(s.dtype(), &Boolean);
         assert_eq!(s.len(), 2)
     }
@@ -483,8 +489,9 @@ mod test {
         let s = LogDecoder::make_series(
             "ints".to_string(),
             vec![Token::Int(1.into()), Token::Int(2.into())],
+            2,
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::UInt64);
         assert_eq!(s.len(), 2)
     }
@@ -494,8 +501,9 @@ mod test {
         let s = LogDecoder::make_series(
             "ints".to_string(),
             vec![Token::Int(U256::max_value()), Token::Int(2.into())],
+            2,
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }
@@ -505,8 +513,9 @@ mod test {
         let s = LogDecoder::make_series(
             "ints".to_string(),
             vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
+            2,
         )
-        .unwrap();
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }

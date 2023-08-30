@@ -140,10 +140,10 @@ pub fn _collect(
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
     let (query, source, _sink) = match parse_opts(&args).await {
         Ok(opts) => opts,
-        Err(_e) => panic!(),
+        Err(e) => panic!("error parsing opts {:?}", e),
     };
     match collect(query.into(), source).await {
         Ok(df) => Ok(df),
-        Err(_e) => panic!(),
+        Err(e) => panic!("error collecting {:?}", e),
     }
 }
