@@ -87,6 +87,16 @@ Many `cryo` cli options will affect output schemas by adding/removing columns or
 
 `cryo` will always print out data schemas before collecting any data. To view these schemas without collecting data, use `--dry` to perform a dry run.
 
+#### Schema Design Guide
+
+An attempt is made to ensure that the dataset schemas conform to a common set of design guidelines:
+- By default, rows should contain enough information be order-able
+- Columns should be named by their JSON-RPC or ethers.rs defaults, except in cases where a much more explicit name is available
+- To make joins across tables easier, a given piece of information should use the same datatype and column name across tables when possible
+- Large ints such as `u256` should allow multiple conversions. A `value` column of type `u256` should allow: `value_binary`, `value_string`, `value_f64`, `value_decimal128`, `value_u64_high`, and `value_u64_low`
+- By default, columns related to non-identifying cryptographic signatures are omitted by default. For example, `state_root` of a block or `v`/`r`/`s` of a transaction
+- Integer values that can never be negative should be stored as unsigned integers
+
 #### JSON-RPC
 
 `cryo` currently obtains all of its data using the [JSON-RPC](https://ethereum.org/en/developers/docs/apis/json-rpc/) protocol standard.
