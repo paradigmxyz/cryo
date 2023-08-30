@@ -47,6 +47,8 @@ pub enum U256Type {
     Binary,
     /// String representation
     String,
+    /// F32 representation
+    F32,
     /// F64 representation
     F64,
     /// Decimal128 representation
@@ -55,6 +57,34 @@ pub enum U256Type {
     U64High,
     /// U64Low representation
     U64Low,
+}
+
+impl U256Type {
+    /// convert U256Type to Columntype
+    pub fn to_columntype(&self) -> ColumnType {
+        match self {
+            U256Type::Binary => ColumnType::Binary,
+            U256Type::String => ColumnType::String,
+            U256Type::F32 => ColumnType::Float32,
+            U256Type::F64 => ColumnType::Float64,
+            U256Type::Decimal128 => ColumnType::Decimal128,
+            U256Type::U64High => ColumnType::UInt64,
+            U256Type::U64Low => ColumnType::UInt64,
+        }
+    }
+
+    /// get column name suffix of U256Type
+    pub fn suffix(&self) -> String {
+        match self {
+            U256Type::Binary => "_binary".to_string(),
+            U256Type::String => "_string".to_string(),
+            U256Type::F32 => "_f32".to_string(),
+            U256Type::F64 => "_f64".to_string(),
+            U256Type::U64High => "_u64_high".to_string(),
+            U256Type::U64Low => "_u64_low".to_string(),
+            U256Type::Decimal128 => "_decimal128".to_string(),
+        }
+    }
 }
 
 /// datatype of column
@@ -70,6 +100,8 @@ pub enum ColumnType {
     Int32,
     /// Int64 column type
     Int64,
+    /// Float32 column type
+    Float32,
     /// Float64 column type
     Float64,
     /// Decimal128 column type
@@ -91,6 +123,7 @@ impl ColumnType {
             ColumnType::UInt256 => "uint256",
             ColumnType::Int32 => "int32",
             ColumnType::Int64 => "int64",
+            ColumnType::Float32 => "float32",
             ColumnType::Float64 => "float64",
             ColumnType::Decimal128 => "decimal128",
             ColumnType::String => "string",
