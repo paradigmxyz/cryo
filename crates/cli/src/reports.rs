@@ -19,7 +19,7 @@ pub(crate) fn get_report_path(
 ) -> Result<String, FreezeError> {
     let report_dir = match &args.report_dir {
         Some(report_dir) => Path::new(&report_dir).into(),
-        None => Path::new(&args.output_dir).join(".cryo_reports"),
+        None => Path::new(&args.output_dir).join(".cryo/reports"),
     };
     std::fs::create_dir_all(&report_dir)?;
     let t_start: DateTime<Local> = t_start.into();

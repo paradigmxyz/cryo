@@ -134,7 +134,7 @@ pub struct Args {
     pub compression: Vec<String>,
 
     /// Directory to save summary report
-    /// [default: {output_dir}/.cryo_reports]
+    /// [default: {output_dir}/.cryo/reports]
     #[arg(long, help_heading = "Output Options")]
     pub report_dir: Option<String>,
 
