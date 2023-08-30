@@ -55,7 +55,7 @@ pub struct Args {
 
     /// Set output datatype(s) of U256 integers
     /// [default: binary, string, f64]
-    #[arg(long, help_heading = "Content Options", verbatim_doc_comment)]
+    #[arg(long, num_args(1..), help_heading = "Content Options", verbatim_doc_comment)]
     pub u256_types: Option<Vec<String>>,
 
     /// Use hex string encoding for binary columns

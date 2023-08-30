@@ -51,12 +51,12 @@ pub enum U256Type {
     F32,
     /// F64 representation
     F64,
+    /// U32 representation
+    U32,
+    /// U64 representation
+    U64,
     /// Decimal128 representation
     Decimal128,
-    /// U64High representation
-    U64High,
-    /// U64Low representation
-    U64Low,
 }
 
 impl U256Type {
@@ -67,9 +67,9 @@ impl U256Type {
             U256Type::String => ColumnType::String,
             U256Type::F32 => ColumnType::Float32,
             U256Type::F64 => ColumnType::Float64,
+            U256Type::U32 => ColumnType::UInt32,
+            U256Type::U64 => ColumnType::UInt64,
             U256Type::Decimal128 => ColumnType::Decimal128,
-            U256Type::U64High => ColumnType::UInt64,
-            U256Type::U64Low => ColumnType::UInt64,
         }
     }
 
@@ -80,9 +80,9 @@ impl U256Type {
             U256Type::String => "_string".to_string(),
             U256Type::F32 => "_f32".to_string(),
             U256Type::F64 => "_f64".to_string(),
-            U256Type::U64High => "_u64_high".to_string(),
-            U256Type::U64Low => "_u64_low".to_string(),
-            U256Type::Decimal128 => "_decimal128".to_string(),
+            U256Type::U32 => "_u32".to_string(),
+            U256Type::U64 => "_u64".to_string(),
+            U256Type::Decimal128 => "_d128".to_string(),
         }
     }
 }

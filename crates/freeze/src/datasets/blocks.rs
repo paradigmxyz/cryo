@@ -9,9 +9,9 @@ use crate::{
     types::{
         conversions::{ToVecHex, ToVecU8},
         BlockChunk, Blocks, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
-        TransactionChunk,
+        TransactionChunk, U256Type,
     },
-    with_series, with_series_binary,
+    with_series, with_series_binary, with_series_u256,
 };
 
 pub(crate) type BlockTxGasTuple<TX> = Result<(Block<TX>, Option<Vec<u32>>), CollectError>;
@@ -321,7 +321,7 @@ pub(crate) struct TransactionColumns {
     nonce: Vec<u64>,
     from_address: Vec<Vec<u8>>,
     to_address: Vec<Option<Vec<u8>>>,
-    value: Vec<String>,
+    value: Vec<U256>,
     input: Vec<Vec<u8>>,
     gas_limit: Vec<u32>,
     gas_used: Vec<u32>,
@@ -364,7 +364,7 @@ impl TransactionColumns {
         with_series!(cols, "nonce", self.nonce, schema);
         with_series_binary!(cols, "from_address", self.from_address, schema);
         with_series_binary!(cols, "to_address", self.to_address, schema);
-        with_series!(cols, "value", self.value, schema);
+        with_series_u256!(cols, "value", self.value, schema);
         with_series_binary!(cols, "input", self.input, schema);
         with_series!(cols, "gas_limit", self.gas_limit, schema);
         with_series!(cols, "gas_used", self.gas_used, schema);
@@ -471,7 +471,7 @@ fn process_transaction(
         columns.nonce.push(tx.nonce.as_u64());
     }
     if schema.has_column("value") {
-        columns.value.push(tx.value.to_string());
+        columns.value.push(tx.value);
     }
     if schema.has_column("input") {
         columns.input.push(tx.input.to_vec());
