@@ -133,6 +133,31 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
         }
     };
 
+    // make sure all excluded columns are excluded from at least one schema
+    if let (Ok(schemas), Some(exclude_columns)) = (&schemas, &args.exclude_columns) {
+        let mut unknown_columns = Vec::new();
+        for column in exclude_columns.iter() {
+            let mut in_a_schema = false;
+
+            for datatype in schemas.keys() {
+                if datatype.dataset().column_types().contains_key(&column.as_str()) {
+                    in_a_schema = true;
+                    break
+                }
+            }
+
+            if !in_a_schema {
+                unknown_columns.push(column);
+            }
+        }
+        if !unknown_columns.is_empty() {
+            return Err(ParseError::ParseError(format!(
+                "datatypes do not support these columns: {:?}",
+                unknown_columns
+            )))
+        }
+    };
+
     schemas
 }
 
