@@ -40,13 +40,20 @@ impl Table {
     }
 }
 
+/// representation of a U256 datum
 #[derive(Hash, Clone, Debug, Eq, PartialEq)]
 pub enum U256Type {
+    /// Binary representation
     Binary,
+    /// String representation
     String,
+    /// F64 representation
     F64,
+    /// Decimal128 representation
     Decimal128,
+    /// U64High representation
     U64High,
+    /// U64Low representation
     U64Low,
 }
 
@@ -105,6 +112,7 @@ impl Datatype {
     /// get schema for a particular datatype
     pub fn table_schema(
         &self,
+        u256_types: &HashSet<U256Type>,
         binary_column_format: &ColumnEncoding,
         include_columns: &Option<Vec<String>>,
         exclude_columns: &Option<Vec<String>>,
@@ -123,7 +131,13 @@ impl Datatype {
             }
             columns.insert((*column.clone()).to_string(), *ctype);
         }
-        let schema = Table { datatype: *self, sort_columns: sort, columns, u256_types: u256_types, binary_type: ColumnEncoding };
+        let schema = Table {
+            datatype: *self,
+            sort_columns: sort,
+            columns,
+            u256_types: u256_types.clone(),
+            binary_type: binary_column_format.clone(),
+        };
         Ok(schema)
     }
 }

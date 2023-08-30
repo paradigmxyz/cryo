@@ -44,7 +44,7 @@ impl FileFormat {
 }
 
 /// Encoding for binary data in a column
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone, Eq, PartialEq, Debug)]
 pub enum ColumnEncoding {
     /// Raw binary encoding
     Binary,

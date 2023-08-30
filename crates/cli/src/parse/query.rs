@@ -1,4 +1,7 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use ethers::prelude::*;
 use hex::FromHex;
@@ -7,6 +10,7 @@ use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiQuery, ParseError, 
 
 use super::{blocks, file_output, transactions};
 use crate::args::Args;
+use cryo_freeze::U256Type;
 
 pub(crate) async fn parse_query(
     args: &Args,
@@ -81,6 +85,27 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
 fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
     let datatypes = parse_datatypes(&args.datatype)?;
     let output_format = file_output::parse_output_format(args)?;
+
+    let u256_types = if let Some(raw_u256_types) = &args.u256_types {
+        let mut u256_types: HashSet<U256Type> = HashSet::new();
+        for raw in raw_u256_types.iter() {
+            // let g: f64 = raw;
+            let u256_type = match raw.to_lowercase() {
+                raw if raw == "binary" => U256Type::Binary,
+                raw if raw == "string" => U256Type::String,
+                raw if raw == "str" => U256Type::String,
+                raw if raw == "f64" => U256Type::F64,
+                raw if raw == "float" => U256Type::F64,
+                raw if raw == "float64" => U256Type::F64,
+                raw if raw == "decimal128" => U256Type::Decimal128,
+                _ => return Err(ParseError::ParseError("bad u256 type".to_string())),
+            };
+            u256_types.insert(u256_type);
+        }
+        u256_types
+    } else {
+        HashSet::from_iter(vec![U256Type::Binary, U256Type::String, U256Type::F64])
+    };
     let binary_column_format = match args.hex | (output_format != FileFormat::Parquet) {
         true => ColumnEncoding::Hex,
         false => ColumnEncoding::Binary,
@@ -92,6 +117,7 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
         .map(|datatype| {
             datatype
                 .table_schema(
+                    &u256_types,
                     &binary_column_format,
                     &args.include_columns,
                     &args.exclude_columns,
