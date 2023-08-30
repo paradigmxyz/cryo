@@ -15,6 +15,12 @@ pub struct Table {
 
     /// sort order for rows
     pub sort_columns: Option<Vec<String>>,
+
+    /// representations to use for u256 columns
+    pub u256_types: HashSet<U256Type>,
+
+    /// representation to use for binary columns
+    pub binary_type: ColumnEncoding,
 }
 
 impl Table {
@@ -34,6 +40,16 @@ impl Table {
     }
 }
 
+#[derive(Hash, Clone, Debug, Eq, PartialEq)]
+pub enum U256Type {
+    Binary,
+    String,
+    F64,
+    Decimal128,
+    U64High,
+    U64Low,
+}
+
 /// datatype of column
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
@@ -41,6 +57,8 @@ pub enum ColumnType {
     UInt32,
     /// UInt64 column type
     UInt64,
+    /// U256 column type
+    UInt256,
     /// Int32 column type
     Int32,
     /// Int64 column type
@@ -63,6 +81,7 @@ impl ColumnType {
         match *self {
             ColumnType::UInt32 => "uint32",
             ColumnType::UInt64 => "uint64",
+            ColumnType::UInt256 => "uint256",
             ColumnType::Int32 => "int32",
             ColumnType::Int64 => "int64",
             ColumnType::Float64 => "float64",
@@ -104,7 +123,7 @@ impl Datatype {
             }
             columns.insert((*column.clone()).to_string(), *ctype);
         }
-        let schema = Table { datatype: *self, sort_columns: sort, columns };
+        let schema = Table { datatype: *self, sort_columns: sort, columns, u256_types: u256_types, binary_type: ColumnEncoding };
         Ok(schema)
     }
 }

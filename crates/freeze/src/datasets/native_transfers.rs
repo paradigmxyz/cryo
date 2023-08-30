@@ -31,7 +31,7 @@ impl Dataset for NativeTransfers {
             ("transaction_hash", ColumnType::Binary),
             ("from_address", ColumnType::Binary),
             ("to_address", ColumnType::Binary),
-            ("value", ColumnType::Binary),
+            ("value", ColumnType::UInt256),
             ("chain_id", ColumnType::UInt64),
         ])
     }

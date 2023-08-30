@@ -53,6 +53,11 @@ pub struct Args {
     #[arg(long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub columns: Option<Vec<String>>,
 
+    /// Set output datatype(s) of U256 integers
+    /// [default: binary, string, f64]
+    #[arg(long, help_heading = "Content Options", verbatim_doc_comment)]
+    pub u256_types: Option<Vec<String>>,
+
     /// Use hex string encoding for binary columns
     #[arg(long, help_heading = "Content Options")]
     pub hex: bool,
