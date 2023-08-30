@@ -23,12 +23,12 @@ pub struct Args {
     )]
     pub txs: Option<Vec<String>>,
 
-    /// Align block chunk boundaries to regular intervals,
-    /// e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
+    /// Align chunk boundaries to regular intervals,
+    /// e.g. (1000 2000 3000), not (1106 2106 3106)
     #[arg(short, long, help_heading = "Content Options", verbatim_doc_comment)]
     pub align: bool,
 
-    /// Reorg buffer, save blocks only when they are this old,
+    /// Reorg buffer, save blocks only when this old,
     /// can be a number of blocks
     #[arg(
         long,
@@ -39,7 +39,7 @@ pub struct Args {
     )]
     pub reorg_buffer: u64,
 
-    /// Columns to include alongside the default output,
+    /// Columns to include alongside the defaults,
     /// use `all` to include all available columns
     #[arg(short, long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
@@ -57,7 +57,7 @@ pub struct Args {
     #[arg(long, help_heading = "Content Options")]
     pub hex: bool,
 
-    /// Columns(s) to sort by, `none` to disable sorting
+    /// Columns(s) to sort by, `none` for unordered
     #[arg(short, long, num_args(0..), help_heading="Content Options")]
     pub sort: Option<Vec<String>>,
 
@@ -65,7 +65,7 @@ pub struct Args {
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,
 
-    /// Network name [default: use name of eth_getChainId]
+    /// Network name [default: name of eth_getChainId]
     #[arg(long, help_heading = "Source Options")]
     pub network_name: Option<String>,
 
@@ -105,7 +105,7 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     pub file_suffix: Option<String>,
 
-    /// Overwrite existing files instead of skipping them
+    /// Overwrite existing files instead of skipping
     #[arg(long, help_heading = "Output Options")]
     pub overwrite: bool,
 
@@ -129,13 +129,13 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     pub no_stats: bool,
 
-    /// Set compression algorithm and level
+    /// Compression algorithm and level
     #[arg(long, help_heading="Output Options", value_name="NAME [#]", num_args(1..=2), default_value = "lz4")]
     pub compression: Vec<String>,
 
     /// Directory to save summary report
     /// [default: {output_dir}/.cryo/reports]
-    #[arg(long, help_heading = "Output Options")]
+    #[arg(long, help_heading = "Output Options", verbatim_doc_comment)]
     pub report_dir: Option<String>,
 
     /// Avoid saving a summary report
@@ -162,7 +162,7 @@ pub struct Args {
     #[arg(long, help_heading = "Dataset-specific Options")]
     pub topic3: Option<String>,
 
-    /// [logs] Number of blocks per log request
+    /// [logs] Blocks per request
     #[arg(
         long,
         value_name = "BLOCKS",
