@@ -174,6 +174,7 @@ async fn fetch_transactions(
 
 #[derive(Default)]
 pub(crate) struct TransactionColumns {
+    n_rows: usize,
     block_number: Vec<Option<u64>>,
     transaction_index: Vec<Option<u64>>,
     transaction_hash: Vec<Vec<u8>>,
@@ -195,7 +196,6 @@ impl TransactionColumns {
         self,
         schema: &Table,
         chain_id: u64,
-        n_rows: usize,
     ) -> Result<DataFrame, CollectError> {
         let mut cols = Vec::with_capacity(schema.columns().len());
         with_series!(cols, "block_number", self.block_number, schema);
@@ -212,7 +212,7 @@ impl TransactionColumns {
         with_series!(cols, "transaction_type", self.transaction_type, schema);
         with_series!(cols, "max_priority_fee_per_gas", self.max_priority_fee_per_gas, schema);
         with_series!(cols, "max_fee_per_gas", self.max_fee_per_gas, schema);
-        with_series!(cols, "chain_id", vec![chain_id; n_rows], schema);
+        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
 
         DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
     }
@@ -223,6 +223,7 @@ impl TransactionColumns {
         schema: &Table,
         gas_used: Option<u32>,
     ) {
+        self.n_rows += 1;
         if schema.has_column("block_number") {
             match tx.block_number {
                 Some(block_number) => self.block_number.push(Some(block_number.as_u64())),
@@ -286,15 +287,13 @@ async fn transactions_to_df(
     chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
     let mut columns = TransactionColumns::default();
-    let mut n_txs = 0;
     while let Some(message) = transactions.recv().await {
         match message {
             Ok((transaction, gas_used)) => {
-                n_txs += 1;
                 transaction.process(schema, &mut columns, gas_used)
             }
             Err(e) => return Err(e),
         }
     }
-    columns.create_df(schema, chain_id, n_txs)
+    columns.create_df(schema, chain_id)
 }

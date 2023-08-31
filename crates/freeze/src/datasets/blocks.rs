@@ -199,12 +199,9 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
     let mut transaction_columns = TransactionColumns::default();
 
     // parse stream of blocks
-    let mut n_blocks = 0;
-    let mut n_txs = 0;
     while let Some(message) = blocks.recv().await {
         match message {
             Ok((block, gas_used)) => {
-                n_blocks += 1;
                 if let Some(schema) = blocks_schema {
                     block_columns.process_block(&block, schema)
                 }
@@ -212,13 +209,11 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
                     match gas_used {
                         Some(gas_used) => {
                             for (tx, gas_used) in block.transactions.iter().zip(gas_used) {
-                                n_txs += 1;
                                 tx.process(schema, &mut transaction_columns, Some(gas_used))
                             }
                         }
                         None => {
                             for tx in block.transactions.iter() {
-                                n_txs += 1;
                                 tx.process(schema, &mut transaction_columns, None)
                             }
                         }
@@ -234,11 +229,11 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
 
     // convert to dataframes
     let blocks_df = match blocks_schema {
-        Some(schema) => Some(block_columns.create_df(schema, chain_id, n_blocks)?),
+        Some(schema) => Some(block_columns.create_df(schema, chain_id)?),
         None => None,
     };
     let transactions_df = match transactions_schema {
-        Some(schema) => Some(transaction_columns.create_df(schema, chain_id, n_txs)?),
+        Some(schema) => Some(transaction_columns.create_df(schema, chain_id)?),
         None => None,
     };
     Ok((blocks_df, transactions_df))
@@ -246,6 +241,7 @@ pub(crate) async fn blocks_to_dfs<TX: ProcessTransactions>(
 
 #[derive(Default)]
 struct BlockColumns {
+    n_rows: usize,
     hash: Vec<Vec<u8>>,
     parent_hash: Vec<Vec<u8>>,
     author: Vec<Vec<u8>>,
@@ -264,6 +260,7 @@ struct BlockColumns {
 
 impl BlockColumns {
     fn process_block<TX>(&mut self, block: &Block<TX>, schema: &Table) {
+        self.n_rows += 1;
         if schema.has_column("hash") {
             match block.hash {
                 Some(h) => self.hash.push(h.as_bytes().to_vec()),
@@ -321,7 +318,6 @@ impl BlockColumns {
         self,
         schema: &Table,
         chain_id: u64,
-        n_rows: u64,
     ) -> Result<DataFrame, CollectError> {
         let mut cols = Vec::with_capacity(schema.columns().len());
         with_series_binary!(cols, "hash", self.hash, schema);
@@ -338,7 +334,7 @@ impl BlockColumns {
         with_series_binary!(cols, "total_difficulty", self.total_difficulty, schema);
         with_series!(cols, "size", self.size, schema);
         with_series!(cols, "base_fee_per_gas", self.base_fee_per_gas, schema);
-        with_series!(cols, "chain_id", vec![chain_id; n_rows as usize], schema);
+        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
 
         DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
     }
