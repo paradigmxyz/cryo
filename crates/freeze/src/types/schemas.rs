@@ -223,14 +223,16 @@ mod tests {
     #[test]
     fn test_table_schema_explicit_cols() {
         let cols = Some(vec!["number".to_string(), "hash".to_string()]);
-        let table =
-            Datatype::Blocks.table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None).unwrap();
+        let table = Datatype::Blocks
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None)
+            .unwrap();
         assert_eq!(vec!["number", "hash"], table.columns());
 
         // "all" marker support
         let cols = Some(vec!["all".to_string()]);
-        let table =
-            Datatype::Blocks.table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None).unwrap();
+        let table = Datatype::Blocks
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None)
+            .unwrap();
         assert_eq!(15, table.columns().len());
         assert!(table.columns().contains(&"hash"));
         assert!(table.columns().contains(&"transactions_root"));
@@ -266,8 +268,9 @@ mod tests {
     #[test]
     fn test_table_schema_exclude_cols() {
         // defaults
-        let table =
-            Datatype::Blocks.table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None).unwrap();
+        let table = Datatype::Blocks
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None)
+            .unwrap();
         assert_eq!(7, table.columns().len());
         assert!(table.columns().contains(&"author"));
         assert!(table.columns().contains(&"extra_data"));
