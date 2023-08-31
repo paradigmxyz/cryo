@@ -1,3 +1,4 @@
+/// types and functions related to schemas
 use std::collections::HashSet;
 
 use indexmap::IndexMap;
