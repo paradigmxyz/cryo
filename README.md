@@ -93,7 +93,7 @@ An attempt is made to ensure that the dataset schemas conform to a common set of
 - By default, rows should contain enough information be order-able
 - Columns should be named by their JSON-RPC or ethers.rs defaults, except in cases where a much more explicit name is available
 - To make joins across tables easier, a given piece of information should use the same datatype and column name across tables when possible
-- Large ints such as `u256` should allow multiple conversions. A `value` column of type `u256` should allow: `value_binary`, `value_string`, `value_f64`, `value_decimal128`, `value_u64_high`, and `value_u64_low`
+- Large ints such as `u256` should allow multiple conversions. A `value` column of type `u256` should allow: `value_binary`, `value_string`, `value_f32`, `value_f64`, `value_u32`, `value_u64`, and `value_d128`
 - By default, columns related to non-identifying cryptographic signatures are omitted by default. For example, `state_root` of a block or `v`/`r`/`s` of a transaction
 - Integer values that can never be negative should be stored as unsigned integers
 

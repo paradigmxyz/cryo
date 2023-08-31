@@ -27,7 +27,7 @@ impl Dataset for Traces {
         HashMap::from_iter(vec![
             ("action_from", ColumnType::Binary),
             ("action_to", ColumnType::Binary),
-            ("action_value", ColumnType::String),
+            ("action_value", ColumnType::UInt256),
             ("action_gas", ColumnType::UInt32),
             ("action_input", ColumnType::Binary),
             ("action_call_type", ColumnType::String),
