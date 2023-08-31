@@ -289,9 +289,7 @@ async fn transactions_to_df(
     let mut columns = TransactionColumns::default();
     while let Some(message) = transactions.recv().await {
         match message {
-            Ok((transaction, gas_used)) => {
-                transaction.process(schema, &mut columns, gas_used)
-            }
+            Ok((transaction, gas_used)) => transaction.process(schema, &mut columns, gas_used),
             Err(e) => return Err(e),
         }
     }

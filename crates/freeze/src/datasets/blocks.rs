@@ -314,11 +314,7 @@ impl BlockColumns {
         }
     }
 
-    fn create_df(
-        self,
-        schema: &Table,
-        chain_id: u64,
-    ) -> Result<DataFrame, CollectError> {
+    fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
         let mut cols = Vec::with_capacity(schema.columns().len());
         with_series_binary!(cols, "hash", self.hash, schema);
         with_series_binary!(cols, "parent_hash", self.parent_hash, schema);
