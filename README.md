@@ -97,6 +97,14 @@ An attempt is made to ensure that the dataset schemas conform to a common set of
 - By default, columns related to non-identifying cryptographic signatures are omitted by default. For example, `state_root` of a block or `v`/`r`/`s` of a transaction
 - Integer values that can never be negative should be stored as unsigned integers
 
+Standard types across tables:
+- `block_number`: `u32`
+- `transaction_index`: `u32`
+- `nonce`: `u32`
+- `gas_used`: `u32`
+- `gas_limit`: `u32`
+- `chain_id`: `u64`
+
 #### JSON-RPC
 
 `cryo` currently obtains all of its data using the [JSON-RPC](https://ethereum.org/en/developers/docs/apis/json-rpc/) protocol standard.
