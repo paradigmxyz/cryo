@@ -132,10 +132,9 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
                     &args.exclude_columns,
                     &args.columns,
                     sort[datatype].clone(),
-                    match &args.event_signature {
-                        Some(sig) => Some(TableMeta { log_decoder: LogDecoder::new(sig.clone()) }),
-                        None => None,
-                    },
+                    args.event_signature
+                        .as_ref()
+                        .map(|sig| TableMeta { log_decoder: LogDecoder::new(sig.clone()) }),
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|_e| {

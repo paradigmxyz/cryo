@@ -270,7 +270,7 @@ impl LogColumns {
             Some(tm) => tm.log_decoder,
             None => None,
         };
-        if let Some(decoder) = decoder.clone() {
+        if let Some(decoder) = decoder {
             decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
                 self.event_cols.entry(k).or_insert(Vec::new()).extend(v);
             });
@@ -310,11 +310,12 @@ impl LogColumns {
                 }
             } else {
                 for (name, data) in self.event_cols {
-                    match LogDecoder::make_series(name.clone(), data, chunk_len.clone()) {
+                    match LogDecoder::make_series(name.clone(), data, chunk_len) {
                         Ok(s) => {
                             cols.push(s);
                         }
-                        Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best to
+                        Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best
+                                                                             * to
                                                                              * bubble up error */
                     }
                 }
@@ -344,7 +345,8 @@ async fn logs_to_df(
 /// container for log decoding context
 #[derive(Clone, Debug, PartialEq)]
 pub struct LogDecoder {
-    /// the raw event signature string ex: event Transfer(address indexed from, address indexed to, uint256 amount)
+    /// the raw event signature string ex: event Transfer(address indexed from, address indexed to,
+    /// uint256 amount)
     pub raw: String,
     /// decoded abi type of event signature string
     pub event: abi::Event,
@@ -403,7 +405,7 @@ impl LogDecoder {
         let mut addresses: Vec<String> = vec![];
         // TODO: support array & tuple types
 
-        for token in data.clone() {
+        for token in data {
             match token {
                 Token::Address(a) => addresses.push(format!("{:?}", a)),
                 Token::FixedBytes(b) => bytes.push(b.encode_hex()),
@@ -428,33 +430,33 @@ impl LogDecoder {
 
         // check each vector, see if it contains any values, if it does, check if it's the same
         // length as the input data and map to a series
-        if ints.len() > 0 || str_ints.len() > 0 {
-            if str_ints.len() > 0 {
+        if !ints.is_empty() || !str_ints.is_empty() {
+            if !str_ints.is_empty() {
                 str_ints.extend(ints.into_iter().map(|i| i.to_string()));
                 if str_ints.len() != chunk_len {
-                    return Err(mixed_length_err);
+                    return Err(mixed_length_err)
                 }
-                return Ok(Series::new(name.as_str(), str_ints));
+                return Ok(Series::new(name.as_str(), str_ints))
             }
             Ok(Series::new(name.as_str(), ints))
-        } else if bytes.len() > 0 {
+        } else if !bytes.is_empty() {
             if bytes.len() != chunk_len {
-                return Err(mixed_length_err);
+                return Err(mixed_length_err)
             }
             Ok(Series::new(name.as_str(), bytes))
-        } else if bools.len() > 0 {
+        } else if !bools.is_empty() {
             if bools.len() != chunk_len {
-                return Err(mixed_length_err);
+                return Err(mixed_length_err)
             }
             Ok(Series::new(name.as_str(), bools))
-        } else if strings.len() > 0 {
+        } else if !strings.is_empty() {
             if strings.len() != chunk_len {
-                return Err(mixed_length_err);
+                return Err(mixed_length_err)
             }
             Ok(Series::new(name.as_str(), strings))
-        } else if addresses.len() > 0 {
+        } else if !addresses.is_empty() {
             if addresses.len() != chunk_len {
-                return Err(mixed_length_err);
+                return Err(mixed_length_err)
             }
             Ok(Series::new(name.as_str(), addresses))
         } else {
@@ -500,7 +502,7 @@ mod test {
             vec![Token::Bool(true), Token::Bool(false)],
             2,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(s.dtype(), &Boolean);
         assert_eq!(s.len(), 2)
     }
@@ -512,7 +514,7 @@ mod test {
             vec![Token::Int(1.into()), Token::Int(2.into())],
             2,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(s.dtype(), &DataType::UInt64);
         assert_eq!(s.len(), 2)
     }
@@ -524,7 +526,7 @@ mod test {
             vec![Token::Int(U256::max_value()), Token::Int(2.into())],
             2,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }
@@ -536,7 +538,7 @@ mod test {
             vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
             2,
         )
-            .unwrap();
+        .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }
