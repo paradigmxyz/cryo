@@ -9,3 +9,4 @@ target
 *.json_tmp
 TODO.md
 graveyard
+.idea

@@ -45,6 +45,7 @@ use cryo_freeze::collect;
         topic3 = None,
         inner_request_size = 1,
         no_verbose = false,
+        event_signature = None,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -87,6 +88,7 @@ pub fn _collect(
     topic3: Option<String>,
     inner_request_size: u64,
     no_verbose: bool,
+    event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
     let args = Args {
         datatype: vec![datatype],
@@ -126,6 +128,7 @@ pub fn _collect(
         topic3,
         inner_request_size,
         no_verbose,
+        event_signature,
     };
 
     pyo3_asyncio::tokio::future_into_py(py, async move {
@@ -140,10 +143,10 @@ pub fn _collect(
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
     let (query, source, _sink) = match parse_opts(&args).await {
         Ok(opts) => opts,
-        Err(_e) => panic!(),
+        Err(e) => panic!("error parsing opts {:?}", e),
     };
     match collect(query.into(), source).await {
         Ok(df) => Ok(df),
-        Err(_e) => panic!(),
+        Err(e) => panic!("error collecting {:?}", e),
     }
 }

@@ -6,7 +6,9 @@ use std::{
 use ethers::prelude::*;
 use hex::FromHex;
 
-use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiQuery, ParseError, RowFilter, Table};
+use cryo_freeze::{
+    ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiQuery, ParseError, RowFilter, Table,
+};
 
 use super::{blocks, file_output, transactions};
 use crate::args::Args;
@@ -117,6 +119,11 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
         false => ColumnEncoding::Binary,
     };
 
+    let log_decoder = match args.event_signature {
+        Some(ref sig) => LogDecoder::new(sig.clone()).ok(),
+        None => None,
+    };
+
     let sort = parse_sort(&args.sort, &datatypes)?;
     let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
@@ -129,6 +136,7 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
                     &args.exclude_columns,
                     &args.columns,
                     sort[datatype].clone(),
+                    log_decoder.clone(),
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|_e| {

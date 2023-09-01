@@ -1,13 +1,14 @@
 /// types and functions related to schemas
 use std::collections::HashSet;
 
+use crate::datasets::LogDecoder;
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
 use crate::types::{ColumnEncoding, Datatype};
 
 /// Schema for a particular table
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Table {
     columns: IndexMap<String, ColumnType>,
 
@@ -22,6 +23,9 @@ pub struct Table {
 
     /// representation to use for binary columns
     pub binary_type: ColumnEncoding,
+
+    /// metadata about a table
+    pub log_decoder: Option<LogDecoder>,
 }
 
 impl Table {
@@ -144,6 +148,7 @@ pub enum SchemaError {
 
 impl Datatype {
     /// get schema for a particular datatype
+    #[allow(clippy::too_many_arguments)]
     pub fn table_schema(
         &self,
         u256_types: &HashSet<U256Type>,
@@ -152,6 +157,7 @@ impl Datatype {
         exclude_columns: &Option<Vec<String>>,
         columns: &Option<Vec<String>>,
         sort: Option<Vec<String>>,
+        log_decoder: Option<LogDecoder>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let all_columns = column_types.keys().map(|k| k.to_string()).collect();
@@ -171,12 +177,14 @@ impl Datatype {
             }
             columns.insert((*column.clone()).to_string(), *ctype);
         }
+
         let schema = Table {
             datatype: *self,
             sort_columns: sort,
             columns,
             u256_types: u256_types.clone(),
             binary_type: binary_column_format.clone(),
+            log_decoder,
         };
         Ok(schema)
     }
@@ -224,14 +232,14 @@ mod tests {
     fn test_table_schema_explicit_cols() {
         let cols = Some(vec!["number".to_string(), "hash".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None)
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
         assert_eq!(vec!["number", "hash"], table.columns());
 
         // "all" marker support
         let cols = Some(vec!["all".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None)
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
         assert_eq!(15, table.columns().len());
         assert!(table.columns().contains(&"hash"));
@@ -242,7 +250,15 @@ mod tests {
     fn test_table_schema_include_cols() {
         let inc_cols = Some(vec!["chain_id".to_string(), "receipts_root".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &inc_cols,
+                &None,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(9, table.columns().len());
         assert_eq!(["chain_id", "receipts_root"], table.columns()[7..9]);
@@ -250,7 +266,15 @@ mod tests {
         // Non-existing include is skipped
         let inc_cols = Some(vec!["chain_id".to_string(), "foo_bar".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &inc_cols,
+                &None,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(Some(&"chain_id"), table.columns().last());
         assert!(!table.columns().contains(&"foo_bar"));
@@ -258,7 +282,15 @@ mod tests {
         // "all" marker support
         let inc_cols = Some(vec!["all".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &inc_cols, &None, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &inc_cols,
+                &None,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(15, table.columns().len());
         assert!(table.columns().contains(&"hash"));
@@ -269,7 +301,7 @@ mod tests {
     fn test_table_schema_exclude_cols() {
         // defaults
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None)
+            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None, None)
             .unwrap();
         assert_eq!(7, table.columns().len());
         assert!(table.columns().contains(&"author"));
@@ -277,7 +309,15 @@ mod tests {
 
         let ex_cols = Some(vec!["author".to_string(), "extra_data".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &ex_cols, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &None,
+                &ex_cols,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(5, table.columns().len());
         assert!(!table.columns().contains(&"author"));
@@ -286,7 +326,15 @@ mod tests {
         // Non-existing exclude is ignored
         let ex_cols = Some(vec!["timestamp".to_string(), "foo_bar".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &ex_cols, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &None,
+                &ex_cols,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(6, table.columns().len());
         assert!(!table.columns().contains(&"timestamp"));
@@ -298,7 +346,15 @@ mod tests {
         let inc_cols = Some(vec!["chain_id".to_string(), "receipts_root".to_string()]);
         let ex_cols = Some(vec!["author".to_string(), "extra_data".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &inc_cols, &ex_cols, &None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &inc_cols,
+                &ex_cols,
+                &None,
+                None,
+                None,
+            )
             .unwrap();
         assert!(!table.columns().contains(&"author"));
         assert!(!table.columns().contains(&"extra_data"));
