@@ -25,13 +25,6 @@ pub struct Table {
     pub binary_type: ColumnEncoding,
 
     /// metadata about a table
-    pub meta: Option<TableMeta>,
-}
-
-/// metadata to associated with a table
-#[derive(Clone, Debug, PartialEq)]
-pub struct TableMeta {
-    /// log decoder for table
     pub log_decoder: Option<LogDecoder>,
 }
 
@@ -164,7 +157,7 @@ impl Datatype {
         exclude_columns: &Option<Vec<String>>,
         columns: &Option<Vec<String>>,
         sort: Option<Vec<String>>,
-        table_meta: Option<TableMeta>,
+        log_decoder: Option<LogDecoder>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.dataset().column_types();
         let all_columns = column_types.keys().map(|k| k.to_string()).collect();
@@ -191,7 +184,7 @@ impl Datatype {
             columns,
             u256_types: u256_types.clone(),
             binary_type: binary_column_format.clone(),
-            meta: table_meta,
+            log_decoder,
         };
         Ok(schema)
     }

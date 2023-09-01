@@ -1,8 +1,11 @@
-use std::{collections::HashMap, sync::Arc};
+use std::{
+    collections::{HashMap, HashSet},
+    sync::Arc,
+};
 
 use ethers::prelude::*;
-use ethers_core::abi::{AbiEncode, HumanReadableParser, RawLog, Token};
-use polars::{export::ahash::HashSet, prelude::*};
+use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
+use polars::{export::num::ToPrimitive, prelude::*};
 use tokio::{sync::mpsc, task};
 
 use crate::{
@@ -266,10 +269,7 @@ impl LogColumns {
         }
 
         // add decoded event logs
-        let decoder = match schema.clone().meta {
-            Some(tm) => tm.log_decoder,
-            None => None,
-        };
+        let decoder = schema.log_decoder.clone();
         if let Some(decoder) = decoder {
             decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
                 self.event_cols.entry(k).or_insert(Vec::new()).extend(v);
@@ -297,10 +297,7 @@ impl LogColumns {
         with_series_binary!(cols, "data", self.data, schema);
         with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
 
-        let decoder = match schema.clone().meta {
-            Some(tm) => tm.log_decoder,
-            None => None,
-        };
+        let decoder = schema.log_decoder.clone();
         if let Some(decoder) = decoder {
             // Write columns even if there are no values decoded - indicates empty dataframe
             let chunk_len = self.n_rows;
@@ -310,7 +307,7 @@ impl LogColumns {
                 }
             } else {
                 for (name, data) in self.event_cols {
-                    match LogDecoder::make_series(name.clone(), data, chunk_len) {
+                    match decoder.make_series(name.clone(), data, chunk_len) {
                         Ok(s) => {
                             cols.push(s);
                         }
@@ -356,12 +353,13 @@ impl LogDecoder {
     /// create a new LogDecoder from an event signature
     /// ex: LogDecoder::new("event Transfer(address indexed from, address indexed to, uint256
     /// amount)".to_string())
-    pub fn new(event_signature: String) -> Option<Self> {
+    pub fn new(event_signature: String) -> Result<Self, String> {
         match HumanReadableParser::parse_event(event_signature.as_str()) {
-            Ok(event) => Some(Self { event, raw: event_signature.clone() }),
-            Err(_) => {
-                eprintln!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount)", event_signature);
-                None
+            Ok(event) => Ok(Self { event, raw: event_signature.clone() }),
+            Err(e) => {
+                let err = format!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount) err: {}", event_signature, e);
+                eprintln!("{}", err);
+                Err(err)
             }
         }
     }
@@ -395,9 +393,15 @@ impl LogDecoder {
     }
 
     /// data should never be mixed type, otherwise this will return inconsistent results
-    pub fn make_series(name: String, data: Vec<Token>, chunk_len: usize) -> Result<Series, String> {
+    pub fn make_series(
+        &self,
+        name: String,
+        data: Vec<Token>,
+        chunk_len: usize,
+    ) -> Result<Series, String> {
         // This is a smooth brain way of doing this, but I can't think of a better way right now
-        let mut ints: Vec<u64> = vec![];
+        let mut ints: Vec<i64> = vec![];
+        let mut uints: Vec<u64> = vec![];
         let mut str_ints: Vec<String> = vec![];
         let mut bytes: Vec<String> = vec![];
         let mut bools: Vec<bool> = vec![];
@@ -405,20 +409,60 @@ impl LogDecoder {
         let mut addresses: Vec<String> = vec![];
         // TODO: support array & tuple types
 
+        let param = self
+            .event
+            .inputs
+            .clone()
+            .into_iter()
+            .filter(|i| i.name == name)
+            .collect::<Vec<EventParam>>();
+        let param = param.first();
+
         for token in data {
             match token {
                 Token::Address(a) => addresses.push(format!("{:?}", a)),
                 Token::FixedBytes(b) => bytes.push(b.encode_hex()),
                 Token::Bytes(b) => bytes.push(b.encode_hex()),
-                // LogParam and Token both don't specify the size of the int, so we have to guess.
-                // try to cast the all to u64, if that fails store as string and collect the ones
-                // that succeed at the end.
-                // this may get problematic if 1 batch of logs happens to contain all u64-able ints
-                // and the next batch contains u256s. Might be worth just casting
-                // all as strings
-                Token::Int(i) | Token::Uint(i) => match i.try_into() {
-                    Ok(i) => ints.push(i),
-                    Err(_) => str_ints.push(i.to_string()),
+                Token::Uint(i) => match param {
+                    Some(param) => {
+                        match param.kind.clone() {
+                            ParamType::Uint(size) => {
+                                if size <= 64 {
+                                    uints.push(i.as_u64())
+                                } else {
+                                    // TODO: decode this based on U256Types flag
+                                    str_ints.push(i.to_string())
+                                }
+                            }
+                            _ => str_ints.push(i.to_string()),
+                        }
+                    }
+                    None => match i.try_into() {
+                        Ok(i) => ints.push(i),
+                        Err(_) => str_ints.push(i.to_string()),
+                    },
+                },
+                Token::Int(i) => match param {
+                    Some(param) => {
+                        match param.kind.clone() {
+                            ParamType::Int(size) => {
+                                if size <= 64 {
+                                    match i.as_u64().try_into() {
+                                        Ok(i) => ints.push(i),
+                                        Err(_) => str_ints.push(i.to_string()),
+                                    }
+                                } else {
+                                    // TODO: decode this based on U256Types flag
+                                    str_ints.push(i.to_string())
+                                }
+                            }
+                            _ => str_ints.push(i.to_string()),
+                        }
+                    }
+                    None => match i.try_into() {
+                        Ok(i) => ints.push(i),
+                        Err(_) => str_ints.push(i.to_string()),
+                    },
                 },
                 Token::Bool(b) => bools.push(b),
                 Token::String(s) => strings.push(s),
@@ -471,12 +515,8 @@ mod test {
     use super::*;
     use polars::prelude::DataType::Boolean;
 
-    #[test]
-    fn test_mapping_log_into_type_columns() {
-        let raw = "event NewMint(address indexed msgSender, uint256 indexed mintQuantity)";
-        let e = HumanReadableParser::parse_event(raw).unwrap();
-
-        let raw_log = r#"{
+    const RAW: &str = "event NewMint(address indexed msgSender, uint256 indexed mintQuantity)";
+    const RAW_LOG: &str = r#"{
             "address": "0x0000000000000000000000000000000000000000",
             "topics": [
                 "0x52277f0b4a9b555c5aa96900a13546f972bda413737ec164aac947c87eec6024",
@@ -486,9 +526,16 @@ mod test {
             "data": "0x"
         }"#;
 
-        let decoder = LogDecoder { raw: raw.to_string(), event: e.clone() };
+    fn make_log_decoder() -> LogDecoder {
+        let e = HumanReadableParser::parse_event(RAW).unwrap();
 
-        let log = serde_json::from_str::<Log>(raw_log).unwrap();
+        LogDecoder { raw: RAW.to_string(), event: e.clone() }
+    }
+
+    #[test]
+    fn test_mapping_log_into_type_columns() {
+        let decoder = make_log_decoder();
+        let log = serde_json::from_str::<Log>(RAW_LOG).unwrap();
         let m = decoder.parse_log_from_event(vec![log]);
         assert_eq!(m.len(), 2);
         assert_eq!(m.get("msgSender").unwrap().len(), 1);
@@ -497,48 +544,44 @@ mod test {
 
     #[test]
     fn test_parsing_bools() {
-        let s = LogDecoder::make_series(
-            "bools".to_string(),
-            vec![Token::Bool(true), Token::Bool(false)],
-            2,
-        )
-        .unwrap();
+        let s = make_log_decoder()
+            .make_series("bools".to_string(), vec![Token::Bool(true), Token::Bool(false)], 2)
+            .unwrap();
         assert_eq!(s.dtype(), &Boolean);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_ints() {
-        let s = LogDecoder::make_series(
-            "ints".to_string(),
-            vec![Token::Int(1.into()), Token::Int(2.into())],
-            2,
-        )
-        .unwrap();
+        let s = make_log_decoder()
+            .make_series("ints".to_string(), vec![Token::Int(1.into()), Token::Int(2.into())], 2)
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::UInt64);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_big_ints() {
-        let s = LogDecoder::make_series(
-            "ints".to_string(),
-            vec![Token::Int(U256::max_value()), Token::Int(2.into())],
-            2,
-        )
-        .unwrap();
+        let s = make_log_decoder()
+            .make_series(
+                "ints".to_string(),
+                vec![Token::Int(U256::max_value()), Token::Int(2.into())],
+                2,
+            )
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }
 
     #[test]
     fn test_parsing_addresses() {
-        let s = LogDecoder::make_series(
-            "ints".to_string(),
-            vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
-            2,
-        )
-        .unwrap();
+        let s = make_log_decoder()
+            .make_series(
+                "ints".to_string(),
+                vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
+                2,
+            )
+            .unwrap();
         assert_eq!(s.dtype(), &DataType::Utf8);
         assert_eq!(s.len(), 2)
     }

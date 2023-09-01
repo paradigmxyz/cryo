@@ -7,8 +7,7 @@ use ethers::prelude::*;
 use hex::FromHex;
 
 use cryo_freeze::{
-    schemas::TableMeta, ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiQuery, ParseError,
-    RowFilter, Table,
+    ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiQuery, ParseError, RowFilter, Table,
 };
 
 use super::{blocks, file_output, transactions};
@@ -120,6 +119,11 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
         false => ColumnEncoding::Binary,
     };
 
+    let log_decoder = match args.event_signature {
+        Some(ref sig) => LogDecoder::new(sig.clone()).ok(),
+        None => None,
+    };
+
     let sort = parse_sort(&args.sort, &datatypes)?;
     let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
@@ -132,9 +136,7 @@ fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
                     &args.exclude_columns,
                     &args.columns,
                     sort[datatype].clone(),
-                    args.event_signature
-                        .as_ref()
-                        .map(|sig| TableMeta { log_decoder: LogDecoder::new(sig.clone()) }),
+                    log_decoder.clone(),
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|_e| {
