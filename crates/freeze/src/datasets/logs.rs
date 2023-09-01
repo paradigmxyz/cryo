@@ -5,7 +5,7 @@ use std::{
 
 use ethers::prelude::*;
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
-use polars::{export::num::ToPrimitive, prelude::*};
+use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
 use crate::{
@@ -474,15 +474,12 @@ impl LogDecoder {
 
         // check each vector, see if it contains any values, if it does, check if it's the same
         // length as the input data and map to a series
-        if !ints.is_empty() || !str_ints.is_empty() {
-            if !str_ints.is_empty() {
-                str_ints.extend(ints.into_iter().map(|i| i.to_string()));
-                if str_ints.len() != chunk_len {
-                    return Err(mixed_length_err)
-                }
-                return Ok(Series::new(name.as_str(), str_ints))
-            }
+        if !ints.is_empty() {
             Ok(Series::new(name.as_str(), ints))
+        } else if !uints.is_empty() {
+            Ok(Series::new(name.as_str(), uints))
+        } else if !str_ints.is_empty() {
+            Ok(Series::new(name.as_str(), str_ints))
         } else if !bytes.is_empty() {
             if bytes.len() != chunk_len {
                 return Err(mixed_length_err)
@@ -552,9 +549,31 @@ mod test {
     }
 
     #[test]
-    fn test_parsing_ints() {
+    fn test_parsing_ints_uint256() {
         let s = make_log_decoder()
-            .make_series("ints".to_string(), vec![Token::Int(1.into()), Token::Int(2.into())], 2)
+            .make_series(
+                "mintQuantity".to_string(),
+                vec![Token::Uint(1.into()), Token::Uint(2.into())],
+                2,
+            )
+            .unwrap();
+        assert_eq!(s.dtype(), &DataType::Utf8);
+        assert_eq!(s.len(), 2)
+    }
+
+    #[test]
+    fn test_parsing_ints_uint64() {
+        let raw = "event NewMint(address indexed msgSender, uint64 indexed mintQuantity)";
+
+        // let e = HumanReadableParser::parse_event(raw).unwrap();
+        let decoder = LogDecoder::new(raw.to_string()).unwrap();
+
+        let s = decoder
+            .make_series(
+                "mintQuantity".to_string(),
+                vec![Token::Uint(1.into()), Token::Uint(2.into())],
+                2,
+            )
             .unwrap();
         assert_eq!(s.dtype(), &DataType::UInt64);
         assert_eq!(s.len(), 2)
@@ -564,7 +583,7 @@ mod test {
     fn test_parsing_big_ints() {
         let s = make_log_decoder()
             .make_series(
-                "ints".to_string(),
+                "msgSender".to_string(),
                 vec![Token::Int(U256::max_value()), Token::Int(2.into())],
                 2,
             )
