@@ -191,133 +191,154 @@ async fn fetch_transaction_logs(
     }
 }
 
+#[derive(Default)]
+pub(crate) struct LogColumns {
+    n_rows: usize,
+    block_number: Vec<u32>,
+    transaction_index: Vec<u32>,
+    log_index: Vec<u32>,
+    transaction_hash: Vec<Vec<u8>>,
+    address: Vec<Vec<u8>>,
+    topic0: Vec<Option<Vec<u8>>>,
+    topic1: Vec<Option<Vec<u8>>>,
+    topic2: Vec<Option<Vec<u8>>>,
+    topic3: Vec<Option<Vec<u8>>>,
+    data: Vec<Vec<u8>>,
+    event_cols: HashMap<String, Vec<Token>>,
+}
+
+impl LogColumns {
+    pub(crate) fn process_logs(
+        &mut self,
+        logs: Vec<Log>,
+        schema: &Table,
+    ) -> Result<(), CollectError> {
+        for log in &logs {
+            if let Some(true) = log.removed {
+                continue
+            }
+            if let (Some(bn), Some(tx), Some(ti), Some(li)) =
+                (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
+            {
+                self.n_rows += 1;
+                self.address.push(log.address.as_bytes().to_vec());
+                match log.topics.len() {
+                    0 => {
+                        self.topic0.push(None);
+                        self.topic1.push(None);
+                        self.topic2.push(None);
+                        self.topic3.push(None);
+                    }
+                    1 => {
+                        self.topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                        self.topic1.push(None);
+                        self.topic2.push(None);
+                        self.topic3.push(None);
+                    }
+                    2 => {
+                        self.topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                        self.topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                        self.topic2.push(None);
+                        self.topic3.push(None);
+                    }
+                    3 => {
+                        self.topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                        self.topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                        self.topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                        self.topic3.push(None);
+                    }
+                    4 => {
+                        self.topic0.push(Some(log.topics[0].as_bytes().to_vec()));
+                        self.topic1.push(Some(log.topics[1].as_bytes().to_vec()));
+                        self.topic2.push(Some(log.topics[2].as_bytes().to_vec()));
+                        self.topic3.push(Some(log.topics[3].as_bytes().to_vec()));
+                    }
+                    _ => return Err(CollectError::InvalidNumberOfTopics),
+                }
+                if schema.has_column("data") {
+                    self.data.push(log.data.to_vec());
+                }
+                self.block_number.push(bn.as_u32());
+                self.transaction_hash.push(tx.as_bytes().to_vec());
+                self.transaction_index.push(ti.as_u32());
+                self.log_index.push(li.as_u32());
+            }
+        }
+
+        // add decoded event logs
+        let decoder = match schema.clone().meta {
+            Some(tm) => tm.log_decoder,
+            None => None,
+        };
+        if let Some(decoder) = decoder.clone() {
+            decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
+                self.event_cols.entry(k).or_insert(Vec::new()).extend(v);
+            });
+        }
+
+        Ok(())
+    }
+
+    pub(crate) fn create_df(
+        self,
+        schema: &Table,
+        chain_id: u64,
+    ) -> Result<DataFrame, CollectError> {
+        let mut cols = Vec::with_capacity(schema.columns().len());
+        with_series!(cols, "block_number", self.block_number, schema);
+        with_series!(cols, "transaction_index", self.transaction_index, schema);
+        with_series!(cols, "log_index", self.log_index, schema);
+        with_series_binary!(cols, "transaction_hash", self.transaction_hash, schema);
+        with_series_binary!(cols, "contract_address", self.address, schema);
+        with_series_binary!(cols, "topic0", self.topic0, schema);
+        with_series_binary!(cols, "topic1", self.topic1, schema);
+        with_series_binary!(cols, "topic2", self.topic2, schema);
+        with_series_binary!(cols, "topic3", self.topic3, schema);
+        with_series_binary!(cols, "data", self.data, schema);
+        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
+
+        let decoder = match schema.clone().meta {
+            Some(tm) => tm.log_decoder,
+            None => None,
+        };
+        if let Some(decoder) = decoder {
+            // Write columns even if there are no values decoded - indicates empty dataframe
+            let chunk_len = self.n_rows;
+            if self.event_cols.is_empty() {
+                for name in decoder.field_names().iter() {
+                    cols.push(Series::new(name.as_str(), vec![None::<u64>; chunk_len]));
+                }
+            } else {
+                for (name, data) in self.event_cols {
+                    match LogDecoder::make_series(name.clone(), data, chunk_len.clone()) {
+                        Ok(s) => {
+                            cols.push(s);
+                        }
+                        Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best to
+                                                                             * bubble up error */
+                    }
+                }
+            }
+        }
+
+        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+    }
+}
+
 async fn logs_to_df(
     mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
     schema: &Table,
     chain_id: u64,
 ) -> Result<DataFrame, CollectError> {
-    let mut block_number: Vec<u32> = Vec::new();
-    let mut transaction_index: Vec<u32> = Vec::new();
-    let mut log_index: Vec<u32> = Vec::new();
-    let mut transaction_hash: Vec<Vec<u8>> = Vec::new();
-    let mut address: Vec<Vec<u8>> = Vec::new();
-    let mut topic0: Vec<Option<Vec<u8>>> = Vec::new();
-    let mut topic1: Vec<Option<Vec<u8>>> = Vec::new();
-    let mut topic2: Vec<Option<Vec<u8>>> = Vec::new();
-    let mut topic3: Vec<Option<Vec<u8>>> = Vec::new();
-    let mut data: Vec<Vec<u8>> = Vec::new();
-
-    let decoder = match schema.clone().meta {
-        Some(tm) => tm.log_decoder,
-        None => None,
-    };
-
-    let mut event_cols: HashMap<String, Vec<Token>> = HashMap::new();
-
-    let mut n_rows = 0;
-    // while let Some(Ok(logs)) = logs.recv().await {
+    let mut columns = LogColumns::default();
     while let Some(message) = logs.recv().await {
-        match message {
-            Ok(logs) => {
-                for log in logs.iter() {
-                    if let Some(true) = log.removed {
-                        continue;
-                    }
-                    if let (Some(bn), Some(tx), Some(ti), Some(li)) = (
-                        log.block_number,
-                        log.transaction_hash,
-                        log.transaction_index,
-                        log.log_index,
-                    ) {
-                        n_rows += 1;
-                        address.push(log.address.as_bytes().to_vec());
-                        match log.topics.len() {
-                            0 => {
-                                topic0.push(None);
-                                topic1.push(None);
-                                topic2.push(None);
-                                topic3.push(None);
-                            }
-                            1 => {
-                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                                topic1.push(None);
-                                topic2.push(None);
-                                topic3.push(None);
-                            }
-                            2 => {
-                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                                topic2.push(None);
-                                topic3.push(None);
-                            }
-                            3 => {
-                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                                topic3.push(None);
-                            }
-                            4 => {
-                                topic0.push(Some(log.topics[0].as_bytes().to_vec()));
-                                topic1.push(Some(log.topics[1].as_bytes().to_vec()));
-                                topic2.push(Some(log.topics[2].as_bytes().to_vec()));
-                                topic3.push(Some(log.topics[3].as_bytes().to_vec()));
-                            }
-                            _ => return Err(CollectError::InvalidNumberOfTopics),
-                        }
-                        data.push(log.data.clone().to_vec());
-                        block_number.push(bn.as_u32());
-                        transaction_hash.push(tx.as_bytes().to_vec());
-                        transaction_index.push(ti.as_u32());
-                        log_index.push(li.as_u32());
-                    }
-                }
-                if let Some(decoder) = decoder.clone() {
-                    decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
-                        event_cols.entry(k).or_insert(Vec::new()).extend(v);
-                    });
-                }
-            }
-            _ => return Err(CollectError::TooManyRequestsError),
-        }
-    }
-
-    let mut cols = Vec::new();
-    with_series!(cols, "block_number", block_number.clone(), schema);
-    with_series!(cols, "transaction_index", transaction_index, schema);
-    with_series!(cols, "log_index", log_index, schema);
-    with_series_binary!(cols, "transaction_hash", transaction_hash, schema);
-    with_series_binary!(cols, "contract_address", address, schema);
-    with_series_binary!(cols, "topic0", topic0, schema);
-    with_series_binary!(cols, "topic1", topic1, schema);
-    with_series_binary!(cols, "topic2", topic2, schema);
-    with_series_binary!(cols, "topic3", topic3, schema);
-    with_series_binary!(cols, "data", data, schema);
-
-    if schema.has_column("chain_id") {
-        cols.push(Series::new("chain_id", vec![chain_id; n_rows]));
-    }
-
-    if let Some(decoder) = decoder {
-        // Write columns even if there are no values decoded - indicates empty dataframe
-        let chunk_len = block_number.len();
-        if event_cols.is_empty() {
-            for name in decoder.field_names().iter() {
-                cols.push(Series::new(name.as_str(), vec![None::<u64>; chunk_len]));
-            }
+        if let Ok(logs) = message {
+            columns.process_logs(logs, schema)?
         } else {
-            for (name, data) in event_cols {
-                match LogDecoder::make_series(name.clone(), data, chunk_len.clone()) {
-                    Ok(s) => {
-                        cols.push(s);
-                    }
-                    Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best to
-                                                                         * bubble up error */
-                }
-            }
+            return Err(CollectError::TooManyRequestsError)
         }
     }
-
-    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+    columns.create_df(schema, chain_id)
 }
 
 /// container for log decoding context

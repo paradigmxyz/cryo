@@ -564,6 +564,7 @@ dependencies = [
  "iana-time-zone",
  "js-sys",
  "num-traits",
+ "serde",
  "time 0.1.45",
  "wasm-bindgen",
  "winapi",
@@ -899,7 +900,7 @@ dependencies = [
  "polars",
  "pyo3",
  "pyo3-asyncio",
- "pyo3-build-config 0.18.3",
+ "pyo3-build-config",
  "pyo3-polars",
  "tokio",
 ]
@@ -1227,9 +1228,9 @@ dependencies = [
 
 [[package]]
 name = "ethers"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "2a58ce802c65cf3d0756dee5a61094a92cde53c1583b246e9ee5b37226c7fc15"
+checksum = "96b4026b97da8281276744741fac7eb385da905f6093c583331fa2953fdd4253"
 dependencies = [
  "ethers-addressbook",
  "ethers-contract",
@@ -1243,9 +1244,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-addressbook"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7b856b7b8ff5c961093cb8efe151fbcce724b451941ce20781de11a531ccd578"
+checksum = "edcb6ffefc230d8c42874c51b28dc11dbb8de50b27a8fdf92648439d6baa68dc"
 dependencies = [
  "ethers-core",
  "once_cell",
@@ -1255,14 +1256,15 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "e066a0d9cfc70c454672bf16bb433b0243427420076dc5b2f49c448fb5a10628"
+checksum = "0d4719a44c3d37ab07c6dea99ab174068d8c35e441b60b6c20ce4e48357273e8"
 dependencies = [
  "ethers-contract-abigen",
  "ethers-contract-derive",
  "ethers-core",
  "ethers-providers",
+ "ethers-signers",
  "futures-util",
  "hex",
  "once_cell",
@@ -1274,9 +1276,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract-abigen"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "c113e3e86b6bc16d98484b2c3bb2d01d6fed9f489fe2e592e5cc87c3024d616b"
+checksum = "155ea1b84d169d231317ed86e307af6f2bed6b40dd17e5e94bc84da21cadb21c"
 dependencies = [
  "Inflector",
  "dunce",
@@ -1298,9 +1300,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-contract-derive"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "8c3fb5adee25701c79ec58fcf2c63594cd8829bc9ad6037ff862d5a111101ed2"
+checksum = "8567ff196c4a37c1a8c90ec73bda0ad2062e191e4f0a6dc4d943e2ec4830fc88"
 dependencies = [
  "Inflector",
  "ethers-contract-abigen",
@@ -1344,9 +1346,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-etherscan"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "84ebb401ba97c6f5af278c2c9936c4546cad75dec464b439ae6df249906f4caa"
+checksum = "22b3a8269d3df0ed6364bc05b4735b95f4bf830ce3aef87d5e760fb0e93e5b91"
 dependencies = [
  "ethers-core",
  "reqwest",
@@ -1359,9 +1361,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-middleware"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "740f4a773c19dd6d6a68c8c2e0996c096488d38997d524e21dc612c55da3bd24"
+checksum = "e0c339aad74ae5c451d27e0e49c7a3c7d22620b119b4f9291d7aa21f72d7f366"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -1386,9 +1388,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-providers"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "56b498fd2a6c019d023e43e83488cd1fb0721f299055975aa6bac8dbf1e95f2c"
+checksum = "b411b119f1cf0efb69e2190883dee731251882bb21270f893ee9513b3a697c48"
 dependencies = [
  "async-trait",
  "auto_impl",
@@ -1424,9 +1426,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-signers"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "02c4b7e15f212fa7cc2e1251868320221d4ff77a3d48068e69f47ce1c491df2d"
+checksum = "4864d387456a9c09a1157fa10e1528b29d90f1d859443acf06a1b23365fb518c"
 dependencies = [
  "async-trait",
  "coins-bip32",
@@ -1443,9 +1445,9 @@ dependencies = [
 
 [[package]]
 name = "ethers-solc"
-version = "2.0.7"
+version = "2.0.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a81c89f121595cf8959e746045bb8b25a6a38d72588561e1a3b7992fc213f674"
+checksum = "7a6c2b9625a2c639d46625f88acc2092a3cb35786c37f7c2128b3ca20f639b3c"
 dependencies = [
  "cfg-if",
  "dunce",
@@ -2186,9 +2188,9 @@ dependencies = [
 
 [[package]]
 name = "lalrpop"
-version = "0.19.12"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0a1cbf952127589f2851ab2046af368fd20645491bb4b376f04b7f94d7a9837b"
+checksum = "da4081d44f4611b66c6dd725e6de3169f9f63905421e8626fcb86b6a898998b8"
 dependencies = [
  "ascii-canvas",
  "bit-set",
@@ -2199,7 +2201,7 @@ dependencies = [
  "lalrpop-util",
  "petgraph",
  "regex",
- "regex-syntax 0.6.29",
+ "regex-syntax 0.7.2",
  "string_cache",
  "term",
  "tiny-keccak",
@@ -2208,9 +2210,9 @@ dependencies = [
 
 [[package]]
 name = "lalrpop-util"
-version = "0.19.12"
+version = "0.20.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d3c48237b9604c5a4702de6b824e02006c3214327564636aef27c1028a8fa0ed"
+checksum = "3f35c735096c0293d313e8f2a641627472b83d01b937177fe76e5e2708d31e0d"
 
 [[package]]
 name = "lazy_static"
@@ -3215,7 +3217,7 @@ dependencies = [
  "libc",
  "memoffset",
  "parking_lot",
- "pyo3-build-config 0.19.2",
+ "pyo3-build-config",
  "pyo3-ffi",
  "pyo3-macros",
  "unindent",
@@ -3236,16 +3238,6 @@ dependencies = [
 
 [[package]]
 name = "pyo3-build-config"
-version = "0.18.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9cb946f5ac61bb61a5014924910d936ebd2b23b705f7a4a3c40b05c720b079a3"
-dependencies = [
- "once_cell",
- "target-lexicon",
-]
-
-[[package]]
-name = "pyo3-build-config"
 version = "0.19.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "076c73d0bc438f7a4ef6fdd0c3bb4732149136abd952b110ac93e4edb13a6ba5"
@@ -3261,7 +3253,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e53cee42e77ebe256066ba8aa77eff722b3bb91f3419177cf4cd0f304d3284d9"
 dependencies = [
  "libc",
- "pyo3-build-config 0.19.2",
+ "pyo3-build-config",
 ]
 
 [[package]]
@@ -3966,9 +3958,9 @@ dependencies = [
 
 [[package]]
 name = "solang-parser"
-version = "0.3.0"
+version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "4a94494913728908efa7a25a2dd2e4f037e714897985c24273c40596638ed909"
+checksum = "9c792fe9fae2a2f716846f214ca10d5a1e21133e0bf36cef34bcc4a852467b21"
 dependencies = [
  "itertools",
  "lalrpop",

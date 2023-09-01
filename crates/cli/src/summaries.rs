@@ -6,8 +6,8 @@ use std::time::SystemTime;
 use thousands::Separable;
 
 use cryo_freeze::{
-    BlockChunk, Chunk, ChunkData, Datatype, FileOutput, FreezeSummary, MultiQuery, Source, Table,
-    TransactionChunk,
+    BlockChunk, Chunk, ChunkData, ColumnType, Datatype, FileOutput, FreezeSummary, MultiQuery,
+    Source, Table, TransactionChunk,
 };
 
 const TITLE_R: u8 = 0;
@@ -57,7 +57,7 @@ pub(crate) fn print_cryo_summary(
         print_bullet("inner request size", source.inner_request_size.to_string());
     };
     print_bullet("output format", sink.format.as_str());
-    print_bullet("output dir", &sink.output_dir);
+    print_bullet("output dir", sink.output_dir.to_string_lossy());
     match report_path {
         None => print_bullet("report file", "None"),
         Some(path) => print_bullet("report file", path),
@@ -123,7 +123,16 @@ fn print_schema(name: &Datatype, schema: &Table) {
     print_header("schema for ".to_string() + name.dataset().name());
     for column in schema.columns() {
         if let Some(column_type) = schema.column_type(column) {
-            print_bullet(column, column_type.as_str());
+            if column_type == ColumnType::UInt256 {
+                for uint256_type in schema.u256_types.iter() {
+                    print_bullet(
+                        column.to_owned() + uint256_type.suffix().as_str(),
+                        uint256_type.to_columntype().as_str(),
+                    );
+                }
+            } else {
+                print_bullet(column, column_type.as_str());
+            }
         }
     }
     println!();

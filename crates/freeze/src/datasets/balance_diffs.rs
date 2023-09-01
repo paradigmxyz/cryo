@@ -24,8 +24,8 @@ impl Dataset for BalanceDiffs {
             ("transaction_index", ColumnType::Binary),
             ("transaction_hash", ColumnType::Binary),
             ("address", ColumnType::Binary),
-            ("from_value", ColumnType::Binary),
-            ("to_value", ColumnType::Binary),
+            ("from_value", ColumnType::UInt256),
+            ("to_value", ColumnType::UInt256),
             ("chain_id", ColumnType::UInt64),
         ])
     }

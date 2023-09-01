@@ -17,6 +17,7 @@ use cryo_cli::{run, Args};
         include_columns = None,
         exclude_columns = None,
         columns = None,
+        u256_types = None,
         hex = false,
         sort = None,
         rpc = None,
@@ -59,6 +60,7 @@ pub fn _freeze(
     include_columns: Option<Vec<String>>,
     exclude_columns: Option<Vec<String>>,
     columns: Option<Vec<String>>,
+    u256_types: Option<Vec<String>>,
     hex: bool,
     sort: Option<Vec<String>>,
     rpc: Option<String>,
@@ -98,6 +100,7 @@ pub fn _freeze(
         include_columns,
         exclude_columns,
         columns,
+        u256_types,
         hex,
         sort,
         rpc,
@@ -135,7 +138,7 @@ pub fn _freeze(
                 let paths = PyDict::new(py);
                 for (key, values) in &result.paths {
                     let key = key.dataset().name();
-                    let values: Vec<&str> = values.iter().map(AsRef::as_ref).collect();
+                    let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
                     paths.set_item(key, values).unwrap();
                 }
                 let paths = paths.to_object(py);
