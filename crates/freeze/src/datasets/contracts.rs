@@ -65,6 +65,7 @@ impl Dataset for Contracts {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
+        println!("Collecting block chunk");
         let rx = traces::fetch_block_traces(chunk, source).await;
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }
@@ -76,6 +77,7 @@ impl Dataset for Contracts {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
+        println!("Collecting transaction chunk");
         let rx = traces::fetch_transaction_traces(chunk, source).await;
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }
@@ -146,7 +148,15 @@ async fn traces_to_contracts_df(
     while let Some(message) = rx.recv().await {
         match message {
             Ok(traces) => process_traces(traces, schema, &mut columns)?,
-            _ => return Err(CollectError::TooManyRequestsError),
+            Err(_e) => {
+                println!("traces failed: {:?}", _e);
+                return Err(CollectError::TooManyRequestsError);
+            },
+            // _ => {
+            //     println!("traces failed: unknown error");
+            //     return Err(CollectError::TooManyRequestsError);
+            // },
+
         }
     }
     columns.into_df(schema, chain_id)
