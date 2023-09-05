@@ -58,11 +58,11 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// Replays a transaction, returning the traces
     pub async fn trace_replay_transaction(
         &self,
-        block: H256,
+        tx_hash: TxHash,
         trace_types: Vec<TraceType>,
     ) -> Result<BlockTrace> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_transaction(block, trace_types).await)
+        Self::map_err(self.provider.trace_replay_transaction(tx_hash, trace_types).await)
     }
 
     /// Gets the transaction with transaction_hash
