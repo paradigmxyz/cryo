@@ -9,8 +9,8 @@ use crate::{
     dataframes::SortableDataFrame,
     types::{
         conversions::{ToVecHex, ToVecU8},
-        BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
-        TransactionChunk, Transactions, U256Type,
+        BlockChunk, CollectError, ColumnEncoding, ColumnType, Dataset, Datatype, RowFilter, Source,
+        Table, TransactionChunk, Transactions, U256Type,
     },
     with_series, with_series_binary, with_series_u256,
 };
