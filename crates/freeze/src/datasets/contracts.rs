@@ -228,10 +228,10 @@ fn filter_failed_traces(traces: Vec<Trace>) -> Vec<Trace> {
 
         // if in an error, check if next trace is still in error
         if let Some(ref e_address) = error_address {
-            if trace.trace_address.len() >= e_address.len()
-                && trace.trace_address[0..e_address.len()] == e_address[..]
+            if trace.trace_address.len() >= e_address.len() &&
+                trace.trace_address[0..e_address.len()] == e_address[..]
             {
-                continue;
+                continue
             } else {
                 error_address = None;
             }

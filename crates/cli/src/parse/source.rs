@@ -40,7 +40,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         Some(max_retries) => match NonZeroUsize::new(max_retries) {
             Some(value) => {
                 Some(
-                    ExponentialBackoff::from_millis(10).take(value.into()), // limit to specified retries
+                    ExponentialBackoff::from_millis(10).take(value.into()), /* limit to specified retries */
                 )
             }
             _ => None,
