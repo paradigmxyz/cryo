@@ -85,10 +85,11 @@ pub(crate) async fn collect_transaction_state_diffs(
     _filter: Option<&RowFilter>,
 ) -> Result<DataFrame, CollectError> {
     let include_indices = schema.has_column("block_number");
+    let chain_id = source.chain_id;
     let rx = fetch_transaction_state_diffs(chunk, source, include_indices).await;
     let mut schemas: HashMap<Datatype, Table> = HashMap::new();
     schemas.insert(*datatype, schema.clone());
-    let dfs = state_diffs_to_df(rx, &schemas, source.chain_id).await;
+    let dfs = state_diffs_to_df(rx, &schemas, chain_id).await;
 
     // get single df out of result
     let df = match dfs {
@@ -113,19 +114,10 @@ pub(crate) async fn fetch_block_traces(
             continue
         };
         let tx = tx.clone();
-        let provider = source.provider.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let fetcher = source.fetcher.clone();
         let trace_types = trace_types.to_vec();
         tokio::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            }
-            let result = provider
+            let result = fetcher
                 .trace_replay_block_transactions(BlockNumber::Number(number.into()), trace_types)
                 .await
                 .map(|res| {
@@ -136,8 +128,7 @@ pub(crate) async fn fetch_block_traces(
                             .map(|(index, traces)| (index as u32, traces))
                             .collect(),
                     )
-                })
-                .map_err(CollectError::ProviderError);
+                });
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -163,31 +154,16 @@ pub(crate) async fn fetch_transaction_traces(
             for tx_hash in tx_hashes.iter() {
                 let tx_hash = tx_hash.clone();
                 let tx = tx.clone();
-                let provider = source.provider.clone();
-                let semaphore = source.semaphore.clone();
-                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                let fetcher = source.fetcher.clone();
                 let trace_types = trace_types.to_vec();
                 tokio::spawn(async move {
-                    let _permit = match semaphore {
-                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                        _ => None,
-                    };
-                    if let Some(limiter) = &rate_limiter {
-                        Arc::clone(limiter).until_ready().await;
-                    }
                     let tx_hash = H256::from_slice(&tx_hash);
-                    let result = provider
-                        .trace_replay_transaction(tx_hash, trace_types)
-                        .await
-                        .map_err(CollectError::ProviderError);
+                    let result = fetcher.trace_replay_transaction(tx_hash, trace_types).await;
                     let result = match result {
                         Ok(trace) => {
                             let trace = BlockTrace { transaction_hash: Some(tx_hash), ..trace };
                             if include_indices {
-                                if let Some(limiter) = rate_limiter {
-                                    Arc::clone(&limiter).until_ready().await;
-                                };
-                                match provider.get_transaction(tx_hash).await {
+                                match fetcher.get_transaction(tx_hash).await {
                                     Ok(Some(tx)) => match (tx.block_number, tx.transaction_index) {
                                         (Some(block_number), Some(tx_index)) => Ok((
                                             Some(block_number.as_u32()),

@@ -5,7 +5,7 @@ use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
-use cryo_freeze::{ParseError, Source};
+use cryo_freeze::{Fetcher, ParseError, Source};
 
 use crate::args::Args;
 
@@ -22,7 +22,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         Some(rate_limit) => match NonZeroU32::new(rate_limit) {
             Some(value) => {
                 let quota = Quota::per_second(value);
-                Some(Arc::new(RateLimiter::direct(quota)))
+                Some(RateLimiter::direct(quota))
             }
             _ => None,
         },
@@ -34,7 +34,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let max_concurrent_chunks = args.max_concurrent_chunks.unwrap_or(3);
 
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
-    let semaphore = Some(Arc::new(semaphore));
+    let semaphore = Some(semaphore);
 
     let retry_strategy: Option<std::iter::Take<ExponentialBackoff>> = match args.max_retries {
         Some(max_retries) => match NonZeroUsize::new(max_retries) {
@@ -48,11 +48,10 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         None => None,
     };
 
+    let fetcher = Fetcher { provider, semaphore, rate_limiter };
     let output = Source {
-        provider: Arc::new(provider),
+        fetcher: Arc::new(fetcher),
         chain_id,
-        semaphore,
-        rate_limiter,
         inner_request_size: args.inner_request_size,
         max_concurrent_chunks,
         retry_strategy,

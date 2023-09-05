@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use ethers::prelude::*;
 use polars::prelude::*;
@@ -97,29 +97,18 @@ async fn fetch_tx_block_numbers(
 ) -> Result<Vec<u64>, CollectError> {
     let mut tasks = Vec::new();
     for tx_hash in tx_hashes {
-        let provider = Arc::clone(&source.provider);
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let fetcher = source.fetcher.clone();
         let tx_hash = tx_hash.clone();
-        let task = tokio::task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            };
-            provider.get_transaction(H256::from_slice(&tx_hash)).await
-        });
+        let task =
+            tokio::task::spawn(
+                async move { fetcher.get_transaction(H256::from_slice(&tx_hash)).await },
+            );
         tasks.push(task);
     }
     let results = futures::future::join_all(tasks).await;
     let mut block_numbers = Vec::new();
     for res in results {
-        let task_result =
-            res.map_err(|_| CollectError::CollectError("Task join error".to_string()))?;
-        let tx =
-            task_result.map_err(|_| CollectError::CollectError("Provider error".to_string()))?;
+        let tx = res.map_err(|_| CollectError::CollectError("Task join error".to_string()))??;
         match tx {
             Some(transaction) => match transaction.block_number {
                 Some(block_number) => block_numbers.push(block_number.as_u64()),
@@ -143,22 +132,13 @@ async fn fetch_blocks(
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = Arc::clone(&source.provider);
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let fetcher = source.fetcher.clone();
         task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            }
-            let block = provider.get_block(number).await;
+            let block = fetcher.get_block(number).await;
             let result = match block {
                 Ok(Some(block)) => Ok((block, None)),
                 Ok(None) => Err(CollectError::CollectError("block not in node".to_string())),
-                Err(e) => Err(CollectError::ProviderError(e)),
+                Err(e) => Err(e),
             };
             match tx.send(result).await {
                 Ok(_) => {}

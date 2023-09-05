@@ -59,7 +59,7 @@ impl Dataset for NativeTransfers {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = traces::fetch_block_traces(chunk, source).await;
+        let rx = traces::fetch_block_traces(chunk, source);
         traces_to_native_transfers_df(rx, schema, source.chain_id).await
     }
 
@@ -70,7 +70,7 @@ impl Dataset for NativeTransfers {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = traces::fetch_transaction_traces(chunk, source).await;
+        let rx = traces::fetch_transaction_traces(chunk, source);
         traces_to_native_transfers_df(rx, schema, source.chain_id).await
     }
 }

@@ -9,8 +9,8 @@ use crate::{
     dataframes::SortableDataFrame,
     types::{
         conversions::{ToVecHex, ToVecU8},
-        BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
-        TransactionChunk, Transactions, U256Type,
+        BlockChunk, CollectError, ColumnEncoding, ColumnType, Dataset, Datatype, RowFilter, Source,
+        Table, TransactionChunk, Transactions, U256Type,
     },
     with_series, with_series_binary, with_series_u256,
 };
@@ -111,25 +111,16 @@ async fn fetch_transactions(
         TransactionChunk::Values(tx_hashes) => {
             for tx_hash in tx_hashes.iter() {
                 let tx = tx.clone();
-                let provider = Arc::clone(&source.provider);
-                let semaphore = source.semaphore.clone();
-                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                let fetcher = source.fetcher.clone();
                 let tx_hash = tx_hash.clone();
                 task::spawn(async move {
-                    let _permit = match semaphore {
-                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                        _ => None,
-                    };
-                    if let Some(limiter) = rate_limiter {
-                        Arc::clone(&limiter).until_ready().await;
-                    }
                     let tx_hash = H256::from_slice(&tx_hash);
-                    let transaction = provider.get_transaction(tx_hash).await;
+                    let transaction = fetcher.get_transaction(tx_hash).await;
 
                     // get gas_used using receipt
                     let gas_used = if include_gas_used {
-                        match provider.get_transaction_receipt(tx_hash).await {
-                            Ok(Some(receipt)) => match receipt.gas_used {
+                        match fetcher.get_transaction_receipt(tx_hash).await? {
+                            Some(receipt) => match receipt.gas_used {
                                 Some(gas_used) => Some(gas_used.as_u32()),
                                 None => {
                                     return Err(CollectError::CollectError(
@@ -148,12 +139,11 @@ async fn fetch_transactions(
                     };
 
                     // package result
-                    let result = match transaction {
-                        Ok(Some(transaction)) => Ok((transaction, gas_used)),
-                        Ok(None) => {
+                    let result = match transaction? {
+                        Some(transaction) => Ok((transaction, gas_used)),
+                        None => {
                             Err(CollectError::CollectError("transaction not in node".to_string()))
                         }
-                        Err(e) => Err(CollectError::ProviderError(e)),
                     };
 
                     // send to channel

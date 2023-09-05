@@ -33,7 +33,7 @@ macro_rules! with_series_u256 {
                 let name = name.as_str();
 
                 let converted: Vec<Vec<u8>> = $value.iter().map(|v| v.to_vec_u8()).collect();
-                if let Some(ColumnType::Hex) = $schema.column_type($name) {
+                if ColumnEncoding::Hex == $schema.binary_type {
                     $all_series.push(Series::new(name, converted.to_vec_hex()));
                 } else {
                     $all_series.push(Series::new(name, converted));
