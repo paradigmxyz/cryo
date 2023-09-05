@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use ethers::prelude::*;
 use polars::prelude::*;
@@ -85,7 +85,7 @@ impl Dataset for Traces {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_block_traces(chunk, source).await;
+        let rx = fetch_block_traces(chunk, source);
         traces_to_df(rx, schema, source.chain_id).await
     }
 
@@ -96,12 +96,12 @@ impl Dataset for Traces {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_transaction_traces(chunk, source).await;
+        let rx = fetch_transaction_traces(chunk, source);
         traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
-pub(crate) async fn fetch_block_traces(
+pub(crate) fn fetch_block_traces(
     block_chunk: &BlockChunk,
     source: &Source,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
@@ -109,21 +109,9 @@ pub(crate) async fn fetch_block_traces(
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = source.provider.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let fetcher = source.fetcher.clone();
         task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            }
-            let result = provider
-                .trace_block(BlockNumber::Number(number.into()))
-                .await
-                .map_err(CollectError::ProviderError);
+            let result = fetcher.trace_block(BlockNumber::Number(number.into())).await;
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -136,7 +124,7 @@ pub(crate) async fn fetch_block_traces(
     rx
 }
 
-pub(crate) async fn fetch_transaction_traces(
+pub(crate) fn fetch_transaction_traces(
     transaction_chunk: &TransactionChunk,
     source: &Source,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
@@ -146,21 +134,9 @@ pub(crate) async fn fetch_transaction_traces(
             for tx_hash in tx_hashes.iter() {
                 let tx_hash = tx_hash.clone();
                 let tx = tx.clone();
-                let provider = source.provider.clone();
-                let semaphore = source.semaphore.clone();
-                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                let fetcher = source.fetcher.clone();
                 task::spawn(async move {
-                    let _permit = match semaphore {
-                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                        _ => None,
-                    };
-                    if let Some(limiter) = rate_limiter {
-                        Arc::clone(&limiter).until_ready().await;
-                    }
-                    let result = provider
-                        .trace_transaction(H256::from_slice(&tx_hash))
-                        .await
-                        .map_err(CollectError::ProviderError);
+                    let result = fetcher.trace_transaction(H256::from_slice(&tx_hash)).await;
                     match tx.send(result).await {
                         Ok(_) => {}
                         Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -177,7 +153,7 @@ pub(crate) async fn fetch_transaction_traces(
             let result = Err(CollectError::CollectError(
                 "transaction value ranges not supported".to_string(),
             ));
-            match tx.send(result).await {
+            match tx.blocking_send(result) {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
                     eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");

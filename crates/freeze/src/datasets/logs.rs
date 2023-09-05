@@ -1,7 +1,4 @@
-use std::{
-    collections::{HashMap, HashSet},
-    sync::Arc,
-};
+use std::collections::{HashMap, HashSet};
 
 use ethers::prelude::*;
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
@@ -69,7 +66,7 @@ impl Dataset for Logs {
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_block_logs(chunk, source, filter).await;
+        let rx = fetch_block_logs(chunk, source, filter);
         logs_to_df(rx, schema, source.chain_id).await
     }
 
@@ -90,7 +87,7 @@ impl Dataset for Logs {
     }
 }
 
-async fn fetch_block_logs(
+fn fetch_block_logs(
     block_chunk: &BlockChunk,
     source: &Source,
     filter: Option<&RowFilter>,
@@ -100,9 +97,7 @@ async fn fetch_block_logs(
     let (tx, rx) = mpsc::channel(request_chunks.len());
     for request_chunk in request_chunks.iter() {
         let tx = tx.clone();
-        let provider = source.provider.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+        let fetcher = source.fetcher.clone();
         let log_filter = match filter {
             Some(filter) => Filter {
                 block_option: *request_chunk,
@@ -116,14 +111,7 @@ async fn fetch_block_logs(
             },
         };
         task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            }
-            let result = provider.get_logs(&log_filter).await.map_err(CollectError::ProviderError);
+            let result = fetcher.get_logs(&log_filter).await;
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -147,21 +135,9 @@ async fn fetch_transaction_logs(
             for tx_hash in tx_hashes.iter() {
                 let tx_hash = tx_hash.clone();
                 let tx = tx.clone();
-                let provider = source.provider.clone();
-                let semaphore = source.semaphore.clone();
-                let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                let fetcher = source.fetcher.clone();
                 task::spawn(async move {
-                    let _permit = match semaphore {
-                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                        _ => None,
-                    };
-                    if let Some(limiter) = rate_limiter {
-                        Arc::clone(&limiter).until_ready().await;
-                    }
-                    let receipt = provider
-                        .get_transaction_receipt(H256::from_slice(&tx_hash))
-                        .await
-                        .map_err(CollectError::ProviderError);
+                    let receipt = fetcher.get_transaction_receipt(H256::from_slice(&tx_hash)).await;
                     let logs = match receipt {
                         Ok(Some(receipt)) => Ok(receipt.logs),
                         _ => Err(CollectError::CollectError("".to_string())),

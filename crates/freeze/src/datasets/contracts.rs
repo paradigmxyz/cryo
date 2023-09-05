@@ -65,7 +65,7 @@ impl Dataset for Contracts {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = traces::fetch_block_traces(chunk, source).await;
+        let rx = traces::fetch_block_traces(chunk, source);
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }
 
@@ -76,7 +76,7 @@ impl Dataset for Contracts {
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = traces::fetch_transaction_traces(chunk, source).await;
+        let rx = traces::fetch_transaction_traces(chunk, source);
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }
 }
