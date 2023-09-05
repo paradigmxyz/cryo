@@ -5,9 +5,12 @@ use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
 use super::blocks;
-use crate::types::{
-    BlockChunk, BlocksAndTransactions, CollectError, Datatype, MultiDataset, RowFilter, Source,
-    Table,
+use crate::{
+    sources::Fetcher,
+    types::{
+        BlockChunk, BlocksAndTransactions, CollectError, Datatype, MultiDataset, RowFilter, Source,
+        Table,
+    },
 };
 
 #[async_trait::async_trait]
@@ -62,26 +65,15 @@ pub(crate) async fn fetch_blocks_and_transactions(
 
     for number in block_chunk.numbers() {
         let tx = tx.clone();
-        let provider = source.provider.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
-        let source_arc = source.clone();
+        let fetcher = source.fetcher.clone();
         task::spawn(async move {
-            let permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            };
-            let block_result = provider.get_block_with_txs(number).await;
-            drop(permit);
+            let block_result = fetcher.get_block_with_txs(number).await;
 
             // get gas usage
             let result = match block_result {
                 Ok(Some(block)) => {
                     if include_gas_used {
-                        match get_txs_gas_used(&block, source_arc.clone()).await {
+                        match get_txs_gas_used(&block, fetcher).await {
                             Ok(gas_used) => Ok((block, Some(gas_used))),
                             Err(e) => Err(e),
                         }
@@ -90,7 +82,7 @@ pub(crate) async fn fetch_blocks_and_transactions(
                     }
                 }
                 Ok(None) => Err(CollectError::CollectError("no block found".into())),
-                Err(e) => Err(CollectError::ProviderError(e)),
+                Err(e) => Err(e),
             };
 
             // send to channel
@@ -106,66 +98,47 @@ pub(crate) async fn fetch_blocks_and_transactions(
     rx
 }
 
-async fn get_txs_gas_used(
+async fn get_txs_gas_used<P: JsonRpcClient + 'static>(
     block: &Block<Transaction>,
-    source: Arc<Source>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<Vec<u32>, CollectError> {
-    match get_txs_gas_used_per_block(block, source.clone()).await {
+    match get_txs_gas_used_per_block(block, fetcher.clone()).await {
         Ok(value) => Ok(value),
-        Err(_) => get_txs_gas_used_per_tx(block, source).await,
+        Err(_) => get_txs_gas_used_per_tx(block, fetcher).await,
     }
 }
 
-async fn get_txs_gas_used_per_block(
+async fn get_txs_gas_used_per_block<P: JsonRpcClient + 'static>(
     block: &Block<Transaction>,
-    source: Arc<Source>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<Vec<u32>, CollectError> {
     let block_number = match block.number {
         Some(number) => number,
         None => return Err(CollectError::CollectError("no block number".to_string())),
     };
-    match source.provider.get_block_receipts(block_number).await {
-        Ok(receipts) => {
-            let mut gas_used: Vec<u32> = Vec::new();
-            for receipt in receipts {
-                match receipt.gas_used {
-                    Some(value) => gas_used.push(value.as_u32()),
-                    None => {
-                        return Err(CollectError::CollectError("no gas_used for tx".to_string()))
-                    }
-                }
-            }
-            Ok(gas_used)
+    let receipts = fetcher.get_block_receipts(block_number.as_u64()).await?;
+    let mut gas_used: Vec<u32> = Vec::new();
+    for receipt in receipts {
+        match receipt.gas_used {
+            Some(value) => gas_used.push(value.as_u32()),
+            None => return Err(CollectError::CollectError("no gas_used for tx".to_string())),
         }
-        Err(_) => Err(CollectError::CollectError("error in eth_getBlockReceipts".to_string())),
     }
+    Ok(gas_used)
 }
 
-async fn get_txs_gas_used_per_tx(
+async fn get_txs_gas_used_per_tx<P: JsonRpcClient + 'static>(
     block: &Block<Transaction>,
-    source: Arc<Source>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<Vec<u32>, CollectError> {
-    let source = Arc::new(source);
     let mut tasks = Vec::new();
     for tx in &block.transactions {
-        let provider = source.provider.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         let tx_clone = tx.hash;
+        let fetcher = fetcher.clone();
         let task = task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = rate_limiter {
-                Arc::clone(&limiter).until_ready().await;
-            };
-            match provider.get_transaction_receipt(tx_clone).await {
-                Ok(Some(receipt)) => Ok(receipt.gas_used),
-                Ok(None) => {
-                    Err(CollectError::CollectError("could not find tx receipt".to_string()))
-                }
-                Err(e) => Err(CollectError::ProviderError(e)),
+            match fetcher.get_transaction_receipt(tx_clone).await? {
+                Some(receipt) => Ok(receipt.gas_used),
+                None => Err(CollectError::CollectError("could not find tx receipt".to_string())),
             }
         });
         tasks.push(task);
