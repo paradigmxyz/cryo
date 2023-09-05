@@ -1,4 +1,4 @@
-use std::env;
+use std::{env, num::NonZeroUsize};
 
 use ethers::prelude::*;
 use governor::{Quota, RateLimiter};
@@ -8,6 +8,8 @@ use std::num::NonZeroU32;
 use cryo_freeze::{ParseError, Source};
 
 use crate::args::Args;
+
+use tokio_retry::strategy::ExponentialBackoff;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
@@ -34,6 +36,18 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
     let semaphore = Some(Arc::new(semaphore));
 
+    let retry_strategy: Option<std::iter::Take<ExponentialBackoff>> = match args.max_retries {
+        Some(max_retries) => match NonZeroUsize::new(max_retries) {
+            Some(value) => {
+                Some(
+                    ExponentialBackoff::from_millis(10).take(value.into()), // limit to specified retries
+                )
+            }
+            _ => None,
+        },
+        None => None,
+    };
+
     let output = Source {
         provider: Arc::new(provider),
         chain_id,
@@ -41,6 +55,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         rate_limiter,
         inner_request_size: args.inner_request_size,
         max_concurrent_chunks,
+        retry_strategy,
     };
 
     Ok(output)

@@ -78,6 +78,10 @@ pub struct Args {
     #[arg(short('l'), long, value_name = "limit", help_heading = "Acquisition Options")]
     pub requests_per_second: Option<u32>,
 
+    /// Enable exponential backoff retries on errors
+    #[arg(long, value_name = "R", help_heading = "Acquisition Options")]
+    pub max_retries: Option<usize>,
+
     /// Global number of concurrent requests
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     pub max_concurrent_requests: Option<u64>,

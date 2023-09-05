@@ -4,8 +4,7 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
-use tokio_retry::strategy::{jitter, ExponentialBackoff};
-use tokio_retry::{Condition, RetryIf};
+use tokio_retry::Retry;
 
 use crate::{
     dataframes::SortableDataFrame,
@@ -103,55 +102,6 @@ impl Dataset for Traces {
         traces_to_df(rx, schema, source.chain_id).await
     }
 }
-struct ProviderErrorCondition;
-
-impl Condition<ProviderError> for ProviderErrorCondition {
-    fn should_retry(self: &mut ProviderErrorCondition, error: &ProviderError) -> bool {
-        let error_response = ethers::providers::MiddlewareError::as_error_response(error);
-        match error_response {
-            Some(e) => {
-                println!("provider error response message: {:?}", e.message);
-                println!("provider error response code: {:?}", e.code);
-                if e.code == 429 {
-                    println!("rate limit error: {:?}", e);
-                    return true;
-                }
-                return false;
-            }
-            // None => todo!(),
-            _ => {
-                println!("Not error response");
-                println!("error: {:?}", error);
-                // return false;
-            }
-        }
-        let provider_error = ethers::providers::MiddlewareError::as_provider_error(error);
-        match provider_error {
-            Some(e) => {
-                println!("provider error: {:?}", e);
-                return false;
-            }
-            // None => todo!(),
-            _ => {
-                println!("Not provider error");
-                println!("error: {:?}", error);
-                // return false;
-            }
-        }
-        let serde_error = ethers::providers::MiddlewareError::as_serde_error(error);
-        match serde_error {
-            Some(e) => {
-                println!("serde error: {:?}", e);
-                return false;
-            }
-            _ => {
-                println!("Not serde error");
-                println!("error: {:?}", error);
-                return false;
-            }
-        }
-    }
-}
 
 pub(crate) async fn fetch_block_traces(
     block_chunk: &BlockChunk,
@@ -163,6 +113,7 @@ pub(crate) async fn fetch_block_traces(
         let tx = tx.clone();
         let provider = source.provider.clone();
         let semaphore = source.semaphore.clone();
+        let retry_strategy = source.retry_strategy.clone();
         let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
             let _permit = match semaphore {
@@ -173,20 +124,18 @@ pub(crate) async fn fetch_block_traces(
                 Arc::clone(&limiter).until_ready().await;
             }
 
-            let retry_strategy = ExponentialBackoff::from_millis(10)
-                .map(jitter) // add jitter to delays
-                .take(3); // limit to 3 retries
-
             let action = || provider.trace_block(BlockNumber::Number(number.into()));
-            let result =
-                RetryIf::spawn(retry_strategy, action, ProviderErrorCondition).await.map_err(|e| {
-                    println!("block provider error: {:?}", e);
-                    return CollectError::ProviderError(e);
-                });
+
+            let result = match retry_strategy {
+                Some(retry_strategy) => {
+                    Retry::spawn(retry_strategy, action).await.map_err(CollectError::ProviderError)
+                }
+                None => action().await.map_err(CollectError::ProviderError),
+            };
+
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
-                    println!("block traces failed: {:?}", _e);
                     eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
                     std::process::exit(1)
                 }
@@ -217,15 +166,13 @@ pub(crate) async fn fetch_transaction_traces(
                     if let Some(limiter) = rate_limiter {
                         Arc::clone(&limiter).until_ready().await;
                     }
-                    let result =
-                        provider.trace_transaction(H256::from_slice(&tx_hash)).await.map_err(|e| {
-                            println!("transaction provider error: {:?}", e);
-                            return CollectError::ProviderError(e);
-                        });
+                    let result = provider
+                        .trace_transaction(H256::from_slice(&tx_hash))
+                        .await
+                        .map_err(CollectError::ProviderError);
                     match tx.send(result).await {
                         Ok(_) => {}
                         Err(tokio::sync::mpsc::error::SendError(_e)) => {
-                            println!("transaction traces failed: {:?}", _e);
                             eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
                             std::process::exit(1)
                         }

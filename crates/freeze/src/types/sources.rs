@@ -8,6 +8,8 @@ use governor::{
 };
 use tokio::sync::Semaphore;
 
+use tokio_retry::strategy::ExponentialBackoff;
+
 /// RateLimiter based on governor crate
 pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>;
 
@@ -20,6 +22,8 @@ pub struct Source {
     pub semaphore: Option<Arc<Semaphore>>,
     /// rate limiter for controlling request rate
     pub rate_limiter: Option<Arc<RateLimiter>>,
+    /// retry strategy
+    pub retry_strategy: Option<std::iter::Take<ExponentialBackoff>>,
     /// chain_id of network
     pub chain_id: u64,
     /// number of blocks per log request
