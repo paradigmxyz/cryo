@@ -5,7 +5,7 @@ use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
-use cryo_freeze::{ParseError, Source};
+use cryo_freeze::{ParseError, Fetcher, Source};
 
 use crate::args::Args;
 
@@ -34,11 +34,14 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
     let semaphore = Some(Arc::new(semaphore));
 
-    let output = Source {
-        provider: Arc::new(provider),
-        chain_id,
+    let fetcher = Fetcher {
+        provider,
         semaphore,
         rate_limiter,
+    };
+    let output = Source {
+        fetcher: Arc::new(fetcher),
+        chain_id,
         inner_request_size: args.inner_request_size,
         max_concurrent_chunks,
     };

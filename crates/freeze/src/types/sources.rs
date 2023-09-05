@@ -6,7 +6,9 @@ use governor::{
     middleware::NoOpMiddleware,
     state::{direct::NotKeyed, InMemoryState},
 };
-use tokio::sync::Semaphore;
+use tokio::sync::{AcquireError, Semaphore, SemaphorePermit};
+
+use crate::CollectError;
 
 /// RateLimiter based on governor crate
 pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>;
@@ -14,18 +16,77 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 /// Options for fetching data from node
 #[derive(Clone)]
 pub struct Source {
-    /// provider data source
-    pub provider: Arc<Provider<Http>>,
-    /// semaphore for controlling concurrency
-    pub semaphore: Option<Arc<Semaphore>>,
-    /// rate limiter for controlling request rate
-    pub rate_limiter: Option<Arc<RateLimiter>>,
+    pub fetcher: Arc<Fetcher>,
     /// chain_id of network
     pub chain_id: u64,
     /// number of blocks per log request
     pub inner_request_size: u64,
     /// Maximum chunks collected concurrently
     pub max_concurrent_chunks: u64,
+}
+
+pub struct Fetcher {
+    /// provider data source
+    pub provider: Provider<Http>,
+    /// semaphore for controlling concurrency
+    pub semaphore: Option<Semaphore>,
+    /// rate limiter for controlling request rate
+    pub rate_limiter: Option<RateLimiter>,
+}
+
+type Result<T> = ::core::result::Result<T, CollectError>;
+
+impl Fetcher {
+    async fn permit_request(
+        &self,
+    ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {
+        let permit = match &self.semaphore {
+            Some(semaphore) => Some(semaphore.acquire().await),
+            _ => None,
+        };
+        if let Some(limiter) = &self.rate_limiter {
+            limiter.until_ready().await;
+        }
+        permit
+    }
+
+    pub async fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>> {
+        let _permit = self.permit_request().await;
+        self.provider.get_logs(filter).await.map_err(CollectError::ProviderError)
+    }
+
+    pub async fn trace_replay_block_transactions(
+        &self,
+        block: BlockNumber,
+        trace_types: Vec<TraceType>,
+    ) -> Result<Vec<BlockTrace>> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .trace_replay_block_transactions(block, trace_types)
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    pub async fn trace_replay_transaction(
+        &self,
+        block: H256,
+        trace_types: Vec<TraceType>,
+    ) -> Result<BlockTrace> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .trace_replay_transaction(block, trace_types)
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    pub async fn get_transaction(&self, tx_hash: H256) -> Result<Option<Transaction>> {
+        let _permit = self.permit_request().await;
+        self.provider.get_transaction(tx_hash).await.map_err(CollectError::ProviderError)
+    }
+
+    pub async fn get_block(&self, block_num: u64) -> Result<Option<Block<TxHash>>> {
+        self.provider.get_block(block_num).await.map_err(CollectError::ProviderError)
+    }
 }
 
 // impl Source {
