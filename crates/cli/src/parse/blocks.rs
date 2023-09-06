@@ -297,7 +297,8 @@ mod tests {
 
     async fn block_token_test_helper(tests: Vec<(BlockTokenTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
-        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
+        let fetcher =
+            Fetcher { provider, semaphore: None, rate_limiter: None, retry_strategy: None };
         for (test, res) in tests {
             match test {
                 BlockTokenTest::WithMock((token, expected, latest)) => {
@@ -343,7 +344,8 @@ mod tests {
 
     async fn block_input_test_helper(tests: Vec<(BlockInputTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
-        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
+        let fetcher =
+            Fetcher { provider, semaphore: None, rate_limiter: None, retry_strategy: None };
         for (test, res) in tests {
             match test {
                 BlockInputTest::WithMock((inputs, expected, latest)) => {
@@ -397,7 +399,8 @@ mod tests {
 
     async fn block_number_test_helper(tests: Vec<(BlockNumberTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
-        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
+        let fetcher =
+            Fetcher { provider, semaphore: None, rate_limiter: None, retry_strategy: None };
         for (test, res) in tests {
             match test {
                 BlockNumberTest::WithMock((block_ref, range_position, expected, latest)) => {
