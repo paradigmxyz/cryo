@@ -4,8 +4,6 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
-use tokio_retry::Retry;
-
 use crate::{
     dataframes::SortableDataFrame,
     types::{
@@ -112,14 +110,9 @@ pub(crate) fn fetch_block_traces(
     for number in block_chunk.numbers() {
         let tx = tx.clone();
         let fetcher = source.fetcher.clone();
-        let retry_strategy = source.retry_strategy.clone();
         task::spawn(async move {
-            let action = || fetcher.trace_block(BlockNumber::Number(number.into()));
+            let result = fetcher.trace_block(BlockNumber::Number(number.into())).await;
 
-            let result = match retry_strategy {
-                Some(retry_strategy) => Retry::spawn(retry_strategy, action).await,
-                None => action().await,
-            };
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -143,13 +136,8 @@ pub(crate) fn fetch_transaction_traces(
                 let tx_hash = tx_hash.clone();
                 let tx = tx.clone();
                 let fetcher = source.fetcher.clone();
-                let retry_strategy = source.retry_strategy.clone();
                 task::spawn(async move {
-                    let action = || fetcher.trace_transaction(H256::from_slice(&tx_hash));
-                    let result = match retry_strategy {
-                        Some(retry_strategy) => Retry::spawn(retry_strategy, action).await,
-                        None => action().await,
-                    };
+                    let result = fetcher.trace_transaction(H256::from_slice(&tx_hash)).await;
                     match tx.send(result).await {
                         Ok(_) => {}
                         Err(tokio::sync::mpsc::error::SendError(_e)) => {

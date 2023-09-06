@@ -48,13 +48,12 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         None => None,
     };
 
-    let fetcher = Fetcher { provider, semaphore, rate_limiter };
+    let fetcher = Fetcher { provider, semaphore, rate_limiter, retry_strategy };
     let output = Source {
         fetcher: Arc::new(fetcher),
         chain_id,
         inner_request_size: args.inner_request_size,
         max_concurrent_chunks,
-        retry_strategy,
     };
 
     Ok(output)

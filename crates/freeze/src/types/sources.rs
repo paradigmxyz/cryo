@@ -10,7 +10,7 @@ use tokio::sync::{AcquireError, Semaphore, SemaphorePermit};
 
 use crate::CollectError;
 
-use tokio_retry::strategy::ExponentialBackoff;
+use tokio_retry::{strategy::ExponentialBackoff, Action, Retry};
 
 /// RateLimiter based on governor crate
 pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>;
@@ -18,8 +18,6 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 /// Options for fetching data from node
 #[derive(Clone)]
 pub struct Source {
-    /// retry strategy
-    pub retry_strategy: Option<std::iter::Take<ExponentialBackoff>>,
     /// Shared provider for rpc data
     pub fetcher: Arc<Fetcher<Http>>,
     /// chain_id of network
@@ -38,6 +36,8 @@ pub struct Fetcher<P> {
     pub semaphore: Option<Semaphore>,
     /// rate limiter for controlling request rate
     pub rate_limiter: Option<RateLimiter>,
+    /// retry strategy
+    pub retry_strategy: Option<std::iter::Take<ExponentialBackoff>>,
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -46,7 +46,8 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// Returns an array (possibly empty) of logs that match the filter
     pub async fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_logs(filter).await)
+        let action = || self.provider.get_logs(filter);
+        self.execute_request(action).await
     }
 
     /// Replays all transactions in a block returning the requested traces for each transaction
@@ -56,7 +57,8 @@ impl<P: JsonRpcClient> Fetcher<P> {
         trace_types: Vec<TraceType>,
     ) -> Result<Vec<BlockTrace>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_block_transactions(block, trace_types).await)
+        let action = || self.provider.trace_replay_block_transactions(block, trace_types.clone());
+        self.execute_request(action).await
     }
 
     /// Replays a transaction, returning the traces
@@ -66,13 +68,15 @@ impl<P: JsonRpcClient> Fetcher<P> {
         trace_types: Vec<TraceType>,
     ) -> Result<BlockTrace> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_transaction(tx_hash, trace_types).await)
+        let action = || self.provider.trace_replay_transaction(tx_hash, trace_types.clone());
+        self.execute_request(action).await
     }
 
     /// Gets the transaction with transaction_hash
     pub async fn get_transaction(&self, tx_hash: TxHash) -> Result<Option<Transaction>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_transaction(tx_hash).await)
+        let action = || self.provider.get_transaction(tx_hash);
+        self.execute_request(action).await
     }
 
     /// Gets the transaction receipt with transaction_hash
@@ -81,42 +85,49 @@ impl<P: JsonRpcClient> Fetcher<P> {
         tx_hash: TxHash,
     ) -> Result<Option<TransactionReceipt>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_transaction_receipt(tx_hash).await)
+        let action = || self.provider.get_transaction_receipt(tx_hash);
+        self.execute_request(action).await
     }
 
     /// Gets the block at `block_num` (transaction hashes only)
     pub async fn get_block(&self, block_num: u64) -> Result<Option<Block<TxHash>>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block(block_num).await)
+        let action = || self.provider.get_block(block_num);
+        self.execute_request(action).await
     }
 
     /// Gets the block at `block_num` (full transactions included)
     pub async fn get_block_with_txs(&self, block_num: u64) -> Result<Option<Block<Transaction>>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block_with_txs(block_num).await)
+        let action = || self.provider.get_block_with_txs(block_num);
+        self.execute_request(action).await
     }
 
     /// Returns all receipts for a block.
     pub async fn get_block_receipts(&self, block_num: u64) -> Result<Vec<TransactionReceipt>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block_receipts(block_num).await)
+        let action = || self.provider.get_block_receipts(block_num);
+        self.execute_request(action).await
     }
 
     /// Returns traces created at given block
     pub async fn trace_block(&self, block_num: BlockNumber) -> Result<Vec<Trace>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_block(block_num).await)
+        let action = || self.provider.trace_block(block_num);
+        self.execute_request(action).await
     }
 
     /// Returns all traces of a given transaction
     pub async fn trace_transaction(&self, tx_hash: TxHash) -> Result<Vec<Trace>> {
         let _permit = self.permit_request().await;
-        self.provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)
+        let action = || self.provider.trace_transaction(tx_hash);
+        self.execute_request(action).await
     }
 
     /// Get the block number
     pub async fn get_block_number(&self) -> Result<U64> {
-        Self::map_err(self.provider.get_block_number().await)
+        let action = || self.provider.get_block_number();
+        self.execute_request(action).await
     }
 
     async fn permit_request(
@@ -134,6 +145,18 @@ impl<P: JsonRpcClient> Fetcher<P> {
 
     fn map_err<T>(res: ::core::result::Result<T, ProviderError>) -> Result<T> {
         res.map_err(CollectError::ProviderError)
+    }
+
+    async fn execute_request<T, A: Action>(&self, mut action: A) -> Result<T>
+    where
+        A: Action<Item = T, Error = ProviderError>,
+    {
+        let retry_strategy = self.retry_strategy.clone();
+        let result = match retry_strategy {
+            Some(retry_strategy) => Self::map_err(Retry::spawn(retry_strategy, action).await),
+            None => Self::map_err(action.run().await),
+        };
+        Ok(result?)
     }
 }
 
