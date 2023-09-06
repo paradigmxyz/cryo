@@ -106,7 +106,7 @@ async fn freeze_datatype_chunk(
         ds.collect_chunk(&chunk, &source, schema, query.row_filters.get(&datatype)).await;
     let mut df = match collect_output {
         Err(_e) => {
-            println!("single chunk failed: {:?}", _e);
+            println!("chunk failed: {:?}", _e);
             return FreezeChunkSummary::error(paths)
         }
         Ok(df) => df,
@@ -155,7 +155,7 @@ async fn freeze_multi_datatype_chunk(
         .await;
     let mut dfs = match collect_result {
         Err(_e) => {
-            println!("multi chunk failed: {:?}", _e);
+            println!("chunk failed: {:?}", _e);
             return FreezeChunkSummary::error(paths)
         }
         Ok(dfs) => dfs,
