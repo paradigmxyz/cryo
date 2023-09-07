@@ -1,4 +1,4 @@
-use std::{env, num::NonZeroUsize};
+use std::env;
 
 use ethers::prelude::*;
 use governor::{Quota, RateLimiter};
@@ -9,13 +9,12 @@ use cryo_freeze::{Fetcher, ParseError, Source};
 
 use crate::args::Args;
 
-use tokio_retry::strategy::ExponentialBackoff;
-
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args);
-    let provider = Provider::<Http>::try_from(rpc_url)
-        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
+    let provider =
+        Provider::<RetryClient<Http>>::new_client(&rpc_url, args.max_retries, args.initial_backoff)
+            .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
     let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
 
     let rate_limiter = match args.requests_per_second {
@@ -36,19 +35,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
     let semaphore = Some(semaphore);
 
-    let retry_strategy: Option<std::iter::Take<ExponentialBackoff>> = match args.max_retries {
-        Some(max_retries) => match NonZeroUsize::new(max_retries) {
-            Some(value) => {
-                Some(
-                    ExponentialBackoff::from_millis(10).take(value.into()), /* limit to specified retries */
-                )
-            }
-            _ => None,
-        },
-        None => None,
-    };
-
-    let fetcher = Fetcher { provider, semaphore, rate_limiter, retry_strategy };
+    let fetcher = Fetcher { provider, semaphore, rate_limiter };
     let output = Source {
         fetcher: Arc::new(fetcher),
         chain_id,

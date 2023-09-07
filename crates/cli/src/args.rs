@@ -78,9 +78,13 @@ pub struct Args {
     #[arg(short('l'), long, value_name = "limit", help_heading = "Acquisition Options")]
     pub requests_per_second: Option<u32>,
 
-    /// Enable exponential backoff retries on errors
-    #[arg(long, value_name = "R", help_heading = "Acquisition Options")]
-    pub max_retries: Option<usize>,
+    /// Specify max retries on provider errors
+    #[arg(long, default_value_t = 10, value_name = "R", help_heading = "Acquisition Options")]
+    pub max_retries: u32,
+
+    /// Specify initial backoff for retry strategy (ms)
+    #[arg(long, default_value_t = 500, value_name = "B", help_heading = "Acquisition Options")]
+    pub initial_backoff: u64,
 
     /// Global number of concurrent requests
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
