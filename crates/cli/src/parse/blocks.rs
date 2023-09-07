@@ -1,7 +1,7 @@
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, ParseError, Subchunk};
+use cryo_freeze::{BlockChunk, Chunk, ChunkData, Fetcher, ParseError, Subchunk};
 
 use crate::args::Args;
 
