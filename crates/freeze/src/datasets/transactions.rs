@@ -35,7 +35,7 @@ impl Dataset for Transactions {
             ("to_address", ColumnType::Binary),
             ("value", ColumnType::UInt256),
             ("input", ColumnType::Binary),
-            ("gas_limit", ColumnType::UInt32),
+            ("gas_limit", ColumnType::UInt64),
             ("gas_used", ColumnType::UInt32),
             ("gas_price", ColumnType::UInt64),
             ("transaction_type", ColumnType::UInt32),
@@ -173,7 +173,7 @@ pub(crate) struct TransactionColumns {
     to_address: Vec<Option<Vec<u8>>>,
     value: Vec<U256>,
     input: Vec<Vec<u8>>,
-    gas_limit: Vec<u32>,
+    gas_limit: Vec<u64>,
     gas_used: Vec<u32>,
     gas_price: Vec<Option<u64>>,
     transaction_type: Vec<Option<u32>>,
@@ -250,7 +250,7 @@ impl TransactionColumns {
             self.input.push(tx.input.to_vec());
         }
         if schema.has_column("gas_limit") {
-            self.gas_limit.push(tx.gas.as_u32());
+            self.gas_limit.push(tx.gas.as_u64());
         }
         if schema.has_column("gas_used") {
             self.gas_used.push(gas_used.unwrap())
