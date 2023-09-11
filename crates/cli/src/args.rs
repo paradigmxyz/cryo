@@ -79,7 +79,7 @@ pub struct Args {
     pub requests_per_second: Option<u32>,
 
     /// Specify max retries on provider errors
-    #[arg(long, default_value_t = 10, value_name = "R", help_heading = "Acquisition Options")]
+    #[arg(long, default_value_t = 5, value_name = "R", help_heading = "Acquisition Options")]
     pub max_retries: u32,
 
     /// Specify initial backoff for retry strategy (ms)
