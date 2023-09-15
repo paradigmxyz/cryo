@@ -21,7 +21,7 @@ use crate::{
         BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
         TransactionChunk,
     },
-    with_series, with_series_binary, with_series_u256,
+    with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
 
 use super::logs;

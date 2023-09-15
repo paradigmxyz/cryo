@@ -1,5 +1,8 @@
-use crate::types::Erc20Supplies;
-use crate::{conversions::ToVecHex, conversions::ToVecU8, ColumnType, Dataset, Datatype};
+use crate::{
+    conversions::{ToVecHex, ToVecU8},
+    types::Erc20Supplies,
+    ColumnType, Dataset, Datatype,
+};
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
@@ -7,10 +10,9 @@ use ethers::prelude::*;
 use polars::prelude::*;
 
 use crate::{
-    CallDataChunk,
     dataframes::SortableDataFrame,
     types::{BlockChunk, CollectError, RowFilter, Source, Table},
-    with_series, with_series_binary, with_series_u256, U256Type,
+    with_series, with_series_binary, with_series_u256, CallDataChunk, ColumnEncoding, U256Type,
 };
 
 use super::eth_calls;
@@ -58,8 +60,8 @@ impl Dataset for Erc20Supplies {
         let call_data = prefix_hex::decode("0x18160ddd").expect("Decoding failed");
         let call_data_chunks = vec![CallDataChunk::Values(vec![call_data])];
 
-        let rx =
-            eth_calls::fetch_eth_calls(vec![chunk], contract_chunks, call_data_chunks, source).await;
+        let rx = eth_calls::fetch_eth_calls(vec![chunk], contract_chunks, call_data_chunks, source)
+            .await;
         supply_calls_to_df(rx, schema, source.chain_id).await
     }
 }
@@ -80,7 +82,7 @@ async fn supply_calls_to_df(
             }
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
         }
     }

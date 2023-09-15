@@ -1,19 +1,16 @@
 // fix fetcher
 // implement --dedup
-use crate::types::Erc20Supplies;
-use crate::{conversions::ToVecHex, conversions::ToVecU8, ColumnType, Dataset, Datatype};
+use crate::{conversions::ToVecHex, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 
 use ethers::prelude::*;
 use polars::prelude::*;
 
-use super::eth_calls;
-use crate::types::Erc20Metadata;
 use crate::{
     dataframes::SortableDataFrame,
-    types::{AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table},
-    with_series, with_series_binary, with_series_u256, CallDataChunk, U256Type,
+    types::{AddressChunk, BlockChunk, CollectError, Erc20Metadata, RowFilter, Source, Table},
+    with_series, with_series_binary,
 };
 
 #[async_trait::async_trait]
@@ -57,11 +54,7 @@ impl Dataset for Erc20Metadata {
             _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
         };
 
-        // build call data
-        let call_data = prefix_hex::decode("0x18160ddd").expect("Decoding failed");
-        let call_data_chunks = vec![CallDataChunk::Values(vec![call_data])];
-
-        let rx = fetch_metadata_calls(vec![chunk], contract_chunks, call_data_chunks, source).await;
+        let rx = fetch_metadata_calls(vec![chunk], contract_chunks, source).await;
         metadata_calls_to_df(rx, schema, source.chain_id).await
     }
 }
@@ -75,6 +68,10 @@ pub(crate) async fn fetch_metadata_calls(
 ) -> mpsc::Receiver<Result<MetadataOutput, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 
+    let name_call_data: Vec<u8> = prefix_hex::decode("0x06fdde03").expect("Decoding failed");
+    let symbol_call_data: Vec<u8> = prefix_hex::decode("0x95d89b41").expect("Decoding failed");
+    let decimals_call_data: Vec<u8> = prefix_hex::decode("0x313ce567").expect("Decoding failed");
+
     for block_chunk in block_chunks {
         for number in block_chunk.numbers() {
             for address_chunk in &address_chunks {
@@ -82,33 +79,57 @@ pub(crate) async fn fetch_metadata_calls(
                     let address = address.clone();
                     let address_h160 = H160::from_slice(&address);
 
+                    let source = source.clone();
+                    let name_call_data = name_call_data.clone();
+                    let symbol_call_data = symbol_call_data.clone();
+                    let decimals_call_data = decimals_call_data.clone();
+
                     let tx = tx.clone();
-                    let provider = Arc::clone(&source.provider);
-                    let semaphore = source.semaphore.clone();
-                    let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
                     task::spawn(async move {
                         // name
-                        let _permit = match semaphore {
-                            Some(semaphore) => {
-                                Some(Arc::clone(&semaphore).acquire_owned().await)
-                            }
-                            _ => None,
-                        };
-                        if let Some(limiter) = rate_limiter {
-                            Arc::clone(&limiter).until_ready().await;
-                        }
                         let transaction = TransactionRequest {
                             to: Some(address_h160.into()),
-                            data: Some(call_data.clone().into()),
+                            data: Some(name_call_data.clone().into()),
                             ..Default::default()
                         };
-                        let name_result =
-                            provider.call(&transaction.into(), Some(number.into())).await;
+                        let name_result = source
+                            .fetcher
+                            .provider
+                            .call(&transaction.into(), Some(number.into()))
+                            .await
+                            .ok();
 
-                        let result = match result {
-                            Ok(value) => Ok((number, address, call_data, value)),
-                            Err(e) => Err(CollectError::ProviderError(e)),
+                        // symbol
+                        let transaction = TransactionRequest {
+                            to: Some(address_h160.into()),
+                            data: Some(symbol_call_data.clone().into()),
+                            ..Default::default()
                         };
+                        let symbol_result = source
+                            .fetcher
+                            .provider
+                            .call(&transaction.into(), Some(number.into()))
+                            .await
+                            .ok();
+
+                        // decimals
+                        let transaction = TransactionRequest {
+                            to: Some(address_h160.into()),
+                            data: Some(decimals_call_data.clone().into()),
+                            ..Default::default()
+                        };
+                        let decimals_result = source
+                            .fetcher
+                            .provider
+                            .call(&transaction.into(), Some(number.into()))
+                            .await
+                            .ok();
+
+                        let result = Ok((
+                            number as u32,
+                            address,
+                            (name_result, symbol_result, decimals_result),
+                        ));
                         match tx.send(result).await {
                             Ok(_) => {}
                             Err(tokio::sync::mpsc::error::SendError(_e)) => {
@@ -123,28 +144,6 @@ pub(crate) async fn fetch_metadata_calls(
     }
 
     rx
-}
-
-async fn contract_call(
-    number: u32,
-    semaphore: Arc<Option<tokio::sync::Semaphore>>,
-    rate_limiter: Arc<crate::RateLimiter>,
-) -> Result<Bytes, CollectError> {
-    let _permit = match semaphore {
-        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-        _ => None,
-    };
-    if let Some(limiter) = rate_limiter {
-        Arc::clone(&limiter).until_ready().await;
-    }
-
-    let transaction = TransactionRequest {
-        to: Some(address_h160.into()),
-        data: Some(call_data.clone().into()),
-        ..Default::default()
-    };
-
-    provider.call(&transaction.into(), Some(number.into())).await
 }
 
 async fn metadata_calls_to_df(
@@ -163,7 +162,7 @@ async fn metadata_calls_to_df(
             }
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
         }
     }
@@ -194,17 +193,30 @@ impl Erc20MetadataColumns {
             self.erc20.push(contract_address);
         }
         if schema.has_column("name") {
-            self.name.push(String::from_utf8(name.to_vec()).ok());
+            let name = match name {
+                Some(name) => String::from_utf8(name.to_vec()).ok(),
+                None => None,
+            };
+            self.name.push(name);
         }
         if schema.has_column("symbol") {
-            self.symbol.push(String::from_utf8(symbol.to_vec()).ok());
+            let symbol = match symbol {
+                Some(symbol) => String::from_utf8(symbol.to_vec()).ok(),
+                None => None,
+            };
+            self.symbol.push(symbol);
         }
         if schema.has_column("decimals") {
-            let v = decimals.to_vec();
-            let decimals = if v.len() == 32 && v[0..28].iter().all(|b| *b == 0) {
-                Some(u32::from_be_bytes([v[28], v[29], v[30], v[31]]))
-            } else {
-                None
+            let decimals = match decimals {
+                Some(decimals) => {
+                    let v = decimals.to_vec();
+                    if v.len() == 32 && v[0..28].iter().all(|b| *b == 0) {
+                        Some(u32::from_be_bytes([v[28], v[29], v[30], v[31]]))
+                    } else {
+                        None
+                    }
+                }
+                None => None,
             };
             self.decimals.push(decimals);
         }

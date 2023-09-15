@@ -1,8 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use cryo_freeze::{
-    schemas::TableMeta, ColumnEncoding, Datatype, FileFormat, LogDecoder, ParseError, Table,
-};
+use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, ParseError, Table};
 
 use super::file_output;
 use crate::args::Args;
@@ -107,9 +105,7 @@ pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, Par
                     &args.exclude_columns,
                     &args.columns,
                     sort[datatype].clone(),
-                    args.event_signature
-                        .as_ref()
-                        .map(|sig| TableMeta { log_decoder: LogDecoder::new(sig.clone()) }),
+                    None,
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|e| {

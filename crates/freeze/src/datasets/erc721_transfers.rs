@@ -24,7 +24,7 @@ use crate::{
         conversions::{ToVecHex, ToVecU8},
         BlockChunk, CollectError, RowFilter, Source, Table, TransactionChunk,
     },
-    with_series, with_series_binary, with_series_u256,
+    with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
 
 use super::logs;
@@ -118,10 +118,10 @@ impl Erc721TransferColumns {
     ) -> Result<(), CollectError> {
         for log in &logs {
             if let Some(true) = log.removed {
-                continue;
+                continue
             }
             if !log.data.is_empty() {
-                continue;
+                continue
             }
             if let (Some(bn), Some(tx), Some(ti), Some(li)) =
                 (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
@@ -187,7 +187,7 @@ async fn logs_to_erc721_transfers(
         if let Ok(logs) = message {
             columns.process_erc721_transfer_logs(logs, schema)?
         } else {
-            return Err(CollectError::TooManyRequestsError);
+            return Err(CollectError::TooManyRequestsError)
         }
     }
     columns.create_df(schema, chain_id)

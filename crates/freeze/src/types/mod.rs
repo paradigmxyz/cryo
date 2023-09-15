@@ -34,7 +34,7 @@ pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput};
 pub use queries::{MultiQuery, RowFilter, SingleQuery};
 pub use schemas::{ColumnType, Table, U256Type};
-pub use sources::{RateLimiter, Source};
+pub use sources::{Fetcher, RateLimiter, Source};
 pub(crate) use summaries::FreezeSummaryAgg;
 pub use summaries::{FreezeChunkSummary, FreezeSummary};
 

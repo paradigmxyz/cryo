@@ -17,7 +17,7 @@ use crate::{
         conversions::{ToVecHex, ToVecU8},
         AddressChunk, BlockChunk, CallDataChunk, CollectError, RowFilter, Source, Table,
     },
-    with_series, with_series_binary, with_series_u256,
+    with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
 
 use super::eth_calls;
@@ -111,7 +111,7 @@ async fn balance_calls_to_df(
             }
             Err(e) => {
                 println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError);
+                return Err(CollectError::TooManyRequestsError)
             }
         }
     }

@@ -3,8 +3,6 @@
 use crate::{types::Balances, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use std::sync::Arc;
-
 use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
@@ -15,7 +13,7 @@ use crate::{
         conversions::{ToVecHex, ToVecU8},
         AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,
     },
-    with_series, with_series_binary, with_series_u256, U256Type,
+    with_series, with_series_binary, with_series_u256, ColumnEncoding, U256Type,
 };
 
 #[async_trait::async_trait]
@@ -80,21 +78,12 @@ async fn fetch_balances(
                     let address = address.clone();
                     let address_h160 = H160::from_slice(&address);
                     let tx = tx.clone();
-                    let provider = Arc::clone(&source.provider);
-                    let semaphore = source.semaphore.clone();
-                    let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                    let source = source.clone();
                     task::spawn(async move {
-                        let _permit = match semaphore {
-                            Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                            _ => None,
-                        };
-                        if let Some(limiter) = rate_limiter {
-                            Arc::clone(&limiter).until_ready().await;
-                        }
-                        let balance = provider.get_balance(address_h160, Some(number.into())).await;
+                        let balance = source.fetcher.get_balance(address_h160, number.into()).await;
                         let result = match balance {
                             Ok(value) => Ok((number, address, value)),
-                            Err(e) => Err(CollectError::ProviderError(e)),
+                            Err(e) => Err(e),
                         };
                         match tx.send(result).await {
                             Ok(_) => {}

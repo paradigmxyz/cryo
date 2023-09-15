@@ -2,13 +2,13 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, Datatype, ParseError, Subchunk, Table};
+use cryo_freeze::{BlockChunk, Chunk, ChunkData, Datatype, Fetcher, ParseError, Subchunk, Table};
 
 use crate::args::Args;
 
-pub(crate) async fn parse_blocks(
+pub(crate) async fn parse_blocks<P: JsonRpcClient>(
     args: &Args,
-    provider: Arc<Provider<Http>>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.blocks {
         Some(blocks) => blocks.iter().partition(|tx| std::path::Path::new(tx).exists()),
@@ -43,10 +43,10 @@ pub(crate) async fn parse_blocks(
         // parse inputs into BlockChunks
         let mut block_chunks = Vec::new();
         for explicit_number in explicit_numbers {
-            let outputs = parse_block_inputs(explicit_number, &provider).await?;
+            let outputs = parse_block_inputs(explicit_number, &fetcher).await?;
             block_chunks.extend(outputs);
         }
-        postprocess_block_chunks(block_chunks, args, provider).await?
+        postprocess_block_chunks(block_chunks, args, fetcher).await?
     } else {
         Vec::new()
     };
@@ -93,10 +93,10 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
     }
 }
 
-async fn postprocess_block_chunks(
+async fn postprocess_block_chunks<P: JsonRpcClient>(
     block_chunks: Vec<BlockChunk>,
     args: &Args,
-    provider: Arc<Provider<Http>>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     // align
     let block_chunks = if args.align {
@@ -112,7 +112,7 @@ async fn postprocess_block_chunks(
     };
 
     // apply reorg buffer
-    let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &provider).await?;
+    let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &fetcher).await?;
 
     // put into Chunk enums
     let chunks: Vec<(Chunk, Option<String>)> =
@@ -121,9 +121,9 @@ async fn postprocess_block_chunks(
     Ok(chunks)
 }
 
-pub(crate) async fn get_default_block_chunks(
+pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
     args: &Args,
-    provider: Arc<Provider<Http>>,
+    fetcher: Arc<Fetcher<P>>,
     schemas: &HashMap<Datatype, Table>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
     let default_blocks = schemas
@@ -132,30 +132,27 @@ pub(crate) async fn get_default_block_chunks(
         .find(|blocks| !blocks.is_none())
         .unwrap_or(Some("0:latest".to_string()))
         .unwrap();
-    let block_chunks = parse_block_inputs(&default_blocks, &provider).await?;
-    postprocess_block_chunks(block_chunks, args, provider).await
+    let block_chunks = parse_block_inputs(&default_blocks, &fetcher).await?;
+    postprocess_block_chunks(block_chunks, args, fetcher).await
 }
 
 /// parse block numbers to freeze
-async fn parse_block_inputs<P>(
+async fn parse_block_inputs<P: JsonRpcClient>(
     inputs: &str,
-    provider: &Provider<P>,
-) -> Result<Vec<BlockChunk>, ParseError>
-where
-    P: JsonRpcClient,
-{
+    fetcher: &Fetcher<P>,
+) -> Result<Vec<BlockChunk>, ParseError> {
     let parts: Vec<&str> = inputs.split(' ').collect();
     match parts.len() {
         1 => {
             let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
-            parse_block_token(first_input, true, provider).await.map(|x| vec![x])
+            parse_block_token(first_input, true, fetcher).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
             for part in parts {
-                chunks.push(parse_block_token(part, false, provider).await?);
+                chunks.push(parse_block_token(part, false, fetcher).await?);
             }
             Ok(chunks)
         }
@@ -168,27 +165,24 @@ enum RangePosition {
     None,
 }
 
-async fn parse_block_token<P>(
+async fn parse_block_token<P: JsonRpcClient>(
     s: &str,
     as_range: bool,
-    provider: &Provider<P>,
-) -> Result<BlockChunk, ParseError>
-where
-    P: JsonRpcClient,
-{
+    fetcher: &Fetcher<P>,
+) -> Result<BlockChunk, ParseError> {
     let s = s.replace('_', "");
 
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
         [block_ref] => {
-            let block = parse_block_number(block_ref, RangePosition::None, provider).await?;
+            let block = parse_block_number(block_ref, RangePosition::None, fetcher).await?;
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
             let (start_block, end_block) = match (first_ref, second_ref) {
                 _ if first_ref.starts_with('-') => {
                     let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, provider).await?;
+                        parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
                     let start_block = end_block
                         .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
                             ParseError::ParseError("start_block parse error".to_string())
@@ -200,7 +194,7 @@ where
                 }
                 _ if second_ref.starts_with('+') => {
                     let start_block =
-                        parse_block_number(first_ref, RangePosition::First, provider).await?;
+                        parse_block_number(first_ref, RangePosition::First, fetcher).await?;
                     let end_block = start_block
                         .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
                             ParseError::ParseError("start_block parse error".to_string())
@@ -210,9 +204,9 @@ where
                 }
                 _ => {
                     let start_block =
-                        parse_block_number(first_ref, RangePosition::First, provider).await?;
+                        parse_block_number(first_ref, RangePosition::First, fetcher).await?;
                     let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, provider).await?;
+                        parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
                     (start_block, end_block)
                 }
             };
@@ -233,21 +227,18 @@ where
     }
 }
 
-async fn parse_block_number<P>(
+async fn parse_block_number<P: JsonRpcClient>(
     block_ref: &str,
     range_position: RangePosition,
-    provider: &Provider<P>,
-) -> Result<u64, ParseError>
-where
-    P: JsonRpcClient,
-{
+    fetcher: &Fetcher<P>,
+) -> Result<u64, ParseError> {
     match (block_ref, range_position) {
-        ("latest", _) => provider.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
+        ("latest", _) => fetcher.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
             ParseError::ParseError("Error retrieving latest block number".to_string())
         }),
         ("", RangePosition::First) => Ok(0),
         ("", RangePosition::Last) => {
-            provider.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
+            fetcher.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
                 ParseError::ParseError("Error retrieving last block number".to_string())
             })
         }
@@ -277,15 +268,15 @@ where
     }
 }
 
-async fn apply_reorg_buffer(
+async fn apply_reorg_buffer<P: JsonRpcClient>(
     block_chunks: Vec<BlockChunk>,
     reorg_filter: u64,
-    provider: &Provider<Http>,
+    fetcher: &Fetcher<P>,
 ) -> Result<Vec<BlockChunk>, ParseError> {
     match reorg_filter {
         0 => Ok(block_chunks),
         reorg_filter => {
-            let latest_block = match provider.get_block_number().await {
+            let latest_block = match fetcher.get_block_number().await {
                 Ok(result) => result.as_u64(),
                 Err(_e) => {
                     return Err(ParseError::ParseError("reorg buffer parse error".to_string()))
@@ -314,30 +305,28 @@ mod tests {
 
     async fn block_token_test_helper(tests: Vec<(BlockTokenTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
+        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
         for (test, res) in tests {
             match test {
                 BlockTokenTest::WithMock((token, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
-                    assert_eq!(block_token_test_executor(token, expected, &provider).await, res);
+                    assert_eq!(block_token_test_executor(token, expected, &fetcher).await, res);
                 }
                 BlockTokenTest::WithoutMock((token, expected)) => {
-                    assert_eq!(block_token_test_executor(token, expected, &provider).await, res);
+                    assert_eq!(block_token_test_executor(token, expected, &fetcher).await, res);
                 }
             }
         }
     }
 
-    async fn block_token_test_executor<P>(
+    async fn block_token_test_executor<P: JsonRpcClient>(
         token: &str,
         expected: BlockChunk,
-        provider: &Provider<P>,
-    ) -> bool
-    where
-        P: JsonRpcClient,
-    {
+        fetcher: &Fetcher<P>,
+    ) -> bool {
         match expected {
             BlockChunk::Numbers(expected_block_numbers) => {
-                let block_chunks = parse_block_token(token, false, provider).await.unwrap();
+                let block_chunks = parse_block_token(token, false, fetcher).await.unwrap();
                 assert!(matches!(block_chunks, BlockChunk::Numbers { .. }));
                 let BlockChunk::Numbers(block_numbers) = block_chunks else {
                     panic!("Unexpected shape")
@@ -345,7 +334,7 @@ mod tests {
                 block_numbers == expected_block_numbers
             }
             BlockChunk::Range(expected_range_start, expected_range_end) => {
-                let block_chunks = parse_block_token(token, true, provider).await.unwrap();
+                let block_chunks = parse_block_token(token, true, fetcher).await.unwrap();
                 assert!(matches!(block_chunks, BlockChunk::Range { .. }));
                 let BlockChunk::Range(range_start, range_end) = block_chunks else {
                     panic!("Unexpected shape")
@@ -362,28 +351,26 @@ mod tests {
 
     async fn block_input_test_helper(tests: Vec<(BlockInputTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
+        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
         for (test, res) in tests {
             match test {
                 BlockInputTest::WithMock((inputs, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
-                    assert_eq!(block_input_test_executor(inputs, expected, &provider).await, res);
+                    assert_eq!(block_input_test_executor(inputs, expected, &fetcher).await, res);
                 }
                 BlockInputTest::WithoutMock((inputs, expected)) => {
-                    assert_eq!(block_input_test_executor(inputs, expected, &provider).await, res);
+                    assert_eq!(block_input_test_executor(inputs, expected, &fetcher).await, res);
                 }
             }
         }
     }
 
-    async fn block_input_test_executor<P>(
+    async fn block_input_test_executor<P: JsonRpcClient>(
         inputs: &str,
         expected: Vec<BlockChunk>,
-        provider: &Provider<P>,
-    ) -> bool
-    where
-        P: JsonRpcClient,
-    {
-        let block_chunks = parse_block_inputs(inputs, provider).await.unwrap();
+        fetcher: &Fetcher<P>,
+    ) -> bool {
+        let block_chunks = parse_block_inputs(inputs, fetcher).await.unwrap();
         assert_eq!(block_chunks.len(), expected.len());
         for (i, block_chunk) in block_chunks.iter().enumerate() {
             let expected_chunk = &expected[i];
@@ -418,19 +405,20 @@ mod tests {
 
     async fn block_number_test_helper(tests: Vec<(BlockNumberTest<'_>, bool)>) {
         let (provider, mock) = Provider::mocked();
+        let fetcher = Fetcher { provider, semaphore: None, rate_limiter: None };
         for (test, res) in tests {
             match test {
                 BlockNumberTest::WithMock((block_ref, range_position, expected, latest)) => {
                     mock.push(U64::from(latest)).unwrap();
                     assert_eq!(
-                        block_number_test_executor(block_ref, range_position, expected, &provider)
+                        block_number_test_executor(block_ref, range_position, expected, &fetcher)
                             .await,
                         res
                     );
                 }
                 BlockNumberTest::WithoutMock((block_ref, range_position, expected)) => {
                     assert_eq!(
-                        block_number_test_executor(block_ref, range_position, expected, &provider)
+                        block_number_test_executor(block_ref, range_position, expected, &fetcher)
                             .await,
                         res
                     );
@@ -439,16 +427,13 @@ mod tests {
         }
     }
 
-    async fn block_number_test_executor<P>(
+    async fn block_number_test_executor<P: JsonRpcClient>(
         block_ref: &str,
         range_position: RangePosition,
         expected: u64,
-        provider: &Provider<P>,
-    ) -> bool
-    where
-        P: JsonRpcClient,
-    {
-        let block_number = parse_block_number(block_ref, range_position, provider).await.unwrap();
+        fetcher: &Fetcher<P>,
+    ) -> bool {
+        let block_number = parse_block_number(block_ref, range_position, fetcher).await.unwrap();
         block_number == expected
     }
 

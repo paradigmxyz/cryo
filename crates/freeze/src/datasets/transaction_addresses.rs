@@ -87,17 +87,7 @@ pub(crate) async fn fetch_block_tx_addresses(
     for number in block_chunk.numbers() {
         let tx = tx.clone();
         let source = source.clone();
-        let semaphore = source.semaphore.clone();
-        let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
         task::spawn(async move {
-            let _permit = match semaphore {
-                Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                _ => None,
-            };
-            if let Some(limiter) = &rate_limiter {
-                Arc::clone(limiter).until_ready().await;
-            }
-
             let result = get_block_block_logs_traces(number, &source).await;
             match tx.send(result).await {
                 Ok(_) => {}
@@ -122,12 +112,7 @@ async fn fetch_transaction_tx_addresses(
                 let tx_hash = H256::from_slice(&tx_hash.clone());
                 let tx = tx.clone();
                 let source = source.clone();
-                let semaphore = source.semaphore.clone();
                 task::spawn(async move {
-                    let _permit = match semaphore {
-                        Some(semaphore) => Some(Arc::clone(&semaphore).acquire_owned().await),
-                        _ => None,
-                    };
                     let result = get_tx_block_logs_traces(tx_hash, &source).await;
                     match tx.send(result).await {
                         Ok(_) => {}
@@ -161,25 +146,16 @@ async fn get_block_block_logs_traces(
     number: u64,
     source: &Source,
 ) -> Result<BlockLogTraces, CollectError> {
-    let provider = &source.provider;
     let block_number: BlockNumber = number.into();
 
     // block
-    println!("collecting block");
-    if let Some(limiter) = &source.rate_limiter {
-        Arc::clone(limiter).until_ready().await;
-    }
-    let block_result = provider
-        .get_block(block_number)
-        .await
-        .map_err(CollectError::ProviderError)?
+    let block_result = source
+        .fetcher
+        .get_block(number)
+        .await?
         .ok_or(CollectError::CollectError("could not get block data".to_string()))?;
 
     // logs
-    println!("collecting logs");
-    if let Some(limiter) = &source.rate_limiter {
-        Arc::clone(limiter).until_ready().await;
-    }
     let filter = Filter {
         block_option: FilterBlockOption::Range {
             from_block: Some(block_number),
@@ -187,15 +163,10 @@ async fn get_block_block_logs_traces(
         },
         ..Default::default()
     };
-    let log_result = provider.get_logs(&filter).await.map_err(CollectError::ProviderError)?;
+    let log_result = source.fetcher.get_logs(&filter).await?;
 
     // traces
-    println!("collecting traces");
-    if let Some(limiter) = &source.rate_limiter {
-        Arc::clone(limiter).until_ready().await;
-    }
-    let traces_result =
-        provider.trace_block(block_number).await.map_err(CollectError::ProviderError)?;
+    let traces_result = source.fetcher.trace_block(block_number).await?;
 
     Ok((block_result, log_result, traces_result))
 }
@@ -204,33 +175,32 @@ async fn get_tx_block_logs_traces(
     tx_hash: H256,
     source: &Source,
 ) -> Result<BlockLogTraces, CollectError> {
-    let provider = &source.provider;
     let tx_data =
-        provider.get_transaction(tx_hash).await.map_err(CollectError::ProviderError)?.ok_or_else(
-            || CollectError::CollectError("could not find transaction data".to_string()),
-        )?;
+        source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {
+            CollectError::CollectError("could not find transaction data".to_string())
+        })?;
 
     // block
     let block_number = tx_data
         .block_number
-        .ok_or_else(|| CollectError::CollectError("block not found".to_string()))?;
-    let block_result = provider
+        .ok_or_else(|| CollectError::CollectError("block not found".to_string()))?
+        .as_u64();
+    let block_result = source
+        .fetcher
         .get_block(block_number)
-        .await
-        .map_err(CollectError::ProviderError)?
+        .await?
         .ok_or(CollectError::CollectError("could not get block".to_string()))?;
 
     // logs
-    let log_result = provider
+    let log_result = source
+        .fetcher
         .get_transaction_receipt(tx_hash)
-        .await
-        .map_err(CollectError::ProviderError)?
+        .await?
         .ok_or(CollectError::CollectError("could not get tx receipt".to_string()))?
         .logs;
 
     // traces
-    let traces_result =
-        provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)?;
+    let traces_result = source.fetcher.trace_transaction(tx_hash).await?;
 
     Ok((block_result, log_result, traces_result))
 }

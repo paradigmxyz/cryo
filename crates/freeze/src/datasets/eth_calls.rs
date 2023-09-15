@@ -113,31 +113,18 @@ pub(crate) async fn fetch_eth_calls(
                             let call_data = call_data.clone();
 
                             let tx = tx.clone();
-                            let provider = Arc::clone(&source.provider);
-                            let semaphore = source.semaphore.clone();
-                            let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                            let source = source.clone();
                             task::spawn(async move {
-                                let _permit = match semaphore {
-                                    Some(semaphore) => {
-                                        Some(Arc::clone(&semaphore).acquire_owned().await)
-                                    }
-                                    _ => None,
-                                };
-                                if let Some(limiter) = rate_limiter {
-                                    Arc::clone(&limiter).until_ready().await;
-                                }
-
                                 let transaction = TransactionRequest {
                                     to: Some(address_h160.into()),
                                     data: Some(call_data.clone().into()),
                                     ..Default::default()
                                 };
 
-                                let result =
-                                    provider.call(&transaction.into(), Some(number.into())).await;
+                                let result = source.fetcher.call(transaction, number.into()).await;
                                 let result = match result {
                                     Ok(value) => Ok((number, address, call_data, value)),
-                                    Err(e) => Err(CollectError::ProviderError(e)),
+                                    Err(e) => Err(e),
                                 };
                                 match tx.send(result).await {
                                     Ok(_) => {}

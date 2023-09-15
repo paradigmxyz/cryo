@@ -4,7 +4,7 @@ use ethers::prelude::*;
 use hex::FromHex;
 
 use cryo_freeze::{
-    AddressChunk, CallDataChunk, Datatype, MultiQuery, ParseError, RowFilter, SlotChunk,
+    AddressChunk, CallDataChunk, Datatype, Fetcher, MultiQuery, ParseError, RowFilter, SlotChunk,
 };
 
 use super::{
@@ -14,18 +14,18 @@ use super::{
 };
 use crate::args::Args;
 
-pub(crate) async fn parse_query(
+pub(crate) async fn parse_query<P: JsonRpcClient>(
     args: &Args,
-    provider: Arc<Provider<Http>>,
+    fetcher: Arc<Fetcher<P>>,
 ) -> Result<MultiQuery, ParseError> {
     // process schemas
     let schemas = parse_schemas(args)?;
 
     // process chunks
     let chunks = match (&args.blocks, &args.txs) {
-        (Some(_), None) => blocks::parse_blocks(args, provider).await?,
+        (Some(_), None) => blocks::parse_blocks(args, fetcher).await?,
         (None, Some(txs)) => transactions::parse_transactions(txs)?,
-        (None, None) => blocks::get_default_block_chunks(args, provider, &schemas).await?,
+        (None, None) => blocks::get_default_block_chunks(args, fetcher, &schemas).await?,
         (Some(_), Some(_)) => {
             return Err(ParseError::ParseError("specify only one of --blocks or --txs".to_string()))
         }

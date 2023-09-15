@@ -3,8 +3,6 @@
 use crate::{types::Storages, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use std::sync::Arc;
-
 use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
@@ -83,27 +81,17 @@ async fn fetch_slots(
                             let slot = slot.clone();
                             let slot_h256 = H256::from_slice(&slot);
                             let tx = tx.clone();
-                            let provider = Arc::clone(&source.provider);
-                            let semaphore = source.semaphore.clone();
-                            let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                            let source = source.clone();
                             task::spawn(async move {
-                                let _permit = match semaphore {
-                                    Some(semaphore) => {
-                                        Some(Arc::clone(&semaphore).acquire_owned().await)
-                                    }
-                                    _ => None,
-                                };
-                                if let Some(limiter) = rate_limiter {
-                                    Arc::clone(&limiter).until_ready().await;
-                                }
-                                let result = provider
-                                    .get_storage_at(address_h160, slot_h256, Some(number.into()))
+                                let result = source
+                                    .fetcher
+                                    .get_storage_at(address_h160, slot_h256, number.into())
                                     .await;
                                 let result = match result {
                                     Ok(value) => {
                                         Ok((number, address, slot, value.as_bytes().to_vec()))
                                     }
-                                    Err(e) => Err(CollectError::ProviderError(e)),
+                                    Err(e) => Err(e),
                                 };
                                 match tx.send(result).await {
                                     Ok(_) => {}

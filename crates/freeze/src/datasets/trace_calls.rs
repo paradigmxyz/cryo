@@ -15,7 +15,7 @@ use super::traces;
 use crate::{
     dataframes::SortableDataFrame,
     types::{AddressChunk, BlockChunk, CallDataChunk, CollectError, RowFilter, Source, Table},
-    with_series, with_series_binary, with_series_u256,
+    with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
 
 #[async_trait::async_trait]
@@ -81,20 +81,8 @@ async fn fetch_trace_calls(
                             let call_data = call_data.clone();
 
                             let tx = tx.clone();
-                            let provider = Arc::clone(&source.provider);
-                            let semaphore = source.semaphore.clone();
-                            let rate_limiter = source.rate_limiter.as_ref().map(Arc::clone);
+                            let source = source.clone();
                             task::spawn(async move {
-                                let _permit = match semaphore {
-                                    Some(semaphore) => {
-                                        Some(Arc::clone(&semaphore).acquire_owned().await)
-                                    }
-                                    _ => None,
-                                };
-                                if let Some(limiter) = rate_limiter {
-                                    Arc::clone(&limiter).until_ready().await;
-                                }
-
                                 let transaction = TransactionRequest {
                                     to: Some(address_h160.into()),
                                     data: Some(call_data.clone().into()),
@@ -106,12 +94,13 @@ async fn fetch_trace_calls(
                                 // TypedTransaction::Legacy(transaction);
                                 let trace_type = vec![TraceType::Trace];
 
-                                let result = provider
+                                let result = source
+                                    .fetcher
                                     .trace_call(transaction, trace_type, Some(number.into()))
                                     .await;
                                 let result = match result {
                                     Ok(value) => Ok((number, address, call_data, value)),
-                                    Err(e) => Err(CollectError::ProviderError(e)),
+                                    Err(e) => Err(e),
                                 };
                                 match tx.send(result).await {
                                     Ok(_) => {}
