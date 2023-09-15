@@ -1,5 +1,4 @@
 use cryo_freeze::{Chunk, ParseError, TransactionChunk};
-use polars::prelude::*;
 
 pub(crate) fn parse_transactions(
     txs: &[String],
@@ -17,7 +16,7 @@ pub(crate) fn parse_transactions(
             } else {
                 "transaction_hash"
             };
-            let tx_hashes = read_binary_column(path, column)
+            let tx_hashes = cryo_freeze::read_binary_column(path, column)
                 .map_err(|_e| ParseError::ParseError("could not read input".to_string()))?;
             let chunk = TransactionChunk::Values(tx_hashes);
             let chunk_label = path
@@ -43,32 +42,4 @@ pub(crate) fn parse_transactions(
 
     file_chunks.extend(hash_chunks);
     Ok(file_chunks)
-}
-
-fn read_binary_column(path: &str, column: &str) -> Result<Vec<Vec<u8>>, ParseError> {
-    let file = std::fs::File::open(path)
-        .map_err(|_e| ParseError::ParseError("could not open file path".to_string()))?;
-
-    let df = ParquetReader::new(file)
-        .with_columns(Some(vec![column.to_string()]))
-        .finish()
-        .map_err(|_e| ParseError::ParseError("could not read data from column".to_string()))?;
-
-    let series = df
-        .column(column)
-        .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?
-        .unique()
-        .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?;
-
-    let ca = series
-        .binary()
-        .map_err(|_e| ParseError::ParseError("could not convert to binary column".to_string()))?;
-
-    ca.into_iter()
-        .map(|value| {
-            value
-                .ok_or_else(|| ParseError::ParseError("transaction hash missing".to_string()))
-                .map(|data| data.into())
-        })
-        .collect()
 }

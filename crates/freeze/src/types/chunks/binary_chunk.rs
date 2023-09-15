@@ -44,3 +44,13 @@ impl ChunkData for BinaryChunk {
         }
     }
 }
+
+impl BinaryChunk {
+    /// get list of values in chunk
+    pub fn values(&self) -> &Vec<Vec<u8>> {
+        match self {
+            BinaryChunk::Values(values) => values,
+            BinaryChunk::Range(_start, _end) => panic!("values not implemented for binary ranges"),
+        }
+    }
+}

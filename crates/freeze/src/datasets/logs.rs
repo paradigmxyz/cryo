@@ -87,7 +87,7 @@ impl Dataset for Logs {
     }
 }
 
-async fn fetch_block_logs(
+pub(crate) async fn fetch_block_logs(
     block_chunk: &BlockChunk,
     source: &Source,
     filter: Option<&RowFilter>,
@@ -133,7 +133,7 @@ async fn fetch_block_logs(
     rx
 }
 
-async fn fetch_transaction_logs(
+pub(crate) async fn fetch_transaction_logs(
     transaction_chunk: &TransactionChunk,
     source: &Source,
     _filter: Option<&RowFilter>,

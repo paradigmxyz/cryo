@@ -1,7 +1,8 @@
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, ParseError, Subchunk};
+use cryo_freeze::{BlockChunk, Chunk, ChunkData, Datatype, ParseError, Subchunk, Table};
 
 use crate::args::Args;
 
@@ -123,8 +124,15 @@ async fn postprocess_block_chunks(
 pub(crate) async fn get_default_block_chunks(
     args: &Args,
     provider: Arc<Provider<Http>>,
+    schemas: &HashMap<Datatype, Table>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
-    let block_chunks = parse_block_inputs(&String::from(r"0:latest"), &provider).await?;
+    let default_blocks = schemas
+        .keys()
+        .map(|datatype| datatype.dataset().default_blocks())
+        .find(|blocks| !blocks.is_none())
+        .unwrap_or(Some("0:latest".to_string()))
+        .unwrap();
+    let block_chunks = parse_block_inputs(&default_blocks, &provider).await?;
     postprocess_block_chunks(block_chunks, args, provider).await
 }
 

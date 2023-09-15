@@ -189,7 +189,7 @@ pub(crate) async fn fetch_transaction_traces(
     }
 }
 
-fn reward_type_to_string(reward_type: &RewardType) -> String {
+pub(crate) fn reward_type_to_string(reward_type: &RewardType) -> String {
     match reward_type {
         RewardType::Block => "reward".to_string(),
         RewardType::Uncle => "uncle".to_string(),
@@ -198,7 +198,7 @@ fn reward_type_to_string(reward_type: &RewardType) -> String {
     }
 }
 
-fn action_type_to_string(action_type: &ActionType) -> String {
+pub(crate) fn action_type_to_string(action_type: &ActionType) -> String {
     match action_type {
         ActionType::Call => "call".to_string(),
         ActionType::Create => "create".to_string(),
@@ -207,7 +207,7 @@ fn action_type_to_string(action_type: &ActionType) -> String {
     }
 }
 
-fn action_call_type_to_string(action_call_type: &CallType) -> String {
+pub(crate) fn action_call_type_to_string(action_call_type: &CallType) -> String {
     match action_call_type {
         CallType::None => "none".to_string(),
         CallType::Call => "call".to_string(),

@@ -12,6 +12,12 @@ pub type TransactionChunk = BinaryChunk;
 /// address chunk
 pub type AddressChunk = BinaryChunk;
 
+/// slot chunk
+pub type SlotChunk = BinaryChunk;
+
+/// call data chunk
+pub type CallDataChunk = BinaryChunk;
+
 /// Chunk of data
 #[derive(Debug, Clone)]
 pub enum Chunk {
