@@ -10,9 +10,13 @@
 mod collect;
 mod datasets;
 mod freeze;
+
+#[macro_use]
+mod freeze2;
 mod types;
 
 pub use collect::{collect, collect_multiple};
 pub use datasets::LogDecoder;
 pub use freeze::freeze;
+pub use freeze2::*;
 pub use types::*;

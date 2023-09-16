@@ -25,7 +25,7 @@ pub mod schemas;
 pub mod summaries;
 
 pub use chunks::{
-    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, SlotChunk, Subchunk,
+    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, SlotChunk, Subchunk, TopicChunk,
     TransactionChunk,
 };
 pub use conversions::{ToVecHex, ToVecU8};

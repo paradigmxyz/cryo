@@ -9,6 +9,7 @@ use tokio::{sync::mpsc, task};
 
 use crate::{
     dataframes::SortableDataFrame,
+    ChunkData,
     types::{
         conversions::{ToVecHex, ToVecU8},
         AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,

@@ -39,10 +39,18 @@ impl ChunkData for NumberChunk {
             NumberChunk::Range(_, end) => Some(*end),
         }
     }
+
+    fn values(&self) -> Vec<u64> {
+        match self {
+            NumberChunk::Numbers(numbers) => numbers.to_vec(),
+            NumberChunk::Range(start, end) => (*start..=*end).collect(),
+        }
+    }
 }
 
 impl NumberChunk {
     /// get list of block numbers in chunk
+    /// TODO: remove in favor of values()
     pub fn numbers(&self) -> Vec<u64> {
         match self {
             NumberChunk::Numbers(numbers) => numbers.to_vec(),

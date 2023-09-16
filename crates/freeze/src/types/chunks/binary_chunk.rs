@@ -43,14 +43,21 @@ impl ChunkData for BinaryChunk {
             BinaryChunk::Range(_, end) => Some(end.clone()),
         }
     }
-}
 
-impl BinaryChunk {
-    /// get list of values in chunk
-    pub fn values(&self) -> &Vec<Vec<u8>> {
+    fn values(&self) -> Vec<Vec<u8>> {
         match self {
-            BinaryChunk::Values(values) => values,
+            BinaryChunk::Values(values) => values.to_vec(),
             BinaryChunk::Range(_start, _end) => panic!("values not implemented for binary ranges"),
         }
     }
+}
+
+impl BinaryChunk {
+    // /// get list of values in chunk
+    // pub fn values(&self) -> &Vec<Vec<u8>> {
+    //     match self {
+    //         BinaryChunk::Values(values) => values,
+    //         BinaryChunk::Range(_start, _end) => panic!("values not implemented for binary ranges"),
+    //     }
+    // }
 }

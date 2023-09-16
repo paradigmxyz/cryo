@@ -17,6 +17,9 @@ pub trait ChunkData: Sized {
     /// get maximum item in chunk
     fn max_value(&self) -> Option<Self::Inner>;
 
+    /// get values in chunk
+    fn values(&self) -> Vec<Self::Inner>;
+
     /// convert chunk to string representation
     fn stub(&self) -> Result<String, ChunkError> {
         match (self.min_value(), self.max_value()) {
@@ -67,5 +70,9 @@ impl<T: ChunkData> ChunkData for Vec<T> {
 
     fn max_value(&self) -> Option<Self::Inner> {
         self.iter().filter_map(|x| x.max_value()).max()
+    }
+
+    fn values(&self) -> Vec<Self::Inner> {
+        panic!()
     }
 }

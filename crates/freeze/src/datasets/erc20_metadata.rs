@@ -1,6 +1,6 @@
 // fix fetcher
 // implement --dedup
-use crate::{conversions::ToVecHex, ColumnType, Dataset, Datatype};
+use crate::{ChunkData, conversions::ToVecHex, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 

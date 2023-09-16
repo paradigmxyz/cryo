@@ -1,6 +1,6 @@
 // required args:: address
 
-use crate::{types::Codes, ColumnType, Dataset, Datatype};
+use crate::{ChunkData, types::Codes, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
 use ethers::prelude::*;

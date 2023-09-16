@@ -5,7 +5,7 @@
 use crate::{types::TraceCalls, ColumnType, Dataset, Datatype, Traces, U256Type};
 use std::collections::HashMap;
 
-use crate::{conversions::ToVecHex, types::conversions::ToVecU8};
+use crate::{conversions::ToVecHex, types::conversions::ToVecU8, ChunkData};
 use tokio::{sync::mpsc, task};
 
 use ethers::prelude::*;

@@ -8,6 +8,7 @@ use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
 use crate::{
+    ChunkData,
     dataframes::SortableDataFrame,
     types::{
         conversions::ToVecHex, AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,

@@ -18,6 +18,9 @@ pub type SlotChunk = BinaryChunk;
 /// call data chunk
 pub type CallDataChunk = BinaryChunk;
 
+/// topic chunk
+pub type TopicChunk = BinaryChunk;
+
 /// Chunk of data
 #[derive(Debug, Clone)]
 pub enum Chunk {
