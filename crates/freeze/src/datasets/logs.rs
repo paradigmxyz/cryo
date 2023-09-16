@@ -66,7 +66,7 @@ impl Dataset for Logs {
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_block_logs(chunk, source, filter);
+        let rx = fetch_block_logs(chunk, source, filter).await;
         logs_to_df(rx, schema, source.chain_id).await
     }
 
@@ -87,7 +87,7 @@ impl Dataset for Logs {
     }
 }
 
-fn fetch_block_logs(
+pub(crate) async fn fetch_block_logs(
     block_chunk: &BlockChunk,
     source: &Source,
     filter: Option<&RowFilter>,
@@ -124,7 +124,7 @@ fn fetch_block_logs(
     rx
 }
 
-async fn fetch_transaction_logs(
+pub(crate) async fn fetch_transaction_logs(
     transaction_chunk: &TransactionChunk,
     source: &Source,
     _filter: Option<&RowFilter>,

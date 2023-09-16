@@ -110,6 +110,78 @@ impl<P: JsonRpcClient> Fetcher<P> {
         self.provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)
     }
 
+    /// Return output data of a contract call
+    pub async fn call(
+        &self,
+        transaction: TransactionRequest,
+        block_number: BlockNumber,
+    ) -> Result<Bytes> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .call(&transaction.into(), Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Returns traces for given call data
+    pub async fn trace_call(
+        &self,
+        transaction: TransactionRequest,
+        trace_type: Vec<TraceType>,
+        block_number: Option<BlockNumber>,
+    ) -> Result<BlockTrace> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .trace_call(transaction, trace_type, block_number)
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Get nonce of address
+    pub async fn get_transaction_count(
+        &self,
+        address: H160,
+        block_number: BlockNumber,
+    ) -> Result<U256> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .get_transaction_count(address, Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Get code at address
+    pub async fn get_balance(&self, address: H160, block_number: BlockNumber) -> Result<U256> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .get_balance(address, Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Get code at address
+    pub async fn get_code(&self, address: H160, block_number: BlockNumber) -> Result<Bytes> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .get_code(address, Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Get stored data at given location
+    pub async fn get_storage_at(
+        &self,
+        address: H160,
+        slot: H256,
+        block_number: BlockNumber,
+    ) -> Result<H256> {
+        let _permit = self.permit_request().await;
+        self.provider
+            .get_storage_at(address, slot, Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
     /// Get the block number
     pub async fn get_block_number(&self) -> Result<U64> {
         Self::map_err(self.provider.get_block_number().await)

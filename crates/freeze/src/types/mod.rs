@@ -24,8 +24,12 @@ pub mod schemas;
 /// types related to summaries
 pub mod summaries;
 
-pub use chunks::{AddressChunk, BlockChunk, Chunk, ChunkData, Subchunk, TransactionChunk};
+pub use chunks::{
+    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, SlotChunk, Subchunk,
+    TransactionChunk,
+};
 pub use conversions::{ToVecHex, ToVecU8};
+pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput};
 pub use queries::{MultiQuery, RowFilter, SingleQuery};

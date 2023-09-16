@@ -883,6 +883,7 @@ dependencies = [
  "governor",
  "indexmap 2.0.0",
  "indicatif",
+ "lazy_static",
  "polars",
  "prefix-hex",
  "serde",

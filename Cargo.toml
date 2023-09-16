@@ -33,6 +33,7 @@ governor = "0.5.1"
 hex = "0.4.3"
 indexmap = "2.0.0"
 indicatif = "0.17.5"
+lazy_static = "1.4.0"
 polars = { version = "0.32.1", features = [
     "parquet",
     "string_encoding",
