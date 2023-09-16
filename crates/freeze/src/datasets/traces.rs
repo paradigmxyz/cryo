@@ -112,6 +112,7 @@ pub(crate) fn fetch_block_traces(
         let fetcher = source.fetcher.clone();
         task::spawn(async move {
             let result = fetcher.trace_block(BlockNumber::Number(number.into())).await;
+
             match tx.send(result).await {
                 Ok(_) => {}
                 Err(tokio::sync::mpsc::error::SendError(_e)) => {
