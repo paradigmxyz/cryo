@@ -12,8 +12,9 @@ use crate::args::Args;
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args);
-    let provider = Provider::<Http>::try_from(rpc_url)
-        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
+    let provider =
+        Provider::<RetryClient<Http>>::new_client(&rpc_url, args.max_retries, args.initial_backoff)
+            .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
     let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
 
     let rate_limiter = match args.requests_per_second {
