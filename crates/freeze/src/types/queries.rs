@@ -102,12 +102,12 @@ impl RowFilter {
         }
     }
 
-    // pub(crate) fn to_address_chunks(&self) -> Result<Vec<AddressChunk>, CollectError> {
-    //     match &self.to_address_chunks {
-    //         Some(to_address_chunks) => Ok(to_address_chunks.clone()),
-    //         _ => Err(CollectError::CollectError("must specify --to-address".to_string())),
-    //     }
-    // }
+    pub(crate) fn to_address_chunks(&self) -> Result<Vec<AddressChunk>, CollectError> {
+        match &self.to_address_chunks {
+            Some(to_address_chunks) => Ok(to_address_chunks.clone()),
+            _ => Err(CollectError::CollectError("must specify --to-address".to_string())),
+        }
+    }
 
     // pub(crate) fn from_address_chunks(&self) -> Result<Vec<AddressChunk>, CollectError> {
     //     match &self.from_address_chunks {

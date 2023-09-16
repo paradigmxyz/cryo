@@ -1,26 +1,3 @@
-// want to be able to include either the raw call data or the decoded arguments
-// want to be able to include raw_output or decoded columns
-// - could do output_decoded as a json object
-//
-// ways to specify call data
-// - give complete raw call data `--call-data`
-//      - 0x28797abc
-// - specify function and arguments separately
-//      - give function `--function`
-//          - by name: "totalSupply()" "balanceOf(address)"
-//          - by json: '{"name": "balanceOf", ...}"
-//      - give input arguments `--inputs
-//          - abi encoded: 0x28797abc
-//          - raw: 5000
-// - give semantic call
-//      - totalSupply()
-//      - balanceOf(0x28797abc...278)
-//
-// ways to specify output type
-// - ignore, store only raw output data
-// - provide function abi json
-// - provide --call-output, e.g. `--call-output u256`
-
 use crate::{conversions::ToVecHex, types::EthCalls, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};

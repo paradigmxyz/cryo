@@ -488,21 +488,32 @@ mod test {
     use super::*;
     use polars::prelude::DataType::Boolean;
 
-    // fn make_log_decoder() -> LogDecoder {
-    //     let e = HumanReadableParser::parse_event(RAW).unwrap();
+    const RAW: &str = "event NewMint(address indexed msgSender, uint256 indexed mintQuantity)";
+    const RAW_LOG: &str = r#"{
+            "address": "0x0000000000000000000000000000000000000000",
+            "topics": [
+                "0x52277f0b4a9b555c5aa96900a13546f972bda413737ec164aac947c87eec6024",
+                "0x00000000000000000000000062a73d9116eda78a78f4cf81602bdc926fb4c0dd",
+                "0x0000000000000000000000000000000000000000000000000000000000000003"
+            ],
+            "data": "0x"
+        }"#;
 
-    //     LogDecoder { raw: RAW.to_string(), event: e.clone() }
-    // }
+    fn make_log_decoder() -> LogDecoder {
+        let e = HumanReadableParser::parse_event(RAW).unwrap();
 
-    // #[test]
-    // fn test_mapping_log_into_type_columns() {
-    //     let decoder = make_log_decoder();
-    //     // let log = serde_json::from_str::<Log>(RAW_LOG).unwrap();
-    //     // let m = decoder.parse_log_from_event(vec![log]);
-    //     assert_eq!(m.len(), 2);
-    //     assert_eq!(m.get("msgSender").unwrap().len(), 1);
-    //     assert_eq!(m.get("mintQuantity").unwrap().len(), 1);
-    // }
+        LogDecoder { raw: RAW.to_string(), event: e.clone() }
+    }
+
+    #[test]
+    fn test_mapping_log_into_type_columns() {
+        let decoder = make_log_decoder();
+        let log = serde_json::from_str::<Log>(RAW_LOG).unwrap();
+        let m = decoder.parse_log_from_event(vec![log]);
+        assert_eq!(m.len(), 2);
+        assert_eq!(m.get("msgSender").unwrap().len(), 1);
+        assert_eq!(m.get("mintQuantity").unwrap().len(), 1);
+    }
 
     #[test]
     fn test_parsing_bools() {
@@ -544,29 +555,29 @@ mod test {
         assert_eq!(s.len(), 2)
     }
 
-    // #[test]
-    // fn test_parsing_big_ints() {
-    //     let s = make_log_decoder()
-    //         .make_series(
-    //             "msgSender".to_string(),
-    //             vec![Token::Int(U256::max_value()), Token::Int(2.into())],
-    //             2,
-    //         )
-    //         .unwrap();
-    //     assert_eq!(s.dtype(), &DataType::Utf8);
-    //     assert_eq!(s.len(), 2)
-    // }
+    #[test]
+    fn test_parsing_big_ints() {
+        let s = make_log_decoder()
+            .make_series(
+                "msgSender".to_string(),
+                vec![Token::Int(U256::max_value()), Token::Int(2.into())],
+                2,
+            )
+            .unwrap();
+        assert_eq!(s.dtype(), &DataType::Utf8);
+        assert_eq!(s.len(), 2)
+    }
 
-    // #[test]
-    // fn test_parsing_addresses() {
-    //     let s = make_log_decoder()
-    //         .make_series(
-    //             "ints".to_string(),
-    //             vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
-    //             2,
-    //         )
-    //         .unwrap();
-    //     assert_eq!(s.dtype(), &DataType::Utf8);
-    //     assert_eq!(s.len(), 2)
-    // }
+    #[test]
+    fn test_parsing_addresses() {
+        let s = make_log_decoder()
+            .make_series(
+                "ints".to_string(),
+                vec![Token::Address(Address::zero()), Token::Address(Address::zero())],
+                2,
+            )
+            .unwrap();
+        assert_eq!(s.dtype(), &DataType::Utf8);
+        assert_eq!(s.len(), 2)
+    }
 }
