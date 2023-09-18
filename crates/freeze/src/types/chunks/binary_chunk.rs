@@ -57,7 +57,7 @@ impl BinaryChunk {
     // pub fn values(&self) -> &Vec<Vec<u8>> {
     //     match self {
     //         BinaryChunk::Values(values) => values,
-    //         BinaryChunk::Range(_start, _end) => panic!("values not implemented for binary ranges"),
-    //     }
+    //         BinaryChunk::Range(_start, _end) => panic!("values not implemented for binary
+    // ranges"),     }
     // }
 }

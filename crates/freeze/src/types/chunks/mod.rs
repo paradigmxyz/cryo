@@ -4,6 +4,8 @@ pub(crate) mod chunk_ops;
 pub(crate) mod number_chunk;
 pub(crate) mod subchunks;
 
-pub use chunk::{AddressChunk, BlockChunk, CallDataChunk, Chunk, SlotChunk, TransactionChunk, TopicChunk};
+pub use chunk::{
+    AddressChunk, BlockChunk, CallDataChunk, Chunk, SlotChunk, TopicChunk, TransactionChunk,
+};
 pub use chunk_ops::ChunkData;
 pub use subchunks::Subchunk;

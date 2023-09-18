@@ -1,6 +1,6 @@
 // fix fetcher
 // implement --dedup
-use crate::{ChunkData, conversions::ToVecHex, ColumnType, Dataset, Datatype};
+use crate::{conversions::ToVecHex, ChunkData, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 
@@ -187,7 +187,7 @@ impl Erc20MetadataColumns {
         let (name, symbol, decimals) = output_data;
         self.n_rows += 1;
         if schema.has_column("block_number") {
-            self.block_number.push(block_number as u32);
+            self.block_number.push(block_number);
         }
         if schema.has_column("erc20") {
             self.erc20.push(contract_address);

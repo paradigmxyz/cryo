@@ -1,6 +1,43 @@
-
+use super::{partitions, rpc_params::RpcParams};
 /// functions related to partitioning MetaChunks
-use crate::{AddressChunk, BlockChunk, CallDataChunk, ChunkData, SlotChunk, TopicChunk, TransactionChunk};
+use crate::{
+    AddressChunk, BlockChunk, CallDataChunk, ChunkData, SlotChunk, TopicChunk, TransactionChunk,
+};
+use crate::{CollectError, Source, Table};
+use futures::Future;
+use tokio::{sync::mpsc, task};
+
+/// fetch data for a given partition
+pub async fn fetch_partition<F, Fut, T>(
+    f_request: F,
+    meta_chunk: partitions::MetaChunk,
+    source: Source,
+    schema: Table,
+    param_dims: Vec<partitions::ChunkDim>,
+    sender: mpsc::Sender<Result<T, CollectError>>,
+) -> Result<(), CollectError>
+where
+    F: Copy
+        + Send
+        + for<'a> Fn(partitions::RpcParams, Source, Table) -> Fut
+        + std::marker::Sync
+        + 'static,
+    Fut: Future<Output = Result<T, CollectError>> + Send + 'static,
+    T: Send + 'static,
+{
+    let mut handles = Vec::new();
+    for rpc_params in meta_chunk.param_sets(param_dims).into_iter() {
+        let sender = sender.clone();
+        let source = source.clone();
+        let schema = schema.clone();
+        let handle = task::spawn(async move {
+            let result = f_request(rpc_params, source.clone(), schema).await;
+            sender.send(result).await.expect("tokio mpsc send failure");
+        });
+        handles.push(handle);
+    }
+    Ok(())
+}
 
 /// a dimension of chunking
 pub enum ChunkDim {
@@ -33,35 +70,30 @@ pub enum ChunkDim {
 /// a group of chunks along multiple dimensions
 #[derive(Clone, Default)]
 pub struct MetaChunk {
-    block_numbers: Option<Vec<BlockChunk>>,
-    block_ranges: Option<Vec<BlockChunk>>,
-    transactions: Option<Vec<TransactionChunk>>,
-    call_datas: Option<Vec<CallDataChunk>>,
-    addresses: Option<Vec<AddressChunk>>,
-    contracts: Option<Vec<AddressChunk>>,
-    to_addresses: Option<Vec<AddressChunk>>,
-    slots: Option<Vec<SlotChunk>>,
-    topic0s: Option<Vec<TopicChunk>>,
-    topic1s: Option<Vec<TopicChunk>>,
-    topic2s: Option<Vec<TopicChunk>>,
-    topic3s: Option<Vec<TopicChunk>>,
-}
-
-/// represents parameters for a single rpc call
-#[derive(Default, Clone)]
-pub struct RpcParams {
-    block_number: Option<u64>,
-    block_range: Option<(u64, u64)>,
-    transaction: Option<Vec<u8>>,
-    call_data: Option<Vec<u8>>,
-    address: Option<Vec<u8>>,
-    contract: Option<Vec<u8>>,
-    to_address: Option<Vec<u8>>,
-    slot: Option<Vec<u8>>,
-    topic0: Option<Vec<u8>>,
-    topic1: Option<Vec<u8>>,
-    topic2: Option<Vec<u8>>,
-    topic3: Option<Vec<u8>>,
+    /// block numbers
+    pub block_numbers: Option<Vec<BlockChunk>>,
+    /// block ranges
+    pub block_ranges: Option<Vec<BlockChunk>>,
+    /// transactions
+    pub transactions: Option<Vec<TransactionChunk>>,
+    /// call datas
+    pub call_datas: Option<Vec<CallDataChunk>>,
+    /// addresses
+    pub addresses: Option<Vec<AddressChunk>>,
+    /// contracts
+    pub contracts: Option<Vec<AddressChunk>>,
+    /// to addresses
+    pub to_addresses: Option<Vec<AddressChunk>>,
+    /// slots
+    pub slots: Option<Vec<SlotChunk>>,
+    /// topic0s
+    pub topic0s: Option<Vec<TopicChunk>>,
+    /// topic1s
+    pub topic1s: Option<Vec<TopicChunk>>,
+    /// topic2s
+    pub topic2s: Option<Vec<TopicChunk>>,
+    /// topic3s
+    pub topic3s: Option<Vec<TopicChunk>>,
 }
 
 /// partition outputs
@@ -124,7 +156,9 @@ impl MetaChunk {
         for dimension in dimensions.iter() {
             let mut new = Vec::new();
             match dimension {
-                ChunkDim::BlockNumber => parametrize!(outputs, new, self.block_numbers, block_number),
+                ChunkDim::BlockNumber => {
+                    parametrize!(outputs, new, self.block_numbers, block_number)
+                }
                 ChunkDim::Transaction => parametrize!(outputs, new, self.transactions, transaction),
                 ChunkDim::Address => parametrize!(outputs, new, self.addresses, address),
                 ChunkDim::Contract => parametrize!(outputs, new, self.contracts, contract),
@@ -139,9 +173,10 @@ impl MetaChunk {
                     for output in outputs.into_iter() {
                         for chunk in self.block_ranges.as_ref().unwrap().iter() {
                             match chunk {
-                                BlockChunk::Range(start, end) => {
-                                    new.push(RpcParams { block_range: Some((*start, *end)), ..output.clone() })
-                                },
+                                BlockChunk::Range(start, end) => new.push(RpcParams {
+                                    block_range: Some((*start, *end)),
+                                    ..output.clone()
+                                }),
                                 _ => panic!("not a BlockRange"),
                             }
                         }

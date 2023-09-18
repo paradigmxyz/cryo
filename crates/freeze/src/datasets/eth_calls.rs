@@ -21,7 +21,7 @@
 // - provide function abi json
 // - provide --call-output, e.g. `--call-output u256`
 
-use crate::{ChunkData, conversions::ToVecHex, types::EthCalls, ColumnType, Dataset, Datatype};
+use crate::{conversions::ToVecHex, types::EthCalls, ChunkData, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 

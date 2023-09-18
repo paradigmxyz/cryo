@@ -877,6 +877,7 @@ name = "cryo_freeze"
 version = "0.2.0"
 dependencies = [
  "async-trait",
+ "cryo_to_df",
  "ethers",
  "ethers-core",
  "futures",
@@ -904,6 +905,15 @@ dependencies = [
  "pyo3-build-config",
  "pyo3-polars",
  "tokio",
+]
+
+[[package]]
+name = "cryo_to_df"
+version = "0.2.0"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
 ]
 
 [[package]]

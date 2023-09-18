@@ -9,12 +9,11 @@ use tokio::{sync::mpsc, task};
 
 use crate::{
     dataframes::SortableDataFrame,
-    ChunkData,
     types::{
         conversions::{ToVecHex, ToVecU8},
         AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,
     },
-    with_series, with_series_binary, with_series_u256, ColumnEncoding, U256Type,
+    with_series, with_series_binary, with_series_u256, ChunkData, ColumnEncoding, U256Type,
 };
 
 #[async_trait::async_trait]

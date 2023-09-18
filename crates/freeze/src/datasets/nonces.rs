@@ -8,12 +8,11 @@ use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
 use crate::{
-    ChunkData,
     dataframes::SortableDataFrame,
     types::{
         conversions::ToVecHex, AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,
     },
-    with_series, with_series_binary,
+    with_series, with_series_binary, ChunkData,
 };
 
 #[async_trait::async_trait]
