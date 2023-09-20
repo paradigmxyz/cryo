@@ -18,7 +18,7 @@ impl CollectByBlock for Transactions {
         vec![ChunkDim::BlockNumber]
     }
 
-    async fn fetch_by_block(
+    async fn extract_by_block(
         request: RpcParams,
         source: Source,
         schema: Table,
@@ -36,12 +36,12 @@ impl CollectByBlock for Transactions {
         Ok((block, gas_used))
     }
 
-    fn process_block_response(
-        message: Self::BlockResponse,
+    fn transform_by_block(
+        response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
         schema: &Table,
     ) {
-        let (block, gas_used) = message;
+        let (block, gas_used) = response;
         match gas_used {
             Some(gas_used) => {
                 for (tx, gas_used) in block.transactions.into_iter().zip(gas_used.iter()) {
@@ -67,7 +67,7 @@ impl CollectByTransaction for Transactions {
         vec![ChunkDim::Transaction]
     }
 
-    async fn fetch_by_transaction(
+    async fn extract_by_transaction(
         request: RpcParams,
         source: Source,
         schema: Table,
@@ -92,12 +92,12 @@ impl CollectByTransaction for Transactions {
         Ok((transaction, gas_used))
     }
 
-    fn process_transaction_response(
-        message: Self::TransactionResponse,
+    fn transform_by_transaction(
+        response: Self::TransactionResponse,
         columns: &mut Self::TransactionColumns,
         schema: &Table,
     ) {
-        let (transaction, gas_used) = message;
+        let (transaction, gas_used) = response;
         process_transaction(transaction, gas_used, columns, schema);
     }
 }

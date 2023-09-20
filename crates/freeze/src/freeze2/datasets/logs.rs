@@ -19,7 +19,7 @@ impl CollectByBlock for Logs {
         vec![ChunkDim::BlockNumber]
     }
 
-    async fn fetch_by_block(
+    async fn extract_by_block(
         request: RpcParams,
         source: Source,
         _schema: Table,
@@ -27,12 +27,12 @@ impl CollectByBlock for Logs {
         source.fetcher.get_logs(&request.ethers_log_filter()).await
     }
 
-    fn process_block_response(
-        message: Self::BlockResponse,
+    fn transform_by_block(
+        response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
         schema: &Table,
     ) {
-        process_logs(message, columns, schema)
+        process_logs(response, columns, schema)
     }
 }
 
@@ -46,7 +46,7 @@ impl CollectByTransaction for Logs {
         vec![ChunkDim::BlockNumber]
     }
 
-    async fn fetch_by_transaction(
+    async fn extract_by_transaction(
         request: RpcParams,
         source: Source,
         _schema: Table,
@@ -60,12 +60,12 @@ impl CollectByTransaction for Logs {
         Ok(logs)
     }
 
-    fn process_transaction_response(
-        message: Self::TransactionResponse,
+    fn transform_by_transaction(
+        response: Self::TransactionResponse,
         columns: &mut Self::TransactionColumns,
         schema: &Table,
     ) {
-        process_logs(message, columns, schema)
+        process_logs(response, columns, schema)
     }
 }
 

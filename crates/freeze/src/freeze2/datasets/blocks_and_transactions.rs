@@ -21,24 +21,24 @@ impl CollectByBlock for BlocksAndTransactions {
     }
 
     /// fetch dataset data by block
-    async fn fetch_by_block(
+    async fn extract_by_block(
         request: RpcParams,
         source: Source,
         schema: Table,
     ) -> Result<Self::BlockResponse, CollectError> {
-        Transactions::fetch_by_block(request, source, schema).await
+        Transactions::extract_by_block(request, source, schema).await
     }
 
     /// transform block data response into column data
-    fn process_block_response(
-        message: Self::BlockResponse,
+    fn transform_by_block(
+        response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
         schema: &Table,
     ) {
         let BlocksAndTransactionsColumns(block_columns, transaction_columns) = columns;
-        let (block, _) = message.clone();
+        let (block, _) = response.clone();
         super::blocks::process_block(block, block_columns, schema);
-        Transactions::process_block_response(message, transaction_columns, schema);
+        Transactions::transform_by_block(response, transaction_columns, schema);
     }
 }
 

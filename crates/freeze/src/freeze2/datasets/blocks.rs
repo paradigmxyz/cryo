@@ -18,7 +18,7 @@ impl CollectByBlock for Blocks {
         vec![ChunkDim::BlockNumber]
     }
 
-    async fn fetch_by_block(
+    async fn extract_by_block(
         request: RpcParams,
         source: Source,
         _schema: Table,
@@ -31,12 +31,12 @@ impl CollectByBlock for Blocks {
         Ok(block)
     }
 
-    fn process_block_response(
-        message: Self::BlockResponse,
+    fn transform_by_block(
+        response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
         schema: &Table,
     ) {
-        process_block(message, columns, schema)
+        process_block(response, columns, schema)
     }
 }
 
