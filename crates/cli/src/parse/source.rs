@@ -35,7 +35,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     match provider {
         RpcProvider::Http(provider) => {
             chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
-            Fetcher { provider, semaphore, rate_limiter }
+            let fetcher = Fetcher { provider, semaphore, rate_limiter };
             let output = Source {
                 fetcher: Arc::new(fetcher),
                 chain_id,
@@ -58,16 +58,6 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
             Ok(output)
         }
     }
-
-    let fetcher = Fetcher { provider, semaphore, rate_limiter };
-    let output = Source {
-        fetcher: Arc::new(fetcher),
-        chain_id,
-        inner_request_size: args.inner_request_size,
-        max_concurrent_chunks,
-    };
-
-    Ok(output)
 }
 
 async fn parse_rpc_url(args: &Args) -> RpcProvider {
