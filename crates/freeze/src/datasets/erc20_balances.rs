@@ -7,10 +7,6 @@
 use crate::{types::Erc20Balances, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::prelude::*;
-use polars::prelude::*;
-use tokio::sync::mpsc;
-
 use crate::{
     dataframes::SortableDataFrame,
     types::{
@@ -19,6 +15,12 @@ use crate::{
     },
     with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
+use polars::prelude::*;
+use tokio::sync::mpsc;
 
 use super::eth_calls;
 use crate::U256Type;
@@ -54,7 +56,7 @@ impl Dataset for Erc20Balances {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {

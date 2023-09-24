@@ -13,6 +13,8 @@ use crate::{
     },
 };
 
+use ethers::providers::{JsonRpcClient, ProviderError};
+
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
     fn name(&self) -> &'static str {
@@ -26,7 +28,7 @@ impl MultiDataset for BlocksAndTransactions {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
@@ -57,7 +59,7 @@ impl MultiDataset for BlocksAndTransactions {
 
 pub(crate) async fn fetch_blocks_and_transactions(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     include_gas_used: bool,
 ) -> mpsc::Receiver<blocks::BlockTxGasTuple<Transaction>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());

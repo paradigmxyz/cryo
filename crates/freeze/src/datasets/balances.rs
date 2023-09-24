@@ -1,6 +1,7 @@
 // required args:: address
 
 use crate::{types::Balances, ColumnType, Dataset, Datatype};
+use ethers::providers::{JsonRpcClient, ProviderError};
 use std::collections::HashMap;
 
 use ethers::prelude::*;
@@ -46,7 +47,7 @@ impl Dataset for Balances {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -67,7 +68,7 @@ pub(crate) type BlockAddressBalance = (u64, Vec<u8>, U256);
 async fn fetch_balances(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockAddressBalance, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

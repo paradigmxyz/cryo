@@ -36,3 +36,4 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 thousands = { workspace = true }
 tokio = { workspace = true }
+url = { workspace = true }

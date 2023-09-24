@@ -1,5 +1,6 @@
 use std::{collections::HashMap, path::Path, sync::Arc};
 
+use ethers::providers::{JsonRpcClient, Provider};
 use futures::future::join_all;
 use indicatif::ProgressBar;
 use tokio::sync::Semaphore;
@@ -12,7 +13,7 @@ use crate::types::{
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
 pub async fn freeze(
     query: &MultiQuery,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     sink: &FileOutput,
     bar: Arc<ProgressBar>,
 ) -> Result<FreezeSummary, FreezeError> {
@@ -76,7 +77,7 @@ async fn freeze_datatype_chunk(
     datatype: Datatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
-    source: Arc<Source>,
+    source: Arc<Source<Provider<impl JsonRpcClient>>>,
     sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {
@@ -126,7 +127,7 @@ async fn freeze_multi_datatype_chunk(
     mdt: MultiDatatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
-    source: Arc<Source>,
+    source: Arc<Source<Provider<impl JsonRpcClient>>>,
     sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
 ) -> FreezeChunkSummary {

@@ -3,7 +3,10 @@
 use crate::{types::Nonces, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -45,7 +48,7 @@ impl Dataset for Nonces {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -66,7 +69,7 @@ pub(crate) type BlockAddressNonce = (u64, Vec<u8>, u32);
 async fn fetch_nonces(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockAddressNonce, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

@@ -7,6 +7,8 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
+use ethers::providers::{JsonRpcClient, ProviderError};
+
 use crate::{
     dataframes::SortableDataFrame,
     types::{
@@ -45,7 +47,7 @@ impl Dataset for Codes {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -66,7 +68,7 @@ pub(crate) type BlockAddressCode = (u64, Vec<u8>, Vec<u8>);
 async fn fetch_codes(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockAddressCode, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

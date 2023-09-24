@@ -60,7 +60,7 @@ impl Dataset for Blocks {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -76,7 +76,7 @@ impl Dataset for Blocks {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -93,7 +93,7 @@ impl Dataset for Blocks {
 
 async fn fetch_tx_block_numbers(
     tx_hashes: &Vec<Vec<u8>>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> Result<Vec<u64>, CollectError> {
     let mut tasks = Vec::new();
     for tx_hash in tx_hashes {
@@ -126,7 +126,7 @@ async fn fetch_tx_block_numbers(
 
 async fn fetch_blocks(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<BlockTxGasTuple<TxHash>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 

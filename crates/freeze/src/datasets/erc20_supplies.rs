@@ -6,7 +6,10 @@ use crate::{
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 
 use crate::{
@@ -47,7 +50,7 @@ impl Dataset for Erc20Supplies {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {

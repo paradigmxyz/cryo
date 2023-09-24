@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 
 use async_trait;
+use ethers::providers::{JsonRpcClient, Provider};
 use polars::prelude::*;
 
 use crate::types::{
@@ -176,7 +177,7 @@ pub trait Dataset: Sync + Send {
     async fn collect_chunk(
         &self,
         chunk: &Chunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -195,7 +196,7 @@ pub trait Dataset: Sync + Send {
     async fn collect_block_chunk(
         &self,
         _chunk: &BlockChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -206,7 +207,7 @@ pub trait Dataset: Sync + Send {
     async fn collect_transaction_chunk(
         &self,
         _chunk: &TransactionChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -217,7 +218,7 @@ pub trait Dataset: Sync + Send {
     async fn collect_address_chunk(
         &self,
         _chunk: &AddressChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {

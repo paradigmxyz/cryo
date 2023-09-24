@@ -2,7 +2,10 @@ use crate::{conversions::ToVecHex, types::EthCalls, ColumnType, Dataset, Datatyp
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 
 use crate::{
@@ -55,7 +58,7 @@ impl Dataset for EthCalls {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -75,7 +78,7 @@ pub(crate) async fn fetch_eth_calls(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
     call_data_chunks: Vec<CallDataChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<CallDataOutput, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

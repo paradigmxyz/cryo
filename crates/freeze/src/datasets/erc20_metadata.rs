@@ -4,7 +4,10 @@ use crate::{conversions::ToVecHex, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 
 use crate::{
@@ -45,7 +48,7 @@ impl Dataset for Erc20Metadata {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -64,7 +67,7 @@ type MetadataOutput = (u32, Vec<u8>, (Option<Bytes>, Option<Bytes>, Option<Bytes
 pub(crate) async fn fetch_metadata_calls(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<MetadataOutput, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

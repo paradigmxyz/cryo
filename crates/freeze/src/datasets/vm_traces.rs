@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, Provider, ProviderError},
+};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -52,7 +55,7 @@ impl Dataset for VmTraces {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -63,7 +66,7 @@ impl Dataset for VmTraces {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -75,14 +78,14 @@ impl Dataset for VmTraces {
 
 async fn fetch_block_vm_traces(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
     state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], source).await
 }
 
 async fn fetch_transaction_vm_traces(
     chunk: &TransactionChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     include_indices: bool,
 ) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
     state_diffs::fetch_transaction_traces(chunk, &[TraceType::VmTrace], source, include_indices)

@@ -13,7 +13,10 @@
 use crate::{types::Erc721Transfers, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -75,7 +78,7 @@ impl Dataset for Erc721Transfers {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -87,7 +90,7 @@ impl Dataset for Erc721Transfers {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {

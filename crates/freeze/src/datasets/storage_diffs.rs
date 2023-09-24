@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use ethers::providers::{JsonRpcClient, Provider};
 use polars::prelude::*;
 
 use super::state_diffs;
@@ -50,7 +51,7 @@ impl Dataset for StorageDiffs {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -67,7 +68,7 @@ impl Dataset for StorageDiffs {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {

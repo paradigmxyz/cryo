@@ -1,6 +1,9 @@
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -81,7 +84,7 @@ impl Dataset for Traces {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -92,7 +95,7 @@ impl Dataset for Traces {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -103,7 +106,7 @@ impl Dataset for Traces {
 
 pub(crate) fn fetch_block_traces(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
@@ -127,7 +130,7 @@ pub(crate) fn fetch_block_traces(
 
 pub(crate) fn fetch_transaction_traces(
     transaction_chunk: &TransactionChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
     match transaction_chunk {
         TransactionChunk::Values(tx_hashes) => {

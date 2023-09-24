@@ -71,7 +71,7 @@ impl Dataset for Transactions {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -90,7 +90,7 @@ impl Dataset for Transactions {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -102,7 +102,7 @@ impl Dataset for Transactions {
 
 async fn fetch_transactions(
     transaction_chunk: &TransactionChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     include_gas_used: bool,
 ) -> mpsc::Receiver<Result<(Transaction, Option<u32>), CollectError>> {
     let (tx, rx) = mpsc::channel(1);

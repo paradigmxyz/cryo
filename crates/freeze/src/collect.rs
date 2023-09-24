@@ -1,11 +1,15 @@
 use std::collections::HashMap;
 
+use ethers::providers::{JsonRpcClient, Provider};
 use polars::prelude::*;
 
 use crate::types::{CollectError, Datatype, MultiQuery, SingleQuery, Source};
 
 /// collect data and return as dataframe
-pub async fn collect(query: SingleQuery, source: Source) -> Result<DataFrame, CollectError> {
+pub async fn collect(
+    query: SingleQuery,
+    source: Source<Provider<impl JsonRpcClient>>,
+) -> Result<DataFrame, CollectError> {
     if query.chunks.len() > 1 {
         return Err(CollectError::CollectError("can only collect 1 chunk".to_string()))
     };
@@ -20,7 +24,7 @@ pub async fn collect(query: SingleQuery, source: Source) -> Result<DataFrame, Co
 /// collect data and return as dataframe
 pub async fn collect_multiple(
     _query: MultiQuery,
-    _source: Source,
+    _source: Source<Provider<impl JsonRpcClient>>,
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
     todo!()
 }

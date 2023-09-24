@@ -3,7 +3,10 @@
 use crate::{types::Storages, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -47,7 +50,7 @@ impl Dataset for Storages {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -66,7 +69,7 @@ async fn fetch_slots(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
     slot_chunks: Vec<SlotChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockAddressSlot, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 

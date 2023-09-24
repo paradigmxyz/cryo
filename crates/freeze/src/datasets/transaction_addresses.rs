@@ -1,7 +1,10 @@
 use crate::{types::TransactionAddresses, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -56,7 +59,7 @@ impl Dataset for TransactionAddresses {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -67,7 +70,7 @@ impl Dataset for TransactionAddresses {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         _filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -80,7 +83,7 @@ type BlockLogTraces = (Block<TxHash>, Vec<Log>, Vec<Trace>);
 
 pub(crate) async fn fetch_block_tx_addresses(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockLogTraces, CollectError>> {
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
@@ -103,7 +106,7 @@ pub(crate) async fn fetch_block_tx_addresses(
 
 async fn fetch_transaction_tx_addresses(
     transaction_chunk: &TransactionChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<BlockLogTraces, CollectError>> {
     match transaction_chunk {
         TransactionChunk::Values(tx_hashes) => {
@@ -144,7 +147,7 @@ async fn fetch_transaction_tx_addresses(
 
 async fn get_block_block_logs_traces(
     number: u64,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> Result<BlockLogTraces, CollectError> {
     let block_number: BlockNumber = number.into();
 
@@ -173,7 +176,7 @@ async fn get_block_block_logs_traces(
 
 async fn get_tx_block_logs_traces(
     tx_hash: H256,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> Result<BlockLogTraces, CollectError> {
     let tx_data =
         source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {

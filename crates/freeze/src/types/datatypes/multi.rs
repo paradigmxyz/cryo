@@ -3,6 +3,8 @@ use std::collections::{HashMap, HashSet};
 use async_trait;
 use polars::prelude::*;
 
+use ethers::providers::{JsonRpcClient, Provider};
+
 use crate::types::{
     AddressChunk, BlockChunk, Chunk, CollectError, Dataset, Datatype, RowFilter, Source, Table,
     TransactionChunk,
@@ -57,7 +59,7 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_chunk(
         &self,
         chunk: &Chunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schemas: HashMap<Datatype, Table>,
         filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
@@ -76,7 +78,7 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_block_chunk(
         &self,
         _chunk: &BlockChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
@@ -87,7 +89,7 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_transaction_chunk(
         &self,
         _chunk: &TransactionChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
@@ -98,7 +100,7 @@ pub trait MultiDataset: Sync + Send {
     async fn collect_address_chunk(
         &self,
         _chunk: &AddressChunk,
-        _source: &Source,
+        _source: &Source<Provider<impl JsonRpcClient>>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {

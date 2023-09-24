@@ -11,11 +11,13 @@ use crate::args::Args;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
-    let rpc_url = parse_rpc_url(args);
-    let provider =
-        Provider::<RetryClient<Http>>::new_client(&rpc_url, args.max_retries, args.initial_backoff)
-            .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
-    let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+    let provider = parse_rpc_url(args).await;
+    let chain_id: u64;
+    let ws_url = "wss://eth-mainnet.ws.alchemyapi.io/ws/demo";
+
+    if let RpcProvider::Http(provider) | RpcProvider::Ws(provider) = provider {
+        chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+    }
 
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match NonZeroU32::new(rate_limit) {
@@ -35,6 +37,25 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
     let semaphore = Some(semaphore);
 
+    match provider {
+        RpcProvider::Http(provider) => {
+            chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+            Fetcher { provider, semaphore, rate_limiter }
+        }
+        RpcProvider::Ws(provider) => {
+            chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+            let fetcher = Fetcher { provider, semaphore, rate_limiter };
+            let output = Source {
+                fetcher: Arc::new(fetcher),
+                chain_id,
+                inner_request_size: args.inner_request_size,
+                max_concurrent_chunks,
+            };
+
+            Ok(output)
+        }
+    }
+
     let fetcher = Fetcher { provider, semaphore, rate_limiter };
     let output = Source {
         fetcher: Arc::new(fetcher),
@@ -46,7 +67,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     Ok(output)
 }
 
-fn parse_rpc_url(args: &Args) -> String {
+async fn parse_rpc_url(args: &Args) -> RpcProvider {
     let mut url = match &args.rpc {
         Some(url) => url.clone(),
         _ => match env::var("ETH_RPC_URL") {
@@ -57,8 +78,25 @@ fn parse_rpc_url(args: &Args) -> String {
             }
         },
     };
-    if !url.starts_with("http") {
-        url = "http://".to_string() + url.as_str();
-    };
-    url
+    if url.starts_with("wss") {
+        let ws_provider = Provider::<Ws>::connect(url)
+            .await
+            .map_err(|_e| ParseError::ParseError("could not connect to ws_provider".to_string()))
+            .unwrap();
+        return RpcProvider::Ws(ws_provider)
+    } else {
+        if !url.starts_with("http") {
+            url = "http://".to_string() + url.as_str();
+        }
+        let http_provider =
+            Provider::<RetryClient<Http>>::new_client(&url, args.max_retries, args.initial_backoff)
+                .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
+                .unwrap();
+        return RpcProvider::Http(http_provider)
+    }
+}
+
+enum RpcProvider {
+    Http(Provider<RetryClient<Http>>),
+    Ws(Provider<Ws>),
 }

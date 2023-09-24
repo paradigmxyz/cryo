@@ -1,6 +1,9 @@
 use std::collections::{HashMap, HashSet};
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
@@ -62,7 +65,7 @@ impl Dataset for Logs {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -73,7 +76,7 @@ impl Dataset for Logs {
     async fn collect_transaction_chunk(
         &self,
         chunk: &TransactionChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -89,7 +92,7 @@ impl Dataset for Logs {
 
 pub(crate) async fn fetch_block_logs(
     block_chunk: &BlockChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     filter: Option<&RowFilter>,
 ) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
     // todo: need to modify these functions so they turn a result
@@ -126,7 +129,7 @@ pub(crate) async fn fetch_block_logs(
 
 pub(crate) async fn fetch_transaction_logs(
     transaction_chunk: &TransactionChunk,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
     _filter: Option<&RowFilter>,
 ) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
     match transaction_chunk {

@@ -8,7 +8,10 @@ use std::collections::HashMap;
 use crate::{conversions::ToVecHex, types::conversions::ToVecU8};
 use tokio::{sync::mpsc, task};
 
-use ethers::prelude::*;
+use ethers::{
+    prelude::*,
+    providers::{JsonRpcClient, ProviderError},
+};
 use polars::prelude::*;
 
 use super::traces;
@@ -46,7 +49,7 @@ impl Dataset for TraceCalls {
     async fn collect_block_chunk(
         &self,
         chunk: &BlockChunk,
-        source: &Source,
+        source: &Source<Provider<impl JsonRpcClient>>,
         schema: &Table,
         filter: Option<&RowFilter>,
     ) -> Result<DataFrame, CollectError> {
@@ -66,7 +69,7 @@ async fn fetch_trace_calls(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
     call_data_chunks: Vec<CallDataChunk>,
-    source: &Source,
+    source: &Source<Provider<impl JsonRpcClient>>,
 ) -> mpsc::Receiver<Result<TraceCallOutput, CollectError>> {
     let (tx, rx) = mpsc::channel(100);
 
