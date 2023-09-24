@@ -6,10 +6,10 @@ use polars::prelude::*;
 use crate::types::{CollectError, Datatype, MultiQuery, SingleQuery, Source};
 
 /// collect data and return as dataframe
-pub async fn collect(
-    query: SingleQuery,
-    source: Source<Provider<impl JsonRpcClient>>,
-) -> Result<DataFrame, CollectError> {
+pub async fn collect<P>(query: SingleQuery, source: Source<P>) -> Result<DataFrame, CollectError>
+where
+    P: JsonRpcClient,
+{
     if query.chunks.len() > 1 {
         return Err(CollectError::CollectError("can only collect 1 chunk".to_string()))
     };
@@ -22,9 +22,12 @@ pub async fn collect(
 }
 
 /// collect data and return as dataframe
-pub async fn collect_multiple(
+pub async fn collect_multiple<P>(
     _query: MultiQuery,
-    _source: Source<Provider<impl JsonRpcClient>>,
-) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    _source: Source<P>,
+) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+where
+    P: JsonRpcClient,
+{
     todo!()
 }

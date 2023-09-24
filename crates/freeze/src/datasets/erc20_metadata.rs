@@ -4,10 +4,7 @@ use crate::{conversions::ToVecHex, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 
 use crate::{
@@ -45,13 +42,16 @@ impl Dataset for Erc20Metadata {
         vec!["symbol".to_string(), "block_number".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let contract_chunks = match filter {
             Some(filter) => filter.contract_chunks()?,
             _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
@@ -64,11 +64,14 @@ impl Dataset for Erc20Metadata {
 
 type MetadataOutput = (u32, Vec<u8>, (Option<Bytes>, Option<Bytes>, Option<Bytes>));
 
-pub(crate) async fn fetch_metadata_calls(
+pub(crate) async fn fetch_metadata_calls<P>(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<MetadataOutput, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<MetadataOutput, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(100);
 
     let name_call_data: Vec<u8> = prefix_hex::decode("0x06fdde03").expect("Decoding failed");

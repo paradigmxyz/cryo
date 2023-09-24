@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -81,33 +78,42 @@ impl Dataset for Traces {
         vec!["block_number".to_string(), "transaction_position".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_block_traces(chunk, source);
         traces_to_df(rx, schema, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_transaction_traces(chunk, source);
         traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
-pub(crate) fn fetch_block_traces(
+pub(crate) fn fetch_block_traces<P>(
     block_chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {
@@ -128,10 +134,13 @@ pub(crate) fn fetch_block_traces(
     rx
 }
 
-pub(crate) fn fetch_transaction_traces(
+pub(crate) fn fetch_transaction_traces<P>(
     transaction_chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<Vec<Trace>, CollectError>>
+where
+    P: JsonRpcClient,
+{
     match transaction_chunk {
         TransactionChunk::Values(tx_hashes) => {
             let (tx, rx) = mpsc::channel(tx_hashes.len());

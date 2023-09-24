@@ -15,7 +15,10 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 
 /// Options for fetching data from node
 #[derive(Clone)]
-pub struct Source<P> {
+pub struct Source<P>
+where
+    P: JsonRpcClient,
+{
     /// Shared provider for rpc data
     pub fetcher: Arc<Fetcher<P>>,
     /// chain_id of network

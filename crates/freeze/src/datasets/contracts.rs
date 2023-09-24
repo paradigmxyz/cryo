@@ -1,9 +1,6 @@
 use std::collections::HashMap;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -61,24 +58,30 @@ impl Dataset for Contracts {
         vec!["block_number".to_string(), "create_index".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = traces::fetch_block_traces(chunk, source);
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = traces::fetch_transaction_traces(chunk, source);
         traces_to_contracts_df(rx, schema, source.chain_id).await
     }

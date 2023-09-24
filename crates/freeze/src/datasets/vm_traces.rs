@@ -52,42 +52,54 @@ impl Dataset for VmTraces {
         vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_block_vm_traces(chunk, source).await;
         vm_traces_to_df(rx, schema, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let include_indices = schema.has_column("block_number");
         let rx = fetch_transaction_vm_traces(chunk, source, include_indices).await;
         vm_traces_to_df(rx, schema, source.chain_id).await
     }
 }
 
-async fn fetch_block_vm_traces(
+async fn fetch_block_vm_traces<P>(
     block_chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
+    source: &Source<P>,
+) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], source).await
 }
 
-async fn fetch_transaction_vm_traces(
+async fn fetch_transaction_vm_traces<P>(
     chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     include_indices: bool,
-) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
+) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     state_diffs::fetch_transaction_traces(chunk, &[TraceType::VmTrace], source, include_indices)
         .await
 }

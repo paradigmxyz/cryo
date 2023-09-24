@@ -3,10 +3,7 @@
 use crate::{types::Nonces, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -45,13 +42,16 @@ impl Dataset for Nonces {
         vec!["block_number".to_string(), "address".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let address_chunks = match filter {
             Some(filter) => match &filter.address_chunks {
                 Some(address_chunks) => address_chunks.clone(),
@@ -66,11 +66,14 @@ impl Dataset for Nonces {
 
 pub(crate) type BlockAddressNonce = (u64, Vec<u8>, u32);
 
-async fn fetch_nonces(
+async fn fetch_nonces<P>(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<BlockAddressNonce, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<BlockAddressNonce, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(100);
 
     for block_chunk in block_chunks {

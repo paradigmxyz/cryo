@@ -68,13 +68,16 @@ impl Dataset for Transactions {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let include_gas_used = schema.has_column("gas_used");
         let rx =
             blocks_and_transactions::fetch_blocks_and_transactions(chunk, source, include_gas_used)
@@ -87,24 +90,30 @@ impl Dataset for Transactions {
         }
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let include_gas_used = schema.has_column("gas_used");
         let rx = fetch_transactions(chunk, source, include_gas_used).await;
         transactions_to_df(rx, schema, source.chain_id).await
     }
 }
 
-async fn fetch_transactions(
+async fn fetch_transactions<P>(
     transaction_chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     include_gas_used: bool,
-) -> mpsc::Receiver<Result<(Transaction, Option<u32>), CollectError>> {
+) -> mpsc::Receiver<Result<(Transaction, Option<u32>), CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(1);
 
     match transaction_chunk {

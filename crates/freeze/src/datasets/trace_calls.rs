@@ -8,10 +8,7 @@ use std::collections::HashMap;
 use crate::{conversions::ToVecHex, types::conversions::ToVecU8};
 use tokio::{sync::mpsc, task};
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 
 use super::traces;
@@ -46,13 +43,16 @@ impl Dataset for TraceCalls {
         Traces.default_sort()
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let (address_chunks, call_data_chunks) = match filter {
             Some(filter) => (filter.address_chunks()?, filter.call_data_chunks()?),
             _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
@@ -65,12 +65,15 @@ impl Dataset for TraceCalls {
 // block, address, call_data, BlockTrace
 type TraceCallOutput = (u64, Vec<u8>, Vec<u8>, BlockTrace);
 
-async fn fetch_trace_calls(
+async fn fetch_trace_calls<P>(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
     call_data_chunks: Vec<CallDataChunk>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<TraceCallOutput, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<TraceCallOutput, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(100);
 
     for block_chunk in block_chunks {

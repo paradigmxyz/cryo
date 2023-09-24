@@ -1,4 +1,4 @@
-use ethers::providers::{JsonRpcClient, Provider};
+use ethers::providers::JsonRpcClient;
 use std::collections::HashMap;
 
 use polars::prelude::*;
@@ -46,13 +46,16 @@ impl Dataset for BalanceDiffs {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         state_diffs::collect_block_state_diffs(
             &Datatype::BalanceDiffs,
             chunk,
@@ -63,13 +66,16 @@ impl Dataset for BalanceDiffs {
         .await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         state_diffs::collect_transaction_state_diffs(
             &Datatype::BalanceDiffs,
             chunk,

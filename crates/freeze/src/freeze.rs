@@ -11,12 +11,15 @@ use crate::types::{
 };
 
 /// perform a bulk data extraction of multiple datatypes over multiple block chunks
-pub async fn freeze(
+pub async fn freeze<P>(
     query: &MultiQuery,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     sink: &FileOutput,
     bar: Arc<ProgressBar>,
-) -> Result<FreezeSummary, FreezeError> {
+) -> Result<FreezeSummary, FreezeError>
+where
+    P: JsonRpcClient,
+{
     // freeze chunks concurrently
     let (datatypes, multi_datatypes) = cluster_datatypes(query.schemas.keys().collect());
     let sem = Arc::new(Semaphore::new(source.max_concurrent_chunks as usize));
@@ -72,15 +75,18 @@ fn cluster_datatypes(dts: Vec<&Datatype>) -> (Vec<Datatype>, Vec<MultiDatatype>)
     (other_dts, mdts)
 }
 
-async fn freeze_datatype_chunk(
+async fn freeze_datatype_chunk<P>(
     chunk: (Chunk, Option<String>),
     datatype: Datatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
-    source: Arc<Source<Provider<impl JsonRpcClient>>>,
+    source: Arc<Source<P>>,
     sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
-) -> FreezeChunkSummary {
+) -> FreezeChunkSummary
+where
+    P: JsonRpcClient,
+{
     let _permit = sem.acquire().await.expect("Semaphore acquire");
 
     let ds = datatype.dataset();
@@ -122,15 +128,18 @@ async fn freeze_datatype_chunk(
     FreezeChunkSummary::success(paths)
 }
 
-async fn freeze_multi_datatype_chunk(
+async fn freeze_multi_datatype_chunk<P>(
     chunk: (Chunk, Option<String>),
     mdt: MultiDatatype,
     sem: Arc<Semaphore>,
     query: Arc<MultiQuery>,
-    source: Arc<Source<Provider<impl JsonRpcClient>>>,
+    source: Arc<Source<P>>,
     sink: Arc<FileOutput>,
     bar: Arc<ProgressBar>,
-) -> FreezeChunkSummary {
+) -> FreezeChunkSummary
+where
+    P: JsonRpcClient,
+{
     let _permit = sem.acquire().await.expect("Semaphore acquire");
 
     // create paths

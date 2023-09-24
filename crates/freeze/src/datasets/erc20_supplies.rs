@@ -6,10 +6,7 @@ use crate::{
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 
 use crate::{
@@ -47,13 +44,16 @@ impl Dataset for Erc20Supplies {
         vec!["erc20".to_string(), "block_number".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let contract_chunks = match filter {
             Some(filter) => filter.contract_chunks()?,
             _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),

@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -32,37 +29,46 @@ impl MultiDataset for StateDiffs {
             .collect()
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_block_state_diffs(chunk, source).await;
         state_diffs_to_df(rx, &schemas, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let include_indices = schemas.values().any(|schema| schema.has_column("block_number"));
         let rx = fetch_transaction_state_diffs(chunk, source, include_indices).await;
         state_diffs_to_df(rx, &schemas, source.chain_id).await
     }
 }
 
-pub(crate) async fn collect_block_state_diffs(
+pub(crate) async fn collect_block_state_diffs<P>(
     datatype: &Datatype,
     chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     schema: &Table,
     _filter: Option<&RowFilter>,
-) -> Result<DataFrame, CollectError> {
+) -> Result<DataFrame, CollectError>
+where
+    P: JsonRpcClient,
+{
     let rx = fetch_block_state_diffs(chunk, source).await;
     let mut schemas: HashMap<Datatype, Table> = HashMap::new();
     schemas.insert(*datatype, schema.clone());
@@ -80,13 +86,16 @@ pub(crate) async fn collect_block_state_diffs(
     df.sort_by_schema(schema)
 }
 
-pub(crate) async fn collect_transaction_state_diffs(
+pub(crate) async fn collect_transaction_state_diffs<P>(
     datatype: &Datatype,
     chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     schema: &Table,
     _filter: Option<&RowFilter>,
-) -> Result<DataFrame, CollectError> {
+) -> Result<DataFrame, CollectError>
+where
+    P: JsonRpcClient,
+{
     let include_indices = schema.has_column("block_number");
     let chain_id = source.chain_id;
     let rx = fetch_transaction_state_diffs(chunk, source, include_indices).await;
@@ -106,11 +115,14 @@ pub(crate) async fn collect_transaction_state_diffs(
     df.sort_by_schema(schema)
 }
 
-pub(crate) async fn fetch_block_traces(
+pub(crate) async fn fetch_block_traces<P>(
     block_chunk: &BlockChunk,
     trace_types: &[TraceType],
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+    source: &Source<P>,
+) -> mpsc::Receiver<BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(block_chunk.size() as usize);
     for number in block_chunk.numbers() {
         if number == 0 {
@@ -145,12 +157,15 @@ pub(crate) async fn fetch_block_traces(
     rx
 }
 
-pub(crate) async fn fetch_transaction_traces(
+pub(crate) async fn fetch_transaction_traces<P>(
     transaction_chunk: &TransactionChunk,
     trace_types: &[TraceType],
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     include_indices: bool,
-) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+) -> mpsc::Receiver<BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     match transaction_chunk {
         TransactionChunk::Values(tx_hashes) => {
             let (tx, rx) = mpsc::channel(tx_hashes.len());
@@ -216,18 +231,24 @@ pub(crate) async fn fetch_transaction_traces(
     }
 }
 
-pub(crate) async fn fetch_block_state_diffs(
+pub(crate) async fn fetch_block_state_diffs<P>(
     chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+    source: &Source<P>,
+) -> mpsc::Receiver<BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     fetch_block_traces(chunk, &[TraceType::StateDiff], source).await
 }
 
-pub(crate) async fn fetch_transaction_state_diffs(
+pub(crate) async fn fetch_transaction_state_diffs<P>(
     chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     include_indices: bool,
-) -> mpsc::Receiver<BlockNumberTransactionsTraces> {
+) -> mpsc::Receiver<BlockNumberTransactionsTraces>
+where
+    P: JsonRpcClient,
+{
     fetch_transaction_traces(chunk, &[TraceType::StateDiff], source, include_indices).await
 }
 

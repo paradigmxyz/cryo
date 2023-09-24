@@ -13,11 +13,6 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let provider = parse_rpc_url(args).await;
     let chain_id: u64;
-    let ws_url = "wss://eth-mainnet.ws.alchemyapi.io/ws/demo";
-
-    if let RpcProvider::Http(provider) | RpcProvider::Ws(provider) = provider {
-        chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
-    }
 
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match NonZeroU32::new(rate_limit) {
@@ -41,6 +36,14 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         RpcProvider::Http(provider) => {
             chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
             Fetcher { provider, semaphore, rate_limiter }
+            let output = Source {
+                fetcher: Arc::new(fetcher),
+                chain_id,
+                inner_request_size: args.inner_request_size,
+                max_concurrent_chunks,
+            };
+
+            Ok(output)
         }
         RpcProvider::Ws(provider) => {
             chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();

@@ -13,7 +13,7 @@ use crate::{
     },
 };
 
-use ethers::providers::{JsonRpcClient, ProviderError};
+use ethers::providers::JsonRpcClient;
 
 #[async_trait::async_trait]
 impl MultiDataset for BlocksAndTransactions {
@@ -25,13 +25,16 @@ impl MultiDataset for BlocksAndTransactions {
         [Datatype::Blocks, Datatype::Transactions].into_iter().collect()
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let include_gas_used = match &schemas.get(&Datatype::Transactions) {
             Some(table) => table.has_column("gas_used"),
             _ => false,
@@ -57,11 +60,14 @@ impl MultiDataset for BlocksAndTransactions {
     }
 }
 
-pub(crate) async fn fetch_blocks_and_transactions(
+pub(crate) async fn fetch_blocks_and_transactions<P>(
     block_chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     include_gas_used: bool,
-) -> mpsc::Receiver<blocks::BlockTxGasTuple<Transaction>> {
+) -> mpsc::Receiver<blocks::BlockTxGasTuple<Transaction>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
     let source = Arc::new(source.clone());
 

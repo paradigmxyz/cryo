@@ -3,7 +3,7 @@ use std::collections::{HashMap, HashSet};
 use async_trait;
 use polars::prelude::*;
 
-use ethers::providers::{JsonRpcClient, Provider};
+use ethers::providers::JsonRpcClient;
 
 use crate::types::{
     AddressChunk, BlockChunk, Chunk, CollectError, Dataset, Datatype, RowFilter, Source, Table,
@@ -33,7 +33,7 @@ impl MultiDatatype {
     }
 
     /// return MultiDataset corresponding to MultiDatatype
-    pub fn multi_dataset(&self) -> Box<dyn MultiDataset> {
+    pub fn multi_dataset(&self) -> Box<impl MultiDataset> {
         match self {
             MultiDatatype::BlocksAndTransactions => Box::new(BlocksAndTransactions),
             MultiDatatype::StateDiffs => Box::new(StateDiffs),
@@ -56,13 +56,16 @@ pub trait MultiDataset: Sync + Send {
     }
 
     /// collect dataset for a particular chunk
-    async fn collect_chunk(
+    async fn collect_chunk<P>(
         &self,
         chunk: &Chunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schemas: HashMap<Datatype, Table>,
         filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         match chunk {
             Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schemas, filter).await,
             Chunk::Transaction(chunk) => {
@@ -75,35 +78,44 @@ pub trait MultiDataset: Sync + Send {
     }
 
     /// collect dataset for a particular block chunk
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         _chunk: &BlockChunk,
-        _source: &Source<Provider<impl JsonRpcClient>>,
+        _source: &Source<P>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         panic!("block_chunk collection not implemented for {}", self.name())
     }
 
     /// collect dataset for a particular transaction chunk
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         _chunk: &TransactionChunk,
-        _source: &Source<Provider<impl JsonRpcClient>>,
+        _source: &Source<P>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 
     /// collect dataset for a particular transaction chunk
-    async fn collect_address_chunk(
+    async fn collect_address_chunk<P>(
         &self,
         _chunk: &AddressChunk,
-        _source: &Source<Provider<impl JsonRpcClient>>,
+        _source: &Source<P>,
         _schemas: HashMap<Datatype, Table>,
         _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 }

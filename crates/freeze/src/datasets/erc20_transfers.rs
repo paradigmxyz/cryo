@@ -10,10 +10,7 @@
 
 use std::collections::HashMap;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -72,25 +69,31 @@ impl Dataset for Erc20Transfers {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let filter = get_row_filter(filter);
         let rx = logs::fetch_block_logs(chunk, source, Some(&filter)).await;
         logs_to_erc20_transfers(rx, schema, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let filter = get_row_filter(filter);
         let rx = logs::fetch_transaction_logs(chunk, source, Some(&filter)).await;
         logs_to_erc20_transfers(rx, schema, source.chain_id).await

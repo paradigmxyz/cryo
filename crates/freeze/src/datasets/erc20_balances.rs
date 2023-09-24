@@ -15,10 +15,7 @@ use crate::{
     },
     with_series, with_series_binary, with_series_u256, ColumnEncoding,
 };
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::sync::mpsc;
 
@@ -53,13 +50,16 @@ impl Dataset for Erc20Balances {
         vec!["block_number".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let (contract_chunks, call_data_chunks) = match filter {
             Some(filter) => {
                 (filter.contract_chunks()?, create_balance_of_call_datas(filter.address_chunks()?)?)

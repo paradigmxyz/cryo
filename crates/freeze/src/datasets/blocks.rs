@@ -57,13 +57,16 @@ impl Dataset for Blocks {
         vec!["number".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_blocks(chunk, source).await;
         let output = blocks_to_dfs(rx, &Some(schema), &None, source.chain_id).await;
         match output {
@@ -73,13 +76,16 @@ impl Dataset for Blocks {
         }
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let block_numbers = match chunk {
             TransactionChunk::Values(tx_hashes) => {
                 fetch_tx_block_numbers(tx_hashes, source).await?
@@ -91,10 +97,13 @@ impl Dataset for Blocks {
     }
 }
 
-async fn fetch_tx_block_numbers(
+async fn fetch_tx_block_numbers<P>(
     tx_hashes: &Vec<Vec<u8>>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> Result<Vec<u64>, CollectError> {
+    source: &Source<P>,
+) -> Result<Vec<u64>, CollectError>
+where
+    P: JsonRpcClient,
+{
     let mut tasks = Vec::new();
     for tx_hash in tx_hashes {
         let fetcher = source.fetcher.clone();
@@ -124,10 +133,13 @@ async fn fetch_tx_block_numbers(
     Ok(block_numbers)
 }
 
-async fn fetch_blocks(
+async fn fetch_blocks<P>(
     block_chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<BlockTxGasTuple<TxHash>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<BlockTxGasTuple<TxHash>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(block_chunk.numbers().len());
 
     for number in block_chunk.numbers() {

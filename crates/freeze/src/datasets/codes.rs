@@ -7,7 +7,7 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
-use ethers::providers::{JsonRpcClient, ProviderError};
+use ethers::providers::JsonRpcClient;
 
 use crate::{
     dataframes::SortableDataFrame,
@@ -44,13 +44,16 @@ impl Dataset for Codes {
         vec!["block_number".to_string(), "address".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let address_chunks = match filter {
             Some(filter) => match &filter.address_chunks {
                 Some(address_chunks) => address_chunks.clone(),
@@ -65,11 +68,14 @@ impl Dataset for Codes {
 
 pub(crate) type BlockAddressCode = (u64, Vec<u8>, Vec<u8>);
 
-async fn fetch_codes(
+async fn fetch_codes<P>(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<BlockAddressCode, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<BlockAddressCode, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(100);
 
     for block_chunk in block_chunks {

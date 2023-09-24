@@ -3,10 +3,7 @@
 use crate::{types::Storages, ColumnType, Dataset, Datatype};
 use std::collections::HashMap;
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
 
@@ -47,13 +44,16 @@ impl Dataset for Storages {
         vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let (address_chunks, slot_chunks) = match filter {
             Some(filter) => (filter.address_chunks()?, filter.slot_chunks()?),
             _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
@@ -65,12 +65,15 @@ impl Dataset for Storages {
 
 pub(crate) type BlockAddressSlot = (u64, Vec<u8>, Vec<u8>, Vec<u8>);
 
-async fn fetch_slots(
+async fn fetch_slots<P>(
     block_chunks: Vec<&BlockChunk>,
     address_chunks: Vec<AddressChunk>,
     slot_chunks: Vec<SlotChunk>,
-    source: &Source<Provider<impl JsonRpcClient>>,
-) -> mpsc::Receiver<Result<BlockAddressSlot, CollectError>> {
+    source: &Source<P>,
+) -> mpsc::Receiver<Result<BlockAddressSlot, CollectError>>
+where
+    P: JsonRpcClient,
+{
     let (tx, rx) = mpsc::channel(100);
 
     for block_chunk in block_chunks {

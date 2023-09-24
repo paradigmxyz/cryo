@@ -1,9 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use ethers::{
-    prelude::*,
-    providers::{JsonRpcClient, ProviderError},
-};
+use ethers::{prelude::*, providers::JsonRpcClient};
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
 use polars::prelude::*;
 use tokio::{sync::mpsc, task};
@@ -62,24 +59,30 @@ impl Dataset for Logs {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
 
-    async fn collect_block_chunk(
+    async fn collect_block_chunk<P>(
         &self,
         chunk: &BlockChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         let rx = fetch_block_logs(chunk, source, filter).await;
         logs_to_df(rx, schema, source.chain_id).await
     }
 
-    async fn collect_transaction_chunk(
+    async fn collect_transaction_chunk<P>(
         &self,
         chunk: &TransactionChunk,
-        source: &Source<Provider<impl JsonRpcClient>>,
+        source: &Source<P>,
         schema: &Table,
         filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
+    ) -> Result<DataFrame, CollectError>
+    where
+        P: JsonRpcClient,
+    {
         // if let Some(_filter) = filter {
         //     return Err(CollectError::CollectError(
         //         "filters not supported when using --txs".to_string(),
@@ -90,11 +93,14 @@ impl Dataset for Logs {
     }
 }
 
-pub(crate) async fn fetch_block_logs(
+pub(crate) async fn fetch_block_logs<P>(
     block_chunk: &BlockChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     filter: Option<&RowFilter>,
-) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
+) -> mpsc::Receiver<Result<Vec<Log>, CollectError>>
+where
+    P: JsonRpcClient,
+{
     // todo: need to modify these functions so they turn a result
     let request_chunks = block_chunk.to_log_filter_options(&source.inner_request_size);
     let (tx, rx) = mpsc::channel(request_chunks.len());
@@ -127,11 +133,14 @@ pub(crate) async fn fetch_block_logs(
     rx
 }
 
-pub(crate) async fn fetch_transaction_logs(
+pub(crate) async fn fetch_transaction_logs<P>(
     transaction_chunk: &TransactionChunk,
-    source: &Source<Provider<impl JsonRpcClient>>,
+    source: &Source<P>,
     _filter: Option<&RowFilter>,
-) -> mpsc::Receiver<Result<Vec<Log>, CollectError>> {
+) -> mpsc::Receiver<Result<Vec<Log>, CollectError>>
+where
+    P: JsonRpcClient,
+{
     match transaction_chunk {
         TransactionChunk::Values(tx_hashes) => {
             let (tx, rx) = mpsc::channel(tx_hashes.len() * 200);
