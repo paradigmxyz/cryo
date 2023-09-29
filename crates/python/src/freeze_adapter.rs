@@ -1,8 +1,4 @@
-use pyo3::{
-    exceptions::PyTypeError,
-    prelude::*,
-    types::{IntoPyDict, PyDict},
-};
+use pyo3::{exceptions::PyTypeError, prelude::*, types::IntoPyDict};
 
 use cryo_cli::{run, Args};
 
@@ -28,6 +24,7 @@ use cryo_cli::{run, Args};
         dry = false,
         chunk_size = 1000,
         n_chunks = None,
+        partition_by = None,
         output_dir = ".".to_string(),
         file_suffix = None,
         overwrite = false,
@@ -78,6 +75,7 @@ pub fn _freeze(
     dry: bool,
     chunk_size: u64,
     n_chunks: Option<u64>,
+    partition_by: Option<Vec<String>>,
     output_dir: String,
     file_suffix: Option<String>,
     overwrite: bool,
@@ -97,10 +95,10 @@ pub fn _freeze(
     inputs: Option<Vec<String>>,
     slots: Option<Vec<String>>,
     contract: Option<Vec<String>>,
-    topic0: Option<String>,
-    topic1: Option<String>,
-    topic2: Option<String>,
-    topic3: Option<String>,
+    topic0: Option<Vec<String>>,
+    topic1: Option<Vec<String>>,
+    topic2: Option<Vec<String>>,
+    topic3: Option<Vec<String>>,
     inner_request_size: u64,
     no_verbose: bool,
     event_signature: Option<String>,
@@ -125,6 +123,7 @@ pub fn _freeze(
         dry,
         chunk_size,
         n_chunks,
+        partition_by,
         output_dir,
         file_suffix,
         overwrite,
@@ -134,7 +133,7 @@ pub fn _freeze(
         n_row_groups,
         no_stats,
         compression,
-        report_dir,
+        report_dir: report_dir.map(std::path::PathBuf::from),
         no_report,
         address,
         to_address,
@@ -156,19 +155,19 @@ pub fn _freeze(
     pyo3_asyncio::tokio::future_into_py(py, async move {
         match run(args).await {
             Ok(Some(result)) => Python::with_gil(|py| {
-                let paths = PyDict::new(py);
-                for (key, values) in &result.paths {
-                    let key = key.dataset().name();
-                    let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
-                    paths.set_item(key, values).unwrap();
-                }
-                let paths = paths.to_object(py);
+                // let paths = PyDict::new(py);
+                // for (key, values) in &result.paths {
+                //     let key = key.dataset().name();
+                //     let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
+                //     paths.set_item(key, values).unwrap();
+                // }
+                // let paths = paths.to_object(py);
 
                 let dict = [
-                    ("n_completed".to_string(), result.n_completed.into_py(py)),
-                    ("n_skipped".to_string(), result.n_skipped.into_py(py)),
-                    ("n_errored".to_string(), result.n_errored.into_py(py)),
-                    ("paths".to_string(), paths),
+                    ("n_completed".to_string(), result.completed.len().into_py(py)),
+                    ("n_skipped".to_string(), result.skipped.len().into_py(py)),
+                    ("n_errored".to_string(), result.errored.len().into_py(py)),
+                    // ("paths".to_string(), paths),
                 ]
                 .into_py_dict(py);
                 Ok(dict.to_object(py))

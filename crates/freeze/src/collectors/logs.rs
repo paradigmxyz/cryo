@@ -1,8 +1,7 @@
 use crate::{
-    conversions::ToVecHex,
-    dataframes::SortableDataFrame,
-    freeze2::{ChunkDim, CollectByBlock, CollectByTransaction, ColumnData, RpcParams},
-    store, with_series, with_series_binary, CollectError, ColumnType, Logs, Source, Table,
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype,
+    Logs, RpcParams, Source, Table,
 };
 use ethers::prelude::*;
 use ethers_core::abi::Token;
@@ -22,7 +21,7 @@ impl CollectByBlock for Logs {
     async fn extract_by_block(
         request: RpcParams,
         source: Source,
-        _schema: Table,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::BlockResponse, CollectError> {
         source.fetcher.get_logs(&request.ethers_log_filter()).await
     }
@@ -30,9 +29,9 @@ impl CollectByBlock for Logs {
     fn transform_by_block(
         response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
-        process_logs(response, columns, schema)
+        process_logs(response, columns, schemas.get(&Datatype::Logs).expect("schema not provided"))
     }
 }
 
@@ -49,11 +48,11 @@ impl CollectByTransaction for Logs {
     async fn extract_by_transaction(
         request: RpcParams,
         source: Source,
-        _schema: Table,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::TransactionResponse, CollectError> {
         let logs = source
             .fetcher
-            .get_transaction_receipt(request.ethers_transaction())
+            .get_transaction_receipt(request.ethers_transaction_hash())
             .await?
             .ok_or(CollectError::CollectError("transaction receipt not found".to_string()))?
             .logs;
@@ -63,14 +62,15 @@ impl CollectByTransaction for Logs {
     fn transform_by_transaction(
         response: Self::TransactionResponse,
         columns: &mut Self::TransactionColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
+        let schema = schemas.get(&Datatype::Logs).expect("schema not provided");
         process_logs(response, columns, schema)
     }
 }
 
 /// columns for transactions
-#[cryo_to_df::to_df]
+#[cryo_to_df::to_df(Datatype::Logs)]
 #[derive(Default)]
 pub struct LogColumns {
     n_rows: u64,

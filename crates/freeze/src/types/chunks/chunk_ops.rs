@@ -3,7 +3,7 @@ use crate::{ChunkError, Datatype, FileError, FileOutput};
 /// Trait for common chunk methods
 pub trait ChunkData: Sized {
     /// inner type used to express items in chunk
-    type Inner: Ord;
+    type Inner: Ord + ValueToString;
 
     /// format a single item in chunk
     fn format_item(value: Self::Inner) -> String;
@@ -51,6 +51,70 @@ pub trait ChunkData: Sized {
         let filename = format!("{}.{}", pieces.join("__"), file_output.format.as_str());
         Ok(file_output.output_dir.join(filename))
     }
+
+    /// get stats of Chunk
+    fn stats(&self) -> ChunkStats<Self::Inner> {
+        ChunkStats {
+            min_value: self.min_value(),
+            max_value: self.max_value(),
+            total_values: self.size(),
+            chunk_size: self.size(),
+            n_chunks: 1,
+        }
+    }
+}
+
+/// statistics of a Chunk's contents
+#[derive(Clone)]
+pub struct ChunkStats<T: std::cmp::Ord + ValueToString> {
+    /// minimum value in chunk
+    pub min_value: Option<T>,
+    /// maximum value in chunk
+    pub max_value: Option<T>,
+    /// number of values in chunk
+    pub total_values: u64,
+    /// size of chunk
+    pub chunk_size: u64,
+    /// number of chunks
+    pub n_chunks: u64,
+}
+
+impl<T: std::cmp::Ord + ValueToString> ChunkStats<T> {
+    /// reduce ChunkStats of two chunks into one
+    pub fn fold(self, other: ChunkStats<T>) -> ChunkStats<T> {
+        let min_value = std::cmp::min(self.min_value, other.min_value);
+        let max_value = std::cmp::max(self.max_value, other.max_value);
+        let total_values = self.total_values + other.total_values;
+        let chunk_size = self.chunk_size;
+        let n_chunks = self.n_chunks + other.n_chunks;
+        ChunkStats { min_value, max_value, total_values, chunk_size, n_chunks }
+    }
+
+    /// get minimum value as string
+    pub fn min_value_to_string(&self) -> Option<String> {
+        self.min_value.as_ref().map(|v| v.to_value_string())
+    }
+
+    /// get minimum value as string
+    pub fn max_value_to_string(&self) -> Option<String> {
+        self.max_value.as_ref().map(|v| v.to_value_string())
+    }
+}
+
+pub trait ValueToString {
+    fn to_value_string(&self) -> String;
+}
+
+impl ValueToString for u64 {
+    fn to_value_string(&self) -> String {
+        self.to_string()
+    }
+}
+
+impl ValueToString for Vec<u8> {
+    fn to_value_string(&self) -> String {
+        prefix_hex::encode(self.clone())
+    }
 }
 
 impl<T: ChunkData> ChunkData for Vec<T> {
@@ -74,5 +138,49 @@ impl<T: ChunkData> ChunkData for Vec<T> {
 
     fn values(&self) -> Vec<Self::Inner> {
         panic!()
+    }
+
+    fn stats(&self) -> ChunkStats<Self::Inner> {
+        ChunkStats {
+            min_value: self.min_value(),
+            max_value: self.max_value(),
+            total_values: self.size(),
+            chunk_size: self.size(),
+            n_chunks: self.len() as u64,
+        }
+    }
+}
+
+impl<T: ChunkData> ChunkData for &[T] {
+    type Inner = T::Inner;
+
+    fn format_item(value: Self::Inner) -> String {
+        T::format_item(value)
+    }
+
+    fn size(&self) -> u64 {
+        self.iter().map(|x| x.size()).sum()
+    }
+
+    fn min_value(&self) -> Option<Self::Inner> {
+        self.iter().filter_map(|x| x.min_value()).min()
+    }
+
+    fn max_value(&self) -> Option<Self::Inner> {
+        self.iter().filter_map(|x| x.max_value()).max()
+    }
+
+    fn values(&self) -> Vec<Self::Inner> {
+        panic!()
+    }
+
+    fn stats(&self) -> ChunkStats<Self::Inner> {
+        ChunkStats {
+            min_value: self.min_value(),
+            max_value: self.max_value(),
+            total_values: self.size(),
+            chunk_size: self.size(),
+            n_chunks: self.len() as u64,
+        }
     }
 }

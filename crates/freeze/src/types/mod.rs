@@ -9,6 +9,27 @@ pub mod datatypes;
 /// type specifications for data sources
 pub mod sources;
 
+/// column data specification
+pub mod columns;
+pub use columns::ColumnData;
+
+/// partitions
+pub mod partitions;
+/// rpc_params
+pub mod rpc_params;
+
+pub use partitions::{ChunkDim, Partition, PartitionLabels};
+pub use rpc_params::RpcParams;
+
+/// collection traits
+pub mod collection;
+
+/// execution environment
+pub mod execution;
+
+/// report generation
+pub mod reports;
+
 /// type specifications for dataframes
 #[macro_use]
 pub mod dataframes;
@@ -25,17 +46,21 @@ pub mod schemas;
 pub mod summaries;
 
 pub use chunks::{
-    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, SlotChunk, Subchunk, TopicChunk,
-    TransactionChunk,
+    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, ChunkStats, SlotChunk, Subchunk,
+    TopicChunk, TransactionChunk,
 };
 pub use conversions::{ToVecHex, ToVecU8};
 pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput};
-pub use queries::{MultiQuery, RowFilter, SingleQuery};
+pub use queries::{MultiQuery, Query, RowFilter, SingleQuery, TimeDimension};
 pub use schemas::{ColumnType, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source};
-pub(crate) use summaries::FreezeSummaryAgg;
-pub use summaries::{FreezeChunkSummary, FreezeSummary};
+// pub(crate) use summaries::FreezeSummaryAgg;
+// pub use summaries::{FreezeChunkSummary, FreezeSummary};
+pub use summaries::FreezeSummary;
 
 pub use errors::{ChunkError, CollectError, FileError, FreezeError, ParseError};
+
+pub use collection::{CollectByBlock, CollectByTransaction};
+pub use execution::{ExecutionEnv, ExecutionEnvBuilder};

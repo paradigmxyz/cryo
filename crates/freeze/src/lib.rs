@@ -8,15 +8,14 @@
 ))]
 
 mod collect;
+mod collectors;
 mod datasets;
 mod freeze;
 
-#[macro_use]
-mod freeze2;
 mod types;
 
-pub use collect::{collect, collect_multiple};
+pub use collect::{collect, collect_by_block, collect_by_transaction, collect_partition};
+pub use collectors::*;
 pub use datasets::LogDecoder;
 pub use freeze::freeze;
-pub use freeze2::*;
 pub use types::*;

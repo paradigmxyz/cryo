@@ -1,8 +1,9 @@
 use super::{blocks, transactions};
 use crate::{
-    freeze2::{ChunkDim, CollectByBlock, ColumnData, RpcParams},
-    BlocksAndTransactions, CollectError, Transactions,
+    StateDiffs, ChunkDim, CollectByBlock, CollectError, ColumnData, Datatype, RpcParams,
+    Transactions,
 };
+use std::collections::HashMap;
 
 use crate::{Source, Table};
 use polars::prelude::*;
@@ -24,21 +25,26 @@ impl CollectByBlock for BlocksAndTransactions {
     async fn extract_by_block(
         request: RpcParams,
         source: Source,
-        schema: Table,
+        schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::BlockResponse, CollectError> {
-        Transactions::extract_by_block(request, source, schema).await
+        Transactions::extract_by_block(request, source, schemas).await
     }
 
     /// transform block data response into column data
     fn transform_by_block(
         response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
         let BlocksAndTransactionsColumns(block_columns, transaction_columns) = columns;
         let (block, _) = response.clone();
-        super::blocks::process_block(block, block_columns, schema);
-        Transactions::transform_by_block(response, transaction_columns, schema);
+        super::blocks::process_block(
+            block,
+            block_columns,
+            schemas.get(&Datatype::Blocks).expect("schema undefined"),
+        );
+        // Blocks::transform_by_block(response, block_columns, schema);
+        Transactions::transform_by_block(response, transaction_columns, schemas);
     }
 }
 
@@ -47,11 +53,21 @@ impl CollectByBlock for BlocksAndTransactions {
 pub struct BlocksAndTransactionsColumns(blocks::BlockColumns, transactions::TransactionColumns);
 
 impl ColumnData for BlocksAndTransactionsColumns {
-    fn create_dfs(self, schema: &Table, chain_id: u64) -> Result<Vec<DataFrame>, CollectError> {
+    fn datatypes() -> Vec<Datatype> {
+        vec![Datatype::Blocks, Datatype::Transactions]
+    }
+
+    fn create_dfs(
+        self,
+        schemas: &HashMap<Datatype, Table>,
+        chain_id: u64,
+    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
         let BlocksAndTransactionsColumns(block_columns, transaction_columns) = self;
         Ok(vec![
-            block_columns.create_df(schema, chain_id)?,
-            transaction_columns.create_df(schema, chain_id)?,
-        ])
+            (Datatype::Blocks, block_columns.create_df(schemas, chain_id)?),
+            (Datatype::Transactions, transaction_columns.create_df(schemas, chain_id)?),
+        ]
+        .into_iter()
+        .collect())
     }
 }

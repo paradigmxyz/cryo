@@ -86,6 +86,12 @@ impl<P: JsonRpcClient> Fetcher<P> {
         Self::map_err(self.provider.get_block(block_num).await)
     }
 
+    /// Gets the block at `block_num` (transaction hashes only)
+    pub async fn get_block_by_hash(&self, block_hash: H256) -> Result<Option<Block<TxHash>>> {
+        let _permit = self.permit_request().await;
+        Self::map_err(self.provider.get_block(BlockId::Hash(block_hash)).await)
+    }
+
     /// Gets the block at `block_num` (full transactions included)
     pub async fn get_block_with_txs(&self, block_num: u64) -> Result<Option<Block<Transaction>>> {
         let _permit = self.permit_request().await;

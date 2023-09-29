@@ -8,7 +8,7 @@ pub struct RpcParams {
     /// block range
     pub block_range: Option<(u64, u64)>,
     /// transaction
-    pub transaction: Option<Vec<u8>>,
+    pub transaction_hash: Option<Vec<u8>>,
     /// call data
     pub call_data: Option<Vec<u8>>,
     /// address
@@ -41,8 +41,8 @@ impl RpcParams {
     }
 
     /// transaction
-    pub fn transaction(&self) -> Vec<u8> {
-        self.transaction.clone().expect("transaction not specified")
+    pub fn transaction_hash(&self) -> Vec<u8> {
+        self.transaction_hash.clone().expect("transaction not specified")
     }
 
     /// address
@@ -60,8 +60,8 @@ impl RpcParams {
     }
 
     /// ethers transaction
-    pub fn ethers_transaction(&self) -> H256 {
-        H256::from_slice(&self.transaction())
+    pub fn ethers_transaction_hash(&self) -> H256 {
+        H256::from_slice(&self.transaction_hash())
     }
 
     /// ethers address

@@ -1,12 +1,13 @@
 use crate::{
     conversions::{ToVecHex, ToVecU8},
     dataframes::SortableDataFrame,
-    freeze2::{ChunkDim, CollectByBlock, ColumnData, RpcParams},
-    store, with_series, with_series_binary, with_series_option_u256, Blocks, CollectError,
-    ColumnEncoding, ColumnType, Source, Table, U256Type,
+    store, with_series, with_series_binary, with_series_option_u256, Blocks, ChunkDim,
+    CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnEncoding, ColumnType,
+    Datatype, RpcParams, Source, Table, U256Type,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
 #[async_trait::async_trait]
 impl CollectByBlock for Blocks {
@@ -21,7 +22,7 @@ impl CollectByBlock for Blocks {
     async fn extract_by_block(
         request: RpcParams,
         source: Source,
-        _schema: Table,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::BlockResponse, CollectError> {
         let block = source
             .fetcher
@@ -34,14 +35,53 @@ impl CollectByBlock for Blocks {
     fn transform_by_block(
         response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
+        let schema = schemas.get(&Datatype::Blocks).expect("schema missing");
+        process_block(response, columns, schema)
+    }
+}
+
+#[async_trait::async_trait]
+impl CollectByTransaction for Blocks {
+    type TransactionResponse = Block<TxHash>;
+
+    type TransactionColumns = BlockColumns;
+
+    fn transaction_parameters() -> Vec<ChunkDim> {
+        vec![ChunkDim::TransactionHash]
+    }
+
+    async fn extract_by_transaction(
+        request: RpcParams,
+        source: Source,
+        _schemas: HashMap<Datatype, Table>,
+    ) -> Result<Self::TransactionResponse, CollectError> {
+        let transaction = source
+            .fetcher
+            .get_transaction(request.ethers_transaction_hash())
+            .await?
+            .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
+        let block = source
+            .fetcher
+            .get_block_by_hash(transaction.block_hash.expect("no block hash found"))
+            .await?
+            .ok_or(CollectError::CollectError("block not found".to_string()))?;
+        Ok(block)
+    }
+
+    fn transform_by_transaction(
+        response: Self::TransactionResponse,
+        columns: &mut Self::TransactionColumns,
+        schemas: &HashMap<Datatype, Table>,
+    ) {
+        let schema = schemas.get(&Datatype::Blocks).expect("schema missing");
         process_block(response, columns, schema)
     }
 }
 
 /// columns for transactions
-#[cryo_to_df::to_df]
+#[cryo_to_df::to_df(Datatype::Blocks)]
 #[derive(Default)]
 pub struct BlockColumns {
     n_rows: u64,

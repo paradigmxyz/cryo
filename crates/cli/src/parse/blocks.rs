@@ -2,20 +2,21 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, Datatype, Fetcher, ParseError, Subchunk, Table};
+use cryo_freeze::{BlockChunk, ChunkData, Datatype, Fetcher, ParseError, Subchunk, Table};
 
 use crate::args::Args;
 
 pub(crate) async fn parse_blocks<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
+) -> Result<(Option<Vec<Option<String>>>, Option<Vec<BlockChunk>>), ParseError> {
     let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.blocks {
         Some(blocks) => blocks.iter().partition(|tx| std::path::Path::new(tx).exists()),
-        None => return Err(ParseError::ParseError("no blocks specified".to_string())),
+        None => return Ok((None, None)),
     };
 
-    let mut file_chunks = if !files.is_empty() {
+    let (file_labels, file_chunks) = if !files.is_empty() {
+        let mut file_labels = Vec::new();
         let mut file_chunks = Vec::new();
         for path in files {
             let column = if path.contains(':') {
@@ -32,11 +33,12 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
                 .split("__")
                 .last()
                 .and_then(|s| s.strip_suffix(".parquet").map(|s| s.to_string()));
-            file_chunks.push((Chunk::Block(chunk), chunk_label));
+            file_labels.push(chunk_label);
+            file_chunks.push(chunk);
         }
-        file_chunks
+        (Some(file_labels), Some(file_chunks))
     } else {
-        Vec::new()
+        (None, None)
     };
 
     let explicit_chunks = if !explicit_numbers.is_empty() {
@@ -51,8 +53,19 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
         Vec::new()
     };
 
-    file_chunks.extend(explicit_chunks);
-    Ok(file_chunks)
+    let mut block_chunks = Vec::new();
+    let labels = match (file_labels, file_chunks) {
+        (Some(file_labels), Some(file_chunks)) => {
+            let mut labels = Vec::new();
+            labels.extend(file_labels);
+            block_chunks.extend(file_chunks);
+            labels.extend(vec![None; explicit_chunks.len()]);
+            Some(labels)
+        }
+        _ => None,
+    };
+    block_chunks.extend(explicit_chunks);
+    Ok((labels, Some(block_chunks)))
 }
 
 fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError> {
@@ -97,7 +110,7 @@ async fn postprocess_block_chunks<P: JsonRpcClient>(
     block_chunks: Vec<BlockChunk>,
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
+) -> Result<Vec<BlockChunk>, ParseError> {
     // align
     let block_chunks = if args.align {
         block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
@@ -114,18 +127,14 @@ async fn postprocess_block_chunks<P: JsonRpcClient>(
     // apply reorg buffer
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &fetcher).await?;
 
-    // put into Chunk enums
-    let chunks: Vec<(Chunk, Option<String>)> =
-        block_chunks.iter().map(|x| (Chunk::Block(x.clone()), None)).collect();
-
-    Ok(chunks)
+    Ok(block_chunks)
 }
 
 pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
     schemas: &HashMap<Datatype, Table>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
+) -> Result<Vec<BlockChunk>, ParseError> {
     let default_blocks = schemas
         .keys()
         .map(|datatype| datatype.dataset().default_blocks())

@@ -1,67 +1,452 @@
-use crate::types::Datatype;
-use std::{collections::HashMap, path::PathBuf};
+use std::collections::HashMap;
 
-/// Summary of freeze operation
-#[derive(serde::Serialize, Debug)]
+use chrono::{DateTime, Local};
+use colored::Colorize;
+use thousands::Separable;
+
+use crate::{
+    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, ColumnType, Datatype, ExecutionEnv,
+    FileOutput, Partition, Query, Source, Table,
+};
+use std::path::PathBuf;
+
+const TITLE_R: u8 = 0;
+const TITLE_G: u8 = 225;
+const TITLE_B: u8 = 0;
+
+/// summary of a freeze
+#[derive(Debug, Default)]
 pub struct FreezeSummary {
-    /// number of chunks completed successfully
-    pub n_completed: u64,
-    /// number of chunks skipped
-    pub n_skipped: u64,
-    /// number of chunks that encountered an error
-    pub n_errored: u64,
-    /// paths
-    pub paths: HashMap<Datatype, Vec<PathBuf>>,
+    /// partitions completed
+    pub completed: Vec<Partition>,
+    /// partitions skipped
+    pub skipped: Vec<Partition>,
+    /// partitions errored
+    pub errored: Vec<Option<Partition>>,
 }
 
-pub(crate) trait FreezeSummaryAgg {
-    fn aggregate(self) -> FreezeSummary;
+pub(crate) fn print_header<A: AsRef<str>>(header: A) {
+    let header_str = header.as_ref().white().bold();
+    let underline = "─".repeat(header_str.len()).truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}", header_str);
+    println!("{}", underline);
 }
 
-impl FreezeSummaryAgg for Vec<FreezeChunkSummary> {
-    fn aggregate(self) -> FreezeSummary {
-        let mut n_completed: u64 = 0;
-        let mut n_skipped: u64 = 0;
-        let mut n_errored: u64 = 0;
+fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
+    let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let key_str = key.as_ref().white().bold();
+    let value_str = value.as_ref().truecolor(170, 170, 170);
+    let colon_str = ": ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
+}
 
-        let mut paths = HashMap::new();
-        for chunk_summary in self {
-            if chunk_summary.skipped {
-                n_skipped += 1;
-            } else if chunk_summary.errored {
-                n_errored += 1;
+fn print_bullet_indent<A: AsRef<str>, B: AsRef<str>>(key: A, value: B, indent: usize) {
+    let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let key_str = key.as_ref().white().bold();
+    let value_str = value.as_ref().truecolor(170, 170, 170);
+    let colon_str = ": ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}{}{}{}{}", " ".repeat(indent), bullet_str, key_str, colon_str, value_str);
+}
+
+pub(crate) fn print_cryo_intro(
+    query: &Query,
+    source: &Source,
+    sink: &FileOutput,
+    env: &ExecutionEnv,
+    n_chunks_remaining: u64,
+) {
+    print_header("cryo parameters");
+    let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.dataset().name()).collect();
+    print_bullet("datatypes", datatype_strs.join(", "));
+    print_bullet("network", &sink.prefix);
+    // let rpc_url = cli::parse_rpc_url(args);
+    // print_bullet("provider", rpc_url);
+    print_chunks(&query.partitions);
+    print_bullet(
+        "chunks to collect",
+        format!(
+            "{} / {}",
+            n_chunks_remaining.separate_with_commas(),
+            query.partitions.len().separate_with_commas()
+        ),
+    );
+    print_bullet("max concurrent chunks", source.max_concurrent_chunks.separate_with_commas());
+    if query.schemas.contains_key(&Datatype::Logs) {
+        print_bullet("inner request size", source.inner_request_size.to_string());
+    };
+    print_bullet("output format", sink.format.as_str());
+    print_bullet("output dir", sink.output_dir.to_string_lossy());
+
+    // print report path
+    let report_path = if env.report && n_chunks_remaining > 0 {
+        let report_path =
+            super::reports::get_report_path(env, sink, true).expect("could not get report path");
+        // Some(report_path.strip_prefix("./").unwrap_or(&report_path))
+        let stripped_path: PathBuf = match report_path.strip_prefix("./") {
+            Ok(stripped) => PathBuf::from(stripped),
+            Err(_) => report_path,
+        };
+
+        Some(stripped_path)
+    } else {
+        None
+    };
+    match report_path {
+        None => print_bullet("report file", "None"),
+        Some(path) => {
+            print_bullet("report file", path.to_str().expect("could not get report path"))
+        }
+    };
+
+    // print schemas
+    print_schemas(&query.schemas);
+
+    if env.dry {
+        println!("\n\n[dry run, exiting]");
+    }
+}
+
+fn print_chunks(chunks: &[Partition]) {
+    let stats = crate::types::partitions::meta_chunks_stats(chunks);
+    for (dim, dim_stats) in
+        vec![("block", stats.block_numbers), ("block", stats.block_ranges)].iter()
+    {
+        if let Some(dim_stats) = dim_stats {
+            print_chunk(dim, dim_stats)
+        }
+    }
+
+    for (dim, dim_stats) in vec![
+        ("transaction", stats.transactions),
+        ("call_data", stats.call_datas),
+        ("addresse", stats.addresses),
+        ("contract", stats.contracts),
+        ("to_address", stats.to_addresses),
+        ("slot", stats.slots),
+        ("topic0", stats.topic0s),
+        ("topic1", stats.topic1s),
+        ("topic2", stats.topic2s),
+        ("topic3", stats.topic3s),
+    ]
+    .iter()
+    {
+        if let Some(dim_stats) = dim_stats {
+            print_chunk(dim, dim_stats)
+        }
+    }
+}
+
+fn print_chunk<T: Ord + ValueToString>(dim: &str, dim_stats: &ChunkStats<T>) {
+    if dim_stats.total_values == 1 {
+        print_bullet(dim, dim_stats.min_value_to_string().expect("could not get min value"));
+    } else {
+        println!("- {} chunks", dim);
+        if let Some(min_value_string) = dim_stats.min_value_to_string() {
+            print_bullet_indent("min", min_value_string, 4);
+        };
+        if let Some(max_value_string) = dim_stats.max_value_to_string() {
+            print_bullet_indent("max", max_value_string, 4);
+        };
+        print_bullet_indent("n_values", dim_stats.total_values.to_string(), 4);
+        print_bullet_indent("n_chunks", dim_stats.n_chunks.to_string(), 4);
+        print_bullet_indent("chunk size", dim_stats.chunk_size.to_string(), 4);
+    }
+}
+
+// fn print_block_chunks(chunks: &Vec<Partition>) {
+//     let mut min = None;
+//     let mut max = None;
+//     let mut total_size = None;
+//     let mut chunk_size = None;
+//     for chunk in chunks.iter() {
+//         if let Some(chunks) = chunk.block_numbers {
+//             min = match min {
+//                 Some(min) => std::cmp::min(min, chunks.min_value()),
+//                 None => chunks.min_value(),
+//             };
+//             max = match max {
+//                 Some(max) => Some(std::cmp::max(max, chunks.max_value())),
+//                 None => Some(chunks.max_value()),
+//             };
+//             total_size = match total_size {
+//                 Some(total_size) => Some(total_size + chunks.size()),
+//                 None => Some(chunks.size()),
+//             };
+//             chunk_size = match chunk_size {
+//                 Some(chunk_size) => Some(chunk_size),
+//                 None => {
+//                     if let Some(first_chunk) = chunks.get(0) {
+//                         Some(first_chunk.size())
+//                     } else {
+//                         None
+//                     }
+//                 },
+//             };
+//         };
+//     }
+
+//     // print result
+//     if let (Some(min), Some(max), Some(total_size), Some(chunk_size)) =
+//         (min, max, total_size, chunk_size)
+//     {
+//         print_bullet("min block", min.separate_with_commas());
+//         print_bullet("max block", max.separate_with_commas());
+//         print_bullet("total blocks", chunks.size().separate_with_commas());
+//         print_bullet("block chunk size", chunk_size.separate_with_commas());
+//     }
+// }
+
+// fn print_block_chunks(query: &Query) {
+//     let block_chunks: Vec<BlockChunk> = query
+//         .chunks
+//         .iter()
+//         .filter_map(|x| match x.clone() {
+//             (Chunk::Block(chunk), _) => Some(chunk),
+//             _ => None,
+//         })
+//         .collect();
+//     if !block_chunks.is_empty() {
+//         if let Some(min) = block_chunks.min_value() {
+//             print_bullet("min block", min.separate_with_commas());
+//         };
+//         if let Some(max) = block_chunks.max_value() {
+//             print_bullet("max block", max.separate_with_commas());
+//         };
+//         print_bullet("total blocks", block_chunks.size().separate_with_commas());
+//         if let Some(first_chunk) = block_chunks.get(0) {
+//             let chunk_size = first_chunk.size();
+//             print_bullet("block chunk size", chunk_size.separate_with_commas());
+//         };
+//     }
+// }
+
+// fn print_transaction_chunks(query: &Query) {
+//     let transaction_chunks: Vec<TransactionChunk> = query
+//         .chunks
+//         .iter()
+//         .filter_map(|x| match x.clone() {
+//             (Chunk::Transaction(chunk), _) => Some(chunk),
+//             _ => None,
+//         })
+//         .collect();
+//     if !transaction_chunks.is_empty() {
+//         let total_transactions = transaction_chunks
+//             .iter()
+//             .map(|chunk| match chunk {
+//                 TransactionChunk::Values(values) => values.len() as u64,
+//                 TransactionChunk::Range(_, _) => todo!(),
+//             })
+//             .sum::<u64>();
+//         print_bullet("total transactions", total_transactions.to_string());
+//         print_bullet("total transaction chunks",
+// transaction_chunks.len().separate_with_commas());     }
+// }
+
+fn print_schemas(schemas: &HashMap<Datatype, Table>) {
+    schemas.iter().for_each(|(name, schema)| {
+        println!();
+        println!();
+        print_schema(name, &schema.clone())
+    })
+}
+
+fn print_schema(name: &Datatype, schema: &Table) {
+    print_header("schema for ".to_string() + name.dataset().name());
+    for column in schema.columns() {
+        if let Some(column_type) = schema.column_type(column) {
+            if column_type == ColumnType::UInt256 {
+                for uint256_type in schema.u256_types.iter() {
+                    print_bullet(
+                        column.to_owned() + uint256_type.suffix().as_str(),
+                        uint256_type.to_columntype().as_str(),
+                    );
+                }
             } else {
-                n_completed += 1;
-            }
-            for (datatype, path) in chunk_summary.paths {
-                paths.entry(datatype).or_insert_with(Vec::new).push(path);
+                print_bullet(column, column_type.as_str());
             }
         }
-
-        FreezeSummary { n_completed, n_skipped, n_errored, paths }
     }
+    println!();
+    if let Some(sort_cols) = schema.sort_columns.clone() {
+        println!("sorting {} by: {}", name.dataset().name(), sort_cols.join(", "));
+    } else {
+        println!("sorting disabled for {}", name.dataset().name());
+    }
+    let other_columns: String = name
+        .dataset()
+        .column_types()
+        .keys()
+        .copied()
+        .filter(|x| !schema.has_column(x))
+        .collect::<Vec<_>>()
+        .join(", ");
+    println!("\nother available columns: {}", other_columns);
 }
 
-/// Summary of freezing a single chunk
-pub struct FreezeChunkSummary {
-    /// whether chunk was skipped
-    pub skipped: bool,
-    /// whether chunk encountered an error
-    pub errored: bool,
-    /// output paths
-    pub paths: HashMap<Datatype, PathBuf>,
+pub(crate) fn print_cryo_conclusion(
+    freeze_summary: &FreezeSummary,
+    query: &Query,
+    env: &ExecutionEnv,
+) {
+    let dt_start: DateTime<Local> = env.t_start.into();
+    let t_end = env.t_end.expect("end time not recorded, use env.set_end_time()");
+    let dt_data_done: DateTime<Local> = t_end.into();
+    let duration = match t_end.duration_since(env.t_start) {
+        Ok(duration) => duration,
+        Err(_e) => {
+            println!("error computing system time, aborting");
+            return
+        }
+    };
+    let seconds = duration.as_secs();
+    let millis = duration.subsec_millis();
+    let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
+    let duration_string = format!("{}.{:03} seconds", seconds, millis);
+
+    print_header("collection summary");
+    print_bullet("total duration", duration_string);
+    print_bullet("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
+    print_bullet(
+        "t_end",
+        "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
+    );
+    let n_chunks = query.partitions.len();
+    print_bullet(
+        "chunks errored",
+        format!("  {} / {}", freeze_summary.errored.len().separate_with_commas(), n_chunks),
+    );
+    print_bullet(
+        "chunks skipped",
+        format!("  {} / {}", freeze_summary.skipped.len().separate_with_commas(), n_chunks),
+    );
+    print_bullet(
+        "chunks collected",
+        format!("{} / {}", freeze_summary.completed.len().separate_with_commas(), n_chunks),
+    );
+
+    // print_block_chunk_summary(query, freeze_summary, total_time);
+    // print_transaction_chunk_summary(query, freeze_summary, total_time);
+    print_chunks_speeds(query.partitions.clone(), total_time);
 }
 
-impl FreezeChunkSummary {
-    pub(crate) fn success(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
-        FreezeChunkSummary { skipped: false, errored: false, paths }
-    }
+fn print_chunks_speeds(chunks: Vec<Partition>, total_time: f64) {
+    print_chunk_speed(
+        "blocks",
+        total_time,
+        chunks.iter().map(|c| c.block_numbers.clone()).collect(),
+    );
+    print_chunk_speed(
+        "blocks",
+        total_time,
+        chunks.iter().map(|c| c.block_ranges.clone()).collect(),
+    );
+    print_chunk_speed(
+        "transactions",
+        total_time,
+        chunks.iter().map(|c| c.transactions.clone()).collect(),
+    );
+    print_chunk_speed(
+        "call_data",
+        total_time,
+        chunks.iter().map(|c| c.call_datas.clone()).collect(),
+    );
+}
 
-    pub(crate) fn error(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
-        FreezeChunkSummary { skipped: false, errored: true, paths }
-    }
+fn print_chunk_speed<T: ChunkData>(name: &str, total_time: f64, chunks: Vec<Option<Vec<T>>>) {
+    let flat_chunks: Vec<T> = chunks.into_iter().flatten().flatten().collect();
+    let n_completed = flat_chunks.size();
+    print_unit_speeds(name.into(), n_completed, total_time);
+}
+// ("transaction", stats.transactions),
+// ("call_data", stats.call_datas),
+// ("addresse", stats.addresses),
+// ("contract", stats.contracts),
+// ("to_address", stats.to_addresses),
+// ("slot", stats.slots),
+// ("topic0", stats.topic0s),
+// ("topic1", stats.topic1s),
+// ("topic2", stats.topic2s),
+// ("topic3", stats.topic3s),
 
-    pub(crate) fn skip(paths: HashMap<Datatype, PathBuf>) -> FreezeChunkSummary {
-        FreezeChunkSummary { skipped: true, errored: false, paths }
-    }
+fn print_unit_speeds(name: String, n_completed: u64, total_time: f64) {
+    let per_second = (n_completed as f64) / total_time;
+    let per_minute = per_second * 60.0;
+    let per_hour = per_minute * 60.0;
+    let per_day = per_hour * 24.0;
+    print_bullet(name.clone() + " per second", format_float(per_second));
+    print_bullet(name.clone() + " per minute", format_float(per_minute));
+    print_bullet(name.clone() + " per hour", "  ".to_string() + format_float(per_hour).as_str());
+    print_bullet(name + " per day", "   ".to_string() + format_float(per_day).as_str());
+}
+
+// fn print_block_chunk_summary(query: &Query, freeze_summary: &FreezeSummary, total_time: f64) {
+//     let block_chunks: Vec<BlockChunk> = query
+//         .chunks
+//         .iter()
+//         .filter_map(|x| match x {
+//             (Chunk::Block(chunk), _) => Some(chunk.clone()),
+//             _ => None,
+//         })
+//         .collect();
+//     if !block_chunks.is_empty() {
+//         let total_blocks = block_chunks.size() as f64;
+//         let blocks_completed =
+//             total_blocks * (freeze_summary.n_completed as f64 / block_chunks.len() as f64);
+//         print_bullet("blocks collected", blocks_completed.separate_with_commas());
+//         let blocks_per_second = blocks_completed / total_time;
+//         let blocks_per_minute = blocks_per_second * 60.0;
+//         let blocks_per_hour = blocks_per_minute * 60.0;
+//         let blocks_per_day = blocks_per_hour * 24.0;
+//         print_bullet("blocks per second", format_float(blocks_per_second));
+//         print_bullet("blocks per minute", format_float(blocks_per_minute));
+//         print_bullet("blocks per hour", "  ".to_string() +
+// format_float(blocks_per_hour).as_str());         print_bullet("blocks per day", "   ".to_string()
+// + format_float(blocks_per_day).as_str());     };
+// }
+
+// fn print_transaction_chunk_summary(query: &Query, freeze_summary: &FreezeSummary, total_time:
+// f64) {     let transaction_chunks: Vec<TransactionChunk> = query
+//         .chunks
+//         .iter()
+//         .filter_map(|x| match x {
+//             (Chunk::Transaction(chunk), _) => Some(chunk.clone()),
+//             _ => None,
+//         })
+//         .collect();
+//     if !transaction_chunks.is_empty() {
+//         // let total_transactions = transaction_chunks.size() as f64;
+//         let total_transactions = transaction_chunks
+//             .iter()
+//             .map(|chunk| match chunk {
+//                 TransactionChunk::Values(values) => values.len() as u64,
+//                 TransactionChunk::Range(_, _) => todo!(),
+//             })
+//             .sum::<u64>();
+//         let transactions_completed: u64 =
+//             total_transactions * (freeze_summary.n_completed / transaction_chunks.len() as u64);
+//         print_bullet("transactions collected", transactions_completed.separate_with_commas());
+//         let transactions_per_second = transactions_completed as f64 / total_time;
+//         let transactions_per_minute = transactions_per_second * 60.0;
+//         let transactions_per_hour = transactions_per_minute * 60.0;
+//         let transactions_per_day = transactions_per_hour * 24.0;
+//         print_bullet("transactions per second", format_float(transactions_per_second));
+//         print_bullet("transactions per minute", format_float(transactions_per_minute));
+//         print_bullet(
+//             "transactions per hour",
+//             "  ".to_string() + format_float(transactions_per_hour).as_str(),
+//         );
+//         print_bullet(
+//             "transactions per day",
+//             "   ".to_string() + format_float(transactions_per_day).as_str(),
+//         );
+//     };
+// }
+
+fn format_float(number: f64) -> String {
+    round_to_decimal_places(number, 1).separate_with_commas()
+}
+
+fn round_to_decimal_places(number: f64, dp: u32) -> f64 {
+    let multiplier = 10f64.powi(dp as i32);
+    (number * multiplier).round() / multiplier
 }

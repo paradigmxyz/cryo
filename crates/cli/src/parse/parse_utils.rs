@@ -17,10 +17,26 @@ pub(crate) fn hex_strings_to_binary(hex_strings: &[String]) -> Result<Vec<Vec<u8
         .collect::<Result<Vec<_>, _>>()
 }
 
-#[derive(Eq, PartialEq, Hash)]
+#[derive(Clone, Eq, PartialEq, Hash)]
 pub(crate) enum BinaryInputList {
     Explicit,
     ParquetColumn(String, String),
+}
+
+use std::path::Path;
+
+impl BinaryInputList {
+    /// convert to label
+    pub(crate) fn to_label(&self) -> Option<String> {
+        match self {
+            BinaryInputList::Explicit => None,
+            BinaryInputList::ParquetColumn(path, _) => Path::new(&path)
+                .file_stem()
+                .and_then(|stem| stem.to_str())
+                .map(|stem_str| stem_str.split("__").last().unwrap_or(stem_str))
+                .map(|s| s.to_string()),
+        }
+    }
 }
 
 type ParsedBinaryArg = HashMap<BinaryInputList, Vec<Vec<u8>>>;

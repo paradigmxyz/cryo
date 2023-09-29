@@ -46,6 +46,10 @@ pub enum CollectError {
     #[error("Collect failed: {0}")]
     CollectError(String),
 
+    /// Parse error
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
+
     /// Error related to provider operations
     #[error("Failed to get block: {0}")]
     ProviderError(#[source] ProviderError),

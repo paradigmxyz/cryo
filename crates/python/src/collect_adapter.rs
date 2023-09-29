@@ -27,6 +27,7 @@ use cryo_freeze::collect;
         dry = false,
         chunk_size = 1000,
         n_chunks = None,
+        partition_by = None,
         output_dir = ".".to_string(),
         file_suffix = None,
         overwrite = false,
@@ -77,6 +78,7 @@ pub fn _collect(
     dry: bool,
     chunk_size: u64,
     n_chunks: Option<u64>,
+    partition_by: Option<Vec<String>>,
     output_dir: String,
     file_suffix: Option<String>,
     overwrite: bool,
@@ -96,10 +98,10 @@ pub fn _collect(
     inputs: Option<Vec<String>>,
     slots: Option<Vec<String>>,
     contract: Option<Vec<String>>,
-    topic0: Option<String>,
-    topic1: Option<String>,
-    topic2: Option<String>,
-    topic3: Option<String>,
+    topic0: Option<Vec<String>>,
+    topic1: Option<Vec<String>>,
+    topic2: Option<Vec<String>>,
+    topic3: Option<Vec<String>>,
     inner_request_size: u64,
     no_verbose: bool,
     event_signature: Option<String>,
@@ -124,6 +126,7 @@ pub fn _collect(
         dry,
         chunk_size,
         n_chunks,
+        partition_by,
         output_dir,
         file_suffix,
         overwrite,
@@ -133,7 +136,7 @@ pub fn _collect(
         n_row_groups,
         no_stats,
         compression,
-        report_dir,
+        report_dir: report_dir.map(std::path::PathBuf::from),
         no_report,
         address,
         to_address,
@@ -162,11 +165,11 @@ pub fn _collect(
 }
 
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
-    let (query, source, _sink) = match parse_opts(&args).await {
+    let (query, source, _sink, _env) = match parse_opts(&args).await {
         Ok(opts) => opts,
         Err(e) => panic!("error parsing opts {:?}", e),
     };
-    match collect(query.into(), source).await {
+    match collect(query, source).await {
         Ok(df) => Ok(df),
         Err(e) => panic!("error collecting {:?}", e),
     }

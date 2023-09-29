@@ -6,8 +6,24 @@ use quote::quote;
 use syn::{parse_macro_input, ItemStruct};
 
 #[proc_macro_attribute]
-pub fn to_df(_attrs: TokenStream, input: TokenStream) -> TokenStream {
+pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);
+
+    // parse input args
+    let attrs = parse_macro_input!(attrs as syn::AttributeArgs);
+    let datatypes: Vec<_> = attrs
+        .into_iter()
+        .map(|arg| {
+            if let syn::NestedMeta::Meta(syn::Meta::Path(path)) = arg {
+                path
+            } else {
+                panic!("Expected Meta::Path");
+            }
+        })
+        .collect();
+    if datatypes.is_empty() {
+        panic!("At least one datatype must be specified");
+    }
 
     let name = &input.ident;
 
@@ -38,7 +54,17 @@ pub fn to_df(_attrs: TokenStream, input: TokenStream) -> TokenStream {
         #input
 
         impl ColumnData for #name {
-            fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
+            fn datatypes() -> Vec<Datatype> {
+                vec![#(#datatypes),*]
+            }
+
+            fn create_df(self, schemas: &HashMap<Datatype, Table>, chain_id: u64) -> Result<DataFrame, CollectError> {
+                let datatype = if Self::datatypes().len() == 1 {
+                    Self::datatypes()[0]
+                } else {
+                    panic!("improper datatypes for single schema")
+                };
+                let schema = schemas.get(&datatype).expect("schema not provided");
                 let mut cols = Vec::with_capacity(schema.columns().len());
 
                 #(#field_processing)*

@@ -855,20 +855,16 @@ name = "cryo_cli"
 version = "0.2.0"
 dependencies = [
  "anstyle",
- "chrono",
  "clap_cryo",
  "color-print",
- "colored",
  "cryo_freeze",
  "ethers",
  "eyre",
  "governor",
  "hex",
- "indicatif",
  "polars",
  "serde",
  "serde_json",
- "thousands",
  "tokio",
 ]
 
@@ -877,6 +873,8 @@ name = "cryo_freeze"
 version = "0.2.0"
 dependencies = [
  "async-trait",
+ "chrono",
+ "colored",
  "cryo_to_df",
  "ethers",
  "ethers-core",
@@ -890,6 +888,7 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+ "thousands",
  "tokio",
 ]
 

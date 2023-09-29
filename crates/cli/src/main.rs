@@ -15,7 +15,7 @@ use eyre::Result;
 async fn main() -> Result<()> {
     let args = Args::parse();
     match run::run(args).await {
-        Ok(Some(freeze_summary)) if freeze_summary.n_errored == 0 => Ok(()),
+        Ok(Some(freeze_summary)) if freeze_summary.errored.is_empty() => Ok(()),
         Ok(Some(_freeze_summary)) => Err(eyre::Error::msg("Some chunks failed")),
         Ok(None) => Ok(()),
         Err(e) => Err(eyre::Report::from(e)),

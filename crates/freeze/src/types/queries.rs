@@ -7,8 +7,33 @@ use ethers::prelude::*;
 
 use crate::{
     types::{Chunk, Datatype, Table},
-    AddressChunk, CallDataChunk, CollectError, FileOutput, FreezeError, SlotChunk,
+    AddressChunk, CallDataChunk, ChunkDim, CollectError, FileOutput, FreezeError, MetaDatatype,
+    Partition, SlotChunk,
 };
+
+/// Query
+#[derive(Clone)]
+pub struct Query {
+    /// MetaDatatype
+    pub datatypes: Vec<MetaDatatype>,
+    /// Schemas for each subdatatype
+    pub schemas: HashMap<Datatype, Table>,
+    /// Time dimension
+    pub time_dimension: TimeDimension,
+    /// MetaChunks
+    pub partitions: Vec<Partition>,
+    /// Partitioning
+    pub partitioned_by: Vec<ChunkDim>,
+}
+
+/// Time dimension for queries
+#[derive(Clone)]
+pub enum TimeDimension {
+    /// Blocks
+    Blocks,
+    /// Transactions
+    Transactions,
+}
 
 /// Query multiple data types
 #[derive(Clone)]

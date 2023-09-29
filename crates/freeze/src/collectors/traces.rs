@@ -1,11 +1,11 @@
 use crate::{
-    conversions::ToVecHex,
-    dataframes::SortableDataFrame,
-    freeze2::{ChunkDim, CollectByBlock, CollectByTransaction, ColumnData, RpcParams},
-    store, with_series, with_series_binary, CollectError, ColumnType, Source, Table, Traces,
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype,
+    RpcParams, Source, Table, Traces,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
 #[async_trait::async_trait]
 impl CollectByBlock for Traces {
@@ -20,7 +20,7 @@ impl CollectByBlock for Traces {
     async fn extract_by_block(
         request: RpcParams,
         source: Source,
-        _schema: Table,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::BlockResponse, CollectError> {
         source.fetcher.trace_block(request.block_number().into()).await
     }
@@ -28,8 +28,9 @@ impl CollectByBlock for Traces {
     fn transform_by_block(
         response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
+        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
 }
@@ -41,29 +42,29 @@ impl CollectByTransaction for Traces {
     type TransactionColumns = TraceColumns;
 
     fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::Transaction]
+        vec![ChunkDim::TransactionHash]
     }
 
     async fn extract_by_transaction(
         request: RpcParams,
         source: Source,
-        _schema: Table,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::TransactionResponse, CollectError> {
-        let tx_hash = H256::from_slice(&request.transaction());
-        source.fetcher.trace_transaction(tx_hash).await
+        source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
     fn transform_by_transaction(
         response: Self::TransactionResponse,
         columns: &mut Self::TransactionColumns,
-        schema: &Table,
+        schemas: &HashMap<Datatype, Table>,
     ) {
+        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
 }
 
 /// columns for transactions
-#[cryo_to_df::to_df]
+#[cryo_to_df::to_df(Datatype::Traces)]
 #[derive(Default)]
 pub struct TraceColumns {
     n_rows: u64,
