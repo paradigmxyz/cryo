@@ -288,6 +288,18 @@ pub(crate) fn print_cryo_conclusion(
     query: &Query,
     env: &ExecutionEnv,
 ) {
+    println!();
+    println!();
+
+    let new_env = match env.t_end {
+        None => Some(env.clone().set_end_time()),
+        Some(_) => None,
+    };
+    let env: &ExecutionEnv = match &new_env {
+        Some(e) => e,
+        None => env,
+    };
+
     let dt_start: DateTime<Local> = env.t_start.into();
     let t_end = env.t_end.expect("end time not recorded, use env.set_end_time()");
     let dt_data_done: DateTime<Local> = t_end.into();

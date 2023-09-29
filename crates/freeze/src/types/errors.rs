@@ -59,7 +59,7 @@ pub enum CollectError {
     TaskFailed(#[source] tokio::task::JoinError),
 
     /// Error related to polars operations
-    #[error("Failed to convert to DataFrme: {0}")]
+    #[error("Failed to convert to DataFrame: {0}")]
     PolarsError(#[from] PolarsError),
 
     /// Error related to log topic filtering

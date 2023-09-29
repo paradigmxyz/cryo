@@ -139,10 +139,18 @@ macro_rules! label_partition {
             .iter()
             .flat_map(|output| {
                 let chunks = output.$key.as_ref().expect("missing entries for partition dimension");
-                if chunks.len() != $dim_labels.len() {
-                    panic!("number of chunks should equal number of labels for dim")
-                }
-                chunks.iter().zip($dim_labels.iter()).map(|(chunk, label)| Partition {
+                let dls = match &$dim_labels {
+                    Some(dls2) => {
+                        if chunks.len() != dls2.len() {
+                            panic!("number of chunks should equal number of labels for dim")
+                        }
+                        dls2.clone()
+                    },
+                    None => {
+                        vec![None; chunks.len()]
+                    }
+                };
+                chunks.iter().zip(dls.into_iter()).map(|(chunk, label)| Partition {
                     label: Some([output.label.clone().unwrap(), vec![label.clone()]].concat()),
                     $key: Some(vec![chunk.clone()]),
                     ..output.clone()
@@ -227,11 +235,7 @@ impl Partition {
     ) -> Vec<Partition> {
         let mut outputs = vec![Partition { label: Some(Vec::new()), ..self.clone() }];
         for chunk_dimension in partition_by.iter() {
-            let dim_labels = match labels.dim(chunk_dimension) {
-                None => vec![None; partition_by.len()],
-                Some(dim_labels) => dim_labels,
-            };
-
+            let dim_labels = labels.dim(chunk_dimension);
             outputs = match chunk_dimension {
                 ChunkDim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers),
                 ChunkDim::BlockRange => label_partition!(outputs, dim_labels, block_ranges),

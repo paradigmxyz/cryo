@@ -36,7 +36,7 @@ impl Dataset for Blocks {
             ("state_root", ColumnType::Binary),
             ("transactions_root", ColumnType::Binary),
             ("receipts_root", ColumnType::Binary),
-            ("number", ColumnType::UInt32),
+            ("block_number", ColumnType::UInt32),
             ("gas_used", ColumnType::UInt32),
             ("extra_data", ColumnType::Binary),
             ("logs_bloom", ColumnType::Binary),
@@ -50,11 +50,11 @@ impl Dataset for Blocks {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec!["number", "hash", "timestamp", "author", "gas_used", "extra_data", "base_fee_per_gas"]
+        vec!["block_number", "hash", "timestamp", "author", "gas_used", "extra_data", "base_fee_per_gas"]
     }
 
     fn default_sort(&self) -> Vec<String> {
-        vec!["number".to_string()]
+        vec!["block_number".to_string()]
     }
 
     async fn collect_block_chunk(

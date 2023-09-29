@@ -39,12 +39,12 @@ pub async fn freeze(
 
     // check dry run
     if env.dry {
-        return Ok(None)
+        return Ok(None);
     };
 
     // check if empty
     if payloads.is_empty() {
-        return Ok(Some(FreezeSummary { ..Default::default() }))
+        return Ok(Some(FreezeSummary { ..Default::default() }));
     }
 
     // create initial report
@@ -82,7 +82,7 @@ fn get_payloads(
             let paths = sink.get_paths(query, &partition);
             if paths.values().all(|path| path.exists()) {
                 skipping.push(partition);
-                continue
+                continue;
             }
             let payload = (
                 query.time_dimension.clone(),
@@ -109,15 +109,29 @@ async fn perform_freeze(payloads: Vec<PartitionPayload>, skipped: Vec<Partition>
         ));
     }
 
+    let mut errors = Vec::new();
+
     // aggregate results
     let mut completed = Vec::new();
     let mut errored = Vec::new();
     while let Some(result) = futures.next().await {
         match result {
             Ok((partition, Ok(()))) => completed.push(partition),
-            Ok((partition, Err(_e))) => errored.push(Some(partition)),
+            Ok((partition, Err(e))) => {
+                errors.push(e);
+                errored.push(Some(partition))
+            }
             Err(_e) => errored.push(None),
         }
+    }
+
+    if !errors.is_empty() {
+        println!();
+        println!("ERRORS");
+        for error in errors.iter() {
+            println!("{}", error)
+        }
+        println!();
     }
 
     FreezeSummary { completed, errored, skipped }
