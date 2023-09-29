@@ -39,12 +39,12 @@ pub async fn freeze(
 
     // check dry run
     if env.dry {
-        return Ok(None);
+        return Ok(None)
     };
 
     // check if empty
     if payloads.is_empty() {
-        return Ok(Some(FreezeSummary { ..Default::default() }));
+        return Ok(Some(FreezeSummary { ..Default::default() }))
     }
 
     // create initial report
@@ -53,7 +53,7 @@ pub async fn freeze(
     };
 
     // perform collection
-    let results = perform_freeze(payloads, skipping).await;
+    let results = perform_freeze(env, payloads, skipping).await;
 
     // create summary
     if env.verbose {
@@ -80,9 +80,9 @@ fn get_payloads(
     for datatype in query.datatypes.clone().into_iter() {
         for partition in query.partitions.clone().into_iter() {
             let paths = sink.get_paths(query, &partition);
-            if paths.values().all(|path| path.exists()) {
+            if !sink.overwrite && paths.values().all(|path| path.exists()) {
                 skipping.push(partition);
-                continue;
+                continue
             }
             let payload = (
                 query.time_dimension.clone(),
@@ -100,7 +100,15 @@ fn get_payloads(
     (payloads, skipping)
 }
 
-async fn perform_freeze(payloads: Vec<PartitionPayload>, skipped: Vec<Partition>) -> FreezeSummary {
+async fn perform_freeze(
+    env: &ExecutionEnv,
+    payloads: Vec<PartitionPayload>,
+    skipped: Vec<Partition>,
+) -> FreezeSummary {
+    if let Some(bar) = &env.bar {
+        bar.inc(0);
+    }
+
     // spawn task for each partition
     let mut futures = FuturesUnordered::new();
     for payload in payloads.into_iter() {
@@ -123,6 +131,10 @@ async fn perform_freeze(payloads: Vec<PartitionPayload>, skipped: Vec<Partition>
             }
             Err(_e) => errored.push(None),
         }
+    }
+
+    if let Some(bar) = &env.bar {
+        bar.finish_and_clear();
     }
 
     if !errors.is_empty() {

@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// a dimension of chunking
-#[derive(Debug, Clone, Copy, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
 pub enum ChunkDim {
     /// Block number dimension
     BlockNumber,
@@ -66,6 +66,24 @@ impl ChunkDim {
             "topic2" => ChunkDim::Topic2,
             "topic3" => ChunkDim::Topic3,
             _ => panic!("unknown dimension name"),
+        }
+    }
+
+    /// convert str to ChunkDim
+    pub fn plural_name(&self) -> &str {
+        match self {
+            ChunkDim::BlockNumber => "blocks",
+            ChunkDim::BlockRange => "blocks",
+            ChunkDim::TransactionHash => "transactions",
+            ChunkDim::CallData => "call_datas",
+            ChunkDim::Address => "addresses",
+            ChunkDim::Contract => "contracts",
+            ChunkDim::ToAddress => "to_addresses",
+            ChunkDim::Slot => "slots",
+            ChunkDim::Topic0 => "topic0s",
+            ChunkDim::Topic1 => "topic1s",
+            ChunkDim::Topic2 => "topic2s",
+            ChunkDim::Topic3 => "topic3s",
         }
     }
 }
@@ -145,7 +163,7 @@ macro_rules! label_partition {
                             panic!("number of chunks should equal number of labels for dim")
                         }
                         dls2.clone()
-                    },
+                    }
                     None => {
                         vec![None; chunks.len()]
                     }

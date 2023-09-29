@@ -50,7 +50,15 @@ impl Dataset for Blocks {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "hash", "timestamp", "author", "gas_used", "extra_data", "base_fee_per_gas"]
+        vec![
+            "block_number",
+            "hash",
+            "timestamp",
+            "author",
+            "gas_used",
+            "extra_data",
+            "base_fee_per_gas",
+        ]
     }
 
     fn default_sort(&self) -> Vec<String> {

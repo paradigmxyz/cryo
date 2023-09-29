@@ -5,8 +5,8 @@ use colored::Colorize;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, ColumnType, Datatype, ExecutionEnv,
-    FileOutput, Partition, Query, Source, Table,
+    chunks::chunk_ops::ValueToString, ChunkData, ChunkDim, ChunkStats, ColumnType, Datatype,
+    ExecutionEnv, FileOutput, Partition, Query, Source, Table,
 };
 use std::path::PathBuf;
 
@@ -104,6 +104,10 @@ pub(crate) fn print_cryo_intro(
     if env.dry {
         println!("\n\n[dry run, exiting]");
     }
+
+    println!();
+    println!();
+    print_header("collecting data")
 }
 
 fn print_chunks(chunks: &[Partition]) {
@@ -288,6 +292,7 @@ pub(crate) fn print_cryo_conclusion(
     query: &Query,
     env: &ExecutionEnv,
 ) {
+    println!("...done");
     println!();
     println!();
 
@@ -336,32 +341,32 @@ pub(crate) fn print_cryo_conclusion(
         format!("{} / {}", freeze_summary.completed.len().separate_with_commas(), n_chunks),
     );
 
-    // print_block_chunk_summary(query, freeze_summary, total_time);
-    // print_transaction_chunk_summary(query, freeze_summary, total_time);
-    print_chunks_speeds(query.partitions.clone(), total_time);
+    print_chunks_speeds(query.partitions.clone(), &query.partitioned_by, total_time);
 }
 
-fn print_chunks_speeds(chunks: Vec<Partition>, total_time: f64) {
-    print_chunk_speed(
-        "blocks",
-        total_time,
-        chunks.iter().map(|c| c.block_numbers.clone()).collect(),
-    );
-    print_chunk_speed(
-        "blocks",
-        total_time,
-        chunks.iter().map(|c| c.block_ranges.clone()).collect(),
-    );
-    print_chunk_speed(
-        "transactions",
-        total_time,
-        chunks.iter().map(|c| c.transactions.clone()).collect(),
-    );
-    print_chunk_speed(
-        "call_data",
-        total_time,
-        chunks.iter().map(|c| c.call_datas.clone()).collect(),
-    );
+macro_rules! print_dim_speed {
+    ($chunks:expr, $partition_by:expr, $total_time:expr, $name:ident, $dim:expr) => {
+        if $partition_by.contains(&$dim) {
+            print_chunk_speed(
+                $dim.plural_name(),
+                $total_time,
+                $chunks.iter().map(|c| c.$name.clone()).collect(),
+            );
+        };
+    };
+}
+
+fn print_chunks_speeds(chunks: Vec<Partition>, partition_by: &[ChunkDim], total_time: f64) {
+    print_dim_speed!(chunks, partition_by, total_time, block_numbers, ChunkDim::BlockNumber);
+    print_dim_speed!(chunks, partition_by, total_time, transactions, ChunkDim::TransactionHash);
+    print_dim_speed!(chunks, partition_by, total_time, call_datas, ChunkDim::CallData);
+    print_dim_speed!(chunks, partition_by, total_time, addresses, ChunkDim::Address);
+    print_dim_speed!(chunks, partition_by, total_time, contracts, ChunkDim::Contract);
+    print_dim_speed!(chunks, partition_by, total_time, slots, ChunkDim::Slot);
+    print_dim_speed!(chunks, partition_by, total_time, topic0s, ChunkDim::Topic0);
+    print_dim_speed!(chunks, partition_by, total_time, topic1s, ChunkDim::Topic1);
+    print_dim_speed!(chunks, partition_by, total_time, topic2s, ChunkDim::Topic2);
+    print_dim_speed!(chunks, partition_by, total_time, topic3s, ChunkDim::Topic3);
 }
 
 fn print_chunk_speed<T: ChunkData>(name: &str, total_time: f64, chunks: Vec<Option<Vec<T>>>) {
@@ -369,26 +374,20 @@ fn print_chunk_speed<T: ChunkData>(name: &str, total_time: f64, chunks: Vec<Opti
     let n_completed = flat_chunks.size();
     print_unit_speeds(name.into(), n_completed, total_time);
 }
-// ("transaction", stats.transactions),
-// ("call_data", stats.call_datas),
-// ("addresse", stats.addresses),
-// ("contract", stats.contracts),
-// ("to_address", stats.to_addresses),
-// ("slot", stats.slots),
-// ("topic0", stats.topic0s),
-// ("topic1", stats.topic1s),
-// ("topic2", stats.topic2s),
-// ("topic3", stats.topic3s),
-
 fn print_unit_speeds(name: String, n_completed: u64, total_time: f64) {
     let per_second = (n_completed as f64) / total_time;
     let per_minute = per_second * 60.0;
     let per_hour = per_minute * 60.0;
     let per_day = per_hour * 24.0;
-    print_bullet(name.clone() + " per second", format_float(per_second));
-    print_bullet(name.clone() + " per minute", format_float(per_minute));
-    print_bullet(name.clone() + " per hour", "  ".to_string() + format_float(per_hour).as_str());
-    print_bullet(name + " per day", "   ".to_string() + format_float(per_day).as_str());
+    print_bullet("total ".to_string() + name.as_str(), n_completed.separate_with_commas());
+    print_bullet_indent(name.clone() + " per second", format_float(per_second), 4);
+    print_bullet_indent(name.clone() + " per minute", format_float(per_minute), 4);
+    print_bullet_indent(
+        name.clone() + " per hour",
+        "  ".to_string() + format_float(per_hour).as_str(),
+        4,
+    );
+    print_bullet_indent(name + " per day", "   ".to_string() + format_float(per_day).as_str(), 4);
 }
 
 // fn print_block_chunk_summary(query: &Query, freeze_summary: &FreezeSummary, total_time: f64) {

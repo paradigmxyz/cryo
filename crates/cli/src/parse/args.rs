@@ -13,6 +13,6 @@ pub async fn parse_opts(
     let source = source::parse_source(args).await?;
     let query = query::parse_query(args, Arc::clone(&source.fetcher)).await?;
     let sink = file_output::parse_file_output(args, &source)?;
-    let env = execution::parse_execution_env(args)?;
+    let env = execution::parse_execution_env(args, query.n_tasks() as u64)?;
     Ok((query, source, sink, env))
 }
