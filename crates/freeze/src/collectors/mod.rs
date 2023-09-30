@@ -6,6 +6,8 @@ pub mod blocks;
 pub mod blocks_and_transactions;
 /// code diffs
 pub mod code_diffs;
+/// contracts
+pub mod contracts;
 /// logs
 pub mod logs;
 /// nonce diffs

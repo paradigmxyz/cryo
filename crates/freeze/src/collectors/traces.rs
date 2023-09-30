@@ -222,3 +222,36 @@ pub(crate) fn action_call_type_to_string(action_call_type: &CallType) -> String 
         CallType::StaticCall => "static_call".to_string(),
     }
 }
+
+/// filter out error traces
+pub(crate) fn filter_failed_traces(traces: Vec<Trace>) -> Vec<Trace> {
+    let mut error_address: Option<Vec<usize>> = None;
+    let mut filtered: Vec<Trace> = Vec::new();
+
+    for trace in traces.into_iter() {
+        // restart for each transaction
+        if trace.trace_address.is_empty() {
+            error_address = None;
+        };
+
+        // if in an error, check if next trace is still in error
+        if let Some(ref e_address) = error_address {
+            if trace.trace_address.len() >= e_address.len()
+                && trace.trace_address[0..e_address.len()] == e_address[..]
+            {
+                continue;
+            } else {
+                error_address = None;
+            }
+        }
+
+        // check if current trace is start of an error
+        match trace.error {
+            Some(_) => error_address = Some(trace.trace_address),
+            None => filtered.push(trace),
+        }
+    }
+
+    filtered
+}
+
