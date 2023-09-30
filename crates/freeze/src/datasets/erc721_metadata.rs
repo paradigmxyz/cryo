@@ -36,10 +36,6 @@ impl Dataset for Erc721Metadata {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "erc20", "name", "symbol", "chain_id"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["symbol".to_string(), "block_number".to_string()]
     }

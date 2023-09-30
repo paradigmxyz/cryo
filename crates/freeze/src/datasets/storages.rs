@@ -39,10 +39,6 @@ impl Dataset for Storages {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "address", "slot", "value", "chain_id"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
     }

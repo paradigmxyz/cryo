@@ -38,10 +38,6 @@ impl Dataset for TransactionAddresses {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "transaction_hash", "address", "relationship", "chain_id"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec![
             "block_number".to_string(),

@@ -45,18 +45,6 @@ impl Dataset for NativeTransfers {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_index",
-            "transfer_index",
-            "transaction_hash",
-            "from_address",
-            "to_address",
-            "value",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "transfer_index".to_string()]
     }

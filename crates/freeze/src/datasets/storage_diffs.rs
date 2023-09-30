@@ -30,18 +30,6 @@ impl Dataset for StorageDiffs {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_index",
-            "transaction_hash",
-            "address",
-            "slot",
-            "from_value",
-            "to_value",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

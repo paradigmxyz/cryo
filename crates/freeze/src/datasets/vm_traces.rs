@@ -54,7 +54,7 @@ impl Dataset for VmTraces {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "transaction_position", "pc", "cost", "used", "op"]
+        vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"]
     }
 
     fn default_sort(&self) -> Vec<String> {

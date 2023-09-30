@@ -70,6 +70,7 @@ impl Dataset for Blocks {
             "gas_used",
             "extra_data",
             "base_fee_per_gas",
+            "chain_id",
         ]
     }
 

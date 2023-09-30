@@ -70,31 +70,6 @@ impl Dataset for Traces {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "action_from",
-            "action_to",
-            "action_value",
-            "action_gas",
-            "action_input",
-            "action_call_type",
-            "action_init",
-            "action_reward_type",
-            "action_type",
-            "result_gas_used",
-            "result_output",
-            "result_code",
-            "result_address",
-            "trace_address",
-            "subtraces",
-            "transaction_position",
-            "transaction_hash",
-            "block_number",
-            "block_hash",
-            "error",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "transaction_position".to_string()]
     }

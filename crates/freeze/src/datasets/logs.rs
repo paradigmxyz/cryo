@@ -52,21 +52,6 @@ impl Dataset for Logs {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_index",
-            "log_index",
-            "transaction_hash",
-            "contract_address",
-            "topic0",
-            "topic1",
-            "topic2",
-            "topic3",
-            "data",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }

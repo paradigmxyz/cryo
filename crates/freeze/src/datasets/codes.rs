@@ -37,10 +37,6 @@ impl Dataset for Codes {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "address", "code"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }

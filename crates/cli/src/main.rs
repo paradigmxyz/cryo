@@ -4,9 +4,7 @@ use clap_cryo::Parser;
 
 mod args;
 mod parse;
-mod reports;
 mod run;
-mod summaries;
 
 pub use args::Args;
 use eyre::Result;

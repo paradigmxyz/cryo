@@ -36,10 +36,6 @@ impl Dataset for Erc20Supplies {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "erc20", "total_supply"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["erc20".to_string(), "block_number".to_string()]
     }

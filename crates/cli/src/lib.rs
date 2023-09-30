@@ -9,9 +9,7 @@
 
 mod args;
 mod parse;
-mod reports;
 mod run;
-mod summaries;
 
 // used in main.rs but not lib.rs
 use eyre as _;

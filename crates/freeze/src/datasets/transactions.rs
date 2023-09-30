@@ -58,25 +58,6 @@ impl Dataset for Transactions {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_index",
-            "transaction_hash",
-            "nonce",
-            "from_address",
-            "to_address",
-            "value",
-            "input",
-            "gas_limit",
-            "gas_price",
-            "transaction_type",
-            "max_priority_fee_per_gas",
-            "max_fee_per_gas",
-            "chain_id",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

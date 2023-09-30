@@ -40,10 +40,6 @@ impl Dataset for Balances {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "address", "balance", "chain_id"]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }

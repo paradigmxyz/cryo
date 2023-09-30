@@ -42,10 +42,6 @@ impl Dataset for TraceCalls {
         // types
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        todo!()
-    }
-
     fn default_sort(&self) -> Vec<String> {
         todo!()
     }

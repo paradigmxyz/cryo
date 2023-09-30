@@ -53,21 +53,6 @@ impl Dataset for Contracts {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "create_index",
-            "transaction_hash",
-            "contract_address",
-            "deployer",
-            "factory",
-            "init_code",
-            "code",
-            "init_code_hash",
-            "code_hash",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "create_index".to_string()]
     }

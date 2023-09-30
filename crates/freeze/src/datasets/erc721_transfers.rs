@@ -47,20 +47,6 @@ impl Dataset for Erc721Transfers {
         ])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
-            "block_number",
-            "transaction_index",
-            "log_index",
-            "transaction_hash",
-            "erc20",
-            "from_address",
-            "to_address",
-            "token_id",
-            "chain_id",
-        ]
-    }
-
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }

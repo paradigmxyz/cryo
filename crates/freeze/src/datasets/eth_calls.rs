@@ -43,7 +43,7 @@ impl Dataset for EthCalls {
     }
 
     fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "contract_address", "call_data", "output_data"]
+        vec!["block_number", "contract_address", "call_data", "output_data", "chain_id"]
     }
 
     fn default_sort(&self) -> Vec<String> {

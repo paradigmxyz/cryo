@@ -151,7 +151,9 @@ pub trait Dataset: Sync + Send {
     fn column_types(&self) -> HashMap<&'static str, ColumnType>;
 
     /// default columns extracted for Dataset
-    fn default_columns(&self) -> Vec<&'static str>;
+    fn default_columns(&self) -> Vec<&'static str> {
+        self.column_types().keys().cloned().collect()
+    }
 
     /// default sort order for dataset
     fn default_sort(&self) -> Vec<String>;
