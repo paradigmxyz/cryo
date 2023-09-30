@@ -1,13 +1,10 @@
-use crate::VmTraces;
 use crate::{
-    dataframes::SortableDataFrame, store, with_series,
-    CollectByBlock, CollectByTransaction, CollectError, ColumnData, Datatype, Params, Schemas,
-    Source, Table, ToVecU8,
+    dataframes::SortableDataFrame, store, with_series, CollectByBlock, CollectByTransaction,
+    CollectError, ColumnData, Datatype, Params, Schemas, Source, Table, ToVecU8, VmTraces,
 };
 use ethers::prelude::*;
-use std::collections::HashMap;
-
 use polars::prelude::*;
+use std::collections::HashMap;
 
 type Result<T> = ::core::result::Result<T, CollectError>;
 

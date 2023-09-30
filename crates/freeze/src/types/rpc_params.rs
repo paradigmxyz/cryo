@@ -50,9 +50,19 @@ impl Params {
         self.address.clone().expect("address not specified")
     }
 
+    /// contract
+    pub fn contract(&self) -> Vec<u8> {
+        self.contract.clone().expect("contract not specified")
+    }
+
     /// slot
     pub fn slot(&self) -> Vec<u8> {
         self.slot.clone().expect("slot not specified")
+    }
+
+    /// call_data
+    pub fn call_data(&self) -> Vec<u8> {
+        self.call_data.clone().expect("call_data not specified")
     }
 
     //
@@ -72,6 +82,11 @@ impl Params {
     /// ethers address
     pub fn ethers_address(&self) -> H160 {
         H160::from_slice(&self.address())
+    }
+
+    /// ethers contract
+    pub fn ethers_contract(&self) -> H160 {
+        H160::from_slice(&self.contract())
     }
 
     /// log filter

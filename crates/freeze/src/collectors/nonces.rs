@@ -1,7 +1,7 @@
 use crate::{
     conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
-    Nonces, ChunkDim, CollectByBlock, CollectByTransaction, CollectError,
-    ColumnData, ColumnType, Datatype, Params, Schemas, Source, Table,
+    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype,
+    Nonces, Params, Schemas, Source, Table,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
@@ -23,8 +23,10 @@ impl CollectByBlock for Nonces {
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let address = request.address();
         let block_number = request.block_number() as u32;
-        let output =
-            source.fetcher.get_transaction_count(H160::from_slice(&address), block_number.into()).await?;
+        let output = source
+            .fetcher
+            .get_transaction_count(H160::from_slice(&address), block_number.into())
+            .await?;
         Ok((block_number, None, address, output.as_u64()))
     }
 
@@ -48,8 +50,10 @@ impl CollectByTransaction for Nonces {
         let tx = request.transaction_hash();
         let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
         let address = request.address();
-        let output =
-            source.fetcher.get_transaction_count(H160::from_slice(&address), block_number.into()).await?;
+        let output = source
+            .fetcher
+            .get_transaction_count(H160::from_slice(&address), block_number.into())
+            .await?;
 
         Ok((block_number, Some(tx), address, output.as_u64()))
     }

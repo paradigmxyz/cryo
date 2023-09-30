@@ -32,13 +32,7 @@ impl CollectByTransaction for Logs {
     type Columns = LogColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let logs = source
-            .fetcher
-            .get_transaction_receipt(request.ethers_transaction_hash())
-            .await?
-            .ok_or(CollectError::CollectError("transaction receipt not found".to_string()))?
-            .logs;
-        Ok(logs)
+        source.fetcher.get_transaction_logs(request.transaction_hash()).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {

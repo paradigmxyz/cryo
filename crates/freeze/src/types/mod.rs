@@ -34,6 +34,9 @@ pub mod reports;
 #[macro_use]
 pub mod dataframes;
 
+/// function and event signatures
+pub mod signatures;
+
 /// error specifications
 pub mod errors;
 /// type specifications for output data formats
@@ -49,7 +52,7 @@ pub use chunks::{
     AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, ChunkStats, SlotChunk, Subchunk,
     TopicChunk, TransactionChunk,
 };
-pub use conversions::{ToVecHex, ToVecU8};
+pub use conversions::{ToVecHex, ToVecU8, bytes_to_u32};
 pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput};
@@ -64,3 +67,5 @@ pub use errors::{ChunkError, CollectError, FileError, FreezeError, ParseError};
 
 pub use collection::{CollectByBlock, CollectByTransaction};
 pub use execution::{ExecutionEnv, ExecutionEnvBuilder};
+
+pub use signatures::*;

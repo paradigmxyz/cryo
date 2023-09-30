@@ -75,10 +75,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
         block: u32,
     ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
         let result = self
-            .trace_replay_block_transactions(
-                block.into(),
-                vec![ethers::types::TraceType::VmTrace],
-            )
+            .trace_replay_block_transactions(block.into(), vec![ethers::types::TraceType::VmTrace])
             .await;
         Ok((Some(block), None, result?))
     }
@@ -120,7 +117,6 @@ impl<P: JsonRpcClient> Fetcher<P> {
             .await;
         Ok((None, Some(transaction_hash), vec![result?]))
     }
-
 
     /// Gets the transaction with transaction_hash
     pub async fn get_transaction(&self, tx_hash: TxHash) -> Result<Option<Transaction>> {
@@ -174,6 +170,25 @@ impl<P: JsonRpcClient> Fetcher<P> {
     }
 
     /// Return output data of a contract call
+    pub async fn call2(
+        &self,
+        address: H160,
+        call_data: Vec<u8>,
+        block_number: BlockNumber,
+    ) -> Result<Bytes> {
+        let transaction = TransactionRequest {
+            to: Some(address.into()),
+            data: Some(call_data.into()),
+            ..Default::default()
+        };
+        let _permit = self.permit_request().await;
+        self.provider
+            .call(&transaction.into(), Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Deprecated
     pub async fn call(
         &self,
         transaction: TransactionRequest,
@@ -260,6 +275,15 @@ impl<P: JsonRpcClient> Fetcher<P> {
             .block_number
             .ok_or(CollectError::CollectError("could not get block number".to_string()))?
             .as_u32())
+    }
+
+    /// block number of transaction
+    pub async fn get_transaction_logs(&self, transaction_hash: Vec<u8>) -> Result<Vec<Log>> {
+        Ok(self
+            .get_transaction_receipt(H256::from_slice(&transaction_hash))
+            .await?
+            .ok_or(CollectError::CollectError("transaction receipt not found".to_string()))?
+            .logs)
     }
 
     async fn permit_request(
