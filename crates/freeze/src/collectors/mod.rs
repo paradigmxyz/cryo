@@ -14,6 +14,8 @@ pub mod code_diffs;
 pub mod contracts;
 /// logs
 pub mod logs;
+/// native transfers
+pub mod native_transfers;
 /// nonce diffs
 pub mod nonce_diffs;
 /// nonces
@@ -28,3 +30,5 @@ pub mod storages;
 pub mod traces;
 /// transactions
 pub mod transactions;
+/// vm traces
+pub mod vm_traces;

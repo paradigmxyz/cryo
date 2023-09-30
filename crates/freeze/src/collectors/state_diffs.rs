@@ -32,7 +32,7 @@ impl CollectByTransaction for StateDiffs {
     type Columns = StateDiffColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
+        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {

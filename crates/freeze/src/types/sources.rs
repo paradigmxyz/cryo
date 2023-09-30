@@ -69,6 +69,20 @@ impl<P: JsonRpcClient> Fetcher<P> {
         Ok((Some(block), None, result?))
     }
 
+    /// Get VM traces of block
+    pub async fn trace_block_vm_traces(
+        &self,
+        block: u32,
+    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
+        let result = self
+            .trace_replay_block_transactions(
+                block.into(),
+                vec![ethers::types::TraceType::VmTrace],
+            )
+            .await;
+        Ok((Some(block), None, result?))
+    }
+
     /// Replays a transaction, returning the traces
     pub async fn trace_replay_transaction(
         &self,
@@ -92,6 +106,21 @@ impl<P: JsonRpcClient> Fetcher<P> {
             .await;
         Ok((None, Some(transaction_hash), vec![result?]))
     }
+
+    /// Get VM traces of transaction
+    pub async fn trace_transaction_vm_traces(
+        &self,
+        transaction_hash: Vec<u8>,
+    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
+        let result = self
+            .trace_replay_transaction(
+                H256::from_slice(&transaction_hash),
+                vec![ethers::types::TraceType::VmTrace],
+            )
+            .await;
+        Ok((None, Some(transaction_hash), vec![result?]))
+    }
+
 
     /// Gets the transaction with transaction_hash
     pub async fn get_transaction(&self, tx_hash: TxHash) -> Result<Option<Transaction>> {
