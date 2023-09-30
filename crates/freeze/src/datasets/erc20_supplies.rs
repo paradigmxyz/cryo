@@ -1,21 +1,21 @@
 use crate::{
-    conversions::{ToVecHex, ToVecU8},
-    types::Erc20Supplies,
-    ColumnType, Dataset, Datatype,
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    with_series_option_u256, CollectByBlock, CollectError, ColumnData, ColumnEncoding, ColumnType,
+    Dataset, Datatype, Erc20Supplies, Params, Schemas, Source, Table, ToVecU8, U256Type,
 };
-use std::collections::HashMap;
-use tokio::sync::mpsc;
-
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    types::{BlockChunk, CollectError, RowFilter, Source, Table},
-    with_series, with_series_binary, with_series_u256, CallDataChunk, ColumnEncoding, U256Type,
-};
-
-use super::eth_calls;
+/// columns for transactions
+#[cryo_to_df::to_df(Datatype::Erc20Supplies)]
+#[derive(Default)]
+pub struct Erc20SuppliesColumns {
+    n_rows: u64,
+    block_number: Vec<u32>,
+    erc20: Vec<Vec<u8>>,
+    total_supply: Vec<Option<U256>>,
+}
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Supplies {
@@ -43,84 +43,35 @@ impl Dataset for Erc20Supplies {
     fn default_sort(&self) -> Vec<String> {
         vec!["erc20".to_string(), "block_number".to_string()]
     }
-
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let contract_chunks = match filter {
-            Some(filter) => filter.contract_chunks()?,
-            _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
-        };
-
-        // build call data
-        let call_data = prefix_hex::decode("0x18160ddd").expect("Decoding failed");
-        let call_data_chunks = vec![CallDataChunk::Values(vec![call_data])];
-
-        let rx = eth_calls::fetch_eth_calls(vec![chunk], contract_chunks, call_data_chunks, source)
-            .await;
-        supply_calls_to_df(rx, schema, source.chain_id).await
-    }
 }
 
-async fn supply_calls_to_df(
-    mut stream: mpsc::Receiver<Result<eth_calls::CallDataOutput, CollectError>>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    // initialize
-    let mut columns = SupplyColumns::default();
+type Result<T> = ::core::result::Result<T, CollectError>;
 
-    // parse stream of blocks
-    while let Some(message) = stream.recv().await {
-        match message {
-            Ok(call_data_output) => {
-                columns.process_calls(call_data_output, schema);
-            }
-            Err(e) => {
-                println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError)
-            }
-        }
+type BlockErc20Supply = (u32, Vec<u8>, Option<U256>);
+
+#[async_trait::async_trait]
+impl CollectByBlock for Erc20Supplies {
+    type Response = BlockErc20Supply;
+
+    type Columns = Erc20SuppliesColumns;
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let signature: Vec<u8> = prefix_hex::decode("0x18160ddd").expect("Decoding failed");
+        let mut call_data = signature.clone();
+        call_data.extend(request.address());
+        let block_number = request.ethers_block_number();
+        let contract = request.ethers_contract();
+        let output = source.fetcher.call2(contract, call_data, block_number).await.ok();
+        let output = output.map(|x| x.to_vec().as_slice().into());
+        Ok((request.block_number() as u32, request.contract(), output))
     }
 
-    // convert to dataframes
-    columns.create_df(schema, chain_id)
-}
-
-#[derive(Default)]
-struct SupplyColumns {
-    n_rows: usize,
-    block_number: Vec<u32>,
-    erc20: Vec<Vec<u8>>,
-    total_supply: Vec<U256>,
-}
-
-impl SupplyColumns {
-    fn process_calls(&mut self, call_data_output: eth_calls::CallDataOutput, schema: &Table) {
-        let (block_number, contract_address, _call_data, output_data) = call_data_output;
-        self.n_rows += 1;
-        if schema.has_column("block_number") {
-            self.block_number.push(block_number as u32);
-        }
-        if schema.has_column("erc20") {
-            self.erc20.push(contract_address);
-        }
-        if schema.has_column("total_supply") {
-            self.total_supply.push(output_data.to_vec().as_slice().into());
-        }
-    }
-
-    fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
-        let mut cols = Vec::with_capacity(schema.columns().len());
-        with_series!(cols, "block_number", self.block_number, schema);
-        with_series_binary!(cols, "erc20", self.erc20, schema);
-        with_series_u256!(cols, "total_supply", self.total_supply, schema);
-        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
-
-        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Erc20Supplies).expect("missing schema");
+        let (block, erc20, total_supply) = response;
+        columns.n_rows += 1;
+        store!(schema, columns, block_number, block);
+        store!(schema, columns, erc20, erc20);
+        store!(schema, columns, total_supply, total_supply);
     }
 }

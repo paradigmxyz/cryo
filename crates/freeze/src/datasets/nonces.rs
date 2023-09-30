@@ -1,19 +1,22 @@
-// required args:: address
-
-use crate::{types::Nonces, ColumnType, Dataset, Datatype};
-use std::collections::HashMap;
-
+use crate::{
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Dataset,
+    Datatype, Nonces, Params, Schemas, Source, Table,
+};
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::{sync::mpsc, task};
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    types::{
-        conversions::ToVecHex, AddressChunk, BlockChunk, CollectError, RowFilter, Source, Table,
-    },
-    with_series, with_series_binary, ChunkData,
-};
+/// columns for balances
+#[cryo_to_df::to_df(Datatype::Nonces)]
+#[derive(Default)]
+pub struct NonceColumns {
+    n_rows: usize,
+    block_number: Vec<u32>,
+    transaction_hash: Vec<Option<Vec<u8>>>,
+    address: Vec<Vec<u8>>,
+    nonce: Vec<u64>,
+}
 
 #[async_trait::async_trait]
 impl Dataset for Nonces {
@@ -41,121 +44,70 @@ impl Dataset for Nonces {
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }
+}
 
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let address_chunks = match filter {
-            Some(filter) => match &filter.address_chunks {
-                Some(address_chunks) => address_chunks.clone(),
-                _ => return Err(CollectError::CollectError("must specify addresses".to_string())),
-            },
-            _ => return Err(CollectError::CollectError("must specify addresses".to_string())),
-        };
-        let rx = fetch_nonces(vec![chunk], address_chunks, source).await;
-        nonces_to_df(rx, schema, source.chain_id).await
+type Result<T> = ::core::result::Result<T, CollectError>;
+type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, u64);
+
+#[async_trait::async_trait]
+impl CollectByBlock for Nonces {
+    type Response = BlockTxAddressOutput;
+
+    type Columns = NonceColumns;
+
+    fn block_parameters() -> Vec<ChunkDim> {
+        vec![ChunkDim::BlockNumber, ChunkDim::Address]
+    }
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let address = request.address();
+        let block_number = request.block_number() as u32;
+        let output = source
+            .fetcher
+            .get_transaction_count(H160::from_slice(&address), block_number.into())
+            .await?;
+        Ok((block_number, None, address, output.as_u64()))
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Nonces).expect("missing schema");
+        process_nonce(columns, response, schema);
     }
 }
 
-pub(crate) type BlockAddressNonce = (u64, Vec<u8>, u32);
+#[async_trait::async_trait]
+impl CollectByTransaction for Nonces {
+    type Response = BlockTxAddressOutput;
 
-async fn fetch_nonces(
-    block_chunks: Vec<&BlockChunk>,
-    address_chunks: Vec<AddressChunk>,
-    source: &Source,
-) -> mpsc::Receiver<Result<BlockAddressNonce, CollectError>> {
-    let (tx, rx) = mpsc::channel(100);
+    type Columns = NonceColumns;
 
-    for block_chunk in block_chunks {
-        for number in block_chunk.numbers() {
-            for address_chunk in &address_chunks {
-                for address in address_chunk.values().iter() {
-                    let address = address.clone();
-                    let address_h160 = H160::from_slice(&address);
-                    let tx = tx.clone();
-                    let source = source.clone();
-                    task::spawn(async move {
-                        let result =
-                            source.fetcher.get_transaction_count(address_h160, number.into()).await;
-                        let result = match result {
-                            Ok(value) => Ok((number, address, value.as_u32())),
-                            Err(e) => Err(e),
-                        };
-                        match tx.send(result).await {
-                            Ok(_) => {}
-                            Err(tokio::sync::mpsc::error::SendError(_e)) => {
-                                eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
-                                std::process::exit(1)
-                            }
-                        }
-                    });
-                }
-            }
-        }
+    fn transaction_parameters() -> Vec<ChunkDim> {
+        vec![ChunkDim::TransactionHash, ChunkDim::Address]
     }
 
-    rx
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let tx = request.transaction_hash();
+        let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
+        let address = request.address();
+        let output = source
+            .fetcher
+            .get_transaction_count(H160::from_slice(&address), block_number.into())
+            .await?;
+
+        Ok((block_number, Some(tx), address, output.as_u64()))
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Nonces).expect("missing schema");
+        process_nonce(columns, response, schema);
+    }
 }
 
-async fn nonces_to_df(
-    mut stream: mpsc::Receiver<Result<BlockAddressNonce, CollectError>>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    // initialize
-    let mut columns = NonceColumns::default();
-
-    // parse stream of blocks
-    while let Some(message) = stream.recv().await {
-        match message {
-            Ok(block_address_nonce) => {
-                columns.process_nonce(block_address_nonce, schema);
-            }
-            Err(e) => {
-                println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError)
-            }
-        }
-    }
-
-    // convert to dataframes
-    columns.create_df(schema, chain_id)
-}
-
-#[derive(Default)]
-struct NonceColumns {
-    n_rows: usize,
-    block_number: Vec<u32>,
-    address: Vec<Vec<u8>>,
-    nonce: Vec<u32>,
-}
-
-impl NonceColumns {
-    fn process_nonce(&mut self, block_address_nonce: BlockAddressNonce, schema: &Table) {
-        let (block, address, nonce) = block_address_nonce;
-        self.n_rows += 1;
-        if schema.has_column("block_number") {
-            self.block_number.push(block as u32);
-        }
-        if schema.has_column("address") {
-            self.address.push(address);
-        }
-        if schema.has_column("nonce") {
-            self.nonce.push(nonce);
-        }
-    }
-
-    fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
-        let mut cols = Vec::with_capacity(schema.columns().len());
-        with_series!(cols, "block_number", self.block_number, schema);
-        with_series_binary!(cols, "address", self.address, schema);
-        with_series!(cols, "nonce", self.nonce, schema);
-        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
-
-        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
-    }
+fn process_nonce(columns: &mut NonceColumns, data: BlockTxAddressOutput, schema: &Table) {
+    let (block, tx, address, output) = data;
+    columns.n_rows += 1;
+    store!(schema, columns, block_number, block);
+    store!(schema, columns, transaction_hash, tx);
+    store!(schema, columns, address, address);
+    store!(schema, columns, nonce, output);
 }

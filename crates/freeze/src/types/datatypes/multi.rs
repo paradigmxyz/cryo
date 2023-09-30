@@ -1,12 +1,6 @@
-use std::collections::{HashMap, HashSet};
-
+use crate::types::{Dataset, Datatype};
 use async_trait;
-use polars::prelude::*;
-
-use crate::types::{
-    AddressChunk, BlockChunk, Chunk, CollectError, Dataset, Datatype, RowFilter, Source, Table,
-    TransactionChunk,
-};
+use std::collections::{HashMap, HashSet};
 
 /// Blocks and Transactions datasets
 pub struct BlocksAndTransactions;
@@ -64,57 +58,5 @@ pub trait MultiDataset: Sync + Send {
     /// return Datasets associated with MultiDataset
     fn datasets(&self) -> HashMap<Datatype, Box<dyn Dataset>> {
         self.datatypes().iter().map(|dt| (*dt, dt.dataset())).collect()
-    }
-
-    /// collect dataset for a particular chunk
-    async fn collect_chunk(
-        &self,
-        chunk: &Chunk,
-        source: &Source,
-        schemas: HashMap<Datatype, Table>,
-        filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        match chunk {
-            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schemas, filter).await,
-            Chunk::Transaction(chunk) => {
-                self.collect_transaction_chunk(chunk, source, schemas, filter).await
-            }
-            Chunk::Address(chunk) => {
-                self.collect_address_chunk(chunk, source, schemas, filter).await
-            }
-        }
-    }
-
-    /// collect dataset for a particular block chunk
-    async fn collect_block_chunk(
-        &self,
-        _chunk: &BlockChunk,
-        _source: &Source,
-        _schemas: HashMap<Datatype, Table>,
-        _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!("block_chunk collection not implemented for {}", self.name())
-    }
-
-    /// collect dataset for a particular transaction chunk
-    async fn collect_transaction_chunk(
-        &self,
-        _chunk: &TransactionChunk,
-        _source: &Source,
-        _schemas: HashMap<Datatype, Table>,
-        _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!("transaction_chunk collection not implemented for {}", self.name())
-    }
-
-    /// collect dataset for a particular transaction chunk
-    async fn collect_address_chunk(
-        &self,
-        _chunk: &AddressChunk,
-        _source: &Source,
-        _schemas: HashMap<Datatype, Table>,
-        _filter: HashMap<Datatype, RowFilter>,
-    ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        panic!("transaction_chunk collection not implemented for {}", self.name())
     }
 }

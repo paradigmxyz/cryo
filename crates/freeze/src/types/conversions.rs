@@ -1,6 +1,6 @@
+use crate::CollectError;
 /// conversion operations
 use ethers::prelude::*;
-use crate::CollectError;
 use prefix_hex;
 
 /// convert Bytes to u32

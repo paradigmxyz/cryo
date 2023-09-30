@@ -1,31 +1,27 @@
-// 0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef
-// data field is a single 32 byte word
-
-// single erc20 / many erc20s
-// single address / many addresses
-// single block / many blocks
-
-// --contract(s)
-// --address(es)
-
-use std::collections::HashMap;
-
+use crate::{
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    with_series_u256, CollectByBlock, CollectByTransaction, CollectError, ColumnData,
+    ColumnEncoding, ColumnType, Dataset, Datatype, Erc20Transfers, Params, Schemas, Source, Table,
+    ToVecU8, U256Type, EVENT_ERC20_TRANSFER,
+};
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    types::{
-        conversions::{ToVecHex, ToVecU8},
-        BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter, Source, Table,
-        TransactionChunk,
-    },
-    with_series, with_series_binary, with_series_u256, ColumnEncoding,
-};
-
-use super::logs;
-use crate::{types::Erc20Transfers, U256Type};
+/// columns for transactions
+#[cryo_to_df::to_df(Datatype::Erc20Transfers)]
+#[derive(Default)]
+pub struct Erc20TransferColumns {
+    n_rows: u64,
+    block_number: Vec<u32>,
+    transaction_index: Vec<u32>,
+    log_index: Vec<u32>,
+    transaction_hash: Vec<Vec<u8>>,
+    erc20: Vec<Vec<u8>>,
+    from_address: Vec<Vec<u8>>,
+    to_address: Vec<Vec<u8>>,
+    value: Vec<U256>,
+}
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Transfers {
@@ -68,137 +64,64 @@ impl Dataset for Erc20Transfers {
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
+}
 
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let filter = get_row_filter(filter);
-        let rx = logs::fetch_block_logs(chunk, source, Some(&filter)).await;
-        logs_to_erc20_transfers(rx, schema, source.chain_id).await
+type Result<T> = ::core::result::Result<T, CollectError>;
+
+#[async_trait::async_trait]
+impl CollectByBlock for Erc20Transfers {
+    type Response = Vec<Log>;
+
+    type Columns = Erc20TransferColumns;
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
+        let filter = Filter { topics, ..request.ethers_log_filter() };
+        let logs = source.fetcher.get_logs(&filter).await?;
+        Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
     }
 
-    async fn collect_transaction_chunk(
-        &self,
-        chunk: &TransactionChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let filter = get_row_filter(filter);
-        let rx = logs::fetch_transaction_logs(chunk, source, Some(&filter)).await;
-        logs_to_erc20_transfers(rx, schema, source.chain_id).await
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Erc20Transfers).expect("schema not provided");
+        process_erc20_transfers(response, columns, schema)
     }
 }
 
-pub(crate) fn get_row_filter(filter: Option<&RowFilter>) -> RowFilter {
-    let event_hash: H256 = H256(
-        prefix_hex::decode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-            .expect("Decoding failed"),
-    );
-    let transfer_topics: [Option<ValueOrArray<Option<H256>>>; 4] =
-        [Some(ValueOrArray::Value(Some(event_hash))), None, None, None];
-    match filter {
-        None => RowFilter { topics: transfer_topics, ..Default::default() },
-        Some(filter) => RowFilter { topics: transfer_topics, ..filter.clone() },
+#[async_trait::async_trait]
+impl CollectByTransaction for Erc20Transfers {
+    type Response = Vec<Log>;
+
+    type Columns = Erc20TransferColumns;
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let logs = source.fetcher.get_transaction_logs(request.transaction_hash()).await?;
+        Ok(logs.into_iter().filter(is_erc20_transfer).collect())
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Erc20Transfers).expect("schema not provided");
+        process_erc20_transfers(response, columns, schema)
     }
 }
 
-#[derive(Default)]
-pub(crate) struct Erc20TransferLogColumns {
-    n_rows: usize,
-    block_number: Vec<u32>,
-    transaction_index: Vec<u32>,
-    log_index: Vec<u32>,
-    transaction_hash: Vec<Vec<u8>>,
-    erc20: Vec<Vec<u8>>,
-    from_address: Vec<Vec<u8>>,
-    to_address: Vec<Vec<u8>>,
-    value: Vec<U256>,
+fn is_erc20_transfer(log: &Log) -> bool {
+    log.topics.len() == 3 && log.data.len() == 32 && log.topics[0] == *EVENT_ERC20_TRANSFER
 }
-
-impl Erc20TransferLogColumns {
-    pub(crate) fn process_erc20_transfer_logs(
-        &mut self,
-        logs: Vec<Log>,
-        schema: &Table,
-    ) -> Result<(), CollectError> {
-        for log in &logs {
-            if let Some(true) = log.removed {
-                continue
-            }
-            if log.data.is_empty() {
-                continue
-            }
-            if let (Some(bn), Some(tx), Some(ti), Some(li)) =
-                (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
-            {
-                self.n_rows += 1;
-                if schema.has_column("block_number") {
-                    self.block_number.push(bn.as_u32());
-                };
-                if schema.has_column("transaction_index") {
-                    self.transaction_index.push(ti.as_u32());
-                };
-                if schema.has_column("log_index") {
-                    self.log_index.push(li.as_u32());
-                };
-                if schema.has_column("transaction_hash") {
-                    self.transaction_hash.push(tx.as_bytes().to_vec());
-                };
-                if schema.has_column("erc20") {
-                    self.erc20.push(log.address.as_bytes().to_vec());
-                };
-                if schema.has_column("from_address") {
-                    self.from_address.push(log.topics[1].as_bytes().to_vec());
-                };
-                if schema.has_column("to_address") {
-                    self.to_address.push(log.topics[2].as_bytes().to_vec());
-                };
-                if schema.has_column("value") {
-                    self.value.push(log.data.to_vec().as_slice().into());
-                };
-            }
-        }
-
-        Ok(())
-    }
-
-    pub(crate) fn create_df(
-        self,
-        schema: &Table,
-        chain_id: u64,
-    ) -> Result<DataFrame, CollectError> {
-        let mut cols = Vec::with_capacity(schema.columns().len());
-        with_series!(cols, "block_number", self.block_number, schema);
-        with_series!(cols, "transaction_index", self.transaction_index, schema);
-        with_series!(cols, "log_index", self.log_index, schema);
-        with_series_binary!(cols, "transaction_hash", self.transaction_hash, schema);
-        with_series_binary!(cols, "erc20", self.erc20, schema);
-        with_series_binary!(cols, "from_address", self.from_address, schema);
-        with_series_binary!(cols, "to_address", self.to_address, schema);
-        with_series_u256!(cols, "value", self.value, schema);
-        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
-
-        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
-    }
-}
-
-async fn logs_to_erc20_transfers(
-    mut logs: mpsc::Receiver<Result<Vec<Log>, CollectError>>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    let mut columns = Erc20TransferLogColumns::default();
-    while let Some(message) = logs.recv().await {
-        if let Ok(logs) = message {
-            columns.process_erc20_transfer_logs(logs, schema)?
-        } else {
-            return Err(CollectError::TooManyRequestsError)
+/// process block into columns
+fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20TransferColumns, schema: &Table) {
+    for log in logs.iter() {
+        if let (Some(bn), Some(tx), Some(ti), Some(li)) =
+            (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
+        {
+            columns.n_rows += 1;
+            store!(schema, columns, block_number, bn.as_u32());
+            store!(schema, columns, transaction_index, ti.as_u32());
+            store!(schema, columns, log_index, li.as_u32());
+            store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());
+            store!(schema, columns, erc20, log.address.as_bytes().to_vec());
+            store!(schema, columns, from_address, log.topics[1].as_bytes().to_vec());
+            store!(schema, columns, to_address, log.topics[2].as_bytes().to_vec());
+            store!(schema, columns, value, log.data.to_vec().as_slice().into());
         }
     }
-    columns.create_df(schema, chain_id)
 }

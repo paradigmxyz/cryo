@@ -1,38 +1,24 @@
-// want to be able to include either the raw call data or the decoded arguments
-// want to be able to include raw_output or decoded columns
-// - could do output_decoded as a json object
-//
-// ways to specify call data
-// - give complete raw call data `--call-data`
-//      - 0x28797abc
-// - specify function and arguments separately
-//      - give function `--function`
-//          - by name: "totalSupply()" "balanceOf(address)"
-//          - by json: '{"name": "balanceOf", ...}"
-//      - give input arguments `--inputs
-//          - abi encoded: 0x28797abc
-//          - raw: 5000
-// - give semantic call
-//      - totalSupply()
-//      - balanceOf(0x28797abc...278)
-//
-// ways to specify output type
-// - ignore, store only raw output data
-// - provide function abi json
-// - provide --call-output, e.g. `--call-output u256`
-
-use crate::{conversions::ToVecHex, types::EthCalls, ChunkData, ColumnType, Dataset, Datatype};
-use std::collections::HashMap;
-use tokio::{sync::mpsc, task};
-
+use crate::{
+    conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
+    CollectByBlock, CollectError, ColumnData, ColumnType, Dataset, Datatype, EthCalls, Params,
+    Schemas, Source, Table,
+};
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    types::{AddressChunk, BlockChunk, CallDataChunk, CollectError, RowFilter, Source, Table},
-    with_series, with_series_binary,
-};
+/// columns for transactions
+#[cryo_to_df::to_df(Datatype::Transactions)]
+#[derive(Default)]
+pub struct EthCallColumns {
+    n_rows: u64,
+    block_number: Vec<u32>,
+    contract_address: Vec<Vec<u8>>,
+    call_data: Vec<Vec<u8>>,
+    call_data_hash: Vec<Vec<u8>>,
+    output_data: Vec<Vec<u8>>,
+    output_data_hash: Vec<Vec<u8>>,
+}
 
 #[async_trait::async_trait]
 impl Dataset for EthCalls {
@@ -74,148 +60,42 @@ impl Dataset for EthCalls {
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect()
     }
+}
 
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let (address_chunks, call_data_chunks) = match filter {
-            Some(filter) => (filter.address_chunks()?, filter.call_data_chunks()?),
-            _ => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
+type Result<T> = ::core::result::Result<T, CollectError>;
+
+type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Vec<u8>);
+
+#[async_trait::async_trait]
+impl CollectByBlock for EthCalls {
+    type Response = EthCallsResponse;
+
+    type Columns = EthCallColumns;
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let transaction = TransactionRequest {
+            to: Some(request.ethers_address().into()),
+            data: Some(request.call_data().into()),
+            ..Default::default()
         };
-        let rx = fetch_eth_calls(vec![chunk], address_chunks, call_data_chunks, source).await;
-        eth_calls_to_df(rx, schema, source.chain_id).await
+        let number = request.block_number();
+        let output = source.fetcher.call(transaction, number.into()).await?;
+        Ok((number as u32, request.address(), request.call_data(), output.to_vec()))
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::EthCalls).expect("missing schema");
+        process_eth_call(response, columns, schema)
     }
 }
 
-// block, address, call_data, output
-pub(crate) type CallDataOutput = (u64, Vec<u8>, Vec<u8>, Bytes);
-
-pub(crate) async fn fetch_eth_calls(
-    block_chunks: Vec<&BlockChunk>,
-    address_chunks: Vec<AddressChunk>,
-    call_data_chunks: Vec<CallDataChunk>,
-    source: &Source,
-) -> mpsc::Receiver<Result<CallDataOutput, CollectError>> {
-    let (tx, rx) = mpsc::channel(100);
-
-    for block_chunk in block_chunks {
-        for number in block_chunk.numbers() {
-            for address_chunk in &address_chunks {
-                for address in address_chunk.values().iter() {
-                    for call_data_chunk in &call_data_chunks {
-                        for call_data in call_data_chunk.values().iter() {
-                            let address = address.clone();
-                            let address_h160 = H160::from_slice(&address);
-                            let call_data = call_data.clone();
-
-                            let tx = tx.clone();
-                            let source = source.clone();
-                            task::spawn(async move {
-                                let transaction = TransactionRequest {
-                                    to: Some(address_h160.into()),
-                                    data: Some(call_data.clone().into()),
-                                    ..Default::default()
-                                };
-
-                                let result = source.fetcher.call(transaction, number.into()).await;
-                                let result = match result {
-                                    Ok(value) => Ok((number, address, call_data, value)),
-                                    Err(e) => Err(e),
-                                };
-                                match tx.send(result).await {
-                                    Ok(_) => {}
-                                    Err(tokio::sync::mpsc::error::SendError(_e)) => {
-                                        eprintln!("send error, try using a rate limit with --requests-per-second or limiting max concurrency with --max-concurrent-requests");
-                                        std::process::exit(1)
-                                    }
-                                }
-                            });
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    rx
-}
-
-async fn eth_calls_to_df(
-    mut stream: mpsc::Receiver<Result<CallDataOutput, CollectError>>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    // initialize
-    let mut columns = CallDataColumns::default();
-
-    // parse stream of blocks
-    while let Some(message) = stream.recv().await {
-        match message {
-            Ok(call_data_output) => {
-                columns.process_calls(call_data_output, schema);
-            }
-            Err(e) => {
-                println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError)
-            }
-        }
-    }
-
-    // convert to dataframes
-    columns.create_df(schema, chain_id)
-}
-
-#[derive(Default)]
-struct CallDataColumns {
-    n_rows: usize,
-    block_number: Vec<u32>,
-    contract_address: Vec<Vec<u8>>,
-    call_data: Vec<Vec<u8>>,
-    call_data_hash: Vec<Vec<u8>>,
-    output_data: Vec<Vec<u8>>,
-    output_data_hash: Vec<Vec<u8>>,
-}
-
-impl CallDataColumns {
-    fn process_calls(&mut self, call_data_output: CallDataOutput, schema: &Table) {
-        let (block_number, contract_address, call_data, output_data) = call_data_output;
-        self.n_rows += 1;
-        if schema.has_column("block_number") {
-            self.block_number.push(block_number as u32);
-        }
-        if schema.has_column("contract_address") {
-            self.contract_address.push(contract_address);
-        }
-        if schema.has_column("call_data_hash") {
-            let call_data_hash = ethers_core::utils::keccak256(call_data.clone()).into();
-            self.call_data_hash.push(call_data_hash);
-        }
-        if schema.has_column("call_data") {
-            self.call_data.push(call_data);
-        }
-        if schema.has_column("output_data") {
-            self.output_data.push(output_data.to_vec());
-        }
-        if schema.has_column("output_data_hash") {
-            let output_data_hash: Vec<u8> = ethers_core::utils::keccak256(output_data).into();
-            self.output_data.push(output_data_hash.to_vec());
-        }
-    }
-
-    fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
-        let mut cols = Vec::with_capacity(schema.columns().len());
-        with_series!(cols, "block_number", self.block_number, schema);
-        with_series_binary!(cols, "contract_address", self.contract_address, schema);
-        with_series_binary!(cols, "call_data", self.call_data, schema);
-        with_series_binary!(cols, "call_data_hash", self.call_data_hash, schema);
-        with_series_binary!(cols, "output_data", self.output_data, schema);
-        with_series_binary!(cols, "output_data_hash", self.output_data_hash, schema);
-        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
-
-        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
-    }
+fn process_eth_call(response: EthCallsResponse, columns: &mut EthCallColumns, schema: &Table) {
+    let (block_number, contract_address, call_data, output_data) = response;
+    columns.n_rows += 1;
+    store!(schema, columns, block_number, block_number);
+    store!(schema, columns, contract_address, contract_address);
+    store!(schema, columns, call_data, call_data.clone());
+    store!(schema, columns, call_data_hash, ethers_core::utils::keccak256(call_data).into());
+    store!(schema, columns, output_data, output_data.to_vec());
+    store!(schema, columns, output_data_hash, ethers_core::utils::keccak256(output_data).into());
 }

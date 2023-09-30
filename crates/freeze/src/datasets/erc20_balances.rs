@@ -1,27 +1,22 @@
-// reqired args:: address, contract
-
-// single erc20 / many erc20s
-// single block / many blocks
-// single address / many addresses
-
-use crate::{types::Erc20Balances, ColumnType, Dataset, Datatype};
-use std::collections::HashMap;
-
+use crate::{
+    dataframes::SortableDataFrame, store, with_series, with_series_binary, with_series_option_u256,
+    CollectByBlock, CollectError, ColumnData, ColumnEncoding, ColumnType, Dataset, Datatype,
+    Erc20Balances, Params, Schemas, Source, Table, ToVecHex, ToVecU8, U256Type,
+};
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    types::{
-        conversions::{ToVecHex, ToVecU8},
-        AddressChunk, BlockChunk, CallDataChunk, CollectError, RowFilter, Source, Table,
-    },
-    with_series, with_series_binary, with_series_u256, ColumnEncoding,
-};
-
-use super::eth_calls;
-use crate::U256Type;
+/// columns for transactions
+#[cryo_to_df::to_df(Datatype::Erc20Balances)]
+#[derive(Default)]
+pub struct Erc20BalancesColumns {
+    n_rows: u64,
+    block_number: Vec<u32>,
+    erc20: Vec<Vec<u8>>,
+    address: Vec<Vec<u8>>,
+    balance: Vec<Option<U256>>,
+}
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Balances {
@@ -50,111 +45,36 @@ impl Dataset for Erc20Balances {
     fn default_sort(&self) -> Vec<String> {
         vec!["block_number".to_string()]
     }
-
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let (contract_chunks, call_data_chunks) = match filter {
-            Some(filter) => {
-                (filter.contract_chunks()?, create_balance_of_call_datas(filter.address_chunks()?)?)
-            }
-            None => return Err(CollectError::CollectError("must specify RowFilter".to_string())),
-        };
-
-        let rx = eth_calls::fetch_eth_calls(vec![chunk], contract_chunks, call_data_chunks, source)
-            .await;
-        balance_calls_to_df(rx, schema, source.chain_id).await
-    }
 }
 
-fn create_balance_of_call_datas(
-    address_chunks: Vec<AddressChunk>,
-) -> Result<Vec<CallDataChunk>, CollectError> {
-    let signature: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");
-    let mut call_data_chunks: Vec<CallDataChunk> = Vec::new();
-    for address_chunk in address_chunks.iter() {
-        match address_chunk {
-            AddressChunk::Values(addresses) => {
-                let call_datas: Vec<Vec<u8>> = addresses
-                    .iter()
-                    .map(|a| {
-                        let mut call_data = signature.clone();
-                        call_data.extend(a);
-                        call_data
-                    })
-                    .collect();
-                call_data_chunks.push(CallDataChunk::Values(call_datas))
-            }
-            _ => return Err(CollectError::CollectError("bad AddressChunk".to_string())),
-        }
-    }
-    Ok(call_data_chunks)
-}
+type Result<T> = ::core::result::Result<T, CollectError>;
 
-async fn balance_calls_to_df(
-    mut stream: mpsc::Receiver<Result<eth_calls::CallDataOutput, CollectError>>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    // initialize
-    let mut columns = Erc20BalanceColumns::default();
+type BlockErc20AddressBalance = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 
-    // parse stream of blocks
-    while let Some(message) = stream.recv().await {
-        match message {
-            Ok(call_data_output) => {
-                columns.process_calls(call_data_output, schema);
-            }
-            Err(e) => {
-                println!("{:?}", e);
-                return Err(CollectError::TooManyRequestsError)
-            }
-        }
+#[async_trait::async_trait]
+impl CollectByBlock for Erc20Balances {
+    type Response = BlockErc20AddressBalance;
+
+    type Columns = Erc20BalancesColumns;
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        let signature: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");
+        let mut call_data = signature.clone();
+        call_data.extend(request.address());
+        let block_number = request.ethers_block_number();
+        let contract = request.ethers_contract();
+        let balance = source.fetcher.call2(contract, call_data, block_number).await.ok();
+        let balance = balance.map(|x| x.to_vec().as_slice().into());
+        Ok((request.block_number() as u32, request.contract(), request.address(), balance))
     }
 
-    // convert to dataframes
-    columns.create_df(schema, chain_id)
-}
-
-#[derive(Default)]
-struct Erc20BalanceColumns {
-    n_rows: usize,
-    block_number: Vec<u32>,
-    erc20: Vec<Vec<u8>>,
-    address: Vec<Vec<u8>>,
-    balance: Vec<U256>,
-}
-
-impl Erc20BalanceColumns {
-    fn process_calls(&mut self, call_data_output: eth_calls::CallDataOutput, schema: &Table) {
-        let (block_number, contract_address, call_data, output_data) = call_data_output;
-        self.n_rows += 1;
-        if schema.has_column("block_number") {
-            self.block_number.push(block_number as u32);
-        }
-        if schema.has_column("erc20") {
-            self.erc20.push(contract_address);
-        }
-        if schema.has_column("address") {
-            self.address.push(call_data);
-        }
-        if schema.has_column("balance") {
-            self.balance.push(output_data.to_vec().as_slice().into());
-        }
-    }
-
-    fn create_df(self, schema: &Table, chain_id: u64) -> Result<DataFrame, CollectError> {
-        let mut cols = Vec::with_capacity(schema.columns().len());
-        with_series!(cols, "block_number", self.block_number, schema);
-        with_series_binary!(cols, "erc20", self.erc20, schema);
-        with_series_binary!(cols, "address", self.address, schema);
-        with_series_u256!(cols, "balance", self.balance, schema);
-        with_series!(cols, "chain_id", vec![chain_id; self.n_rows], schema);
-
-        DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        let schema = schemas.get(&Datatype::Erc20Balances).expect("missing schema");
+        let (block, erc20, address, balance) = response;
+        columns.n_rows += 1;
+        store!(schema, columns, block_number, block);
+        store!(schema, columns, erc20, erc20);
+        store!(schema, columns, address, address);
+        store!(schema, columns, balance, balance);
     }
 }

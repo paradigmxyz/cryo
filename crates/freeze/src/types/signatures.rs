@@ -13,4 +13,3 @@ lazy_static::lazy_static! {
             .expect("Decoding failed"),
     );
 }
-
