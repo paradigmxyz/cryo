@@ -55,6 +55,20 @@ impl<P: JsonRpcClient> Fetcher<P> {
         Self::map_err(self.provider.trace_replay_block_transactions(block, trace_types).await)
     }
 
+    /// Get state diff traces of block
+    pub async fn trace_block_state_diffs(
+        &self,
+        block: u32,
+    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
+        let result = self
+            .trace_replay_block_transactions(
+                block.into(),
+                vec![ethers::types::TraceType::StateDiff],
+            )
+            .await;
+        Ok((Some(block), None, result?))
+    }
+
     /// Replays a transaction, returning the traces
     pub async fn trace_replay_transaction(
         &self,
@@ -63,6 +77,20 @@ impl<P: JsonRpcClient> Fetcher<P> {
     ) -> Result<BlockTrace> {
         let _permit = self.permit_request().await;
         Self::map_err(self.provider.trace_replay_transaction(tx_hash, trace_types).await)
+    }
+
+    /// Get state diff traces of transaction
+    pub async fn trace_transaction_state_diffs(
+        &self,
+        transaction_hash: Vec<u8>,
+    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
+        let result = self
+            .trace_replay_transaction(
+                H256::from_slice(&transaction_hash),
+                vec![ethers::types::TraceType::StateDiff],
+            )
+            .await;
+        Ok((None, Some(transaction_hash), vec![result?]))
     }
 
     /// Gets the transaction with transaction_hash

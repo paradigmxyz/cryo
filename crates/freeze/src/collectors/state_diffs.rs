@@ -1,7 +1,6 @@
-use super::{blocks, transactions};
+use super::{balance_diffs, code_diffs, nonce_diffs, storage_diffs};
 use crate::{
-    StateDiffs, ChunkDim, CollectByBlock, CollectError, ColumnData, Datatype, RpcParams,
-    Transactions,
+    CollectByBlock, CollectByTransaction, CollectError, ColumnData, Datatype, RpcParams, StateDiffs,
 };
 use std::collections::HashMap;
 
@@ -9,52 +8,88 @@ use crate::{Source, Table};
 use polars::prelude::*;
 
 #[async_trait::async_trait]
-impl CollectByBlock for BlocksAndTransactions {
-    /// type of block data responses
-    type BlockResponse = <Transactions as CollectByBlock>::BlockResponse;
+impl CollectByBlock for StateDiffs {
+    type BlockResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    /// container for a dataset partition
-    type BlockColumns = BlocksAndTransactionsColumns;
+    type BlockColumns = StateDiffColumns;
 
-    /// parameters for requesting data by block
-    fn block_parameters() -> Vec<ChunkDim> {
-        Transactions::block_parameters()
-    }
-
-    /// fetch dataset data by block
     async fn extract_by_block(
         request: RpcParams,
         source: Source,
-        schemas: HashMap<Datatype, Table>,
+        _schemas: HashMap<Datatype, Table>,
     ) -> Result<Self::BlockResponse, CollectError> {
-        Transactions::extract_by_block(request, source, schemas).await
+        source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
     }
 
-    /// transform block data response into column data
     fn transform_by_block(
         response: Self::BlockResponse,
         columns: &mut Self::BlockColumns,
         schemas: &HashMap<Datatype, Table>,
     ) {
-        let BlocksAndTransactionsColumns(block_columns, transaction_columns) = columns;
-        let (block, _) = response.clone();
-        super::blocks::process_block(
-            block,
-            block_columns,
-            schemas.get(&Datatype::Blocks).expect("schema undefined"),
-        );
-        // Blocks::transform_by_block(response, block_columns, schema);
-        Transactions::transform_by_block(response, transaction_columns, schemas);
+        process_state_diffs(response, columns, schemas)
     }
 }
 
-/// Blocks and Transaction Columns
-#[derive(Default)]
-pub struct BlocksAndTransactionsColumns(blocks::BlockColumns, transactions::TransactionColumns);
+#[async_trait::async_trait]
+impl CollectByTransaction for StateDiffs {
+    type TransactionResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-impl ColumnData for BlocksAndTransactionsColumns {
+    type TransactionColumns = StateDiffColumns;
+
+    async fn extract_by_transaction(
+        request: RpcParams,
+        source: Source,
+        _schemas: HashMap<Datatype, Table>,
+    ) -> Result<Self::TransactionResponse, CollectError> {
+        source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
+    }
+
+    fn transform_by_transaction(
+        response: Self::TransactionResponse,
+        columns: &mut Self::TransactionColumns,
+        schemas: &HashMap<Datatype, Table>,
+    ) {
+        process_state_diffs(response, columns, schemas)
+    }
+}
+
+fn process_state_diffs(
+    response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
+    columns: &mut StateDiffColumns,
+    schemas: &HashMap<Datatype, Table>,
+) {
+    let StateDiffColumns(balance_columns, code_columns, nonce_columns, storage_columns) = columns;
+    if let Some(schema) = schemas.get(&Datatype::BalanceDiffs) {
+        balance_diffs::process_balance_diffs(&response, balance_columns, schema)
+    }
+    if let Some(schema) = schemas.get(&Datatype::CodeDiffs) {
+        code_diffs::process_code_diffs(&response, code_columns, schema)
+    }
+    if let Some(schema) = schemas.get(&Datatype::NonceDiffs) {
+        nonce_diffs::process_nonce_diffs(&response, nonce_columns, schema)
+    }
+    if let Some(schema) = schemas.get(&Datatype::StorageDiffs) {
+        storage_diffs::process_storage_diffs(&response, storage_columns, schema)
+    }
+}
+
+/// StateDiffColumns
+#[derive(Default)]
+pub struct StateDiffColumns(
+    balance_diffs::BalanceDiffColumns,
+    code_diffs::CodeDiffColumns,
+    nonce_diffs::NonceDiffColumns,
+    storage_diffs::StorageDiffColumns,
+);
+
+impl ColumnData for StateDiffColumns {
     fn datatypes() -> Vec<Datatype> {
-        vec![Datatype::Blocks, Datatype::Transactions]
+        vec![
+            Datatype::BalanceDiffs,
+            Datatype::CodeDiffs,
+            Datatype::NonceDiffs,
+            Datatype::StorageDiffs,
+        ]
     }
 
     fn create_dfs(
@@ -62,10 +97,12 @@ impl ColumnData for BlocksAndTransactionsColumns {
         schemas: &HashMap<Datatype, Table>,
         chain_id: u64,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-        let BlocksAndTransactionsColumns(block_columns, transaction_columns) = self;
+        let StateDiffColumns(balance_columns, code_columns, nonce_columns, storage_columns) = self;
         Ok(vec![
-            (Datatype::Blocks, block_columns.create_df(schemas, chain_id)?),
-            (Datatype::Transactions, transaction_columns.create_df(schemas, chain_id)?),
+            (Datatype::BalanceDiffs, balance_columns.create_df(schemas, chain_id)?),
+            (Datatype::CodeDiffs, code_columns.create_df(schemas, chain_id)?),
+            (Datatype::NonceDiffs, nonce_columns.create_df(schemas, chain_id)?),
+            (Datatype::StorageDiffs, storage_columns.create_df(schemas, chain_id)?),
         ]
         .into_iter()
         .collect())

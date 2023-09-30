@@ -14,7 +14,9 @@ pub trait CollectByBlock: 'static + Send {
     type BlockColumns: ColumnData + Send;
 
     /// parameters for requesting data by block
-    fn block_parameters() -> Vec<ChunkDim>;
+    fn block_parameters() -> Vec<ChunkDim> {
+        vec![ChunkDim::BlockNumber]
+    }
 
     /// fetch dataset data by block
     async fn extract_by_block(

@@ -14,7 +14,9 @@ pub trait CollectByTransaction: 'static + Send {
     type TransactionColumns: ColumnData + Send;
 
     /// parameters for requesting data by block
-    fn transaction_parameters() -> Vec<ChunkDim>;
+    fn transaction_parameters() -> Vec<ChunkDim> {
+        vec![ChunkDim::TransactionHash]
+    }
 
     /// fetch dataset data by transaction
     async fn extract_by_transaction(
