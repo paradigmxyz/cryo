@@ -248,7 +248,7 @@ impl TransactionAddressColumns {
         let mut logs_by_tx: HashMap<H256, Vec<Log>> = HashMap::new();
         for log in logs.into_iter() {
             if let Some(tx_hash) = log.transaction_hash {
-                logs_by_tx.entry(tx_hash).or_insert_with(Vec::new).push(log);
+                logs_by_tx.entry(tx_hash).or_default().push(log);
             }
         }
 

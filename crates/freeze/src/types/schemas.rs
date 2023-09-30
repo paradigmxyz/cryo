@@ -1,11 +1,14 @@
 /// types and functions related to schemas
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 use crate::datasets::LogDecoder;
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
 use crate::types::{ColumnEncoding, Datatype};
+
+/// collection of schemas
+pub type Schemas = HashMap<Datatype, Table>;
 
 /// Schema for a particular table
 #[derive(Clone, Debug, PartialEq)]

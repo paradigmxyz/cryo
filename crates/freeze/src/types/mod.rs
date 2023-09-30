@@ -19,7 +19,7 @@ pub mod partitions;
 pub mod rpc_params;
 
 pub use partitions::{ChunkDim, Partition, PartitionLabels};
-pub use rpc_params::RpcParams;
+pub use rpc_params::Params;
 
 /// collection traits
 pub mod collection;
@@ -54,7 +54,7 @@ pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput};
 pub use queries::{MultiQuery, Query, RowFilter, SingleQuery, TimeDimension};
-pub use schemas::{ColumnType, Table, U256Type};
+pub use schemas::{ColumnType, Schemas, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source};
 // pub(crate) use summaries::FreezeSummaryAgg;
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};

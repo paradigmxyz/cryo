@@ -1,35 +1,25 @@
 use crate::{
     conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
-    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype,
-    RpcParams, Source, Table, Traces,
+    CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype, Params,
+    Schemas, Source, Table, Traces,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for Traces {
-    type BlockResponse = Vec<Trace>;
+    type Response = Vec<Trace>;
 
-    type BlockColumns = TraceColumns;
+    type Columns = TraceColumns;
 
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber]
-    }
-
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block(request.block_number().into()).await
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
@@ -37,27 +27,15 @@ impl CollectByBlock for Traces {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Traces {
-    type TransactionResponse = Vec<Trace>;
+    type Response = Vec<Trace>;
 
-    type TransactionColumns = TraceColumns;
+    type Columns = TraceColumns;
 
-    fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::TransactionHash]
-    }
-
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
@@ -236,10 +214,10 @@ pub(crate) fn filter_failed_traces(traces: Vec<Trace>) -> Vec<Trace> {
 
         // if in an error, check if next trace is still in error
         if let Some(ref e_address) = error_address {
-            if trace.trace_address.len() >= e_address.len()
-                && trace.trace_address[0..e_address.len()] == e_address[..]
+            if trace.trace_address.len() >= e_address.len() &&
+                trace.trace_address[0..e_address.len()] == e_address[..]
             {
-                continue;
+                continue
             } else {
                 error_address = None;
             }
@@ -254,4 +232,3 @@ pub(crate) fn filter_failed_traces(traces: Vec<Trace>) -> Vec<Trace> {
 
     filtered
 }
-

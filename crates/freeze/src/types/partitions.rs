@@ -1,5 +1,5 @@
 use crate::{
-    AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats, CollectError, RpcParams,
+    AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats, CollectError, Params,
     SlotChunk, TopicChunk, TransactionChunk,
 };
 
@@ -142,8 +142,7 @@ macro_rules! parametrize {
         for output in $outputs.into_iter() {
             for chunk in $self_chunks.as_ref().unwrap().iter() {
                 for value in chunk.values().iter() {
-                    $new_outputs
-                        .push(RpcParams { $param_key: Some(value.clone()), ..output.clone() })
+                    $new_outputs.push(Params { $param_key: Some(value.clone()), ..output.clone() })
                 }
             }
         }
@@ -273,8 +272,8 @@ impl Partition {
     }
 
     /// iterate through param sets of Partition
-    pub fn param_sets(&self, dimensions: Vec<ChunkDim>) -> Vec<RpcParams> {
-        let mut outputs = vec![RpcParams::default()];
+    pub fn param_sets(&self, dimensions: Vec<ChunkDim>) -> Vec<Params> {
+        let mut outputs = vec![Params::default()];
         for dimension in dimensions.iter() {
             let mut new = Vec::new();
             match dimension {
@@ -297,7 +296,7 @@ impl Partition {
                     for output in outputs.into_iter() {
                         for chunk in self.block_ranges.as_ref().unwrap().iter() {
                             match chunk {
-                                BlockChunk::Range(start, end) => new.push(RpcParams {
+                                BlockChunk::Range(start, end) => new.push(Params {
                                     block_range: Some((*start, *end)),
                                     ..output.clone()
                                 }),

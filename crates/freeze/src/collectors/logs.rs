@@ -1,55 +1,37 @@
 use crate::{
     conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
-    ChunkDim, CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype,
-    Logs, RpcParams, Source, Table,
+    CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Datatype, Logs,
+    Params, Schemas, Source, Table,
 };
 use ethers::prelude::*;
 use ethers_core::abi::Token;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for Logs {
-    type BlockResponse = Vec<Log>;
+    type Response = Vec<Log>;
 
-    type BlockColumns = LogColumns;
+    type Columns = LogColumns;
 
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber]
-    }
-
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.get_logs(&request.ethers_log_filter()).await
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         process_logs(response, columns, schemas.get(&Datatype::Logs).expect("schema not provided"))
     }
 }
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Logs {
-    type TransactionResponse = Vec<Log>;
+    type Response = Vec<Log>;
 
-    type TransactionColumns = LogColumns;
+    type Columns = LogColumns;
 
-    fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber]
-    }
-
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let logs = source
             .fetcher
             .get_transaction_receipt(request.ethers_transaction_hash())
@@ -59,11 +41,7 @@ impl CollectByTransaction for Logs {
         Ok(logs)
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Logs).expect("schema not provided");
         process_logs(response, columns, schema)
     }
@@ -123,7 +101,7 @@ pub fn process_logs(logs: Vec<Log>, columns: &mut LogColumns, schema: &Table) {
     let decoder = schema.log_decoder.clone();
     if let Some(decoder) = decoder {
         decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
-            columns.event_cols.entry(k).or_insert(Vec::new()).extend(v);
+            columns.event_cols.entry(k).or_default().extend(v);
         });
     }
 }

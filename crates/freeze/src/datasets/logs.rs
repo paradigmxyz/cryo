@@ -248,7 +248,7 @@ impl LogColumns {
         let decoder = schema.log_decoder.clone();
         if let Some(decoder) = decoder {
             decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
-                self.event_cols.entry(k).or_insert(Vec::new()).extend(v);
+                self.event_cols.entry(k).or_default().extend(v);
             });
         }
 
@@ -357,7 +357,7 @@ impl LogDecoder {
                 Ok(log) => {
                     for param in log.params {
                         if known_keys.contains(param.name.as_str()) {
-                            let tokens = map.entry(param.name).or_insert(Vec::new());
+                            let tokens = map.entry(param.name).or_default();
                             tokens.push(param.value);
                         }
                     }

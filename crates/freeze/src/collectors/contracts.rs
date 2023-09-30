@@ -2,41 +2,25 @@ use super::traces;
 use crate::{
     conversions::ToVecHex, dataframes::SortableDataFrame, store, with_series, with_series_binary,
     CollectByBlock, CollectByTransaction, CollectError, ColumnData, ColumnType, Contracts,
-    Datatype, RpcParams, Source, Table,
+    Datatype, Params, Schemas, Source, Table,
 };
 use ethers::prelude::*;
 use ethers_core::utils::keccak256;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for Contracts {
-    type BlockResponse = Vec<Trace>;
+    type Response = Vec<Trace>;
+    type Columns = TraceColumns;
 
-    type BlockColumns = TraceColumns;
-
-//     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-//         source.fetcher.trace_block(request.ethers_block_number()).await
-//     }
-
-//     fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
-//         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
-//         process_contracts(response, columns, schema)
-//     }
-
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block(request.ethers_block_number()).await
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_contracts(response, columns, schema)
     }
@@ -44,23 +28,14 @@ impl CollectByBlock for Contracts {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Contracts {
-    type TransactionResponse = Vec<Trace>;
+    type Response = Vec<Trace>;
+    type Columns = TraceColumns;
 
-    type TransactionColumns = TraceColumns;
-
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_contracts(response, columns, schema)
     }

@@ -2,64 +2,42 @@ use crate::{
     conversions::{ToVecHex, ToVecU8},
     dataframes::SortableDataFrame,
     store, with_series, with_series_binary, with_series_u256, CollectByBlock, CollectByTransaction,
-    CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype, NonceDiffs, RpcParams, Source,
-    Table, U256Type,
+    CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype, NonceDiffs, Params, Schemas,
+    Source, Table, U256Type,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for NonceDiffs {
-    type BlockResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type BlockColumns = NonceDiffColumns;
+    type Columns = NonceDiffColumns;
 
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
-        if let Some(schema) = schemas.get(&Datatype::NonceDiffs) {
-            process_nonce_diffs(&response, columns, schema)
-        } else {
-            panic!("missing schema")
-        }
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        process_nonce_diffs(&response, columns, schemas)
     }
 }
 
 #[async_trait::async_trait]
 impl CollectByTransaction for NonceDiffs {
-    type TransactionResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type TransactionColumns = NonceDiffColumns;
+    type Columns = NonceDiffColumns;
 
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
-        if let Some(schema) = schemas.get(&Datatype::NonceDiffs) {
-            process_nonce_diffs(&response, columns, schema)
-        } else {
-            panic!("missing schema")
-        }
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        process_nonce_diffs(&response, columns, schemas)
     }
 }
 
@@ -79,8 +57,9 @@ pub struct NonceDiffColumns {
 pub(crate) fn process_nonce_diffs(
     response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut NonceDiffColumns,
-    schema: &Table,
+    schemas: &Schemas,
 ) {
+    let schema = schemas.get(&Datatype::NonceDiffs).expect("missing schema");
     let (block_number, tx, traces) = response;
     for (index, trace) in traces.iter().enumerate() {
         if let Some(ethers::types::StateDiff(state_diffs)) = &trace.state_diff {

@@ -2,7 +2,7 @@ use ethers::prelude::*;
 
 /// represents parameters for a single rpc call
 #[derive(Default, Clone)]
-pub struct RpcParams {
+pub struct Params {
     /// block number
     pub block_number: Option<u64>,
     /// block range
@@ -29,7 +29,7 @@ pub struct RpcParams {
     pub topic3: Option<Vec<u8>>,
 }
 
-impl RpcParams {
+impl Params {
     /// block number
     pub fn block_number(&self) -> u64 {
         self.block_number.expect("block_number not specified")

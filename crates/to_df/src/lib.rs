@@ -58,7 +58,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 vec![#(#datatypes),*]
             }
 
-            fn create_df(self, schemas: &HashMap<Datatype, Table>, chain_id: u64) -> Result<DataFrame, CollectError> {
+            fn create_df(self, schemas: &HashMap<Datatype, Table>, chain_id: u64) -> Result<DataFrame> {
                 let datatype = if Self::datatypes().len() == 1 {
                     Self::datatypes()[0]
                 } else {

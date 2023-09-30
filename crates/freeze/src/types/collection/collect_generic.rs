@@ -1,4 +1,4 @@
-use crate::{ChunkDim, CollectError, Datatype, Partition, RpcParams, Source, Table};
+use crate::{ChunkDim, CollectError, Datatype, Params, Partition, Source, Table};
 use futures::Future;
 use std::collections::HashMap;
 use tokio::{sync::mpsc, task};
@@ -15,7 +15,7 @@ pub async fn fetch_partition<F, Fut, T>(
 where
     F: Copy
         + Send
-        + for<'a> Fn(RpcParams, Source, HashMap<Datatype, Table>) -> Fut
+        + for<'a> Fn(Params, Source, HashMap<Datatype, Table>) -> Fut
         + std::marker::Sync
         + 'static,
     Fut: Future<Output = Result<T, CollectError>> + Send + 'static,

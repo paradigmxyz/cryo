@@ -1,29 +1,23 @@
 use crate::{
     conversions::{ToVecHex, ToVecU8},
     dataframes::SortableDataFrame,
-    store, with_series, with_series_binary, with_series_u256, ChunkDim, CollectByBlock,
-    CollectByTransaction, CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype,
-    RpcParams, Source, Table, Transactions, U256Type,
+    store, with_series, with_series_binary, with_series_u256, CollectByBlock, CollectByTransaction,
+    CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype, Params, Schemas, Source, Table,
+    Transactions, U256Type,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type BlockResponse = (Block<Transaction>, Option<Vec<u32>>);
+    type Response = (Block<Transaction>, Option<Vec<u32>>);
 
-    type BlockColumns = TransactionColumns;
+    type Columns = TransactionColumns;
 
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber]
-    }
-
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let block = source
             .fetcher
             .get_block_with_txs(request.block_number())
@@ -38,11 +32,7 @@ impl CollectByBlock for Transactions {
         Ok((block, gas_used))
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
         let (block, gas_used) = response;
         match gas_used {
@@ -62,19 +52,11 @@ impl CollectByBlock for Transactions {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
-    type TransactionResponse = (Transaction, Option<u32>);
+    type Response = (Transaction, Option<u32>);
 
-    type TransactionColumns = TransactionColumns;
+    type Columns = TransactionColumns;
 
-    fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::TransactionHash]
-    }
-
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let tx_hash = request.ethers_transaction_hash();
         let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
         let transaction = source
@@ -96,11 +78,7 @@ impl CollectByTransaction for Transactions {
         Ok((transaction, gas_used))
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
         let (transaction, gas_used) = response;
         let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
         process_transaction(transaction, gas_used, columns, schema);

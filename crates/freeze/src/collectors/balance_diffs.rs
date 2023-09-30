@@ -2,64 +2,42 @@ use crate::{
     conversions::{ToVecHex, ToVecU8},
     dataframes::SortableDataFrame,
     store, with_series, with_series_binary, with_series_u256, BalanceDiffs, CollectByBlock,
-    CollectByTransaction, CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype,
-    RpcParams, Source, Table, U256Type,
+    CollectByTransaction, CollectError, ColumnData, ColumnEncoding, ColumnType, Datatype, Params,
+    Schemas, Source, Table, U256Type,
 };
 use ethers::prelude::*;
 use polars::prelude::*;
 use std::collections::HashMap;
 
+type Result<T> = ::core::result::Result<T, CollectError>;
+
 #[async_trait::async_trait]
 impl CollectByBlock for BalanceDiffs {
-    type BlockResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type BlockColumns = BalanceDiffColumns;
+    type Columns = BalanceDiffColumns;
 
-    async fn extract_by_block(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::BlockResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
     }
 
-    fn transform_by_block(
-        response: Self::BlockResponse,
-        columns: &mut Self::BlockColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
-        if let Some(schema) = schemas.get(&Datatype::BalanceDiffs) {
-            process_balance_diffs(&response, columns, schema)
-        } else {
-            panic!("missing schema")
-        }
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        process_balance_diffs(&response, columns, schemas)
     }
 }
 
 #[async_trait::async_trait]
 impl CollectByTransaction for BalanceDiffs {
-    type TransactionResponse = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type TransactionColumns = BalanceDiffColumns;
+    type Columns = BalanceDiffColumns;
 
-    async fn extract_by_transaction(
-        request: RpcParams,
-        source: Source,
-        _schemas: HashMap<Datatype, Table>,
-    ) -> Result<Self::TransactionResponse, CollectError> {
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
     }
 
-    fn transform_by_transaction(
-        response: Self::TransactionResponse,
-        columns: &mut Self::TransactionColumns,
-        schemas: &HashMap<Datatype, Table>,
-    ) {
-        if let Some(schema) = schemas.get(&Datatype::BalanceDiffs) {
-            process_balance_diffs(&response, columns, schema)
-        } else {
-            panic!("missing schema")
-        }
+    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+        process_balance_diffs(&response, columns, schemas)
     }
 }
 
@@ -79,8 +57,9 @@ pub struct BalanceDiffColumns {
 pub(crate) fn process_balance_diffs(
     response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut BalanceDiffColumns,
-    schema: &Table,
+    schemas: &Schemas,
 ) {
+    let schema = schemas.get(&Datatype::BalanceDiffs).expect("missing schema");
     let (block_number, tx, traces) = response;
     for (index, trace) in traces.iter().enumerate() {
         if let Some(ethers::types::StateDiff(state_diffs)) = &trace.state_diff {
