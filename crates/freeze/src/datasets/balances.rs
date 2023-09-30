@@ -29,6 +29,7 @@ impl Dataset for Balances {
     fn column_types(&self) -> HashMap<&'static str, ColumnType> {
         HashMap::from_iter(vec![
             ("block_number", ColumnType::UInt32),
+            ("transcation_hash", ColumnType::Binary),
             ("address", ColumnType::Binary),
             ("balance", ColumnType::UInt256),
             ("chain_id", ColumnType::UInt64),

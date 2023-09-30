@@ -221,6 +221,18 @@ impl<P: JsonRpcClient> Fetcher<P> {
         Self::map_err(self.provider.get_block_number().await)
     }
 
+    // extra helpers below
+
+    /// block number of transaction
+    pub async fn get_transaction_block_number(&self, transaction_hash: Vec<u8>) -> Result<u32> {
+        let block = self.get_transaction(H256::from_slice(&transaction_hash)).await?;
+        let block = block.ok_or(CollectError::CollectError("could not get block".to_string()))?;
+        Ok(block
+            .block_number
+            .ok_or(CollectError::CollectError("could not get block number".to_string()))?
+            .as_u32())
+    }
+
     async fn permit_request(
         &self,
     ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {

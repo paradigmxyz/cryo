@@ -50,6 +50,11 @@ impl Params {
         self.address.clone().expect("address not specified")
     }
 
+    /// slot
+    pub fn slot(&self) -> Vec<u8> {
+        self.slot.clone().expect("slot not specified")
+    }
+
     //
     // ethers versions
     //
