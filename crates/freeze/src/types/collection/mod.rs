@@ -7,3 +7,4 @@ pub mod collect_generic;
 
 pub use collect_by_block::CollectByBlock;
 pub use collect_by_transaction::CollectByTransaction;
+pub use collect_generic::collect_partition;

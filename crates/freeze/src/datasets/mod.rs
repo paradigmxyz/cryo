@@ -24,5 +24,3 @@ mod traces;
 mod transaction_addresses;
 mod transactions;
 mod vm_traces;
-
-// pub use logs::LogDecoder;

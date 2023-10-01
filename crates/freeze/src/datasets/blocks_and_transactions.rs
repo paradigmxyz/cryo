@@ -1,7 +1,4 @@
-use crate::{
-    Blocks, BlocksAndTransactions, ChunkDim, CollectByBlock, CollectError, ColumnData, Datatype,
-    MultiDataset, Params, Schemas, Source, Transactions,
-};
+use crate::*;
 use polars::prelude::*;
 use std::collections::{HashMap, HashSet};
 
@@ -40,7 +37,7 @@ impl CollectByBlock for BlocksAndTransactions {
 
     /// fetch dataset data by block
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
-        Transactions::extract(request, source, schemas).await
+        <Transactions as CollectByBlock>::extract(request, source, schemas).await
     }
 
     /// transform block data response into column data
@@ -52,7 +49,7 @@ impl CollectByBlock for BlocksAndTransactions {
             block_columns,
             schemas.get(&Datatype::Blocks).expect("schema undefined"),
         );
-        Transactions::transform(response, transaction_columns, schemas);
+        <Transactions as CollectByBlock>::transform(response, transaction_columns, schemas);
     }
 }
 impl ColumnData for BlocksAndTransactionsColumns {

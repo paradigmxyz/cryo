@@ -1,15 +1,9 @@
-use std::{collections::HashMap, path::PathBuf};
-
-use futures::{stream::FuturesUnordered, StreamExt};
-
 use crate::{
-    collect::collect_partition,
-    types::{
-        dataframes, reports, summaries, Datatype, ExecutionEnv, FileOutput, FreezeSummary,
-        MetaDatatype, Query, Source, Table, TimeDimension,
-    },
-    CollectError, Partition,
+    collect_partition, dataframes, reports, summaries, CollectError, Datatype, ExecutionEnv,
+    FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source, Table, TimeDimension,
 };
+use futures::{stream::FuturesUnordered, StreamExt};
+use std::{collections::HashMap, path::PathBuf};
 
 type PartitionPayload = (
     TimeDimension,

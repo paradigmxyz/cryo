@@ -65,7 +65,7 @@ pub use summaries::FreezeSummary;
 
 pub use errors::{ChunkError, CollectError, FileError, FreezeError, ParseError};
 
-pub use collection::{CollectByBlock, CollectByTransaction};
+pub use collection::*;
 pub use execution::{ExecutionEnv, ExecutionEnvBuilder};
 
 pub use signatures::*;

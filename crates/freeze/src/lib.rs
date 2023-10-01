@@ -10,11 +10,8 @@
 mod collect;
 mod datasets;
 mod freeze;
-
 mod types;
 
-pub use collect::{collect, collect_by_block, collect_by_transaction, collect_partition};
-// pub use collectors::*;
-// pub(crate) use datasets::*;
+pub use collect::collect;
 pub use freeze::freeze;
 pub use types::*;
