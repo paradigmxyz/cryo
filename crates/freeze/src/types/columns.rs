@@ -1,6 +1,7 @@
 use crate::{CollectError, Datatype, Table};
 use polars::prelude::*;
 use std::collections::HashMap;
+use crate::ColumnType;
 
 /// store values in columns if column present in schema
 #[macro_export]
@@ -45,5 +46,10 @@ pub trait ColumnData: Default {
         } else {
             Err(CollectError::CollectError("schema has more than one datatype".to_string()))
         }
+    }
+
+    /// column types
+    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
+        panic!("column_types() not implemented")
     }
 }

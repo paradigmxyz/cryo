@@ -1,4 +1,4 @@
-use crate::types::ColumnType;
+use crate::ColumnType;
 use async_trait;
 use std::collections::HashMap;
 

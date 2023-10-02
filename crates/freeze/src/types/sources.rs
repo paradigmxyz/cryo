@@ -169,25 +169,6 @@ impl<P: JsonRpcClient> Fetcher<P> {
         self.provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)
     }
 
-    /// Return output data of a contract call
-    pub async fn call2(
-        &self,
-        address: H160,
-        call_data: Vec<u8>,
-        block_number: BlockNumber,
-    ) -> Result<Bytes> {
-        let transaction = TransactionRequest {
-            to: Some(address.into()),
-            data: Some(call_data.into()),
-            ..Default::default()
-        };
-        let _permit = self.permit_request().await;
-        self.provider
-            .call(&transaction.into(), Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
     /// Deprecated
     pub async fn call(
         &self,
@@ -284,6 +265,45 @@ impl<P: JsonRpcClient> Fetcher<P> {
             .await?
             .ok_or(CollectError::CollectError("transaction receipt not found".to_string()))?
             .logs)
+    }
+
+    /// Return output data of a contract call
+    pub async fn call2(
+        &self,
+        address: H160,
+        call_data: Vec<u8>,
+        block_number: BlockNumber,
+    ) -> Result<Bytes> {
+        let transaction = TransactionRequest {
+            to: Some(address.into()),
+            data: Some(call_data.into()),
+            ..Default::default()
+        };
+        let _permit = self.permit_request().await;
+        self.provider
+            .call(&transaction.into(), Some(block_number.into()))
+            .await
+            .map_err(CollectError::ProviderError)
+    }
+
+    /// Return output data of a contract call
+    pub async fn trace_call2(
+        &self,
+        address: H160,
+        call_data: Vec<u8>,
+        trace_type: Vec<TraceType>,
+        block_number: Option<BlockNumber>,
+    ) -> Result<BlockTrace> {
+        let transaction = TransactionRequest {
+            to: Some(address.into()),
+            data: Some(call_data.into()),
+            ..Default::default()
+        };
+        let _permit = self.permit_request().await;
+        self.provider
+            .trace_call(transaction, trace_type, block_number)
+            .await
+            .map_err(CollectError::ProviderError)
     }
 
     async fn permit_request(

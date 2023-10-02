@@ -13,7 +13,4 @@ output formats
 --jsonl
 
 command chaining
-
-
-
  */

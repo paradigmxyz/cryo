@@ -6,22 +6,6 @@ use tokio::{sync::mpsc, task};
 
 const TX_ERROR: &str = "datatype cannot collect by transaction";
 
-/// collect single partition
-pub async fn collect_partition(
-    time_dimension: TimeDimension,
-    datatype: MetaDatatype,
-    partition: Partition,
-    source: Source,
-    schemas: HashMap<Datatype, Table>,
-) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-    match time_dimension {
-        TimeDimension::Blocks => collect_by_block(datatype, partition, source, schemas).await,
-        TimeDimension::Transactions => {
-            collect_by_transaction(datatype, partition, source, schemas).await
-        }
-    }
-}
-
 /// collect data by block
 pub async fn collect_by_block(
     datatype: MetaDatatype,
@@ -31,20 +15,46 @@ pub async fn collect_by_block(
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
     let task = match datatype {
         MetaDatatype::Scalar(datatype) => match datatype {
+            Datatype::BalanceDiffs => BalanceDiffs::collect_by_block(partition, source, &schemas),
+            Datatype::Balances => Balances::collect_by_block(partition, source, &schemas),
             Datatype::Blocks => Blocks::collect_by_block(partition, source, &schemas),
+            Datatype::CodeDiffs => CodeDiffs::collect_by_block(partition, source, &schemas),
+            Datatype::Codes => Codes::collect_by_block(partition, source, &schemas),
+            Datatype::Contracts => Contracts::collect_by_block(partition, source, &schemas),
+            Datatype::Erc20Balances => Erc20Balances::collect_by_block(partition, source, &schemas),
+            Datatype::Erc20Metadata => Erc20Metadata::collect_by_block(partition, source, &schemas),
+            Datatype::Erc20Supplies => Erc20Supplies::collect_by_block(partition, source, &schemas),
+            Datatype::Erc20Transfers => {
+                Erc20Transfers::collect_by_block(partition, source, &schemas)
+            }
+            Datatype::Erc721Metadata => {
+                Erc721Metadata::collect_by_block(partition, source, &schemas)
+            }
+            Datatype::Erc721Transfers => {
+                Erc721Transfers::collect_by_block(partition, source, &schemas)
+            }
+            Datatype::EthCalls => EthCalls::collect_by_block(partition, source, &schemas),
             Datatype::Logs => Logs::collect_by_block(partition, source, &schemas),
+            Datatype::NonceDiffs => NonceDiffs::collect_by_block(partition, source, &schemas),
+            Datatype::Nonces => Nonces::collect_by_block(partition, source, &schemas),
+            Datatype::StorageDiffs => StorageDiffs::collect_by_block(partition, source, &schemas),
+            Datatype::Storages => Storages::collect_by_block(partition, source, &schemas),
             Datatype::Traces => Traces::collect_by_block(partition, source, &schemas),
+            Datatype::TraceCalls => TraceCalls::collect_by_block(partition, source, &schemas),
             Datatype::Transactions => Transactions::collect_by_block(partition, source, &schemas),
-            _ => panic!(),
+            Datatype::TransactionAddresses => {
+                TransactionAddresses::collect_by_block(partition, source, &schemas)
+            }
+            Datatype::VmTraces => VmTraces::collect_by_block(partition, source, &schemas),
+            Datatype::NativeTransfers => {
+                NativeTransfers::collect_by_block(partition, source, &schemas)
+            }
         },
         MetaDatatype::Multi(datatype) => match datatype {
             MultiDatatype::BlocksAndTransactions => {
                 BlocksAndTransactions::collect_by_block(partition, source, &schemas)
             }
-            MultiDatatype::StateDiffs => {
-                panic!();
-                // StateDiffs::collect_by_block(partition, source, schema),
-            }
+            MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
         },
     };
     task.await
@@ -59,13 +69,46 @@ pub async fn collect_by_transaction(
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
     let task = match datatype {
         MetaDatatype::Scalar(datatype) => match datatype {
+            Datatype::BalanceDiffs => {
+                BalanceDiffs::collect_by_transaction(partition, source, &schemas)
+            }
+            Datatype::Balances => Balances::collect_by_transaction(partition, source, &schemas),
             Datatype::Blocks => Blocks::collect_by_transaction(partition, source, &schemas),
+            Datatype::CodeDiffs => CodeDiffs::collect_by_transaction(partition, source, &schemas),
+            Datatype::Codes => Codes::collect_by_transaction(partition, source, &schemas),
+            Datatype::Contracts => Contracts::collect_by_transaction(partition, source, &schemas),
+            Datatype::Erc20Balances => return Err(CollectError::CollectError(TX_ERROR.to_string())),
+            Datatype::Erc20Metadata => return Err(CollectError::CollectError(TX_ERROR.to_string())),
+            Datatype::Erc20Supplies => return Err(CollectError::CollectError(TX_ERROR.to_string())),
+            Datatype::Erc20Transfers => {
+                Erc20Transfers::collect_by_transaction(partition, source, &schemas)
+            }
+            Datatype::Erc721Metadata => {
+                return Err(CollectError::CollectError(TX_ERROR.to_string()))
+            }
+            Datatype::Erc721Transfers => {
+                Erc721Transfers::collect_by_transaction(partition, source, &schemas)
+            }
+            Datatype::EthCalls => return Err(CollectError::CollectError(TX_ERROR.to_string())),
             Datatype::Logs => Logs::collect_by_transaction(partition, source, &schemas),
+            Datatype::NonceDiffs => NonceDiffs::collect_by_transaction(partition, source, &schemas),
+            Datatype::Nonces => Nonces::collect_by_transaction(partition, source, &schemas),
+            Datatype::StorageDiffs => {
+                StorageDiffs::collect_by_transaction(partition, source, &schemas)
+            }
+            Datatype::Storages => Storages::collect_by_transaction(partition, source, &schemas),
             Datatype::Traces => Traces::collect_by_transaction(partition, source, &schemas),
+            Datatype::TraceCalls => return Err(CollectError::CollectError(TX_ERROR.to_string())),
             Datatype::Transactions => {
                 Transactions::collect_by_transaction(partition, source, &schemas)
             }
-            _ => panic!(),
+            Datatype::TransactionAddresses => {
+                TransactionAddresses::collect_by_transaction(partition, source, &schemas)
+            }
+            Datatype::VmTraces => VmTraces::collect_by_transaction(partition, source, &schemas),
+            Datatype::NativeTransfers => {
+                NativeTransfers::collect_by_transaction(partition, source, &schemas)
+            }
         },
         MetaDatatype::Multi(datatype) => match datatype {
             MultiDatatype::BlocksAndTransactions => {
@@ -75,6 +118,22 @@ pub async fn collect_by_transaction(
         },
     };
     task.await
+}
+
+/// collect single partition
+pub async fn collect_partition(
+    time_dimension: TimeDimension,
+    datatype: MetaDatatype,
+    partition: Partition,
+    source: Source,
+    schemas: HashMap<Datatype, Table>,
+) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
+    match time_dimension {
+        TimeDimension::Blocks => collect_by_block(datatype, partition, source, schemas).await,
+        TimeDimension::Transactions => {
+            collect_by_transaction(datatype, partition, source, schemas).await
+        }
+    }
 }
 
 /// fetch data for a given partition
