@@ -162,9 +162,9 @@ impl Datatype {
         sort: Option<Vec<String>>,
         log_decoder: Option<LogDecoder>,
     ) -> Result<Table, SchemaError> {
-        let column_types = self.dataset().column_types();
+        let column_types = self.column_types();
         let all_columns = column_types.keys().map(|k| k.to_string()).collect();
-        let default_columns = self.dataset().default_columns();
+        let default_columns = self.default_columns();
         let used_columns = compute_used_columns(
             all_columns,
             default_columns,

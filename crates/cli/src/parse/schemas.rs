@@ -149,7 +149,7 @@ pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, Par
             let mut in_a_schema = false;
 
             for datatype in schemas.keys() {
-                if datatype.dataset().column_types().contains_key(&column.as_str()) {
+                if datatype.column_types().contains_key(&column.as_str()) {
                     in_a_schema = true;
                     break
                 }
@@ -176,7 +176,7 @@ fn parse_sort(
 ) -> Result<HashMap<Datatype, Option<Vec<String>>>, ParseError> {
     match raw_sort {
         None => Ok(HashMap::from_iter(
-            datatypes.iter().map(|datatype| (*datatype, Some(datatype.dataset().default_sort()))),
+            datatypes.iter().map(|datatype| (*datatype, Some(datatype.default_sort()))),
         )),
         Some(raw_sort) => {
             if (raw_sort.len() == 1) && (raw_sort[0] == "none") {

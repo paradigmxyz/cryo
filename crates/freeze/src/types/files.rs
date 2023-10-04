@@ -39,7 +39,7 @@ impl FileOutput {
         format!(
             "{}__{}__{}.{}",
             self.prefix.clone(),
-            datatype.dataset().name(),
+            datatype.name(),
             partition.label(&query.partitioned_by),
             self.format.as_str(),
         )

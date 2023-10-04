@@ -15,3 +15,4 @@ mod types;
 pub use collect::collect;
 pub use freeze::freeze;
 pub use types::*;
+pub use datasets::*;

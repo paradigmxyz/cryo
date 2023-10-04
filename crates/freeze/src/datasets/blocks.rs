@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Blocks)]
 #[derive(Default)]
-pub struct BlockColumns {
+pub struct Blocks {
     n_rows: u64,
     hash: Vec<Vec<u8>>,
     parent_hash: Vec<Vec<u8>>,
@@ -26,37 +26,12 @@ pub struct BlockColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
-    fn datatype(&self) -> Datatype {
-        Datatype::Blocks
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "blocks"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("hash", ColumnType::Binary),
-            ("parent_hash", ColumnType::Binary),
-            ("author", ColumnType::Binary),
-            ("state_root", ColumnType::Binary),
-            ("transactions_root", ColumnType::Binary),
-            ("receipts_root", ColumnType::Binary),
-            ("block_number", ColumnType::UInt32),
-            ("gas_used", ColumnType::UInt32),
-            ("extra_data", ColumnType::Binary),
-            ("logs_bloom", ColumnType::Binary),
-            ("timestamp", ColumnType::UInt32),
-            ("total_difficulty", ColumnType::String),
-            ("size", ColumnType::UInt32),
-            ("base_fee_per_gas", ColumnType::UInt64),
-            ("chain_id", ColumnType::UInt64),
-            // not including: transactions, seal_fields, epoch_snark_data, randomness
-        ])
-    }
-
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec![
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec![
             "block_number",
             "hash",
             "timestamp",
@@ -65,10 +40,10 @@ impl Dataset for Blocks {
             "extra_data",
             "base_fee_per_gas",
             "chain_id",
-        ]
+        ])
     }
 
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string()]
     }
 }
@@ -79,8 +54,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Blocks {
     type Response = Block<TxHash>;
 
-    type Columns = BlockColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block = source
             .fetcher
@@ -90,7 +63,7 @@ impl CollectByBlock for Blocks {
         Ok(block)
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Blocks).expect("schema missing");
         process_block(response, columns, schema)
     }
@@ -99,8 +72,6 @@ impl CollectByBlock for Blocks {
 #[async_trait::async_trait]
 impl CollectByTransaction for Blocks {
     type Response = Block<TxHash>;
-
-    type Columns = BlockColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let transaction = source
@@ -116,14 +87,14 @@ impl CollectByTransaction for Blocks {
         Ok(block)
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Blocks).expect("schema missing");
         process_block(response, columns, schema)
     }
 }
 
 /// process block into columns
-pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut BlockColumns, schema: &Table) {
+pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: &Table) {
     columns.n_rows += 1;
 
     store!(schema, columns, hash, block.hash.map(|x| x.0.to_vec()).expect("block hash required"));

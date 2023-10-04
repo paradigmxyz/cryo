@@ -95,7 +95,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
             }
 
-            fn column_types(&self) -> HashMap<&'static str, ColumnType> {
+            fn column_types() -> HashMap<&'static str, ColumnType> {
                 HashMap::from_iter(vec![
                     #(#column_types),*
                 ])

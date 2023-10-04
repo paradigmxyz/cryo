@@ -137,7 +137,7 @@ pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
 ) -> Result<Vec<BlockChunk>, ParseError> {
     let default_blocks = schemas
         .keys()
-        .map(|datatype| datatype.dataset().default_blocks())
+        .map(|datatype| datatype.default_blocks())
         .find(|blocks| !blocks.is_none())
         .unwrap_or(Some("0:latest".to_string()))
         .unwrap();

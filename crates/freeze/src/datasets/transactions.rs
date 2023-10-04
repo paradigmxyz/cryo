@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Transactions)]
 #[derive(Default)]
-pub struct TransactionColumns {
+pub struct Transactions {
     n_rows: u64,
     block_number: Vec<Option<u64>>,
     transaction_index: Vec<Option<u64>>,
@@ -26,35 +26,11 @@ pub struct TransactionColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
-    fn datatype(&self) -> Datatype {
-        Datatype::Transactions
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "transactions"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::Int32),
-            ("transaction_index", ColumnType::Int32),
-            ("transaction_hash", ColumnType::Binary),
-            ("nonce", ColumnType::Int32),
-            ("from_address", ColumnType::Binary),
-            ("to_address", ColumnType::Binary),
-            ("value", ColumnType::UInt256),
-            ("input", ColumnType::Binary),
-            ("gas_limit", ColumnType::UInt32),
-            ("gas_used", ColumnType::UInt32),
-            ("gas_price", ColumnType::UInt64),
-            ("transaction_type", ColumnType::UInt32),
-            ("max_priority_fee_per_gas", ColumnType::UInt64),
-            ("max_fee_per_gas", ColumnType::UInt64),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 }
@@ -64,8 +40,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
     type Response = (Block<Transaction>, Option<Vec<u32>>);
-
-    type Columns = TransactionColumns;
 
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let block = source
@@ -82,7 +56,7 @@ impl CollectByBlock for Transactions {
         Ok((block, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
         let (block, gas_used) = response;
         match gas_used {
@@ -103,8 +77,6 @@ impl CollectByBlock for Transactions {
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
     type Response = (Transaction, Option<u32>);
-
-    type Columns = TransactionColumns;
 
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let tx_hash = request.ethers_transaction_hash();
@@ -128,7 +100,7 @@ impl CollectByTransaction for Transactions {
         Ok((transaction, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let (transaction, gas_used) = response;
         let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
         process_transaction(transaction, gas_used, columns, schema);
@@ -138,7 +110,7 @@ impl CollectByTransaction for Transactions {
 fn process_transaction(
     tx: Transaction,
     gas_used: Option<u32>,
-    columns: &mut TransactionColumns,
+    columns: &mut Transactions,
     schema: &Table,
 ) {
     columns.n_rows += 1;

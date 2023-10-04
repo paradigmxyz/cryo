@@ -44,9 +44,9 @@ pub trait ChunkData: Sized {
         };
         let pieces: Vec<String> = match &file_output.suffix {
             Some(suffix) => {
-                vec![network_name, datatype.dataset().name().to_string(), stub, suffix.clone()]
+                vec![network_name, datatype.name().to_string(), stub, suffix.clone()]
             }
-            None => vec![network_name, datatype.dataset().name().to_string(), stub],
+            None => vec![network_name, datatype.name().to_string(), stub],
         };
         let filename = format!("{}.{}", pieces.join("__"), file_output.format.as_str());
         Ok(file_output.output_dir.join(filename))

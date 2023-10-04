@@ -23,11 +23,10 @@ impl MetaDatatype {
 pub fn cluster_datatypes(dts: Vec<Datatype>) -> Vec<MetaDatatype> {
     let mdts: Vec<MultiDatatype> = MultiDatatype::variants()
         .iter()
-        .filter(|mdt| mdt.multi_dataset().datatypes().iter().all(|x| dts.contains(x)))
+        .filter(|mdt| mdt.datatypes().iter().all(|x| dts.contains(x)))
         .cloned()
         .collect();
-    let mdt_dts: Vec<Datatype> =
-        mdts.iter().flat_map(|mdt| mdt.multi_dataset().datatypes()).collect();
+    let mdt_dts: Vec<Datatype> = mdts.iter().flat_map(|mdt| mdt.datatypes()).collect();
     let other_dts: Vec<Datatype> = dts.iter().filter(|dt| !mdt_dts.contains(dt)).copied().collect();
 
     [

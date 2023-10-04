@@ -56,7 +56,7 @@ pub(crate) fn print_cryo_intro(
     n_chunks_remaining: u64,
 ) {
     print_header("cryo parameters");
-    let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.dataset().name()).collect();
+    let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
     print_bullet("datatypes", datatype_strs.join(", "));
     print_bullet("network", &sink.prefix);
     // let rpc_url = cli::parse_rpc_url(args);
@@ -253,7 +253,7 @@ fn print_schemas(schemas: &HashMap<Datatype, Table>) {
 }
 
 fn print_schema(name: &Datatype, schema: &Table) {
-    print_header("schema for ".to_string() + name.dataset().name());
+    print_header("schema for ".to_string() + name.name());
     for column in schema.columns() {
         if let Some(column_type) = schema.column_type(column) {
             if column_type == ColumnType::UInt256 {
@@ -270,12 +270,11 @@ fn print_schema(name: &Datatype, schema: &Table) {
     }
     println!();
     if let Some(sort_cols) = schema.sort_columns.clone() {
-        println!("sorting {} by: {}", name.dataset().name(), sort_cols.join(", "));
+        println!("sorting {} by: {}", name.name(), sort_cols.join(", "));
     } else {
-        println!("sorting disabled for {}", name.dataset().name());
+        println!("sorting disabled for {}", name.name());
     }
     let other_columns: String = name
-        .dataset()
         .column_types()
         .keys()
         .copied()

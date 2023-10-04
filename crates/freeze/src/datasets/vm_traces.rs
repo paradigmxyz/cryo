@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::VmTraces)]
 #[derive(Default)]
-pub struct VmTraceColumns {
+pub struct VmTraces {
     block_number: Vec<Option<u32>>,
     transaction_hash: Vec<Option<Vec<u8>>>,
     transaction_position: Vec<u32>,
@@ -24,36 +24,15 @@ pub struct VmTraceColumns {
 
 #[async_trait::async_trait]
 impl Dataset for VmTraces {
-    fn datatype(&self) -> Datatype {
-        Datatype::VmTraces
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "vm_traces"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_position", ColumnType::UInt32),
-            ("pc", ColumnType::Int64),
-            ("cost", ColumnType::Int64),
-            ("used", ColumnType::Int64),
-            ("push", ColumnType::Binary),
-            ("mem_off", ColumnType::Int32),
-            ("mem_data", ColumnType::Binary),
-            ("storage_key", ColumnType::Binary),
-            ("storage_val", ColumnType::Binary),
-            ("op", ColumnType::String),
-            ("chain_id", ColumnType::Int64),
-        ])
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"])
     }
 
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"]
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
     }
 }
@@ -64,13 +43,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = VmTraceColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block_vm_traces(request.block_number() as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_vm_traces(response, columns, schemas)
     }
 }
@@ -79,20 +56,18 @@ impl CollectByBlock for VmTraces {
 impl CollectByTransaction for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = VmTraceColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_vm_traces(request.transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_vm_traces(response, columns, schemas)
     }
 }
 
 fn process_vm_traces(
     response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
-    columns: &mut VmTraceColumns,
+    columns: &mut VmTraces,
     schemas: &HashMap<Datatype, Table>,
 ) {
     let (block_number, tx, block_traces) = response;
@@ -107,7 +82,7 @@ fn process_vm_traces(
 fn add_ops(
     vm_trace: VMTrace,
     schema: &Table,
-    columns: &mut VmTraceColumns,
+    columns: &mut VmTraces,
     number: Option<u32>,
     tx_hash: Option<Vec<u8>>,
     tx_pos: usize,

@@ -1,6 +1,6 @@
-use crate::types::{Dataset, Datatype};
+use crate::types::Datatype;
 use async_trait;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// Blocks and Transactions datasets
 pub struct BlocksAndTransactions;
@@ -36,14 +36,6 @@ impl MultiDatatype {
     pub fn variants() -> Vec<MultiDatatype> {
         vec![MultiDatatype::BlocksAndTransactions, MultiDatatype::StateDiffs]
     }
-
-    /// return MultiDataset corresponding to MultiDatatype
-    pub fn multi_dataset(&self) -> Box<dyn MultiDataset> {
-        match self {
-            MultiDatatype::BlocksAndTransactions => Box::new(BlocksAndTransactions),
-            MultiDatatype::StateDiffs => Box::new(StateDiffs),
-        }
-    }
 }
 
 /// MultiDataset manages multiple datasets that get collected together
@@ -54,9 +46,4 @@ pub trait MultiDataset: Sync + Send {
 
     /// return Datatypes associated with MultiDataset
     fn datatypes(&self) -> HashSet<Datatype>;
-
-    /// return Datasets associated with MultiDataset
-    fn datasets(&self) -> HashMap<Datatype, Box<dyn Dataset>> {
-        self.datatypes().iter().map(|dt| (*dt, dt.dataset())).collect()
-    }
 }
