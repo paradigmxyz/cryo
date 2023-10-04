@@ -42,15 +42,15 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
             sender,
         )
         .await?;
-        Self::block_data_to_dfs(receiver, schemas, chain_id).await
+        let columns = Self::transform_channel(receiver, schemas).await?;
+        columns.create_dfs(schemas, chain_id)
     }
 
     /// convert block-derived data to dataframe
-    async fn block_data_to_dfs(
+    async fn transform_channel(
         mut receiver: mpsc::Receiver<Result<Self::Response>>,
         schemas: &HashMap<Datatype, Table>,
-        chain_id: u64,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> Result<Self> {
         let mut columns = Self::default();
         while let Some(message) = receiver.recv().await {
             match message {
@@ -58,6 +58,6 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
                 Err(e) => return Err(e),
             }
         }
-        columns.create_dfs(schemas, chain_id)
+        Ok(columns)
     }
 }
