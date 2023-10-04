@@ -51,13 +51,13 @@ pub async fn collect_by_block(
             // }
             _ => panic!(),
         },
-        // MetaDatatype::Multi(datatype) => match datatype {
-        //     MultiDatatype::BlocksAndTransactions => {
-        //         BlocksAndTransactions::collect_by_block(partition, source, &schemas)
-        //     }
-        //     MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
-        // },
-        _ => panic!(),
+        MetaDatatype::Multi(datatype) => match datatype {
+            MultiDatatype::BlocksAndTransactions => {
+                BlocksAndTransactions::collect_by_block(partition, source, &schemas)
+            }
+            // MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
+            _ => panic!(),
+        },
     };
     task.await
 }

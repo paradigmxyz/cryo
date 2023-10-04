@@ -1,6 +1,6 @@
 use super::collect_generic::fetch_partition;
 use crate::{
-    ChunkDim, CollectError, ColumnData, Datatype, Params, Partition, Schemas, Source, Table,
+    ChunkDim, CollectError, ToDataFrames, Datatype, Params, Partition, Schemas, Source, Table,
 };
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -10,7 +10,7 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 /// defines how to collect dataset by block
 #[async_trait::async_trait]
-pub trait CollectByTransaction: 'static + Send + Default + ColumnData {
+pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
     /// type of transaction data responses
     type Response: Send;
 

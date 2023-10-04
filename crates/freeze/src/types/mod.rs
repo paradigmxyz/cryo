@@ -11,7 +11,7 @@ pub mod sources;
 
 /// column data specification
 pub mod columns;
-pub use columns::ColumnData;
+pub use columns::{ColumnData, ToDataFrames};
 
 /// partitions
 pub mod partitions;

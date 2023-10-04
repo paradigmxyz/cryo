@@ -2,8 +2,8 @@ use crate::types::Datatype;
 use async_trait;
 use std::collections::HashSet;
 
-/// Blocks and Transactions datasets
-pub struct BlocksAndTransactions;
+// /// Blocks and Transactions datasets
+// pub struct BlocksAndTransactions;
 /// State Diff datasets
 pub struct StateDiffs;
 

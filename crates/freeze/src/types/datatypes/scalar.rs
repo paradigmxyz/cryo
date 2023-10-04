@@ -1,57 +1,7 @@
 use crate::ColumnType;
 use std::collections::HashMap;
 use crate::types::columns::ColumnData;
-// use crate::VmTraces;
 use crate::datasets::*;
-
-// /// Balance Diffs Dataset
-// pub struct BalanceDiffs;
-// /// Balances Dataset
-// pub struct Balances;
-// // /// Blocks Dataset
-// // pub struct Blocks;
-// /// Code Diffs Dataset
-// pub struct CodeDiffs;
-// /// Codes Dataset
-// pub struct Codes;
-// /// Contracts Dataset
-// pub struct Contracts;
-// /// Erc20 Balances Dataset
-// pub struct Erc20Balances;
-// /// Erc20 Metadata Dataset
-// pub struct Erc20Metadata;
-// /// Erc20 Supplies Dataset
-// pub struct Erc20Supplies;
-// /// Erc20 Transfers Dataset
-// pub struct Erc20Transfers;
-// /// Erc721 Metadata Dataset
-// pub struct Erc721Metadata;
-// /// Erc721 Transfers Dataset
-// pub struct Erc721Transfers;
-// /// Eth Calls Dataset
-// pub struct EthCalls;
-// /// Logs Dataset
-// pub struct Logs;
-// /// Nonce Diffs Dataset
-// pub struct NonceDiffs;
-// /// Nonces Dataset
-// pub struct Nonces;
-// /// Storage Diffs Dataset
-// pub struct StorageDiffs;
-// /// Storage Dataset
-// pub struct Storages;
-// /// Traces Dataset
-// pub struct Traces;
-// /// Trace Calls Dataset
-// pub struct TraceCalls;
-// /// Transactions Dataset
-// pub struct Transactions;
-// /// Transaction Addresses Dataset
-// pub struct TransactionAddresses;
-// // /// VmTraces Dataset
-// // pub struct VmTraces;
-// /// Native Transfers Dataset
-// pub struct NativeTransfers;
 
 /// enum of possible datatypes that cryo can collect
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
@@ -302,71 +252,6 @@ impl Datatype {
     // default_blocks
     // column_types
     // arg_aliases
-}
-
-impl Datatype {
-    // /// get the Dataset struct corresponding to Datatype
-    // pub fn dataset(&self) -> Box<dyn Dataset> {
-    //     match *self {
-    //         // Datatype::BalanceDiffs => Box::new(BalanceDiffs),
-    //         // Datatype::Balances => Box::new(Balances),
-    //         // Datatype::Blocks => Box::new(Blocks),
-    //         // Datatype::CodeDiffs => Box::new(CodeDiffs),
-    //         // Datatype::Codes => Box::new(Codes),
-    //         // Datatype::Contracts => Box::new(Contracts),
-    //         // Datatype::Erc20Balances => Box::new(Erc20Balances),
-    //         // Datatype::Erc20Metadata => Box::new(Erc20Metadata),
-    //         // Datatype::Erc20Supplies => Box::new(Erc20Supplies),
-    //         // Datatype::Erc20Transfers => Box::new(Erc20Transfers),
-    //         // Datatype::Erc721Metadata => Box::new(Erc721Metadata),
-    //         // Datatype::Erc721Transfers => Box::new(Erc721Transfers),
-    //         // Datatype::EthCalls => Box::new(EthCalls),
-    //         // Datatype::Logs => Box::new(Logs),
-    //         // Datatype::NonceDiffs => Box::new(NonceDiffs),
-    //         // Datatype::Nonces => Box::new(Nonces),
-    //         // Datatype::StorageDiffs => Box::new(StorageDiffs),
-    //         // Datatype::Storages => Box::new(Storages),
-    //         // Datatype::Traces => Box::new(Traces),
-    //         // Datatype::TraceCalls => Box::new(TraceCalls),
-    //         // Datatype::Transactions => Box::new(Transactions),
-    //         // Datatype::TransactionAddresses => Box::new(TransactionAddresses),
-    //         Datatype::VmTraces => Box::new(crate::VmTraces::default()),
-    //         // Datatype::NativeTransfers => Box::new(NativeTransfers),
-    //         _ => todo!(),
-    //     }
-    // }
-
-    // /// get the Dataset struct corresponding to Datatype
-    // pub fn default_columns(&self) ->  {
-    //     match *self {
-    //         // Datatype::BalanceDiffs => Box::new(BalanceDiffs),
-    //         // Datatype::Balances => Box::new(Balances),
-    //         // Datatype::Blocks => Box::new(Blocks),
-    //         // Datatype::CodeDiffs => Box::new(CodeDiffs),
-    //         // Datatype::Codes => Box::new(Codes),
-    //         // Datatype::Contracts => Box::new(Contracts),
-    //         // Datatype::Erc20Balances => Box::new(Erc20Balances),
-    //         // Datatype::Erc20Metadata => Box::new(Erc20Metadata),
-    //         // Datatype::Erc20Supplies => Box::new(Erc20Supplies),
-    //         // Datatype::Erc20Transfers => Box::new(Erc20Transfers),
-    //         // Datatype::Erc721Metadata => Box::new(Erc721Metadata),
-    //         // Datatype::Erc721Transfers => Box::new(Erc721Transfers),
-    //         // Datatype::EthCalls => Box::new(EthCalls),
-    //         // Datatype::Logs => Box::new(Logs),
-    //         // Datatype::NonceDiffs => Box::new(NonceDiffs),
-    //         // Datatype::Nonces => Box::new(Nonces),
-    //         // Datatype::StorageDiffs => Box::new(StorageDiffs),
-    //         // Datatype::Storages => Box::new(Storages),
-    //         // Datatype::Traces => Box::new(Traces),
-    //         // Datatype::TraceCalls => Box::new(TraceCalls),
-    //         // Datatype::Transactions => Box::new(Transactions),
-    //         // Datatype::TransactionAddresses => Box::new(TransactionAddresses),
-    //         Datatype::VmTraces => Box::new(crate::VmTraces::default()),
-    //         // Datatype::NativeTransfers => Box::new(NativeTransfers),
-    //         _ => todo!(),
-    //     }
-    // }
-
 }
 
 /// Dataset manages collection and management of a particular datatype

@@ -74,14 +74,16 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #input
 
-        impl ColumnData for #name {
-            fn datatypes() -> Vec<Datatype> {
-                vec![#(#datatypes),*]
-            }
+        impl ToDataFrames for #name {
 
-            fn create_df(self, schemas: &HashMap<Datatype, Table>, chain_id: u64) -> Result<DataFrame> {
-                let datatype = if Self::datatypes().len() == 1 {
-                    Self::datatypes()[0]
+            fn create_dfs(
+                self,
+                schemas: &HashMap<Datatype, Table>,
+                chain_id: u64,
+            ) -> Result<HashMap<Datatype, DataFrame>> {
+                let datatypes = vec![#(#datatypes),*];
+                let datatype = if datatypes.len() == 1 {
+                    datatypes[0]
                 } else {
                     panic!("improper datatypes for single schema")
                 };
@@ -92,8 +94,14 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
                 with_series!(cols, "chain_id", vec![chain_id; self.n_rows as usize], schema);
 
-                DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+                let df = DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)?;
+                let mut output = HashMap::new();
+                output.insert(datatype, df);
+                Ok(output)
             }
+        }
+
+        impl ColumnData for #name {
 
             fn column_types() -> HashMap<&'static str, ColumnType> {
                 HashMap::from_iter(vec![

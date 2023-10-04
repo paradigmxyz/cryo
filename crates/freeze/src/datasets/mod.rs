@@ -26,5 +26,6 @@ mod transactions;
 mod vm_traces;
 
 pub use blocks::*;
+pub use blocks_and_transactions::*;
 pub use transactions::*;
 pub use vm_traces::*;
