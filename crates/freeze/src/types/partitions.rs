@@ -5,7 +5,7 @@ use crate::{
 
 /// a dimension of chunking
 #[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
-pub enum ChunkDim {
+pub enum Dim {
     /// Block number dimension
     BlockNumber,
     /// Block range dimension
@@ -32,58 +32,58 @@ pub enum ChunkDim {
     Topic3,
 }
 
-impl ChunkDim {
+impl Dim {
     /// list of all dimensions
-    pub fn all_dims() -> Vec<ChunkDim> {
+    pub fn all_dims() -> Vec<Dim> {
         vec![
-            ChunkDim::BlockNumber,
-            ChunkDim::BlockRange,
-            ChunkDim::TransactionHash,
-            ChunkDim::CallData,
-            ChunkDim::Address,
-            ChunkDim::Contract,
-            ChunkDim::ToAddress,
-            ChunkDim::Slot,
-            ChunkDim::Topic0,
-            ChunkDim::Topic1,
-            ChunkDim::Topic2,
-            ChunkDim::Topic3,
+            Dim::BlockNumber,
+            Dim::BlockRange,
+            Dim::TransactionHash,
+            Dim::CallData,
+            Dim::Address,
+            Dim::Contract,
+            Dim::ToAddress,
+            Dim::Slot,
+            Dim::Topic0,
+            Dim::Topic1,
+            Dim::Topic2,
+            Dim::Topic3,
         ]
     }
 
-    /// convert str to ChunkDim
-    pub fn from_name(name: String) -> ChunkDim {
+    /// convert str to Dim
+    pub fn from_name(name: String) -> Dim {
         match name.as_str() {
-            "block" => ChunkDim::BlockNumber,
-            "transaction" => ChunkDim::TransactionHash,
-            "call_data" => ChunkDim::CallData,
-            "address" => ChunkDim::Address,
-            "contract" => ChunkDim::Contract,
-            "to_address" => ChunkDim::ToAddress,
-            "slot" => ChunkDim::Slot,
-            "topic0" => ChunkDim::Topic0,
-            "topic1" => ChunkDim::Topic1,
-            "topic2" => ChunkDim::Topic2,
-            "topic3" => ChunkDim::Topic3,
+            "block" => Dim::BlockNumber,
+            "transaction" => Dim::TransactionHash,
+            "call_data" => Dim::CallData,
+            "address" => Dim::Address,
+            "contract" => Dim::Contract,
+            "to_address" => Dim::ToAddress,
+            "slot" => Dim::Slot,
+            "topic0" => Dim::Topic0,
+            "topic1" => Dim::Topic1,
+            "topic2" => Dim::Topic2,
+            "topic3" => Dim::Topic3,
             _ => panic!("unknown dimension name"),
         }
     }
 
-    /// convert str to ChunkDim
+    /// convert str to Dim
     pub fn plural_name(&self) -> &str {
         match self {
-            ChunkDim::BlockNumber => "blocks",
-            ChunkDim::BlockRange => "blocks",
-            ChunkDim::TransactionHash => "transactions",
-            ChunkDim::CallData => "call_datas",
-            ChunkDim::Address => "addresses",
-            ChunkDim::Contract => "contracts",
-            ChunkDim::ToAddress => "to_addresses",
-            ChunkDim::Slot => "slots",
-            ChunkDim::Topic0 => "topic0s",
-            ChunkDim::Topic1 => "topic1s",
-            ChunkDim::Topic2 => "topic2s",
-            ChunkDim::Topic3 => "topic3s",
+            Dim::BlockNumber => "blocks",
+            Dim::BlockRange => "blocks",
+            Dim::TransactionHash => "transactions",
+            Dim::CallData => "call_datas",
+            Dim::Address => "addresses",
+            Dim::Contract => "contracts",
+            Dim::ToAddress => "to_addresses",
+            Dim::Slot => "slots",
+            Dim::Topic0 => "topic0s",
+            Dim::Topic1 => "topic1s",
+            Dim::Topic2 => "topic2s",
+            Dim::Topic3 => "topic3s",
         }
     }
 }
@@ -188,7 +188,7 @@ fn chunks_to_name<T: ChunkData>(chunks: &Option<Vec<T>>) -> String {
 
 impl Partition {
     /// get label of partition
-    pub fn label_pieces(&self, partitioned_by: &[ChunkDim]) -> Vec<String> {
+    pub fn label_pieces(&self, partitioned_by: &[Dim]) -> Vec<String> {
         let stored_pieces = self.label.clone().unwrap_or_else(|| vec![None; partitioned_by.len()]);
 
         if stored_pieces.len() != partitioned_by.len() {
@@ -198,18 +198,18 @@ impl Partition {
         let mut pieces = Vec::new();
         for (dim, piece) in partitioned_by.iter().zip(stored_pieces.iter()) {
             let piece = piece.clone().unwrap_or_else(|| match dim {
-                ChunkDim::BlockNumber => chunks_to_name(&self.block_numbers),
-                ChunkDim::TransactionHash => chunks_to_name(&self.transactions),
-                ChunkDim::BlockRange => chunks_to_name(&self.block_ranges),
-                ChunkDim::CallData => chunks_to_name(&self.call_datas),
-                ChunkDim::Address => chunks_to_name(&self.addresses),
-                ChunkDim::Contract => chunks_to_name(&self.contracts),
-                ChunkDim::ToAddress => chunks_to_name(&self.to_addresses),
-                ChunkDim::Slot => chunks_to_name(&self.slots),
-                ChunkDim::Topic0 => chunks_to_name(&self.topic0s),
-                ChunkDim::Topic1 => chunks_to_name(&self.topic1s),
-                ChunkDim::Topic2 => chunks_to_name(&self.topic2s),
-                ChunkDim::Topic3 => chunks_to_name(&self.topic3s),
+                Dim::BlockNumber => chunks_to_name(&self.block_numbers),
+                Dim::TransactionHash => chunks_to_name(&self.transactions),
+                Dim::BlockRange => chunks_to_name(&self.block_ranges),
+                Dim::CallData => chunks_to_name(&self.call_datas),
+                Dim::Address => chunks_to_name(&self.addresses),
+                Dim::Contract => chunks_to_name(&self.contracts),
+                Dim::ToAddress => chunks_to_name(&self.to_addresses),
+                Dim::Slot => chunks_to_name(&self.slots),
+                Dim::Topic0 => chunks_to_name(&self.topic0s),
+                Dim::Topic1 => chunks_to_name(&self.topic1s),
+                Dim::Topic2 => chunks_to_name(&self.topic2s),
+                Dim::Topic3 => chunks_to_name(&self.topic3s),
             });
             pieces.push(piece);
         }
@@ -217,27 +217,27 @@ impl Partition {
     }
 
     /// get label of partition
-    pub fn label(&self, partitioned_by: &[ChunkDim]) -> String {
+    pub fn label(&self, partitioned_by: &[Dim]) -> String {
         self.label_pieces(partitioned_by).join("__")
     }
 
     /// partition Partition along given partition dimensions
-    pub fn partition(&self, partition_by: Vec<ChunkDim>) -> Vec<Partition> {
+    pub fn partition(&self, partition_by: Vec<Dim>) -> Vec<Partition> {
         let mut outputs = vec![self.clone()];
         for chunk_dimension in partition_by.iter() {
             outputs = match chunk_dimension {
-                ChunkDim::BlockNumber => partition!(outputs, block_numbers),
-                ChunkDim::BlockRange => partition!(outputs, block_ranges),
-                ChunkDim::TransactionHash => partition!(outputs, transactions),
-                ChunkDim::Address => partition!(outputs, addresses),
-                ChunkDim::Contract => partition!(outputs, contracts),
-                ChunkDim::ToAddress => partition!(outputs, to_addresses),
-                ChunkDim::CallData => partition!(outputs, call_datas),
-                ChunkDim::Slot => partition!(outputs, slots),
-                ChunkDim::Topic0 => partition!(outputs, topic0s),
-                ChunkDim::Topic1 => partition!(outputs, topic1s),
-                ChunkDim::Topic2 => partition!(outputs, topic2s),
-                ChunkDim::Topic3 => partition!(outputs, topic3s),
+                Dim::BlockNumber => partition!(outputs, block_numbers),
+                Dim::BlockRange => partition!(outputs, block_ranges),
+                Dim::TransactionHash => partition!(outputs, transactions),
+                Dim::Address => partition!(outputs, addresses),
+                Dim::Contract => partition!(outputs, contracts),
+                Dim::ToAddress => partition!(outputs, to_addresses),
+                Dim::CallData => partition!(outputs, call_datas),
+                Dim::Slot => partition!(outputs, slots),
+                Dim::Topic0 => partition!(outputs, topic0s),
+                Dim::Topic1 => partition!(outputs, topic1s),
+                Dim::Topic2 => partition!(outputs, topic2s),
+                Dim::Topic3 => partition!(outputs, topic3s),
             }
         }
         outputs
@@ -248,51 +248,51 @@ impl Partition {
     pub fn partition_with_labels(
         &self,
         labels: PartitionLabels,
-        partition_by: Vec<ChunkDim>,
+        partition_by: Vec<Dim>,
     ) -> Vec<Partition> {
         let mut outputs = vec![Partition { label: Some(Vec::new()), ..self.clone() }];
         for chunk_dimension in partition_by.iter() {
             let dim_labels = labels.dim(chunk_dimension);
             outputs = match chunk_dimension {
-                ChunkDim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers),
-                ChunkDim::BlockRange => label_partition!(outputs, dim_labels, block_ranges),
-                ChunkDim::TransactionHash => label_partition!(outputs, dim_labels, transactions),
-                ChunkDim::Address => label_partition!(outputs, dim_labels, addresses),
-                ChunkDim::Contract => label_partition!(outputs, dim_labels, contracts),
-                ChunkDim::ToAddress => label_partition!(outputs, dim_labels, to_addresses),
-                ChunkDim::CallData => label_partition!(outputs, dim_labels, call_datas),
-                ChunkDim::Slot => label_partition!(outputs, dim_labels, slots),
-                ChunkDim::Topic0 => label_partition!(outputs, dim_labels, topic0s),
-                ChunkDim::Topic1 => label_partition!(outputs, dim_labels, topic1s),
-                ChunkDim::Topic2 => label_partition!(outputs, dim_labels, topic2s),
-                ChunkDim::Topic3 => label_partition!(outputs, dim_labels, topic3s),
+                Dim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers),
+                Dim::BlockRange => label_partition!(outputs, dim_labels, block_ranges),
+                Dim::TransactionHash => label_partition!(outputs, dim_labels, transactions),
+                Dim::Address => label_partition!(outputs, dim_labels, addresses),
+                Dim::Contract => label_partition!(outputs, dim_labels, contracts),
+                Dim::ToAddress => label_partition!(outputs, dim_labels, to_addresses),
+                Dim::CallData => label_partition!(outputs, dim_labels, call_datas),
+                Dim::Slot => label_partition!(outputs, dim_labels, slots),
+                Dim::Topic0 => label_partition!(outputs, dim_labels, topic0s),
+                Dim::Topic1 => label_partition!(outputs, dim_labels, topic1s),
+                Dim::Topic2 => label_partition!(outputs, dim_labels, topic2s),
+                Dim::Topic3 => label_partition!(outputs, dim_labels, topic3s),
             }
         }
         outputs
     }
 
     /// iterate through param sets of Partition
-    pub fn param_sets(&self, dimensions: Vec<ChunkDim>) -> Vec<Params> {
+    pub fn param_sets(&self, dimensions: Vec<Dim>) -> Vec<Params> {
         let mut outputs = vec![Params::default()];
         for dimension in dimensions.iter() {
             let mut new = Vec::new();
             match dimension {
-                ChunkDim::BlockNumber => {
+                Dim::BlockNumber => {
                     parametrize!(outputs, new, self.block_numbers, block_number)
                 }
-                ChunkDim::TransactionHash => {
+                Dim::TransactionHash => {
                     parametrize!(outputs, new, self.transactions, transaction_hash)
                 }
-                ChunkDim::Address => parametrize!(outputs, new, self.addresses, address),
-                ChunkDim::Contract => parametrize!(outputs, new, self.contracts, contract),
-                ChunkDim::ToAddress => parametrize!(outputs, new, self.to_addresses, to_address),
-                ChunkDim::CallData => parametrize!(outputs, new, self.call_datas, call_data),
-                ChunkDim::Slot => parametrize!(outputs, new, self.slots, slot),
-                ChunkDim::Topic0 => parametrize!(outputs, new, self.topic0s, topic0),
-                ChunkDim::Topic1 => parametrize!(outputs, new, self.topic1s, topic1),
-                ChunkDim::Topic2 => parametrize!(outputs, new, self.topic2s, topic2),
-                ChunkDim::Topic3 => parametrize!(outputs, new, self.topic3s, topic3),
-                ChunkDim::BlockRange => {
+                Dim::Address => parametrize!(outputs, new, self.addresses, address),
+                Dim::Contract => parametrize!(outputs, new, self.contracts, contract),
+                Dim::ToAddress => parametrize!(outputs, new, self.to_addresses, to_address),
+                Dim::CallData => parametrize!(outputs, new, self.call_datas, call_data),
+                Dim::Slot => parametrize!(outputs, new, self.slots, slot),
+                Dim::Topic0 => parametrize!(outputs, new, self.topic0s, topic0),
+                Dim::Topic1 => parametrize!(outputs, new, self.topic1s, topic1),
+                Dim::Topic2 => parametrize!(outputs, new, self.topic2s, topic2),
+                Dim::Topic3 => parametrize!(outputs, new, self.topic3s, topic3),
+                Dim::BlockRange => {
                     for output in outputs.into_iter() {
                         for chunk in self.block_ranges.as_ref().unwrap().iter() {
                             match chunk {
@@ -312,20 +312,20 @@ impl Partition {
     }
 
     /// number of chunks for a particular dimension
-    pub fn n_chunks(&self, dim: &ChunkDim) -> usize {
+    pub fn n_chunks(&self, dim: &Dim) -> usize {
         match dim {
-            ChunkDim::BlockNumber => self.block_numbers.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::BlockRange => self.block_ranges.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::TransactionHash => self.transactions.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Address => self.addresses.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Contract => self.contracts.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::ToAddress => self.to_addresses.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::CallData => self.call_datas.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Slot => self.slots.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Topic0 => self.topic0s.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Topic1 => self.topic1s.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Topic2 => self.topic2s.as_ref().map(|x| x.len()).unwrap_or(0),
-            ChunkDim::Topic3 => self.topic3s.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::BlockNumber => self.block_numbers.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::BlockRange => self.block_ranges.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::TransactionHash => self.transactions.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Address => self.addresses.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Contract => self.contracts.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::ToAddress => self.to_addresses.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::CallData => self.call_datas.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Slot => self.slots.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Topic0 => self.topic0s.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Topic1 => self.topic1s.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Topic2 => self.topic2s.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::Topic3 => self.topic3s.as_ref().map(|x| x.len()).unwrap_or(0),
         }
     }
 
@@ -446,25 +446,25 @@ pub struct PartitionLabels {
 }
 
 impl PartitionLabels {
-    fn dim(&self, dim: &ChunkDim) -> Option<Vec<Option<String>>> {
+    fn dim(&self, dim: &Dim) -> Option<Vec<Option<String>>> {
         match dim {
-            ChunkDim::BlockNumber => self.block_number_labels.clone(),
-            ChunkDim::BlockRange => self.block_range_labels.clone(),
-            ChunkDim::TransactionHash => self.transaction_hash_labels.clone(),
-            ChunkDim::CallData => self.call_data_labels.clone(),
-            ChunkDim::Address => self.address_labels.clone(),
-            ChunkDim::Contract => self.contract_labels.clone(),
-            ChunkDim::ToAddress => self.to_address_labels.clone(),
-            ChunkDim::Slot => self.slot_labels.clone(),
-            ChunkDim::Topic0 => self.topic0_labels.clone(),
-            ChunkDim::Topic1 => self.topic1_labels.clone(),
-            ChunkDim::Topic2 => self.topic2_labels.clone(),
-            ChunkDim::Topic3 => self.topic3_labels.clone(),
+            Dim::BlockNumber => self.block_number_labels.clone(),
+            Dim::BlockRange => self.block_range_labels.clone(),
+            Dim::TransactionHash => self.transaction_hash_labels.clone(),
+            Dim::CallData => self.call_data_labels.clone(),
+            Dim::Address => self.address_labels.clone(),
+            Dim::Contract => self.contract_labels.clone(),
+            Dim::ToAddress => self.to_address_labels.clone(),
+            Dim::Slot => self.slot_labels.clone(),
+            Dim::Topic0 => self.topic0_labels.clone(),
+            Dim::Topic1 => self.topic1_labels.clone(),
+            Dim::Topic2 => self.topic2_labels.clone(),
+            Dim::Topic3 => self.topic3_labels.clone(),
         }
     }
 
     /// whether dimension is labeled
-    pub fn dim_labeled(&self, dim: &ChunkDim) -> bool {
+    pub fn dim_labeled(&self, dim: &Dim) -> bool {
         match self.dim(dim) {
             None => false,
             Some(labels) => labels.iter().any(|label| label.is_some()),

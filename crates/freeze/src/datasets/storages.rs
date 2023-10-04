@@ -33,8 +33,8 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>, Vec<u8>);
 impl CollectByBlock for Storages {
     type Response = BlockTxAddressOutput;
 
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber, ChunkDim::Address, ChunkDim::Slot]
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Address, Dim::Slot]
     }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
@@ -62,8 +62,8 @@ impl CollectByBlock for Storages {
 impl CollectByTransaction for Storages {
     type Response = BlockTxAddressOutput;
 
-    fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::TransactionHash, ChunkDim::Address]
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::TransactionHash, Dim::Address, Dim::Slot]
     }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {

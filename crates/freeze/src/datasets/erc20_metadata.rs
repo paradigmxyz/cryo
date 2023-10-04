@@ -33,6 +33,10 @@ type BlockAddressNameSymbolDecimals = (u32, Vec<u8>, Option<String>, Option<Stri
 impl CollectByBlock for Erc20Metadata {
     type Response = BlockAddressNameSymbolDecimals;
 
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Address]
+    }
+
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
         let address = request.ethers_address();

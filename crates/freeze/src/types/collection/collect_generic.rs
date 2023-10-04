@@ -142,7 +142,7 @@ pub async fn fetch_partition<F, Fut, T>(
     partition: Partition,
     source: Source,
     schemas: HashMap<Datatype, Table>,
-    param_dims: Vec<ChunkDim>,
+    param_dims: Vec<Dim>,
     sender: mpsc::Sender<Result<T, CollectError>>,
 ) -> Result<(), CollectError>
 where

@@ -48,6 +48,10 @@ type ContractCallDataTraces = (u32, Vec<u8>, Vec<u8>, Vec<TransactionTrace>);
 impl CollectByBlock for TraceCalls {
     type Response = ContractCallDataTraces;
 
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Contract, Dim::CallData]
+    }
+
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let traces: Vec<TransactionTrace> = source
             .fetcher

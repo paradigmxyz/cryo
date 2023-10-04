@@ -4,7 +4,7 @@ use super::{
 };
 use crate::args::Args;
 use cryo_freeze::{
-    AddressChunk, CallDataChunk, ChunkDim, Datatype, Fetcher, ParseError, Partition,
+    AddressChunk, CallDataChunk, Dim, Datatype, Fetcher, ParseError, Partition,
     PartitionLabels, SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
 use ethers::prelude::*;
@@ -16,7 +16,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
     schemas: &HashMap<Datatype, Table>,
-) -> Result<(Vec<Partition>, Vec<ChunkDim>, TimeDimension), ParseError> {
+) -> Result<(Vec<Partition>, Vec<Dim>, TimeDimension), ParseError> {
     // TODO: if wanting to chunk these non-block dimensions, do it in parse_binary_arg()
 
     // parse chunk data
@@ -78,15 +78,15 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let time_dimension = parse_time_dimension(&chunk);
 
     let partition_by = match args.partition_by.clone() {
-        Some(dim_names) => dim_names.into_iter().map(ChunkDim::from_name).collect(),
+        Some(dim_names) => dim_names.into_iter().map(Dim::from_name).collect(),
         None => {
-            let multichunk_dims: Vec<ChunkDim> = ChunkDim::all_dims()
+            let multichunk_dims: Vec<Dim> = Dim::all_dims()
                 .iter()
                 .filter(|dim| labels.dim_labeled(dim) && chunk.n_chunks(dim) > 1)
                 .cloned()
                 .collect();
             if multichunk_dims.is_empty() {
-                vec![ChunkDim::BlockNumber]
+                vec![Dim::BlockNumber]
             } else {
                 multichunk_dims
             }

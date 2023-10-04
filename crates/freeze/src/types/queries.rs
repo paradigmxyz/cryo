@@ -1,4 +1,4 @@
-use crate::{ChunkDim, Datatype, MetaDatatype, Partition, Table};
+use crate::{Dim, Datatype, MetaDatatype, Partition, Table};
 use std::collections::HashMap;
 
 /// Query
@@ -13,7 +13,7 @@ pub struct Query {
     /// MetaChunks
     pub partitions: Vec<Partition>,
     /// Partitioning
-    pub partitioned_by: Vec<ChunkDim>,
+    pub partitioned_by: Vec<Dim>,
 }
 
 impl Query {

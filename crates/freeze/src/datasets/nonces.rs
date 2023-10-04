@@ -32,8 +32,8 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, u64);
 impl CollectByBlock for Nonces {
     type Response = BlockTxAddressOutput;
 
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber, ChunkDim::Address]
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Address]
     }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
@@ -56,8 +56,8 @@ impl CollectByBlock for Nonces {
 impl CollectByTransaction for Nonces {
     type Response = BlockTxAddressOutput;
 
-    fn transaction_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::TransactionHash, ChunkDim::Address]
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::TransactionHash, Dim::Address]
     }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {

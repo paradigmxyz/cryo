@@ -31,6 +31,10 @@ type BlockAddressNameSymbol = (u32, Vec<u8>, Option<String>, Option<String>);
 impl CollectByBlock for Erc721Metadata {
     type Response = BlockAddressNameSymbol;
 
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Address]
+    }
+
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
         let address = request.ethers_address();

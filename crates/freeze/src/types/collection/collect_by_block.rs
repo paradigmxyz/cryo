@@ -1,7 +1,5 @@
 use super::collect_generic::fetch_partition;
-use crate::{
-    ChunkDim, CollectError, ToDataFrames, Datatype, Params, Partition, Schemas, Source, Table,
-};
+use crate::{CollectError, Datatype, Dim, Params, Partition, Schemas, Source, Table, ToDataFrames};
 use polars::prelude::*;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -15,8 +13,8 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     type Response: Send;
 
     /// parameters for requesting data by block
-    fn block_parameters() -> Vec<ChunkDim> {
-        vec![ChunkDim::BlockNumber]
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber]
     }
 
     /// fetch dataset data by block
@@ -33,15 +31,9 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     ) -> Result<HashMap<Datatype, DataFrame>> {
         let (sender, receiver) = mpsc::channel(1);
         let chain_id = source.chain_id;
-        fetch_partition(
-            Self::extract,
-            partition,
-            source,
-            schemas.clone(),
-            Self::block_parameters(),
-            sender,
-        )
-        .await?;
+        let parameters = Self::parameters();
+        fetch_partition(Self::extract, partition, source, schemas.clone(), parameters, sender)
+            .await?;
         let columns = Self::transform_channel(receiver, schemas).await?;
         columns.create_dfs(schemas, chain_id)
     }

@@ -35,6 +35,10 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockRange, Dim::Contract]
+    }
+
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter() };
@@ -51,6 +55,10 @@ impl CollectByBlock for Erc721Transfers {
 #[async_trait::async_trait]
 impl CollectByTransaction for Erc721Transfers {
     type Response = Vec<Log>;
+
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::TransactionHash, Dim::Contract]
+    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let logs = source.fetcher.get_transaction_logs(request.transaction_hash()).await?;

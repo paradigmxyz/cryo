@@ -18,7 +18,7 @@ pub mod partitions;
 /// rpc_params
 pub mod rpc_params;
 
-pub use partitions::{ChunkDim, Partition, PartitionLabels};
+pub use partitions::{Dim, Partition, PartitionLabels};
 pub use rpc_params::Params;
 
 /// collection traits

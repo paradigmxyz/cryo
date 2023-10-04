@@ -5,7 +5,7 @@ use colored::Colorize;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, ChunkData, ChunkDim, ChunkStats, ColumnType, Datatype,
+    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, ColumnType, Datatype, Dim,
     ExecutionEnv, FileOutput, Partition, Query, Source, Table,
 };
 use std::path::PathBuf;
@@ -220,7 +220,7 @@ pub(crate) fn print_cryo_conclusion(
         Ok(duration) => duration,
         Err(_e) => {
             println!("error computing system time, aborting");
-            return
+            return;
         }
     };
     let seconds = duration.as_secs();
@@ -264,17 +264,17 @@ macro_rules! print_dim_speed {
     };
 }
 
-fn print_chunks_speeds(chunks: Vec<Partition>, partition_by: &[ChunkDim], total_time: f64) {
-    print_dim_speed!(chunks, partition_by, total_time, block_numbers, ChunkDim::BlockNumber);
-    print_dim_speed!(chunks, partition_by, total_time, transactions, ChunkDim::TransactionHash);
-    print_dim_speed!(chunks, partition_by, total_time, call_datas, ChunkDim::CallData);
-    print_dim_speed!(chunks, partition_by, total_time, addresses, ChunkDim::Address);
-    print_dim_speed!(chunks, partition_by, total_time, contracts, ChunkDim::Contract);
-    print_dim_speed!(chunks, partition_by, total_time, slots, ChunkDim::Slot);
-    print_dim_speed!(chunks, partition_by, total_time, topic0s, ChunkDim::Topic0);
-    print_dim_speed!(chunks, partition_by, total_time, topic1s, ChunkDim::Topic1);
-    print_dim_speed!(chunks, partition_by, total_time, topic2s, ChunkDim::Topic2);
-    print_dim_speed!(chunks, partition_by, total_time, topic3s, ChunkDim::Topic3);
+fn print_chunks_speeds(chunks: Vec<Partition>, partition_by: &[Dim], total_time: f64) {
+    print_dim_speed!(chunks, partition_by, total_time, block_numbers, Dim::BlockNumber);
+    print_dim_speed!(chunks, partition_by, total_time, transactions, Dim::TransactionHash);
+    print_dim_speed!(chunks, partition_by, total_time, call_datas, Dim::CallData);
+    print_dim_speed!(chunks, partition_by, total_time, addresses, Dim::Address);
+    print_dim_speed!(chunks, partition_by, total_time, contracts, Dim::Contract);
+    print_dim_speed!(chunks, partition_by, total_time, slots, Dim::Slot);
+    print_dim_speed!(chunks, partition_by, total_time, topic0s, Dim::Topic0);
+    print_dim_speed!(chunks, partition_by, total_time, topic1s, Dim::Topic1);
+    print_dim_speed!(chunks, partition_by, total_time, topic2s, Dim::Topic2);
+    print_dim_speed!(chunks, partition_by, total_time, topic3s, Dim::Topic3);
 }
 
 fn print_chunk_speed<T: ChunkData>(name: &str, total_time: f64, chunks: Vec<Option<Vec<T>>>) {

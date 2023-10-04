@@ -35,7 +35,7 @@ impl Dataset for EthCalls {
     }
 
     fn arg_aliases() -> Option<HashMap<String, String>> {
-        let aliases = [("address", "to_address"), ("contract", "to_address")]
+        let aliases = [("address", "contract"), ("to_address", "contract")]
             .iter()
             .map(|(k, v)| (k.to_string(), v.to_string()))
             .collect();
@@ -50,6 +50,10 @@ type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Vec<u8>);
 #[async_trait::async_trait]
 impl CollectByBlock for EthCalls {
     type Response = EthCallsResponse;
+
+    fn parameters() -> Vec<Dim> {
+        vec![Dim::BlockNumber, Dim::Contract, Dim::CallData]
+    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let transaction = TransactionRequest {
