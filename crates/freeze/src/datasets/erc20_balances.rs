@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Erc20Balances)]
 #[derive(Default)]
-pub struct Erc20BalancesColumns {
+pub struct Erc20Balances {
     n_rows: u64,
     block_number: Vec<u32>,
     erc20: Vec<Vec<u8>>,
@@ -16,25 +16,11 @@ pub struct Erc20BalancesColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Balances {
-    fn datatype(&self) -> Datatype {
-        Datatype::Erc20Balances
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "erc20_balances"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("erc20", ColumnType::Binary),
-            ("address", ColumnType::Binary),
-            ("balance", ColumnType::UInt256),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string()]
     }
 }
@@ -47,8 +33,6 @@ type BlockErc20AddressBalance = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 impl CollectByBlock for Erc20Balances {
     type Response = BlockErc20AddressBalance;
 
-    type Columns = Erc20BalancesColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let signature: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");
         let mut call_data = signature.clone();
@@ -60,7 +44,7 @@ impl CollectByBlock for Erc20Balances {
         Ok((request.block_number() as u32, request.contract(), request.address(), balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Erc20Balances).expect("missing schema");
         let (block, erc20, address, balance) = response;
         columns.n_rows += 1;

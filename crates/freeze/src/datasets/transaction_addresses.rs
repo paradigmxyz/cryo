@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::TransactionAddresses)]
 #[derive(Default)]
-pub struct TransactionAddressColumns {
+pub struct TransactionAddresses {
     n_rows: usize,
     block_number: Vec<u32>,
     transaction_hash: Vec<Vec<u8>>,
@@ -16,25 +16,11 @@ pub struct TransactionAddressColumns {
 
 #[async_trait::async_trait]
 impl Dataset for TransactionAddresses {
-    fn datatype(&self) -> Datatype {
-        Datatype::TransactionAddresses
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "transaction_addresses"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_hash", ColumnType::Binary),
-            ("address", ColumnType::Binary),
-            ("relationship", ColumnType::String),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec![
             "block_number".to_string(),
             "transaction_hash".to_string(),
@@ -60,8 +46,6 @@ lazy_static::lazy_static! {
 impl CollectByBlock for TransactionAddresses {
     type Response = BlockLogsTraces;
 
-    type Columns = TransactionAddressColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
         let block = source.fetcher.get_block(request.block_number()).await?;
@@ -78,7 +62,7 @@ impl CollectByBlock for TransactionAddresses {
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::TransactionAddresses).expect("schema not provided");
         process_appearances(response, columns, schema)
     }
@@ -87,8 +71,6 @@ impl CollectByBlock for TransactionAddresses {
 #[async_trait::async_trait]
 impl CollectByTransaction for TransactionAddresses {
     type Response = BlockLogsTraces;
-
-    type Columns = TransactionAddressColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let tx_hash = request.ethers_transaction_hash();
@@ -121,7 +103,7 @@ impl CollectByTransaction for TransactionAddresses {
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::TransactionAddresses).expect("schema not provided");
         process_appearances(response, columns, schema)
     }
@@ -142,7 +124,7 @@ fn name(log: &Log) -> Option<&'static str> {
     }
 }
 
-impl TransactionAddressColumns {
+impl TransactionAddresses {
     fn process_first_transaction(
         &mut self,
         block_author: H160,
@@ -237,7 +219,7 @@ impl TransactionAddressColumns {
 
 fn process_appearances(
     traces: BlockLogsTraces,
-    columns: &mut TransactionAddressColumns,
+    columns: &mut TransactionAddresses,
     schema: &Table,
 ) {
     let (block, logs, traces) = traces;

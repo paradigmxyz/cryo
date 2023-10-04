@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for balances
 #[cryo_to_df::to_df(Datatype::Nonces)]
 #[derive(Default)]
-pub struct NonceColumns {
+pub struct Nonces {
     n_rows: usize,
     block_number: Vec<u32>,
     transaction_hash: Vec<Option<Vec<u8>>>,
@@ -16,24 +16,11 @@ pub struct NonceColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Nonces {
-    fn datatype(&self) -> Datatype {
-        Datatype::Nonces
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "nonces"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("address", ColumnType::Binary),
-            ("nonce", ColumnType::UInt64),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }
 }
@@ -44,8 +31,6 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, u64);
 #[async_trait::async_trait]
 impl CollectByBlock for Nonces {
     type Response = BlockTxAddressOutput;
-
-    type Columns = NonceColumns;
 
     fn block_parameters() -> Vec<ChunkDim> {
         vec![ChunkDim::BlockNumber, ChunkDim::Address]
@@ -61,7 +46,7 @@ impl CollectByBlock for Nonces {
         Ok((block_number, None, address, output.as_u64()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Nonces).expect("missing schema");
         process_nonce(columns, response, schema);
     }
@@ -70,8 +55,6 @@ impl CollectByBlock for Nonces {
 #[async_trait::async_trait]
 impl CollectByTransaction for Nonces {
     type Response = BlockTxAddressOutput;
-
-    type Columns = NonceColumns;
 
     fn transaction_parameters() -> Vec<ChunkDim> {
         vec![ChunkDim::TransactionHash, ChunkDim::Address]
@@ -89,13 +72,13 @@ impl CollectByTransaction for Nonces {
         Ok((block_number, Some(tx), address, output.as_u64()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Nonces).expect("missing schema");
         process_nonce(columns, response, schema);
     }
 }
 
-fn process_nonce(columns: &mut NonceColumns, data: BlockTxAddressOutput, schema: &Table) {
+fn process_nonce(columns: &mut Nonces, data: BlockTxAddressOutput, schema: &Table) {
     let (block, tx, address, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);

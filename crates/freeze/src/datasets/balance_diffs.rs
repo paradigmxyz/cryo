@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::BalanceDiffs)]
 #[derive(Default)]
-pub struct BalanceDiffColumns {
+pub struct BalanceDiffs {
     n_rows: u64,
     block_number: Vec<Option<u32>>,
     transaction_index: Vec<Option<u64>>,
@@ -20,27 +20,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl Dataset for BalanceDiffs {
-    fn datatype(&self) -> Datatype {
-        Datatype::BalanceDiffs
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "balance_diffs"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_index", ColumnType::Binary),
-            ("transaction_hash", ColumnType::Binary),
-            ("address", ColumnType::Binary),
-            ("from_value", ColumnType::UInt256),
-            ("to_value", ColumnType::UInt256),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 }
@@ -49,13 +33,11 @@ impl Dataset for BalanceDiffs {
 impl CollectByBlock for BalanceDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = BalanceDiffColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_balance_diffs(&response, columns, schemas)
     }
 }
@@ -64,20 +46,18 @@ impl CollectByBlock for BalanceDiffs {
 impl CollectByTransaction for BalanceDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = BalanceDiffColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_balance_diffs(&response, columns, schemas)
     }
 }
 
 pub(crate) fn process_balance_diffs(
     response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
-    columns: &mut BalanceDiffColumns,
+    columns: &mut BalanceDiffs,
     schemas: &Schemas,
 ) {
     let schema = schemas.get(&Datatype::BalanceDiffs).expect("missing schema");
@@ -97,7 +77,7 @@ pub(crate) fn process_balance_diff(
     block_number: &Option<u32>,
     transaction_hash: &Option<Vec<u8>>,
     transaction_index: usize,
-    columns: &mut BalanceDiffColumns,
+    columns: &mut BalanceDiffs,
     schema: &Table,
 ) {
     columns.n_rows += 1;

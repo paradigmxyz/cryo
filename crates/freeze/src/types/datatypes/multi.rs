@@ -2,11 +2,6 @@ use crate::types::Datatype;
 use async_trait;
 use std::collections::HashSet;
 
-// /// Blocks and Transactions datasets
-// pub struct BlocksAndTransactions;
-/// State Diff datasets
-pub struct StateDiffs;
-
 /// enum of possible sets of datatypes that cryo can collect
 /// used when multiple datatypes are collected together
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]

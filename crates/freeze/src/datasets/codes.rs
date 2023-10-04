@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for balances
 #[cryo_to_df::to_df(Datatype::Codes)]
 #[derive(Default)]
-pub struct CodeColumns {
+pub struct Codes {
     n_rows: usize,
     block_number: Vec<u32>,
     transaction_hash: Vec<Option<Vec<u8>>>,
@@ -16,24 +16,11 @@ pub struct CodeColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Codes {
-    fn datatype(&self) -> Datatype {
-        Datatype::Codes
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "codes"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("address", ColumnType::Binary),
-            ("code", ColumnType::Binary),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }
 }
@@ -44,8 +31,6 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>);
 #[async_trait::async_trait]
 impl CollectByBlock for Codes {
     type Response = BlockTxAddressOutput;
-
-    type Columns = CodeColumns;
 
     fn block_parameters() -> Vec<ChunkDim> {
         vec![ChunkDim::BlockNumber, ChunkDim::Address]
@@ -59,7 +44,7 @@ impl CollectByBlock for Codes {
         Ok((block_number, None, address, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Codes).expect("missing schema");
         process_nonce(columns, response, schema);
     }
@@ -68,8 +53,6 @@ impl CollectByBlock for Codes {
 #[async_trait::async_trait]
 impl CollectByTransaction for Codes {
     type Response = BlockTxAddressOutput;
-
-    type Columns = CodeColumns;
 
     fn transaction_parameters() -> Vec<ChunkDim> {
         vec![ChunkDim::TransactionHash, ChunkDim::Address]
@@ -84,13 +67,13 @@ impl CollectByTransaction for Codes {
         Ok((block_number, Some(tx), address, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Codes).expect("missing schema");
         process_nonce(columns, response, schema);
     }
 }
 
-fn process_nonce(columns: &mut CodeColumns, data: BlockTxAddressOutput, schema: &Table) {
+fn process_nonce(columns: &mut Codes, data: BlockTxAddressOutput, schema: &Table) {
     let (block, tx, address, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);

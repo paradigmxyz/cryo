@@ -6,9 +6,9 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Traces)]
+#[cryo_to_df::to_df(Datatype::Contracts)]
 #[derive(Default)]
-pub struct ContractColumns {
+pub struct Contracts {
     n_rows: u64,
     block_number: Vec<u32>,
     create_index: Vec<u32>,
@@ -25,31 +25,11 @@ pub struct ContractColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Contracts {
-    fn datatype(&self) -> Datatype {
-        Datatype::Contracts
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "contracts"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("create_index", ColumnType::UInt32),
-            ("transaction_hash", ColumnType::Binary),
-            ("contract_address", ColumnType::Binary),
-            ("deployer", ColumnType::Binary),
-            ("factory", ColumnType::Binary),
-            ("init_code", ColumnType::Binary),
-            ("code", ColumnType::Binary),
-            ("init_code_hash", ColumnType::Binary),
-            ("code_hash", ColumnType::Binary),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "create_index".to_string()]
     }
 }
@@ -59,13 +39,12 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 #[async_trait::async_trait]
 impl CollectByBlock for Contracts {
     type Response = Vec<Trace>;
-    type Columns = ContractColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block(request.ethers_block_number()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_contracts(response, columns, schema)
     }
@@ -74,20 +53,19 @@ impl CollectByBlock for Contracts {
 #[async_trait::async_trait]
 impl CollectByTransaction for Contracts {
     type Response = Vec<Trace>;
-    type Columns = ContractColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_contracts(response, columns, schema)
     }
 }
 
 /// process block into columns
-fn process_contracts(traces: Vec<Trace>, columns: &mut ContractColumns, schema: &Table) {
+fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table) {
     let traces = traces::filter_failed_traces(traces);
     let mut deployer = H160([0; 20]);
     let mut create_index = 0;

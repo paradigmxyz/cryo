@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::NonceDiffs)]
 #[derive(Default)]
-pub struct NonceDiffColumns {
+pub struct NonceDiffs {
     n_rows: u64,
     block_number: Vec<Option<u32>>,
     transaction_index: Vec<Option<u64>>,
@@ -18,27 +18,11 @@ pub struct NonceDiffColumns {
 
 #[async_trait::async_trait]
 impl Dataset for NonceDiffs {
-    fn datatype(&self) -> Datatype {
-        Datatype::NonceDiffs
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "nonce_diffs"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_index", ColumnType::Binary),
-            ("transaction_hash", ColumnType::Binary),
-            ("address", ColumnType::Binary),
-            ("from_value", ColumnType::Binary),
-            ("to_value", ColumnType::Binary),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 }
@@ -49,13 +33,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for NonceDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = NonceDiffColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_nonce_diffs(&response, columns, schemas)
     }
 }
@@ -64,20 +46,18 @@ impl CollectByBlock for NonceDiffs {
 impl CollectByTransaction for NonceDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    type Columns = NonceDiffColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         process_nonce_diffs(&response, columns, schemas)
     }
 }
 
 pub(crate) fn process_nonce_diffs(
     response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
-    columns: &mut NonceDiffColumns,
+    columns: &mut NonceDiffs,
     schemas: &Schemas,
 ) {
     let schema = schemas.get(&Datatype::NonceDiffs).expect("missing schema");
@@ -97,7 +77,7 @@ pub(crate) fn process_nonce_diff(
     block_number: &Option<u32>,
     transaction_hash: &Option<Vec<u8>>,
     transaction_index: usize,
-    columns: &mut NonceDiffColumns,
+    columns: &mut NonceDiffs,
     schema: &Table,
 ) {
     columns.n_rows += 1;

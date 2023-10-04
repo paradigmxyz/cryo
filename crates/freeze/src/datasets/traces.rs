@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Traces)]
 #[derive(Default)]
-pub struct TraceColumns {
+pub struct Traces {
     n_rows: u64,
     action_from: Vec<Option<Vec<u8>>>,
     action_to: Vec<Option<Vec<u8>>>,
@@ -32,41 +32,11 @@ pub struct TraceColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Traces {
-    fn datatype(&self) -> Datatype {
-        Datatype::Traces
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "traces"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("action_from", ColumnType::Binary),
-            ("action_to", ColumnType::Binary),
-            ("action_value", ColumnType::UInt256),
-            ("action_gas", ColumnType::UInt32),
-            ("action_input", ColumnType::Binary),
-            ("action_call_type", ColumnType::String),
-            ("action_init", ColumnType::Binary),
-            ("action_reward_type", ColumnType::String),
-            ("action_type", ColumnType::String),
-            ("result_gas_used", ColumnType::UInt32),
-            ("result_output", ColumnType::Binary),
-            ("result_code", ColumnType::Binary),
-            ("result_address", ColumnType::Binary),
-            ("trace_address", ColumnType::String),
-            ("subtraces", ColumnType::UInt32),
-            ("transaction_position", ColumnType::UInt32),
-            ("transaction_hash", ColumnType::Binary),
-            ("block_number", ColumnType::UInt32),
-            ("block_hash", ColumnType::Binary),
-            ("error", ColumnType::String),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_position".to_string()]
     }
 }
@@ -77,13 +47,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Traces {
     type Response = Vec<Trace>;
 
-    type Columns = TraceColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block(request.block_number().into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
@@ -93,19 +61,17 @@ impl CollectByBlock for Traces {
 impl CollectByTransaction for Traces {
     type Response = Vec<Trace>;
 
-    type Columns = TraceColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_traces(response, columns, schema)
     }
 }
 /// process block into columns
-fn process_traces(traces: Vec<Trace>, columns: &mut TraceColumns, schema: &Table) {
+fn process_traces(traces: Vec<Trace>, columns: &mut Traces, schema: &Table) {
     for trace in traces.iter() {
         columns.n_rows += 1;
         process_action(&trace.action, columns, schema);
@@ -131,7 +97,7 @@ fn process_traces(traces: Vec<Trace>, columns: &mut TraceColumns, schema: &Table
     }
 }
 
-fn process_action(action: &Action, columns: &mut TraceColumns, schema: &Table) {
+fn process_action(action: &Action, columns: &mut Traces, schema: &Table) {
     match action {
         Action::Call(action) => {
             store!(schema, columns, action_from, Some(action.from.as_bytes().to_vec()));
@@ -186,7 +152,7 @@ fn process_action(action: &Action, columns: &mut TraceColumns, schema: &Table) {
     }
 }
 
-fn process_result(result: &Option<Res>, columns: &mut TraceColumns, schema: &Table) {
+fn process_result(result: &Option<Res>, columns: &mut Traces, schema: &Table) {
     match result {
         Some(Res::Call(result)) => {
             store!(schema, columns, result_gas_used, Some(result.gas_used.as_u32()));

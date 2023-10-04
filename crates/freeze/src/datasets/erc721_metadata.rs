@@ -3,9 +3,9 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Transactions)]
+#[cryo_to_df::to_df(Datatype::Erc721Metadata)]
 #[derive(Default)]
-pub struct Erc721MetadataColumns {
+pub struct Erc721Metadata {
     n_rows: u64,
     block_number: Vec<u32>,
     erc721: Vec<Vec<u8>>,
@@ -14,25 +14,11 @@ pub struct Erc721MetadataColumns {
 }
 
 impl Dataset for Erc721Metadata {
-    fn datatype(&self) -> Datatype {
-        Datatype::Erc721Metadata
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "erc721_metadata"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("erc20", ColumnType::Binary),
-            ("name", ColumnType::String),
-            ("symbol", ColumnType::String),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["symbol".to_string(), "block_number".to_string()]
     }
 }
@@ -44,8 +30,6 @@ type BlockAddressNameSymbol = (u32, Vec<u8>, Option<String>, Option<String>);
 #[async_trait::async_trait]
 impl CollectByBlock for Erc721Metadata {
     type Response = BlockAddressNameSymbol;
-
-    type Columns = Erc721MetadataColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
@@ -64,7 +48,7 @@ impl CollectByBlock for Erc721Metadata {
         Ok((request.block_number() as u32, request.address(), name, symbol))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Erc721Metadata).expect("missing schema");
         let (block, address, name, symbol) = response;
         columns.n_rows += 1;

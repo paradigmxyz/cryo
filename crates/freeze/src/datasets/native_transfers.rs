@@ -4,9 +4,9 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Traces)]
+#[cryo_to_df::to_df(Datatype::NativeTransfers)]
 #[derive(Default)]
-pub struct NativeTransferColumns {
+pub struct NativeTransfers {
     n_rows: u64,
     block_number: Vec<u32>,
     transaction_index: Vec<Option<u32>>,
@@ -20,28 +20,11 @@ pub struct NativeTransferColumns {
 
 #[async_trait::async_trait]
 impl Dataset for NativeTransfers {
-    fn datatype(&self) -> Datatype {
-        Datatype::NativeTransfers
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "native_transfers"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_index", ColumnType::UInt32),
-            ("transfer_index", ColumnType::UInt32),
-            ("transaction_hash", ColumnType::Binary),
-            ("from_address", ColumnType::Binary),
-            ("to_address", ColumnType::Binary),
-            ("value", ColumnType::UInt256),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transfer_index".to_string()]
     }
 }
@@ -52,13 +35,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for NativeTransfers {
     type Response = Vec<Trace>;
 
-    type Columns = NativeTransferColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_block(request.block_number().into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_native_transfers(response, columns, schema)
     }
@@ -68,13 +49,11 @@ impl CollectByBlock for NativeTransfers {
 impl CollectByTransaction for NativeTransfers {
     type Response = Vec<Trace>;
 
-    type Columns = NativeTransferColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
         process_native_transfers(response, columns, schema)
     }
@@ -83,7 +62,7 @@ impl CollectByTransaction for NativeTransfers {
 /// process block into columns
 fn process_native_transfers(
     traces: Vec<Trace>,
-    columns: &mut NativeTransferColumns,
+    columns: &mut NativeTransfers,
     schema: &Table,
 ) {
     for (transfer_index, trace) in traces.iter().enumerate() {

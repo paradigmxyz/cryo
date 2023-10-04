@@ -3,9 +3,9 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Transactions)]
+#[cryo_to_df::to_df(Datatype::Erc20Metadata)]
 #[derive(Default)]
-pub struct Erc20MetadataColumns {
+pub struct Erc20Metadata {
     n_rows: u64,
     block_number: Vec<u32>,
     erc20: Vec<Vec<u8>>,
@@ -16,26 +16,11 @@ pub struct Erc20MetadataColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Metadata {
-    fn datatype(&self) -> Datatype {
-        Datatype::Erc20Metadata
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "erc20_metadata"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("erc20", ColumnType::Binary),
-            ("name", ColumnType::String),
-            ("symbol", ColumnType::String),
-            ("decimals", ColumnType::UInt32),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["symbol".to_string(), "block_number".to_string()]
     }
 }
@@ -47,8 +32,6 @@ type BlockAddressNameSymbolDecimals = (u32, Vec<u8>, Option<String>, Option<Stri
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Metadata {
     type Response = BlockAddressNameSymbolDecimals;
-
-    type Columns = Erc20MetadataColumns;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
@@ -72,7 +55,7 @@ impl CollectByBlock for Erc20Metadata {
         Ok((request.block_number() as u32, request.address(), name, symbol, decimals))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Erc20Metadata).expect("missing schema");
         let (block, address, name, symbol, decimals) = response;
         columns.n_rows += 1;

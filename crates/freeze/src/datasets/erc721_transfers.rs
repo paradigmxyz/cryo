@@ -6,7 +6,7 @@ use std::collections::HashMap;
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Erc721Transfers)]
 #[derive(Default)]
-pub struct Erc721TransferColumns {
+pub struct Erc721Transfers {
     n_rows: u64,
     block_number: Vec<u32>,
     transaction_index: Vec<u32>,
@@ -20,29 +20,11 @@ pub struct Erc721TransferColumns {
 
 #[async_trait::async_trait]
 impl Dataset for Erc721Transfers {
-    fn datatype(&self) -> Datatype {
-        Datatype::Erc721Transfers
-    }
-
-    fn name(&self) -> &'static str {
+    fn name() -> &'static str {
         "erc721_transfers"
     }
 
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_index", ColumnType::UInt32),
-            ("log_index", ColumnType::UInt32),
-            ("transaction_hash", ColumnType::Binary),
-            ("erc721", ColumnType::Binary),
-            ("from_address", ColumnType::Binary),
-            ("to_address", ColumnType::Binary),
-            ("token_id", ColumnType::UInt256),
-            ("chain_id", ColumnType::UInt64),
-        ])
-    }
-
-    fn default_sort(&self) -> Vec<String> {
+    fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
 }
@@ -53,8 +35,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
-    type Columns = Erc721TransferColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter() };
@@ -62,7 +42,7 @@ impl CollectByBlock for Erc721Transfers {
         Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Erc721Transfers).expect("schema not provided");
         process_erc721_transfers(response, columns, schema)
     }
@@ -72,14 +52,12 @@ impl CollectByBlock for Erc721Transfers {
 impl CollectByTransaction for Erc721Transfers {
     type Response = Vec<Log>;
 
-    type Columns = Erc721TransferColumns;
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let logs = source.fetcher.get_transaction_logs(request.transaction_hash()).await?;
         Ok(logs.into_iter().filter(is_erc721_transfer).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self::Columns, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
         let schema = schemas.get(&Datatype::Erc721Transfers).expect("schema not provided");
         process_erc721_transfers(response, columns, schema)
     }
@@ -90,7 +68,7 @@ fn is_erc721_transfer(log: &Log) -> bool {
 }
 
 /// process block into columns
-fn process_erc721_transfers(logs: Vec<Log>, columns: &mut Erc721TransferColumns, schema: &Table) {
+fn process_erc721_transfers(logs: Vec<Log>, columns: &mut Erc721Transfers, schema: &Table) {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
