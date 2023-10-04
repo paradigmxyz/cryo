@@ -41,7 +41,7 @@ pub mod signatures;
 pub mod errors;
 /// type specifications for output data formats
 pub mod files;
-/// quries
+/// queries
 pub mod queries;
 /// type specifications for data schemas
 pub mod schemas;
