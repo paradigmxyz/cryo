@@ -1,6 +1,4 @@
 use crate::types::Datatype;
-use async_trait;
-use std::collections::HashSet;
 
 /// enum of possible sets of datatypes that cryo can collect
 /// used when multiple datatypes are collected together
@@ -31,14 +29,4 @@ impl MultiDatatype {
     pub fn variants() -> Vec<MultiDatatype> {
         vec![MultiDatatype::BlocksAndTransactions, MultiDatatype::StateDiffs]
     }
-}
-
-/// MultiDataset manages multiple datasets that get collected together
-#[async_trait::async_trait]
-pub trait MultiDataset: Sync + Send {
-    /// name of Dataset
-    fn name(&self) -> &'static str;
-
-    /// return Datatypes associated with MultiDataset
-    fn datatypes(&self) -> HashSet<Datatype>;
 }
