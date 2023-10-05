@@ -48,3 +48,32 @@ pub trait ToDataFrames: Sized {
         chain_id: u64,
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError>;
 }
+
+/// Dataset manages collection and management of a particular datatype
+pub trait Dataset: Sync + Send {
+    /// name of Dataset
+    fn name() -> &'static str;
+
+    /// alias of Dataset
+    fn aliases() -> Vec<&'static str> {
+        vec![]
+    }
+
+    /// default sort order for dataset
+    fn default_sort() -> Vec<String>;
+
+    /// default columns extracted for Dataset
+    fn default_columns() -> Option<Vec<&'static str>> {
+        None
+    }
+
+    /// default blocks for dataset
+    fn default_blocks() -> Option<String> {
+        None
+    }
+
+    /// input arg aliases
+    fn arg_aliases() -> Option<HashMap<String, String>> {
+        None
+    }
+}
