@@ -70,3 +70,8 @@ impl CollectByBlock for Erc20Metadata {
         store!(schema, columns, decimals, decimals);
     }
 }
+
+impl CollectByTransaction for Erc20Metadata {
+    type Response = ();
+}
+

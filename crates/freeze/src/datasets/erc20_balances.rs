@@ -58,3 +58,7 @@ impl CollectByBlock for Erc20Balances {
         store!(schema, columns, balance, balance);
     }
 }
+
+impl CollectByTransaction for Erc20Balances {
+    type Response = ();
+}

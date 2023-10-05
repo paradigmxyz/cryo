@@ -62,3 +62,7 @@ impl CollectByBlock for Erc721Metadata {
         store!(schema, columns, symbol, symbol);
     }
 }
+
+impl CollectByTransaction for Erc721Metadata {
+    type Response = ();
+}

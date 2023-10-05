@@ -56,3 +56,7 @@ impl CollectByBlock for Erc20Supplies {
         store!(schema, columns, total_supply, total_supply);
     }
 }
+
+impl CollectByTransaction for Erc20Supplies {
+    type Response = ();
+}

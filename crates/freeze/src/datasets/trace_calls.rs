@@ -73,6 +73,10 @@ impl CollectByBlock for TraceCalls {
     }
 }
 
+impl CollectByTransaction for TraceCalls {
+    type Response = ();
+}
+
 fn process_transaction_traces(
     response: ContractCallDataTraces,
     columns: &mut TraceCalls,

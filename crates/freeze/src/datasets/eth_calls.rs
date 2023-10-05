@@ -72,6 +72,10 @@ impl CollectByBlock for EthCalls {
     }
 }
 
+impl CollectByTransaction for EthCalls {
+    type Response = ();
+}
+
 fn process_eth_call(response: EthCallsResponse, columns: &mut EthCalls, schema: &Table) {
     let (block_number, contract_address, call_data, output_data) = response;
     columns.n_rows += 1;
