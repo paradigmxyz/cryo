@@ -1,5 +1,5 @@
-use crate::{Dim, Datatype, MetaDatatype, Partition, Table};
-use std::collections::HashMap;
+use crate::{CollectError, Datatype, Dim, MetaDatatype, Partition, Table};
+use std::collections::{HashMap, HashSet};
 
 /// Query
 #[derive(Clone)]
@@ -25,6 +25,33 @@ impl Query {
     /// total number of outputs of query
     pub fn n_outputs(&self) -> usize {
         self.datatypes.iter().map(|x| x.datatypes().len()).sum::<usize>() * self.partitions.len()
+    }
+
+    /// check that query is valid
+    pub fn is_valid(&self) -> Result<(), CollectError> {
+        // check that required parameters are present
+        let mut all_datatypes = std::collections::HashSet::new();
+        for datatype in self.datatypes.iter() {
+            all_datatypes.extend(datatype.datatypes())
+        }
+        let mut requirements: HashSet<Dim> = HashSet::new();
+        for datatype in all_datatypes.iter() {
+            for dim in datatype.required_parameters() {
+                requirements.insert(dim);
+            }
+        }
+        for partition in self.partitions.iter() {
+            let partition_dims = partition.dims().into_iter().collect();
+            if !requirements.is_subset(&partition_dims) {
+                let missing: Vec<_> =
+                    requirements.difference(&partition_dims).map(|x| x.to_string()).collect();
+                return Err(CollectError::CollectError(format!(
+                    "need to specify {}",
+                    missing.join(", ")
+                )));
+            }
+        }
+        Ok(())
     }
 }
 
