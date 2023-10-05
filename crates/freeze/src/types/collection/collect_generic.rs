@@ -26,7 +26,6 @@ pub async fn fetch_partition<F, Fut, T>(
     partition: Partition,
     source: Source,
     schemas: HashMap<Datatype, Table>,
-    param_dims: Vec<Dim>,
     sender: mpsc::Sender<Result<T, CollectError>>,
 ) -> Result<(), CollectError>
 where
@@ -39,7 +38,7 @@ where
     T: Send + 'static,
 {
     let mut handles = Vec::new();
-    for rpc_params in partition.param_sets(param_dims)?.into_iter() {
+    for rpc_params in partition.param_sets()?.into_iter() {
         let sender = sender.clone();
         let source = source.clone();
         let schemas = schemas.clone();

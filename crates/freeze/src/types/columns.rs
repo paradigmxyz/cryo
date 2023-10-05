@@ -1,5 +1,5 @@
 use crate::ColumnType;
-use crate::{CollectError, Datatype, Table};
+use crate::{CollectError, Datatype, Table, Dim};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -65,6 +65,16 @@ pub trait Dataset: Sync + Send {
     /// default columns extracted for Dataset
     fn default_columns() -> Option<Vec<&'static str>> {
         None
+    }
+
+    /// optional parameters for dataset
+    fn optional_parameters() -> Vec<Dim> {
+        vec![]
+    }
+
+    /// required parameters for dataset
+    fn required_parameters() -> Vec<Dim> {
+        vec![]
     }
 
     /// default blocks for dataset

@@ -23,6 +23,10 @@ impl Dataset for Erc20Balances {
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string()]
     }
+
+    fn required_parameters() -> Vec<Dim> {
+        vec![Dim::Contract, Dim::Address]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -32,10 +36,6 @@ type BlockErc20AddressBalance = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Balances {
     type Response = BlockErc20AddressBalance;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockNumber, Dim::Address, Dim::Contract]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let signature: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");

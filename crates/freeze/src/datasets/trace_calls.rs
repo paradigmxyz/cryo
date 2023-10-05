@@ -39,6 +39,10 @@ impl Dataset for TraceCalls {
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_position".to_string()]
     }
+
+    fn required_parameters() -> Vec<Dim> {
+        vec![Dim::Contract, Dim::CallData]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -47,10 +51,6 @@ type ContractCallDataTraces = (u32, Vec<u8>, Vec<u8>, Vec<TransactionTrace>);
 #[async_trait::async_trait]
 impl CollectByBlock for TraceCalls {
     type Response = ContractCallDataTraces;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockNumber, Dim::Contract, Dim::CallData]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let traces: Vec<TransactionTrace> = source

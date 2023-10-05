@@ -23,6 +23,10 @@ impl Dataset for Nonces {
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }
+
+    fn required_parameters() -> Vec<Dim> {
+        vec![Dim::Address]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -31,10 +35,6 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, u64);
 #[async_trait::async_trait]
 impl CollectByBlock for Nonces {
     type Response = BlockTxAddressOutput;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockNumber, Dim::Address]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let address = request.address();
@@ -55,10 +55,6 @@ impl CollectByBlock for Nonces {
 #[async_trait::async_trait]
 impl CollectByTransaction for Nonces {
     type Response = BlockTxAddressOutput;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::TransactionHash, Dim::Address]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let tx = request.transaction_hash();

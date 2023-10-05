@@ -68,6 +68,20 @@ macro_rules! define_datatypes {
                     $(Datatype::$datatype => $datatype::base_arg_aliases(),)*
                 }
             }
+
+            /// required parameters of each datatype
+            pub fn required_parameters(&self) -> Vec<Dim> {
+                match *self {
+                    $(Datatype::$datatype => $datatype::required_parameters(),)*
+                }
+            }
+
+            /// optional parameters of each datatype
+            pub fn optional_parameters(&self) -> Vec<Dim> {
+                match *self {
+                    $(Datatype::$datatype => $datatype::optional_parameters(),)*
+                }
+            }
         }
 
         const TX_ERROR: &str = "datatype cannot collect by transaction";

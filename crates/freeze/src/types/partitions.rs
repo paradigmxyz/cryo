@@ -4,7 +4,7 @@ use crate::{
 };
 
 /// a dimension of chunking
-#[derive(Debug, Clone, Copy, Eq, PartialEq, serde::Serialize)]
+#[derive(Debug, Clone, Copy, Eq, PartialEq, Hash, serde::Serialize)]
 pub enum Dim {
     /// Block number dimension
     BlockNumber,
@@ -85,6 +85,26 @@ impl Dim {
             Dim::Topic2 => "topic2s",
             Dim::Topic3 => "topic3s",
         }
+    }
+}
+
+impl std::fmt::Display for Dim {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let as_str = match self {
+            Dim::BlockNumber => "block",
+            Dim::BlockRange => "block",
+            Dim::TransactionHash => "transaction",
+            Dim::CallData => "call_data",
+            Dim::Address => "address",
+            Dim::Contract => "contract",
+            Dim::ToAddress => "to_address",
+            Dim::Slot => "slot",
+            Dim::Topic0 => "topic0",
+            Dim::Topic1 => "topic1",
+            Dim::Topic2 => "topic2",
+            Dim::Topic3 => "topic3",
+        };
+        write!(f, "{}", as_str)
     }
 }
 
@@ -272,9 +292,9 @@ impl Partition {
     }
 
     /// iterate through param sets of Partition
-    pub fn param_sets(&self, dimensions: Vec<Dim>) -> Result<Vec<Params>, CollectError> {
+    pub fn param_sets(&self) -> Result<Vec<Params>, CollectError> {
         let mut outputs = vec![Params::default()];
-        for dimension in dimensions.iter() {
+        for dimension in self.dims().iter() {
             let mut new = Vec::new();
             match dimension {
                 Dim::BlockNumber => {
@@ -309,6 +329,48 @@ impl Partition {
             outputs = new;
         }
         Ok(outputs)
+    }
+
+    /// return Vec of dimensions defined in partitions
+    pub fn dims(&self) -> Vec<Dim> {
+        let mut dims = Vec::new();
+        if self.block_numbers.is_some() {
+            dims.push(Dim::BlockNumber)
+        };
+        if self.block_ranges.is_some() {
+            dims.push(Dim::BlockRange)
+        };
+        if self.transactions.is_some() {
+            dims.push(Dim::TransactionHash)
+        };
+        if self.addresses.is_some() {
+            dims.push(Dim::Address)
+        };
+        if self.contracts.is_some() {
+            dims.push(Dim::Contract)
+        };
+        if self.to_addresses.is_some() {
+            dims.push(Dim::ToAddress)
+        };
+        if self.call_datas.is_some() {
+            dims.push(Dim::CallData)
+        };
+        if self.slots.is_some() {
+            dims.push(Dim::Slot)
+        };
+        if self.topic0s.is_some() {
+            dims.push(Dim::Topic0)
+        };
+        if self.topic1s.is_some() {
+            dims.push(Dim::Topic1)
+        };
+        if self.topic2s.is_some() {
+            dims.push(Dim::Topic2)
+        };
+        if self.topic3s.is_some() {
+            dims.push(Dim::Topic3)
+        };
+        dims
     }
 
     /// number of chunks for a particular dimension

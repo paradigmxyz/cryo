@@ -24,6 +24,10 @@ impl Dataset for Storages {
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
     }
+
+    fn required_parameters() -> Vec<Dim> {
+        vec![Dim::Address, Dim::Slot]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -32,10 +36,6 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>, Vec<u8>);
 #[async_trait::async_trait]
 impl CollectByBlock for Storages {
     type Response = BlockTxAddressOutput;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockNumber, Dim::Address, Dim::Slot]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let address = request.address();
@@ -61,10 +61,6 @@ impl CollectByBlock for Storages {
 #[async_trait::async_trait]
 impl CollectByTransaction for Storages {
     type Response = BlockTxAddressOutput;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::TransactionHash, Dim::Address, Dim::Slot]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let tx = request.transaction_hash();

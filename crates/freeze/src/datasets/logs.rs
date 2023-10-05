@@ -35,6 +35,10 @@ impl Dataset for Logs {
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }
+
+    fn optional_parameters() -> Vec<Dim> {
+        vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::Topic3]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -42,10 +46,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 #[async_trait::async_trait]
 impl CollectByBlock for Logs {
     type Response = Vec<Log>;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockRange, Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::Topic3]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.get_logs(&request.ethers_log_filter()).await
@@ -59,17 +59,6 @@ impl CollectByBlock for Logs {
 #[async_trait::async_trait]
 impl CollectByTransaction for Logs {
     type Response = Vec<Log>;
-
-    fn parameters() -> Vec<Dim> {
-        vec![
-            Dim::TransactionHash,
-            Dim::Contract,
-            Dim::Topic0,
-            Dim::Topic1,
-            Dim::Topic2,
-            Dim::Topic3,
-        ]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.get_transaction_logs(request.transaction_hash()).await

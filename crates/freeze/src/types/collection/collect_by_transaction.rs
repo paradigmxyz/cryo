@@ -1,5 +1,5 @@
 use super::collect_generic::fetch_partition;
-use crate::{CollectError, Datatype, Dim, Params, Partition, Schemas, Source, Table, ToDataFrames};
+use crate::{CollectError, Datatype, Params, Partition, Schemas, Source, Table, ToDataFrames};
 use polars::prelude::*;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
@@ -11,11 +11,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
     /// type of transaction data responses
     type Response: Send;
-
-    /// parameters for requesting data by block
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::TransactionHash]
-    }
 
     /// fetch dataset data by transaction
     async fn extract(_request: Params, _: Source, _: Schemas) -> Result<Self::Response> {
@@ -35,9 +30,7 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
     ) -> Result<HashMap<Datatype, DataFrame>> {
         let (sender, receiver) = mpsc::channel(1);
         let chain_id = source.chain_id;
-        let parameters = Self::parameters();
-        fetch_partition(Self::extract, partition, source, schemas.clone(), parameters, sender)
-            .await?;
+        fetch_partition(Self::extract, partition, source, schemas.clone(), sender).await?;
         let columns = Self::transform_channel(receiver, schemas).await?;
         columns.create_dfs(schemas, chain_id)
     }

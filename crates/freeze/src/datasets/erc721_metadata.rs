@@ -21,6 +21,10 @@ impl Dataset for Erc721Metadata {
     fn default_sort() -> Vec<String> {
         vec!["symbol".to_string(), "block_number".to_string()]
     }
+
+    fn required_parameters() -> Vec<Dim> {
+        vec![Dim::Contract]
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
@@ -30,10 +34,6 @@ type BlockAddressNameSymbol = (u32, Vec<u8>, Option<String>, Option<String>);
 #[async_trait::async_trait]
 impl CollectByBlock for Erc721Metadata {
     type Response = BlockAddressNameSymbol;
-
-    fn parameters() -> Vec<Dim> {
-        vec![Dim::BlockNumber, Dim::Address]
-    }
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number();
