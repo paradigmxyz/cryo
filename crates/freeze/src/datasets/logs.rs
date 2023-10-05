@@ -28,6 +28,10 @@ impl Dataset for Logs {
         "logs"
     }
 
+    fn aliases() -> Vec<&'static str> {
+        vec!["events"]
+    }
+
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "log_index".to_string()]
     }

@@ -28,6 +28,10 @@ impl Dataset for VmTraces {
         "vm_traces"
     }
 
+    fn aliases() -> Vec<&'static str> {
+        vec!["opcode_traces"]
+    }
+
     fn default_columns() -> Option<Vec<&'static str>> {
         Some(vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"])
     }

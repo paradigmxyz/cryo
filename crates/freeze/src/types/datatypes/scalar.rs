@@ -2,9 +2,9 @@ use crate::datasets::*;
 use crate::define_datatypes;
 use crate::types::columns::ColumnData;
 use crate::ColumnType;
-use std::collections::HashMap;
 use crate::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
 define_datatypes!(
     BalanceDiffs,
@@ -33,10 +33,45 @@ define_datatypes!(
     NativeTransfers,
 );
 
+impl Datatype {
+    fn alias_map() -> HashMap<String, Datatype> {
+        let mut map = HashMap::new();
+        for datatype in Datatype::all() {
+            let key = datatype.name();
+            if map.contains_key(&key) {
+                panic!("conflict in datatype names")
+            }
+            map.insert(key, datatype);
+            for key in datatype.aliases().into_iter() {
+                if map.contains_key(key) {
+                    panic!("conflict in datatype names")
+                }
+                map.insert(key.to_owned(), datatype);
+            }
+        }
+        map
+    }
+}
+
+impl std::str::FromStr for Datatype {
+    type Err = ParseError;
+
+    fn from_str(s: &str) -> Result<Datatype, ParseError> {
+        let mut map = Datatype::alias_map();
+        map.remove(s)
+            .ok_or_else(|| ParseError::ParseError(format!("no datatype matches input: {}", s)))
+    }
+}
+
 /// Dataset manages collection and management of a particular datatype
 pub trait Dataset: Sync + Send {
     /// name of Dataset
     fn name() -> &'static str;
+
+    /// alias of Dataset
+    fn aliases() -> Vec<&'static str> {
+        vec![]
+    }
 
     /// default sort order for dataset
     fn default_sort() -> Vec<String>;
@@ -56,4 +91,3 @@ pub trait Dataset: Sync + Send {
         None
     }
 }
-

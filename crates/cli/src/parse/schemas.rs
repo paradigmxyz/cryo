@@ -5,6 +5,7 @@ use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, ParseError, Table};
 use super::file_output;
 use crate::args::Args;
 use cryo_freeze::U256Type;
+use std::str::FromStr;
 
 fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError> {
     let mut datatypes = Vec::new();
@@ -17,42 +18,7 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
                 datatypes.push(Datatype::NonceDiffs);
                 datatypes.push(Datatype::StorageDiffs);
             }
-            datatype => {
-                let datatype = match datatype {
-                    "balance_diffs" => Datatype::BalanceDiffs,
-                    "balances" => Datatype::Balances,
-                    "blocks" => Datatype::Blocks,
-                    "codes" => Datatype::Codes,
-                    "code_diffs" => Datatype::CodeDiffs,
-                    "contracts" => Datatype::Contracts,
-                    "erc20_balances" => Datatype::Erc20Balances,
-                    "erc20_metadata" => Datatype::Erc20Metadata,
-                    "erc20_supplies" => Datatype::Erc20Supplies,
-                    "erc20_transfers" => Datatype::Erc20Transfers,
-                    "erc721_metadata" => Datatype::Erc721Metadata,
-                    "erc721_transfers" => Datatype::Erc721Transfers,
-                    "eth_calls" => Datatype::EthCalls,
-                    "events" => Datatype::Logs,
-                    "logs" => Datatype::Logs,
-                    "native_transfers" => Datatype::NativeTransfers,
-                    "nonce_diffs" => Datatype::NonceDiffs,
-                    "nonces" => Datatype::Nonces,
-                    "opcode_traces" => Datatype::VmTraces,
-                    "storage_diffs" => Datatype::StorageDiffs,
-                    "storages" => Datatype::Storages,
-                    "trace_calls" => Datatype::TraceCalls,
-                    "traces" => Datatype::Traces,
-                    "transactions" => Datatype::Transactions,
-                    "transaction_addresses" => Datatype::TransactionAddresses,
-                    "txs" => Datatype::Transactions,
-                    "vm_traces" => Datatype::VmTraces,
-                    _ => {
-                        let name = format!("invalid datatype {}", datatype);
-                        return Err(ParseError::ParseError(name))
-                    }
-                };
-                datatypes.push(datatype)
-            }
+            datatype_str => datatypes.push(Datatype::from_str(datatype_str)?),
         }
     }
     Ok(datatypes)
@@ -93,7 +59,7 @@ pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, Par
         false => ColumnEncoding::Binary,
     };
 
-    let sort = parse_sort(&args.sort, &datatypes)?;
+    let sort = parse_sort_columns(&args.sort, &datatypes)?;
     let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
         .map(|datatype| {
@@ -170,7 +136,7 @@ pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, Par
     schemas
 }
 
-fn parse_sort(
+fn parse_sort_columns(
     raw_sort: &Option<Vec<String>>,
     datatypes: &Vec<Datatype>,
 ) -> Result<HashMap<Datatype, Option<Vec<String>>>, ParseError> {

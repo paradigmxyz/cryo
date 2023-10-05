@@ -12,12 +12,26 @@ macro_rules! define_datatypes {
         }
 
         impl Datatype {
+            /// return Vec of all datatypes
+            pub fn all() -> Vec<Self> {
+                vec![
+                    $(Datatype::$datatype,)*
+                ]
+            }
+
             /// name of datatype
             pub fn name(&self) -> String {
                 let name = match *self {
                     $(Datatype::$datatype => stringify!($datatype),)*
                 };
                 format!("{}", heck::AsSnakeCase(name))
+            }
+
+            /// default sorting columns of datatype
+            pub fn aliases(&self) -> Vec<&'static str> {
+                match *self {
+                    $(Datatype::$datatype => $datatype::aliases(),)*
+                }
             }
 
             /// default sorting columns of datatype
