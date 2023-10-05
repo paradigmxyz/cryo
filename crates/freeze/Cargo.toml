@@ -16,6 +16,7 @@ ethers = { workspace = true }
 ethers-core = { workspace = true }
 futures = { workspace = true }
 governor = { workspace = true }
+heck = { workspace = true }
 indexmap = { workspace = true }
 indicatif = { workspace = true }
 lazy_static = { workspace = true }

@@ -5,7 +5,7 @@ use std::time::SystemTime;
 /// run cli
 pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, CollectError> {
     let t_start_parse = Some(SystemTime::now());
-    let (query, source, sink, env) = match parse::parse_opts(&args).await {
+    let (query, source, sink, env) = match parse::parse_args(&args).await {
         Ok(opts) => opts,
         Err(e) => return Err(e.into()),
     };

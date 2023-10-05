@@ -155,7 +155,7 @@ where
     T: Send + 'static,
 {
     let mut handles = Vec::new();
-    for rpc_params in partition.param_sets(param_dims).into_iter() {
+    for rpc_params in partition.param_sets(param_dims)?.into_iter() {
         let sender = sender.clone();
         let source = source.clone();
         let schemas = schemas.clone();

@@ -164,7 +164,7 @@ fn print_schemas(schemas: &HashMap<Datatype, Table>) {
 }
 
 fn print_schema(name: &Datatype, schema: &Table) {
-    print_header("schema for ".to_string() + name.name());
+    print_header("schema for ".to_string() + name.name().as_str());
     for column in schema.columns() {
         if let Some(column_type) = schema.column_type(column) {
             if column_type == ColumnType::UInt256 {

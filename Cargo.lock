@@ -880,6 +880,7 @@ dependencies = [
  "ethers-core",
  "futures",
  "governor",
+ "heck",
  "indexmap 2.0.0",
  "indicatif",
  "lazy_static",

@@ -2,14 +2,15 @@ use polars::prelude::*;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 use pyo3_polars::PyDataFrame;
 
-use cryo_cli::{parse_opts, Args};
+use cryo_cli::{parse_args, Args};
 use cryo_freeze::collect;
 
 #[pyfunction(
     signature = (
-        datatype,
+        datatype = None,
         blocks = None,
         *,
+        command = None,
         txs = None,
         align = false,
         reorg_buffer = 0,
@@ -59,8 +60,9 @@ use cryo_freeze::collect;
 #[allow(clippy::too_many_arguments)]
 pub fn _collect(
     py: Python<'_>,
-    datatype: String,
+    datatype: Option<String>,
     blocks: Option<Vec<String>>,
+    command: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
@@ -106,66 +108,77 @@ pub fn _collect(
     no_verbose: bool,
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
-    let args = Args {
-        datatype: vec![datatype],
-        blocks,
-        txs,
-        align,
-        reorg_buffer,
-        include_columns,
-        exclude_columns,
-        columns,
-        u256_types,
-        hex,
-        sort,
-        rpc,
-        network_name,
-        requests_per_second,
-        max_concurrent_requests,
-        max_concurrent_chunks,
-        dry,
-        chunk_size,
-        n_chunks,
-        partition_by,
-        output_dir,
-        file_suffix,
-        overwrite,
-        csv,
-        json,
-        row_group_size,
-        n_row_groups,
-        no_stats,
-        compression,
-        report_dir: report_dir.map(std::path::PathBuf::from),
-        no_report,
-        address,
-        to_address,
-        from_address,
-        call_data,
-        function,
-        inputs,
-        slots,
-        contract,
-        topic0,
-        topic1,
-        topic2,
-        topic3,
-        inner_request_size,
-        no_verbose,
-        event_signature,
-    };
 
-    pyo3_asyncio::tokio::future_into_py(py, async move {
-        match run_collect(args).await {
-            // Ok(df) => Ok(Python::with_gil(|py| py.None())),
-            Ok(df) => Ok(PyDataFrame(df)),
-            Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
-        }
-    })
+    if let Some(command) = command {
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            match run_execute(command).await {
+                Ok(df) => Ok(PyDataFrame(df)),
+                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            }
+        })
+    } else if let Some(datatype) = datatype {
+        let args = Args {
+            datatype: vec![datatype],
+            blocks,
+            txs,
+            align,
+            reorg_buffer,
+            include_columns,
+            exclude_columns,
+            columns,
+            u256_types,
+            hex,
+            sort,
+            rpc,
+            network_name,
+            requests_per_second,
+            max_concurrent_requests,
+            max_concurrent_chunks,
+            dry,
+            chunk_size,
+            n_chunks,
+            partition_by,
+            output_dir,
+            file_suffix,
+            overwrite,
+            csv,
+            json,
+            row_group_size,
+            n_row_groups,
+            no_stats,
+            compression,
+            report_dir: report_dir.map(std::path::PathBuf::from),
+            no_report,
+            address,
+            to_address,
+            from_address,
+            call_data,
+            function,
+            inputs,
+            slots,
+            contract,
+            topic0,
+            topic1,
+            topic2,
+            topic3,
+            inner_request_size,
+            no_verbose,
+            event_signature,
+        };
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            match run_collect(args).await {
+                // Ok(df) => Ok(Python::with_gil(|py| py.None())),
+                Ok(df) => Ok(PyDataFrame(df)),
+                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            }
+        })
+    } else {
+        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"));
+    }
 }
 
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
-    let (query, source, _sink, _env) = match parse_opts(&args).await {
+    let (query, source, _sink, _env) = match parse_args(&args).await {
         Ok(opts) => opts,
         Err(e) => panic!("error parsing opts {:?}", e),
     };
@@ -173,4 +186,12 @@ async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
         Ok(df) => Ok(df),
         Err(e) => panic!("error collecting {:?}", e),
     }
+}
+
+async fn run_execute(command: String) -> PolarsResult<DataFrame> {
+    let args = match cryo_cli::parse_str(command.as_str()).await {
+        Ok(opts) => opts,
+        Err(e) => panic!("error parsing opts {:?}", e),
+    };
+    run_collect(args).await
 }

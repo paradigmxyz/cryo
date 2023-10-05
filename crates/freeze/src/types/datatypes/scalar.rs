@@ -16,10 +16,11 @@ macro_rules! define_datatypes {
 
         impl Datatype {
             /// name of datatype
-            pub fn name(&self) -> &'static str {
-                match *self {
+            pub fn name(&self) -> String {
+                let name = match *self {
                     $(Datatype::$datatype => stringify!($datatype),)*
-                }
+                };
+                format!("{}", heck::AsSnakeCase(name))
             }
 
             /// default sorting columns of datatype

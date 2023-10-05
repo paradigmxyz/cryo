@@ -272,7 +272,7 @@ impl Partition {
     }
 
     /// iterate through param sets of Partition
-    pub fn param_sets(&self, dimensions: Vec<Dim>) -> Vec<Params> {
+    pub fn param_sets(&self, dimensions: Vec<Dim>) -> Result<Vec<Params>, CollectError> {
         let mut outputs = vec![Params::default()];
         for dimension in dimensions.iter() {
             let mut new = Vec::new();
@@ -308,7 +308,7 @@ impl Partition {
             }
             outputs = new;
         }
-        outputs
+        Ok(outputs)
     }
 
     /// number of chunks for a particular dimension
