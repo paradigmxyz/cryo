@@ -1,5 +1,5 @@
 use crate::{
-    AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats, CollectError, Params,
+    err, AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats, CollectError, Params,
     SlotChunk, TopicChunk, TransactionChunk,
 };
 
@@ -52,24 +52,6 @@ impl Dim {
     }
 
     /// convert str to Dim
-    pub fn from_name(name: String) -> Dim {
-        match name.as_str() {
-            "block" => Dim::BlockNumber,
-            "transaction" => Dim::TransactionHash,
-            "call_data" => Dim::CallData,
-            "address" => Dim::Address,
-            "contract" => Dim::Contract,
-            "to_address" => Dim::ToAddress,
-            "slot" => Dim::Slot,
-            "topic0" => Dim::Topic0,
-            "topic1" => Dim::Topic1,
-            "topic2" => Dim::Topic2,
-            "topic3" => Dim::Topic3,
-            _ => panic!("unknown dimension name"),
-        }
-    }
-
-    /// convert str to Dim
     pub fn plural_name(&self) -> &str {
         match self {
             Dim::BlockNumber => "blocks",
@@ -85,6 +67,29 @@ impl Dim {
             Dim::Topic2 => "topic2s",
             Dim::Topic3 => "topic3s",
         }
+    }
+}
+
+impl std::str::FromStr for Dim {
+    type Err = crate::ParseError;
+
+    /// convert str to Dim
+    fn from_str(name: &str) -> Result<Dim, Self::Err> {
+        let dim = match name {
+            "block" => Dim::BlockNumber,
+            "transaction" => Dim::TransactionHash,
+            "call_data" => Dim::CallData,
+            "address" => Dim::Address,
+            "contract" => Dim::Contract,
+            "to_address" => Dim::ToAddress,
+            "slot" => Dim::Slot,
+            "topic0" => Dim::Topic0,
+            "topic1" => Dim::Topic1,
+            "topic2" => Dim::Topic2,
+            "topic3" => Dim::Topic3,
+            _ => return Err(crate::ParseError::ParseError("invalid dim name".to_string())),
+        };
+        Ok(dim)
     }
 }
 
@@ -141,26 +146,34 @@ pub struct Partition {
 
 /// partition outputs
 macro_rules! partition {
-    ($outputs:expr, $key:ident) => {
-        $outputs
+    ($outputs:expr, $key:ident) => {{
+        let partitions: Result<Vec<_>, CollectError> = $outputs
             .iter()
             .flat_map(|output| {
                 output
                     .$key
                     .as_ref()
-                    .unwrap()
-                    .iter()
-                    .map(|chunk| Partition { $key: Some(vec![chunk.clone()]), ..output.clone() })
+                    .ok_or(CollectError::CollectError("error".to_string()))
+                    .into_iter()
+                    .flatten()
+                    .map(|chunk| {
+                        Ok(Partition { $key: Some(vec![chunk.clone()]), ..output.clone() })
+                    })
             })
-            .collect()
-    };
+            .collect();
+        partitions
+    }};
 }
 
 /// parametrize outputs
 macro_rules! parametrize {
     ($outputs:expr, $new_outputs:expr, $self_chunks:expr, $param_key:ident) => {
         for output in $outputs.into_iter() {
-            for chunk in $self_chunks.as_ref().unwrap().iter() {
+            let chunks = $self_chunks
+                .as_ref()
+                .ok_or(CollectError::CollectError("mising block ranges".to_string()))?;
+
+            for chunk in chunks.iter() {
                 for value in chunk.values().iter() {
                     $new_outputs.push(Params { $param_key: Some(value.clone()), ..output.clone() })
                 }
@@ -171,15 +184,27 @@ macro_rules! parametrize {
 
 /// label partition
 macro_rules! label_partition {
-    ($outputs:expr, $dim_labels:expr, $key:ident) => {
+    ($outputs:expr, $dim_labels:expr, $key:ident) => {{
         $outputs
             .iter()
             .flat_map(|output| {
-                let chunks = output.$key.as_ref().expect("missing entries for partition dimension");
+                let chunks = match output.$key.as_ref() {
+                    Some(chunks) => chunks,
+                    None => {
+                        return vec![Err(CollectError::CollectError(
+                            "missing entries for partition dimension".to_string(),
+                        ))]
+                        .into_iter()
+                    }
+                };
                 let dls = match &$dim_labels {
                     Some(dls2) => {
                         if chunks.len() != dls2.len() {
-                            panic!("number of chunks should equal number of labels for dim")
+                            return vec![Err(CollectError::CollectError(
+                                "number of chunks should equal number of labels for dim"
+                                    .to_string(),
+                            ))]
+                            .into_iter()
                         }
                         dls2.clone()
                     }
@@ -187,80 +212,95 @@ macro_rules! label_partition {
                         vec![None; chunks.len()]
                     }
                 };
-                chunks.iter().zip(dls.into_iter()).map(|(chunk, label)| Partition {
-                    label: Some([output.label.clone().unwrap(), vec![label.clone()]].concat()),
-                    $key: Some(vec![chunk.clone()]),
-                    ..output.clone()
-                })
+                let partitions: Vec<_> = chunks
+                    .iter()
+                    .zip(dls.into_iter())
+                    .map(move |(chunk, label)| {
+                        let lbl = output
+                            .label
+                            .clone()
+                            .ok_or(CollectError::CollectError("missing label".to_string()))?;
+                        Ok(Partition {
+                            label: Some([lbl, vec![label.clone()]].concat()),
+                            $key: Some(vec![chunk.clone()]),
+                            ..output.clone()
+                        })
+                    })
+                    .collect();
+                partitions.into_iter()
             })
-            .collect()
-    };
+            .collect::<Result<Vec<_>, _>>()
+    }};
 }
 
-fn chunks_to_name<T: ChunkData>(chunks: &Option<Vec<T>>) -> String {
+fn chunks_to_name<T: ChunkData>(chunks: &Option<Vec<T>>) -> Result<String, CollectError> {
     chunks
         .as_ref()
-        .expect("partition chunks missing")
+        .ok_or(err("partition chunks missing"))?
         .stub()
         .map_err(|_| CollectError::CollectError("could not determine name of chunk".to_string()))
-        .unwrap()
 }
 
 impl Partition {
     /// get label of partition
-    pub fn label_pieces(&self, partitioned_by: &[Dim]) -> Vec<String> {
+    pub fn label_pieces(&self, partitioned_by: &[Dim]) -> Result<Vec<String>, CollectError> {
         let stored_pieces = self.label.clone().unwrap_or_else(|| vec![None; partitioned_by.len()]);
 
         if stored_pieces.len() != partitioned_by.len() {
-            panic!("self.label length must match number of partition dimensions");
+            return Err(CollectError::CollectError(
+                "self.label length must match number of partition dimensions".to_string(),
+            ))
         }
 
         let mut pieces = Vec::new();
         for (dim, piece) in partitioned_by.iter().zip(stored_pieces.iter()) {
-            let piece = piece.clone().unwrap_or_else(|| match dim {
-                Dim::BlockNumber => chunks_to_name(&self.block_numbers),
-                Dim::TransactionHash => chunks_to_name(&self.transactions),
-                Dim::BlockRange => chunks_to_name(&self.block_ranges),
-                Dim::CallData => chunks_to_name(&self.call_datas),
-                Dim::Address => chunks_to_name(&self.addresses),
-                Dim::Contract => chunks_to_name(&self.contracts),
-                Dim::ToAddress => chunks_to_name(&self.to_addresses),
-                Dim::Slot => chunks_to_name(&self.slots),
-                Dim::Topic0 => chunks_to_name(&self.topic0s),
-                Dim::Topic1 => chunks_to_name(&self.topic1s),
-                Dim::Topic2 => chunks_to_name(&self.topic2s),
-                Dim::Topic3 => chunks_to_name(&self.topic3s),
-            });
+            let piece = match piece.clone() {
+                Some(x) => x,
+                None => match dim {
+                    Dim::BlockNumber => chunks_to_name(&self.block_numbers)?,
+                    Dim::TransactionHash => chunks_to_name(&self.transactions)?,
+                    Dim::BlockRange => chunks_to_name(&self.block_ranges)?,
+                    Dim::CallData => chunks_to_name(&self.call_datas)?,
+                    Dim::Address => chunks_to_name(&self.addresses)?,
+                    Dim::Contract => chunks_to_name(&self.contracts)?,
+                    Dim::ToAddress => chunks_to_name(&self.to_addresses)?,
+                    Dim::Slot => chunks_to_name(&self.slots)?,
+                    Dim::Topic0 => chunks_to_name(&self.topic0s)?,
+                    Dim::Topic1 => chunks_to_name(&self.topic1s)?,
+                    Dim::Topic2 => chunks_to_name(&self.topic2s)?,
+                    Dim::Topic3 => chunks_to_name(&self.topic3s)?,
+                },
+            };
             pieces.push(piece);
         }
-        pieces
+        Ok(pieces)
     }
 
     /// get label of partition
-    pub fn label(&self, partitioned_by: &[Dim]) -> String {
-        self.label_pieces(partitioned_by).join("__")
+    pub fn label(&self, partitioned_by: &[Dim]) -> Result<String, CollectError> {
+        Ok(self.label_pieces(partitioned_by)?.join("__"))
     }
 
     /// partition Partition along given partition dimensions
-    pub fn partition(&self, partition_by: Vec<Dim>) -> Vec<Partition> {
+    pub fn partition(&self, partition_by: Vec<Dim>) -> Result<Vec<Partition>, CollectError> {
         let mut outputs = vec![self.clone()];
         for chunk_dimension in partition_by.iter() {
             outputs = match chunk_dimension {
-                Dim::BlockNumber => partition!(outputs, block_numbers),
-                Dim::BlockRange => partition!(outputs, block_ranges),
-                Dim::TransactionHash => partition!(outputs, transactions),
-                Dim::Address => partition!(outputs, addresses),
-                Dim::Contract => partition!(outputs, contracts),
-                Dim::ToAddress => partition!(outputs, to_addresses),
-                Dim::CallData => partition!(outputs, call_datas),
-                Dim::Slot => partition!(outputs, slots),
-                Dim::Topic0 => partition!(outputs, topic0s),
-                Dim::Topic1 => partition!(outputs, topic1s),
-                Dim::Topic2 => partition!(outputs, topic2s),
-                Dim::Topic3 => partition!(outputs, topic3s),
+                Dim::BlockNumber => partition!(outputs, block_numbers)?,
+                Dim::BlockRange => partition!(outputs, block_ranges)?,
+                Dim::TransactionHash => partition!(outputs, transactions)?,
+                Dim::Address => partition!(outputs, addresses)?,
+                Dim::Contract => partition!(outputs, contracts)?,
+                Dim::ToAddress => partition!(outputs, to_addresses)?,
+                Dim::CallData => partition!(outputs, call_datas)?,
+                Dim::Slot => partition!(outputs, slots)?,
+                Dim::Topic0 => partition!(outputs, topic0s)?,
+                Dim::Topic1 => partition!(outputs, topic1s)?,
+                Dim::Topic2 => partition!(outputs, topic2s)?,
+                Dim::Topic3 => partition!(outputs, topic3s)?,
             }
         }
-        outputs
+        Ok(outputs)
     }
 
     /// partition while respecting labels, ignoring all labels currently in partition
@@ -269,26 +309,26 @@ impl Partition {
         &self,
         labels: PartitionLabels,
         partition_by: Vec<Dim>,
-    ) -> Vec<Partition> {
+    ) -> Result<Vec<Partition>, CollectError> {
         let mut outputs = vec![Partition { label: Some(Vec::new()), ..self.clone() }];
         for chunk_dimension in partition_by.iter() {
             let dim_labels = labels.dim(chunk_dimension);
             outputs = match chunk_dimension {
-                Dim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers),
-                Dim::BlockRange => label_partition!(outputs, dim_labels, block_ranges),
-                Dim::TransactionHash => label_partition!(outputs, dim_labels, transactions),
-                Dim::Address => label_partition!(outputs, dim_labels, addresses),
-                Dim::Contract => label_partition!(outputs, dim_labels, contracts),
-                Dim::ToAddress => label_partition!(outputs, dim_labels, to_addresses),
-                Dim::CallData => label_partition!(outputs, dim_labels, call_datas),
-                Dim::Slot => label_partition!(outputs, dim_labels, slots),
-                Dim::Topic0 => label_partition!(outputs, dim_labels, topic0s),
-                Dim::Topic1 => label_partition!(outputs, dim_labels, topic1s),
-                Dim::Topic2 => label_partition!(outputs, dim_labels, topic2s),
-                Dim::Topic3 => label_partition!(outputs, dim_labels, topic3s),
+                Dim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers)?,
+                Dim::BlockRange => label_partition!(outputs, dim_labels, block_ranges)?,
+                Dim::TransactionHash => label_partition!(outputs, dim_labels, transactions)?,
+                Dim::Address => label_partition!(outputs, dim_labels, addresses)?,
+                Dim::Contract => label_partition!(outputs, dim_labels, contracts)?,
+                Dim::ToAddress => label_partition!(outputs, dim_labels, to_addresses)?,
+                Dim::CallData => label_partition!(outputs, dim_labels, call_datas)?,
+                Dim::Slot => label_partition!(outputs, dim_labels, slots)?,
+                Dim::Topic0 => label_partition!(outputs, dim_labels, topic0s)?,
+                Dim::Topic1 => label_partition!(outputs, dim_labels, topic1s)?,
+                Dim::Topic2 => label_partition!(outputs, dim_labels, topic2s)?,
+                Dim::Topic3 => label_partition!(outputs, dim_labels, topic3s)?,
             }
         }
-        outputs
+        Ok(outputs)
     }
 
     /// iterate through param sets of Partition
@@ -314,13 +354,21 @@ impl Partition {
                 Dim::Topic3 => parametrize!(outputs, new, self.topic3s, topic3),
                 Dim::BlockRange => {
                     for output in outputs.into_iter() {
-                        for chunk in self.block_ranges.as_ref().unwrap().iter() {
+                        let chunks = self
+                            .block_ranges
+                            .as_ref()
+                            .ok_or(CollectError::CollectError("mising block ranges".to_string()))?;
+                        for chunk in chunks.iter() {
                             match chunk {
                                 BlockChunk::Range(start, end) => new.push(Params {
                                     block_range: Some((*start, *end)),
                                     ..output.clone()
                                 }),
-                                _ => panic!("not a BlockRange"),
+                                _ => {
+                                    return Err(CollectError::CollectError(
+                                        "not a BlockRange".to_string(),
+                                    ))
+                                }
                             }
                         }
                     }

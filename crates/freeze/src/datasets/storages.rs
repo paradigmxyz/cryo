@@ -38,9 +38,9 @@ impl CollectByBlock for Storages {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let address = request.address();
-        let block_number = request.block_number() as u32;
-        let slot = request.slot();
+        let address = request.address()?;
+        let block_number = request.block_number()? as u32;
+        let slot = request.slot()?;
         let output = source
             .fetcher
             .get_storage_at(
@@ -52,9 +52,9 @@ impl CollectByBlock for Storages {
         Ok((block_number, None, address, slot, output.as_bytes().to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Storages).expect("missing schema");
-        process_nonce(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Storages).ok_or(err("schema not provided"))?;
+        process_nonce(columns, response, schema)
     }
 }
 
@@ -63,10 +63,10 @@ impl CollectByTransaction for Storages {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let tx = request.transaction_hash();
+        let tx = request.transaction_hash()?;
         let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
-        let address = request.address();
-        let slot = request.slot();
+        let address = request.address()?;
+        let slot = request.slot()?;
         let output = source
             .fetcher
             .get_storage_at(
@@ -78,13 +78,13 @@ impl CollectByTransaction for Storages {
         Ok((block_number, None, address, slot, output.as_bytes().to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Storages).expect("missing schema");
-        process_nonce(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Storages).ok_or(err("schema not provided"))?;
+        process_nonce(columns, response, schema)
     }
 }
 
-fn process_nonce(columns: &mut Storages, data: BlockTxAddressOutput, schema: &Table) {
+fn process_nonce(columns: &mut Storages, data: BlockTxAddressOutput, schema: &Table) -> Result<()> {
     let (block, tx, address, slot, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);
@@ -92,4 +92,5 @@ fn process_nonce(columns: &mut Storages, data: BlockTxAddressOutput, schema: &Ta
     store!(schema, columns, address, address);
     store!(schema, columns, slot, slot);
     store!(schema, columns, value, output);
+    Ok(())
 }

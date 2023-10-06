@@ -38,29 +38,29 @@ impl CollectByBlock for Erc20Metadata {
     type Response = BlockAddressNameSymbolDecimals;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let block_number = request.ethers_block_number();
-        let address = request.ethers_address();
+        let block_number = request.ethers_block_number()?;
+        let address = request.ethers_address()?;
 
         // name
-        let call_data: Vec<u8> = prefix_hex::decode("0x06fdde03").expect("Decoding failed");
+        let call_data = FUNCTION_ERC20_NAME.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
         let name = String::from_utf8(output.to_vec()).ok();
 
         // symbol
-        let call_data: Vec<u8> = prefix_hex::decode("0x95d89b41").expect("Decoding failed");
+        let call_data = FUNCTION_ERC20_SYMBOL.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
         let symbol = String::from_utf8(output.to_vec()).ok();
 
         // decimals
-        let call_data: Vec<u8> = prefix_hex::decode("0x313ce567").expect("Decoding failed");
+        let call_data = FUNCTION_ERC20_DECIMALS.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
         let decimals = bytes_to_u32(output).ok();
 
-        Ok((request.block_number() as u32, request.address(), name, symbol, decimals))
+        Ok((request.block_number()? as u32, request.address()?, name, symbol, decimals))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Erc20Metadata).expect("missing schema");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Erc20Metadata).ok_or(err("schema not provided"))?;
         let (block, address, name, symbol, decimals) = response;
         columns.n_rows += 1;
         store!(schema, columns, block_number, block);
@@ -68,6 +68,7 @@ impl CollectByBlock for Erc20Metadata {
         store!(schema, columns, name, name);
         store!(schema, columns, symbol, symbol);
         store!(schema, columns, decimals, decimals);
+        Ok(())
     }
 }
 

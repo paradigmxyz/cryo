@@ -34,21 +34,13 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 type BlockLogsTraces = (Block<TxHash>, Vec<Log>, Vec<Trace>);
 
-lazy_static::lazy_static! {
-    /// event hash of ERC20_TRANSFER
-    pub static ref ERC20_TRANSFER: H256 = H256(
-        prefix_hex::decode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-            .expect("Decoding failed"),
-    );
-}
-
 #[async_trait::async_trait]
 impl CollectByBlock for TransactionAddresses {
     type Response = BlockLogsTraces;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let block_number = request.ethers_block_number();
-        let block = source.fetcher.get_block(request.block_number()).await?;
+        let block_number = request.ethers_block_number()?;
+        let block = source.fetcher.get_block(request.block_number()?).await?;
         let block = block.ok_or(CollectError::CollectError("block not found".to_string()))?;
         let filter = Filter {
             block_option: FilterBlockOption::Range {
@@ -58,12 +50,13 @@ impl CollectByBlock for TransactionAddresses {
             ..Default::default()
         };
         let logs = source.fetcher.get_logs(&filter).await?;
-        let traces = source.fetcher.trace_block(request.block_number().into()).await?;
+        let traces = source.fetcher.trace_block(request.block_number()?.into()).await?;
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::TransactionAddresses).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema =
+            schemas.get(&Datatype::TransactionAddresses).ok_or(err("schema not provided"))?;
         process_appearances(response, columns, schema)
     }
 }
@@ -73,7 +66,7 @@ impl CollectByTransaction for TransactionAddresses {
     type Response = BlockLogsTraces;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let tx_hash = request.ethers_transaction_hash();
+        let tx_hash = request.ethers_transaction_hash()?;
 
         let tx_data = source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {
             CollectError::CollectError("could not find transaction data".to_string())
@@ -98,20 +91,21 @@ impl CollectByTransaction for TransactionAddresses {
             .logs;
 
         // traces
-        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()).await?;
+        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await?;
 
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::TransactionAddresses).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema =
+            schemas.get(&Datatype::TransactionAddresses).ok_or(err("schema not provided"))?;
         process_appearances(response, columns, schema)
     }
 }
 
 fn name(log: &Log) -> Option<&'static str> {
     let event = log.topics[0];
-    if event == *ERC20_TRANSFER {
+    if event == *EVENT_ERC20_TRANSFER {
         if log.data.len() > 0 {
             Some("erc20_transfer")
         } else if log.topics.len() == 4 {
@@ -163,7 +157,7 @@ impl TransactionAddresses {
             Action::Create(action) => {
                 self.process_address(action.from, "tx_from", block_number, tx_hash, schema);
             }
-            _ => panic!("invalid first tx trace"),
+            _ => {}
         }
 
         if let Some(Res::Create(result)) = &trace.result {
@@ -221,7 +215,7 @@ fn process_appearances(
     traces: BlockLogsTraces,
     columns: &mut TransactionAddresses,
     schema: &Table,
-) {
+) -> Result<()> {
     let (block, logs, traces) = traces;
     let mut logs_by_tx: HashMap<H256, Vec<Log>> = HashMap::new();
     for log in logs.into_iter() {
@@ -232,7 +226,7 @@ fn process_appearances(
 
     let (_block_number, block_author) = match (block.number, block.author) {
         (Some(number), Some(author)) => (number.as_u64(), author),
-        _ => return,
+        _ => return Ok(()),
     };
 
     let mut current_tx_hash = H256([0; 32]);
@@ -246,4 +240,6 @@ fn process_appearances(
             current_tx_hash = tx_hash;
         }
     }
+
+    Ok(())
 }

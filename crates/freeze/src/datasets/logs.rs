@@ -48,11 +48,12 @@ impl CollectByBlock for Logs {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.get_logs(&request.ethers_log_filter()).await
+        source.fetcher.get_logs(&request.ethers_log_filter()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        process_logs(response, columns, schemas.get(&Datatype::Logs).expect("schema not provided"))
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Logs).ok_or(err("schema not provided"))?;
+        process_logs(response, columns, schema)
     }
 }
 
@@ -61,17 +62,17 @@ impl CollectByTransaction for Logs {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.get_transaction_logs(request.transaction_hash()).await
+        source.fetcher.get_transaction_logs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Logs).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Logs).ok_or(err("schema not provided"))?;
         process_logs(response, columns, schema)
     }
 }
 
 /// process block into columns
-fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) {
+fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> Result<()> {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
@@ -96,7 +97,7 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) {
                     1 => store!(schema, columns, topic1, topic),
                     2 => store!(schema, columns, topic2, topic),
                     3 => store!(schema, columns, topic3, topic),
-                    _ => panic!("invalid number of topics"),
+                    _ => {}
                 }
             }
         }
@@ -109,4 +110,6 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) {
             columns.event_cols.entry(k).or_default().extend(v);
         });
     }
+
+    Ok(())
 }

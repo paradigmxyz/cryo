@@ -1,6 +1,6 @@
-use ethers::types::FilterBlockOption;
-
 use super::chunk_ops::ChunkData;
+use crate::ChunkError;
+use ethers::types::FilterBlockOption;
 
 /// Chunk of blocks
 #[derive(Debug, Clone)]
@@ -15,8 +15,8 @@ pub enum NumberChunk {
 impl ChunkData for NumberChunk {
     type Inner = u64;
 
-    fn format_item(value: Self::Inner) -> String {
-        format!("{:0>8}", value)
+    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
+        Ok(format!("{:0>8}", value))
     }
 
     fn size(&self) -> u64 {

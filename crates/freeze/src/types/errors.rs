@@ -3,6 +3,11 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use thiserror::Error;
 
+/// return basic CollectError from str slice
+pub fn err(message: &str) -> CollectError {
+    CollectError::CollectError(message.to_string())
+}
+
 /// Error related to running freeze function
 #[derive(Error, Debug)]
 pub enum FreezeError {
@@ -98,6 +103,10 @@ pub enum ParseError {
 /// Error performing a chunk operation
 #[derive(Error, Debug)]
 pub enum ChunkError {
+    /// Error related to parsing
+    #[error("Parsing error: {0}")]
+    ChunkError(String),
+
     /// Error in chunk specification
     #[error("Block chunk not valid")]
     InvalidChunk,

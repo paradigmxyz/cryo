@@ -56,7 +56,10 @@ pub(crate) fn write_report(
 ) -> Result<PathBuf, CollectError> {
     // determine version
     let cryo_version = get_cryo_version();
-    let serialized_summary = freeze_summary.map(|x| serialize_summary(x, query, sink));
+    let serialized_summary = match freeze_summary {
+        Some(x) => Some(serialize_summary(x, query, sink)?),
+        None => None,
+    };
     let report = FreezeReport {
         cryo_version,
         cli_command: env.cli_command.clone(),
@@ -78,35 +81,55 @@ pub(crate) fn write_report(
     Ok(path)
 }
 
+// fn serialize_summary(
+//     summary: &FreezeSummary,
+//     query: &Query,
+//     sink: &FileOutput,
+// ) -> Result<SerializedFreezeSummary, CollectError> { SerializedFreezeSummary { completed_paths:
+//   summary .completed .iter() .flat_map(|partition| { sink.get_paths(query,
+//   partition).values().cloned().collect::<Vec<_>>().into_iter() }) .collect(), errored_paths:
+//   summary .errored .iter() .filter_map(|partition_option| {
+//   partition_option.as_ref().map(|partition| { sink.get_paths(query, partition) .values()
+//   .cloned() .collect::<Vec<_>>() .into_iter() }) }) .flatten() .collect(), n_skipped:
+//   summary.skipped.len() as u64, }
+// }
+
 fn serialize_summary(
     summary: &FreezeSummary,
     query: &Query,
     sink: &FileOutput,
-) -> SerializedFreezeSummary {
-    SerializedFreezeSummary {
-        completed_paths: summary
-            .completed
-            .iter()
-            .flat_map(|partition| {
-                sink.get_paths(query, partition).values().cloned().collect::<Vec<_>>().into_iter()
+) -> Result<SerializedFreezeSummary, CollectError> {
+    let completed_paths: Vec<PathBuf> = summary
+        .completed
+        .iter()
+        .map(|partition| {
+            sink.get_paths(query, partition)
+                .map(|paths| paths.values().cloned().collect::<Vec<_>>())
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+
+    let errored_paths: Vec<PathBuf> = summary
+        .errored
+        .iter()
+        .filter_map(|partition_option| {
+            partition_option.as_ref().map(|partition| {
+                sink.get_paths(query, partition)
+                    .map(|paths| paths.values().cloned().collect::<Vec<_>>())
             })
-            .collect(),
-        errored_paths: summary
-            .errored
-            .iter()
-            .filter_map(|partition_option| {
-                partition_option.as_ref().map(|partition| {
-                    sink.get_paths(query, partition)
-                        .values()
-                        .cloned()
-                        .collect::<Vec<_>>()
-                        .into_iter()
-                })
-            })
-            .flatten()
-            .collect(),
+        })
+        .collect::<Result<Vec<_>, _>>()?
+        .into_iter()
+        .flatten()
+        .collect();
+
+    Ok(SerializedFreezeSummary {
+        completed_paths,
+        errored_paths,
         n_skipped: summary.skipped.len() as u64,
-    }
+    })
 }
 
 fn get_cryo_version() -> String {

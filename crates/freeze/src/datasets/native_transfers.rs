@@ -36,11 +36,11 @@ impl CollectByBlock for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block(request.block_number().into()).await
+        source.fetcher.trace_block(request.block_number()?.into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
         process_native_transfers(response, columns, schema)
     }
 }
@@ -50,17 +50,21 @@ impl CollectByTransaction for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
+        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
         process_native_transfers(response, columns, schema)
     }
 }
 
 /// process block into columns
-fn process_native_transfers(traces: Vec<Trace>, columns: &mut NativeTransfers, schema: &Table) {
+fn process_native_transfers(
+    traces: Vec<Trace>,
+    columns: &mut NativeTransfers,
+    schema: &Table,
+) -> Result<()> {
     for (transfer_index, trace) in traces.iter().enumerate() {
         columns.n_rows += 1;
         store!(schema, columns, block_number, trace.block_number as u32);
@@ -81,9 +85,11 @@ fn process_native_transfers(traces: Vec<Trace>, columns: &mut NativeTransfers, s
             }
             Action::Create(action) => {
                 store!(schema, columns, from_address, action.from.as_bytes().to_vec());
-                match &trace.result.as_ref().expect("missing trace result") {
-                    Res::Create(res) => store!(schema, columns, to_address, res.address.0.into()),
-                    _ => panic!("missing create result"),
+                match &trace.result.as_ref() {
+                    Some(Res::Create(res)) => {
+                        store!(schema, columns, to_address, res.address.0.into())
+                    }
+                    _ => store!(schema, columns, to_address, vec![0; 32]),
                 }
                 store!(schema, columns, value, action.value.to_vec_u8());
             }
@@ -99,4 +105,5 @@ fn process_native_transfers(traces: Vec<Trace>, columns: &mut NativeTransfers, s
             }
         }
     }
+    Ok(())
 }

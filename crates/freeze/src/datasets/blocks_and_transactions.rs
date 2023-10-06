@@ -30,14 +30,12 @@ impl CollectByBlock for BlocksAndTransactions {
         <Transactions as CollectByBlock>::extract(request, source, schemas).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
         let (block, _) = response.clone();
-        super::blocks::process_block(
-            block,
-            blocks,
-            schemas.get(&Datatype::Blocks).expect("schema undefined"),
-        );
-        <Transactions as CollectByBlock>::transform(response, transactions, schemas);
+        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+        super::blocks::process_block(block, blocks, schema)?;
+        <Transactions as CollectByBlock>::transform(response, transactions, schemas)?;
+        Ok(())
     }
 }

@@ -48,10 +48,10 @@ impl CollectByBlock for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_vm_traces(request.block_number() as u32).await
+        source.fetcher.trace_block_vm_traces(request.block_number()? as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_vm_traces(response, columns, schemas)
     }
 }
@@ -61,10 +61,10 @@ impl CollectByTransaction for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction_vm_traces(request.transaction_hash()).await
+        source.fetcher.trace_transaction_vm_traces(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_vm_traces(response, columns, schemas)
     }
 }
@@ -73,14 +73,15 @@ fn process_vm_traces(
     response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut VmTraces,
     schemas: &HashMap<Datatype, Table>,
-) {
+) -> Result<()> {
     let (block_number, tx, block_traces) = response;
-    let schema = schemas.get(&Datatype::BalanceDiffs).expect("missing schema");
+    let schema = schemas.get(&Datatype::VmTraces).ok_or(err("schema not provided"))?;
     for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
         if let Some(vm_trace) = block_trace.vm_trace {
             add_ops(vm_trace, schema, columns, block_number, tx.clone(), tx_pos);
         }
     }
+    Ok(())
 }
 
 fn add_ops(

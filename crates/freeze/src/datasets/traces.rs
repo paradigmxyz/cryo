@@ -48,11 +48,11 @@ impl CollectByBlock for Traces {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block(request.block_number().into()).await
+        source.fetcher.trace_block(request.block_number()?.into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
         process_traces(response, columns, schema)
     }
 }
@@ -62,16 +62,16 @@ impl CollectByTransaction for Traces {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
+        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
         process_traces(response, columns, schema)
     }
 }
 /// process block into columns
-fn process_traces(traces: Vec<Trace>, columns: &mut Traces, schema: &Table) {
+fn process_traces(traces: Vec<Trace>, columns: &mut Traces, schema: &Table) -> Result<()> {
     for trace in traces.iter() {
         columns.n_rows += 1;
         process_action(&trace.action, columns, schema);
@@ -95,6 +95,7 @@ fn process_traces(traces: Vec<Trace>, columns: &mut Traces, schema: &Table) {
         store!(schema, columns, block_hash, trace.block_hash.as_bytes().to_vec());
         store!(schema, columns, error, trace.error.clone());
     }
+    Ok(())
 }
 
 fn process_action(action: &Action, columns: &mut Traces, schema: &Table) {

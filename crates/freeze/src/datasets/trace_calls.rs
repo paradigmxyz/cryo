@@ -56,20 +56,21 @@ impl CollectByBlock for TraceCalls {
         let traces: Vec<TransactionTrace> = source
             .fetcher
             .trace_call2(
-                request.ethers_address(),
-                request.call_data(),
+                request.ethers_address()?,
+                request.call_data()?,
                 vec![TraceType::Trace],
-                Some(request.ethers_block_number()),
+                Some(request.ethers_block_number()?),
             )
             .await?
             .trace
             .ok_or(CollectError::CollectError("traces missing".to_string()))?;
-        Ok((request.block_number() as u32, request.contract(), request.call_data(), traces))
+        Ok((request.block_number()? as u32, request.contract()?, request.call_data()?, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::TraceCalls).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::TraceCalls).ok_or(err("schema not provided"))?;
         process_transaction_traces(response, columns, schema);
+        Ok(())
     }
 }
 

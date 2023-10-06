@@ -41,11 +41,11 @@ impl CollectByBlock for Contracts {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block(request.ethers_block_number()).await
+        source.fetcher.trace_block(request.ethers_block_number()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
         process_contracts(response, columns, schema)
     }
 }
@@ -55,17 +55,17 @@ impl CollectByTransaction for Contracts {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()).await
+        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Traces).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
         process_contracts(response, columns, schema)
     }
 }
 
 /// process block into columns
-fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table) {
+fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table) -> Result<()> {
     let traces = traces::filter_failed_traces(traces);
     let mut deployer = H160([0; 20]);
     let mut create_index = 0;
@@ -96,4 +96,5 @@ fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table
             store!(schema, columns, code, keccak256(result.code.clone()).into());
         }
     }
+    Ok(())
 }

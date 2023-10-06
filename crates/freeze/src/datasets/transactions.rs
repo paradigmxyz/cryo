@@ -17,7 +17,7 @@ pub struct Transactions {
     value: Vec<U256>,
     input: Vec<Vec<u8>>,
     gas_limit: Vec<u32>,
-    gas_used: Vec<u32>,
+    gas_used: Vec<Option<u32>>,
     gas_price: Vec<Option<u64>>,
     transaction_type: Vec<Option<u32>>,
     max_priority_fee_per_gas: Vec<Option<u64>>,
@@ -48,10 +48,10 @@ impl CollectByBlock for Transactions {
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let block = source
             .fetcher
-            .get_block_with_txs(request.block_number())
+            .get_block_with_txs(request.block_number()?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
-        let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
+        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         let gas_used = if schema.has_column("gas_used") {
             Some(source.get_txs_gas_used(&block).await?)
         } else {
@@ -60,8 +60,8 @@ impl CollectByBlock for Transactions {
         Ok((block, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         let (block, gas_used) = response;
         match gas_used {
             Some(gas_used) => {
@@ -75,6 +75,7 @@ impl CollectByBlock for Transactions {
                 }
             }
         }
+        Ok(())
     }
 }
 
@@ -83,8 +84,8 @@ impl CollectByTransaction for Transactions {
     type Response = (Transaction, Option<u32>);
 
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
-        let tx_hash = request.ethers_transaction_hash();
-        let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
+        let tx_hash = request.ethers_transaction_hash()?;
+        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         let transaction = source
             .fetcher
             .get_transaction(tx_hash)
@@ -104,10 +105,11 @@ impl CollectByTransaction for Transactions {
         Ok((transaction, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         let (transaction, gas_used) = response;
-        let schema = schemas.get(&Datatype::Transactions).expect("schema not provided");
+        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         process_transaction(transaction, gas_used, columns, schema);
+        Ok(())
     }
 }
 
@@ -127,7 +129,7 @@ fn process_transaction(
     store!(schema, columns, value, tx.value);
     store!(schema, columns, input, tx.input.to_vec());
     store!(schema, columns, gas_limit, tx.gas.as_u32());
-    store!(schema, columns, gas_used, gas_used.unwrap());
+    store!(schema, columns, gas_used, gas_used);
     store!(schema, columns, gas_price, tx.gas_price.map(|gas_price| gas_price.as_u64()));
     store!(schema, columns, transaction_type, tx.transaction_type.map(|value| value.as_u32()));
     store!(schema, columns, max_fee_per_gas, tx.max_fee_per_gas.map(|value| value.as_u64()));

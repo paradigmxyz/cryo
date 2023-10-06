@@ -1,3 +1,4 @@
+use crate::{err, CollectError};
 use ethers::prelude::*;
 
 /// represents parameters for a single rpc call
@@ -31,38 +32,38 @@ pub struct Params {
 
 impl Params {
     /// block number
-    pub fn block_number(&self) -> u64 {
-        self.block_number.expect("block_number not specified")
+    pub fn block_number(&self) -> Result<u64, CollectError> {
+        self.block_number.ok_or(err("block_number not specified"))
     }
 
     /// block range
-    pub fn block_range(&self) -> (u64, u64) {
-        self.block_range.expect("block_range not specified")
+    pub fn block_range(&self) -> Result<(u64, u64), CollectError> {
+        self.block_range.ok_or(err("block_range not specified"))
     }
 
     /// transaction
-    pub fn transaction_hash(&self) -> Vec<u8> {
-        self.transaction_hash.clone().expect("transaction not specified")
+    pub fn transaction_hash(&self) -> Result<Vec<u8>, CollectError> {
+        self.transaction_hash.clone().ok_or(err("transaction not specified"))
     }
 
     /// address
-    pub fn address(&self) -> Vec<u8> {
-        self.address.clone().expect("address not specified")
+    pub fn address(&self) -> Result<Vec<u8>, CollectError> {
+        self.address.clone().ok_or(err("address not specified"))
     }
 
     /// contract
-    pub fn contract(&self) -> Vec<u8> {
-        self.contract.clone().expect("contract not specified")
+    pub fn contract(&self) -> Result<Vec<u8>, CollectError> {
+        self.contract.clone().ok_or(err("contract not specified"))
     }
 
     /// slot
-    pub fn slot(&self) -> Vec<u8> {
-        self.slot.clone().expect("slot not specified")
+    pub fn slot(&self) -> Result<Vec<u8>, CollectError> {
+        self.slot.clone().ok_or(err("slot not specified"))
     }
 
     /// call_data
-    pub fn call_data(&self) -> Vec<u8> {
-        self.call_data.clone().expect("call_data not specified")
+    pub fn call_data(&self) -> Result<Vec<u8>, CollectError> {
+        self.call_data.clone().ok_or(err("call_data not specified"))
     }
 
     //
@@ -70,31 +71,31 @@ impl Params {
     //
 
     /// ethers block number
-    pub fn ethers_block_number(&self) -> BlockNumber {
-        self.block_number().into()
+    pub fn ethers_block_number(&self) -> Result<BlockNumber, CollectError> {
+        Ok(self.block_number()?.into())
     }
 
     /// ethers transaction
-    pub fn ethers_transaction_hash(&self) -> H256 {
-        H256::from_slice(&self.transaction_hash())
+    pub fn ethers_transaction_hash(&self) -> Result<H256, CollectError> {
+        Ok(H256::from_slice(&self.transaction_hash()?))
     }
 
     /// ethers address
-    pub fn ethers_address(&self) -> H160 {
-        H160::from_slice(&self.address())
+    pub fn ethers_address(&self) -> Result<H160, CollectError> {
+        Ok(H160::from_slice(&self.address()?))
     }
 
     /// ethers contract
-    pub fn ethers_contract(&self) -> H160 {
-        H160::from_slice(&self.contract())
+    pub fn ethers_contract(&self) -> Result<H160, CollectError> {
+        Ok(H160::from_slice(&self.contract()?))
     }
 
     /// log filter
-    pub fn ethers_log_filter(&self) -> Filter {
-        let (start, end) = self.block_range();
+    pub fn ethers_log_filter(&self) -> Result<Filter, CollectError> {
+        let (start, end) = self.block_range()?;
         let block_option =
             FilterBlockOption::Range { from_block: Some(start.into()), to_block: Some(end.into()) };
-        Filter {
+        let filter = Filter {
             block_option,
             address: self.address.clone().map(|x| ValueOrArray::Value(H160::from_slice(&x))),
             topics: [
@@ -103,6 +104,7 @@ impl Params {
                 self.topic2.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
                 self.topic3.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
             ],
-        }
+        };
+        Ok(filter)
     }
 }

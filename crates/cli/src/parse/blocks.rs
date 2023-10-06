@@ -135,12 +135,14 @@ pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
     fetcher: Arc<Fetcher<P>>,
     schemas: &HashMap<Datatype, Table>,
 ) -> Result<Vec<BlockChunk>, ParseError> {
-    let default_blocks = schemas
+    let default_blocks = match schemas
         .keys()
         .map(|datatype| datatype.default_blocks())
         .find(|blocks| !blocks.is_none())
-        .unwrap_or(Some("0:latest".to_string()))
-        .unwrap();
+    {
+        Some(Some(blocks)) => blocks,
+        _ => "0:latest".to_string(),
+    };
     let block_chunks = parse_block_inputs(&default_blocks, &fetcher).await?;
     postprocess_block_chunks(block_chunks, args, fetcher).await
 }

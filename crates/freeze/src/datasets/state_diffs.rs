@@ -35,10 +35,10 @@ impl CollectByBlock for StateDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
+        source.fetcher.trace_block_state_diffs(request.block_number()? as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_state_diffs(response, columns, schemas)
     }
 }
@@ -48,10 +48,10 @@ impl CollectByTransaction for StateDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
+        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_state_diffs(response, columns, schemas)
     }
 }
@@ -60,10 +60,11 @@ fn process_state_diffs(
     response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut StateDiffs,
     schemas: &HashMap<Datatype, Table>,
-) {
+) -> Result<()> {
     let StateDiffs(balances, codes, nonces, storages) = columns;
-    balance_diffs::process_balance_diffs(&response, balances, schemas);
-    code_diffs::process_code_diffs(&response, codes, schemas);
-    nonce_diffs::process_nonce_diffs(&response, nonces, schemas);
-    storage_diffs::process_storage_diffs(&response, storages, schemas);
+    balance_diffs::process_balance_diffs(&response, balances, schemas)?;
+    code_diffs::process_code_diffs(&response, codes, schemas)?;
+    nonce_diffs::process_nonce_diffs(&response, nonces, schemas)?;
+    storage_diffs::process_storage_diffs(&response, storages, schemas)?;
+    Ok(())
 }

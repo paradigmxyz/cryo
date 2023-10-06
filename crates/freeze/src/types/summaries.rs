@@ -79,23 +79,22 @@ pub(crate) fn print_cryo_intro(
 
     // print report path
     let report_path = if env.report && n_chunks_remaining > 0 {
-        let report_path =
-            super::reports::get_report_path(env, sink, true).expect("could not get report path");
-        // Some(report_path.strip_prefix("./").unwrap_or(&report_path))
-        let stripped_path: PathBuf = match report_path.strip_prefix("./") {
-            Ok(stripped) => PathBuf::from(stripped),
-            Err(_) => report_path,
-        };
-
-        Some(stripped_path)
+        match super::reports::get_report_path(env, sink, true) {
+            Ok(report_path) => {
+                let stripped_path: PathBuf = match report_path.strip_prefix("./") {
+                    Ok(stripped) => PathBuf::from(stripped),
+                    Err(_) => report_path,
+                };
+                Some(stripped_path)
+            }
+            _ => None,
+        }
     } else {
         None
     };
     match report_path {
         None => print_bullet("report file", "None"),
-        Some(path) => {
-            print_bullet("report file", path.to_str().expect("could not get report path"))
-        }
+        Some(path) => print_bullet("report file", path.to_str().unwrap_or("none")),
     };
 
     // print schemas
@@ -140,7 +139,7 @@ fn print_chunks(chunks: &[Partition]) {
 
 fn print_chunk<T: Ord + ValueToString>(dim: &str, dim_stats: &ChunkStats<T>) {
     if dim_stats.total_values == 1 {
-        print_bullet(dim, dim_stats.min_value_to_string().expect("could not get min value"));
+        print_bullet(dim, dim_stats.min_value_to_string().unwrap_or("none".to_string()));
     } else {
         println!("- {} chunks", dim);
         if let Some(min_value_string) = dim_stats.min_value_to_string() {
@@ -214,7 +213,10 @@ pub(crate) fn print_cryo_conclusion(
     };
 
     let dt_start: DateTime<Local> = env.t_start.into();
-    let t_end = env.t_end.expect("end time not recorded, use env.set_end_time()");
+    let t_end = match env.t_end {
+        Some(t_end) => t_end,
+        _ => return,
+    };
     let dt_data_done: DateTime<Local> = t_end.into();
     let duration = match t_end.duration_since(env.t_start) {
         Ok(duration) => duration,

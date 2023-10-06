@@ -37,16 +37,16 @@ impl CollectByBlock for Balances {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let address = request.address();
-        let block_number = request.block_number() as u32;
+        let address = request.address()?;
+        let block_number = request.block_number()? as u32;
         let balance =
             source.fetcher.get_balance(H160::from_slice(&address), block_number.into()).await?;
         Ok((block_number, None, address, balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Balances).expect("missing schema");
-        process_balance(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Balances).ok_or(err("schema not provided"))?;
+        process_balance(columns, response, schema)
     }
 }
 
@@ -55,25 +55,30 @@ impl CollectByTransaction for Balances {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let tx = request.transaction_hash();
+        let tx = request.transaction_hash()?;
         let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
-        let address = request.address();
+        let address = request.address()?;
         let balance =
             source.fetcher.get_balance(H160::from_slice(&address), block_number.into()).await?;
         Ok((block_number, Some(tx), address, balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Balances).expect("missing schema");
-        process_balance(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Balances).ok_or(err("schema not provided"))?;
+        process_balance(columns, response, schema)
     }
 }
 
-fn process_balance(columns: &mut Balances, data: BlockTxAddressOutput, schema: &Table) {
+fn process_balance(
+    columns: &mut Balances,
+    data: BlockTxAddressOutput,
+    schema: &Table,
+) -> Result<()> {
     let (block, tx, address, balance) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);
     store!(schema, columns, transaction_hash, tx);
     store!(schema, columns, address, address);
     store!(schema, columns, balance, balance);
+    Ok(())
 }

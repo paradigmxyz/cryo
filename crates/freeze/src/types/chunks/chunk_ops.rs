@@ -6,7 +6,7 @@ pub trait ChunkData: Sized {
     type Inner: Ord + ValueToString;
 
     /// format a single item in chunk
-    fn format_item(value: Self::Inner) -> String;
+    fn format_item(value: Self::Inner) -> Result<String, ChunkError>;
 
     /// size of chunk
     fn size(&self) -> u64;
@@ -24,7 +24,7 @@ pub trait ChunkData: Sized {
     fn stub(&self) -> Result<String, ChunkError> {
         match (self.min_value(), self.max_value()) {
             (Some(min), Some(max)) => {
-                Ok(format!("{}_to_{}", Self::format_item(min), Self::format_item(max),))
+                Ok(format!("{}_to_{}", Self::format_item(min)?, Self::format_item(max)?,))
             }
             _ => Err(ChunkError::InvalidChunk),
         }
@@ -120,7 +120,7 @@ impl ValueToString for Vec<u8> {
 impl<T: ChunkData> ChunkData for Vec<T> {
     type Inner = T::Inner;
 
-    fn format_item(value: Self::Inner) -> String {
+    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
         T::format_item(value)
     }
 
@@ -137,7 +137,7 @@ impl<T: ChunkData> ChunkData for Vec<T> {
     }
 
     fn values(&self) -> Vec<Self::Inner> {
-        panic!()
+        self.iter().flat_map(|chunk| chunk.values().into_iter()).collect::<Vec<Self::Inner>>()
     }
 
     fn stats(&self) -> ChunkStats<Self::Inner> {
@@ -154,7 +154,7 @@ impl<T: ChunkData> ChunkData for Vec<T> {
 impl<T: ChunkData> ChunkData for &[T] {
     type Inner = T::Inner;
 
-    fn format_item(value: Self::Inner) -> String {
+    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
         T::format_item(value)
     }
 
@@ -171,7 +171,7 @@ impl<T: ChunkData> ChunkData for &[T] {
     }
 
     fn values(&self) -> Vec<Self::Inner> {
-        panic!()
+        self.iter().flat_map(|chunk| chunk.values().into_iter()).collect::<Vec<Self::Inner>>()
     }
 
     fn stats(&self) -> ChunkStats<Self::Inner> {

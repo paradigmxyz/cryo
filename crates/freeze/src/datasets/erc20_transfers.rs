@@ -41,13 +41,13 @@ impl CollectByBlock for Erc20Transfers {
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
-        let filter = Filter { topics, ..request.ethers_log_filter() };
+        let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
         Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Erc20Transfers).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Erc20Transfers).ok_or(err("schema not provided"))?;
         process_erc20_transfers(response, columns, schema)
     }
 }
@@ -57,12 +57,12 @@ impl CollectByTransaction for Erc20Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let logs = source.fetcher.get_transaction_logs(request.transaction_hash()).await?;
+        let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc20_transfer).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Erc20Transfers).expect("schema not provided");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Erc20Transfers).ok_or(err("schema not provided"))?;
         process_erc20_transfers(response, columns, schema)
     }
 }
@@ -70,8 +70,13 @@ impl CollectByTransaction for Erc20Transfers {
 fn is_erc20_transfer(log: &Log) -> bool {
     log.topics.len() == 3 && log.data.len() == 32 && log.topics[0] == *EVENT_ERC20_TRANSFER
 }
+
 /// process block into columns
-fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20Transfers, schema: &Table) {
+fn process_erc20_transfers(
+    logs: Vec<Log>,
+    columns: &mut Erc20Transfers,
+    schema: &Table,
+) -> Result<()> {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
@@ -87,4 +92,5 @@ fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20Transfers, schema:
             store!(schema, columns, value, log.data.to_vec().as_slice().into());
         }
     }
+    Ok(())
 }

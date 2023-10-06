@@ -1,4 +1,4 @@
-use crate::{Datatype, Partition, Query};
+use crate::{CollectError, Datatype, Partition, Query};
 use std::{collections::HashMap, path::PathBuf};
 
 /// Options for file output
@@ -24,26 +24,35 @@ pub struct FileOutput {
 
 impl FileOutput {
     /// get output file paths
-    pub fn get_paths(&self, query: &Query, partition: &Partition) -> HashMap<Datatype, PathBuf> {
+    pub fn get_paths(
+        &self,
+        query: &Query,
+        partition: &Partition,
+    ) -> Result<HashMap<Datatype, PathBuf>, CollectError> {
         let mut paths = HashMap::new();
         for meta_datatype in query.datatypes.iter() {
             for datatype in meta_datatype.datatypes().into_iter() {
-                paths.insert(datatype, self.get_path(query, partition, datatype));
+                paths.insert(datatype, self.get_path(query, partition, datatype)?);
             }
         }
-        paths
+        Ok(paths)
     }
 
     /// get output file path
-    pub fn get_path(&self, query: &Query, partition: &Partition, datatype: Datatype) -> PathBuf {
-        format!(
+    pub fn get_path(
+        &self,
+        query: &Query,
+        partition: &Partition,
+        datatype: Datatype,
+    ) -> Result<PathBuf, CollectError> {
+        Ok(format!(
             "{}__{}__{}.{}",
             self.prefix.clone(),
             datatype.name(),
-            partition.label(&query.partitioned_by),
+            partition.label(&query.partitioned_by)?,
             self.format.as_str(),
         )
-        .into()
+        .into())
     }
 }
 

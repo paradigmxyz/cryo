@@ -1,4 +1,4 @@
-use super::collect_generic::fetch_partition;
+use super::collect_generic::{fetch_partition, join_partition_handles};
 use crate::{CollectError, Datatype, Params, Partition, Schemas, Source, Table, ToDataFrames};
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -18,8 +18,8 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     }
 
     /// transform block data response into column data
-    fn transform(_response: Self::Response, _columns: &mut Self, _schemas: &Schemas) {
-        panic!("CollectByBlock not implemented")
+    fn transform(_response: Self::Response, _columns: &mut Self, _schemas: &Schemas) -> Result<()> {
+        Err(CollectError::CollectError("CollectByBlock not implemented".to_string()))
     }
 
     /// collect data into DataFrame
@@ -30,8 +30,10 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     ) -> Result<HashMap<Datatype, DataFrame>> {
         let (sender, receiver) = mpsc::channel(1);
         let chain_id = source.chain_id;
-        fetch_partition(Self::extract, partition, source, schemas.clone(), sender).await?;
+        let handles =
+            fetch_partition(Self::extract, partition, source, schemas.clone(), sender).await?;
         let columns = Self::transform_channel(receiver, schemas).await?;
+        join_partition_handles(handles).await?;
         columns.create_dfs(schemas, chain_id)
     }
 
@@ -43,7 +45,7 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
         let mut columns = Self::default();
         while let Some(message) = receiver.recv().await {
             match message {
-                Ok(message) => Self::transform(message, &mut columns, schemas),
+                Ok(message) => Self::transform(message, &mut columns, schemas)?,
                 Err(e) => return Err(e),
             }
         }

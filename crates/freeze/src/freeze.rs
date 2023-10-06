@@ -27,7 +27,7 @@ pub async fn freeze(
     // query.is_valid()?;
 
     // get partitions
-    let (payloads, skipping) = get_payloads(query, source, sink, env);
+    let (payloads, skipping) = get_payloads(query, source, sink, env)?;
 
     // print summary
     if env.verbose {
@@ -71,12 +71,12 @@ fn get_payloads(
     source: &Source,
     sink: &FileOutput,
     env: &ExecutionEnv,
-) -> (Vec<PartitionPayload>, Vec<Partition>) {
+) -> Result<(Vec<PartitionPayload>, Vec<Partition>), CollectError> {
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
     for datatype in query.datatypes.clone().into_iter() {
         for partition in query.partitions.clone().into_iter() {
-            let paths = sink.get_paths(query, &partition);
+            let paths = sink.get_paths(query, &partition)?;
             if !sink.overwrite && paths.values().all(|path| path.exists()) {
                 skipping.push(partition);
                 continue
@@ -94,7 +94,7 @@ fn get_payloads(
             payloads.push(payload);
         }
     }
-    (payloads, skipping)
+    Ok((payloads, skipping))
 }
 
 async fn perform_freeze(

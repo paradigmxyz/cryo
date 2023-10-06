@@ -35,10 +35,10 @@ impl CollectByBlock for StorageDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_state_diffs(request.block_number() as u32).await
+        source.fetcher.trace_block_state_diffs(request.block_number()? as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_storage_diffs(&response, columns, schemas)
     }
 }
@@ -48,10 +48,10 @@ impl CollectByTransaction for StorageDiffs {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()).await
+        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         process_storage_diffs(&response, columns, schemas)
     }
 }
@@ -60,8 +60,8 @@ pub(crate) fn process_storage_diffs(
     response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut StorageDiffs,
     schemas: &Schemas,
-) {
-    let schema = schemas.get(&Datatype::StorageDiffs).expect("missing schema");
+) -> Result<()> {
+    let schema = schemas.get(&Datatype::StorageDiffs).ok_or(err("schema not provided"))?;
     let (block_number, tx, traces) = response;
     for (index, trace) in traces.iter().enumerate() {
         if let Some(ethers::types::StateDiff(state_diffs)) = &trace.state_diff {
@@ -70,6 +70,7 @@ pub(crate) fn process_storage_diffs(
             }
         }
     }
+    Ok(())
 }
 
 pub(crate) fn process_storage_diff(

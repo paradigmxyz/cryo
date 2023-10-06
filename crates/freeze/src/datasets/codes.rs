@@ -37,16 +37,16 @@ impl CollectByBlock for Codes {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let address = request.address();
-        let block_number = request.block_number() as u32;
+        let address = request.address()?;
+        let block_number = request.block_number()? as u32;
         let output =
             source.fetcher.get_code(H160::from_slice(&address), block_number.into()).await?;
         Ok((block_number, None, address, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Codes).expect("missing schema");
-        process_nonce(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Codes).ok_or(err("schema not provided"))?;
+        process_nonce(columns, response, schema)
     }
 }
 
@@ -55,25 +55,26 @@ impl CollectByTransaction for Codes {
     type Response = BlockTxAddressOutput;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let tx = request.transaction_hash();
+        let tx = request.transaction_hash()?;
         let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
-        let address = request.address();
+        let address = request.address()?;
         let output =
             source.fetcher.get_code(H160::from_slice(&address), block_number.into()).await?;
         Ok((block_number, Some(tx), address, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Codes).expect("missing schema");
-        process_nonce(columns, response, schema);
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Codes).ok_or(err("schema not provided"))?;
+        process_nonce(columns, response, schema)
     }
 }
 
-fn process_nonce(columns: &mut Codes, data: BlockTxAddressOutput, schema: &Table) {
+fn process_nonce(columns: &mut Codes, data: BlockTxAddressOutput, schema: &Table) -> Result<()> {
     let (block, tx, address, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);
     store!(schema, columns, transaction_hash, tx);
     store!(schema, columns, address, address);
     store!(schema, columns, code, output);
+    Ok(())
 }

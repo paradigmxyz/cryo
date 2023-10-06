@@ -89,7 +89,7 @@ macro_rules! with_series_u256 {
 
             // decimal128
             if $schema.u256_types.contains(&U256Type::Decimal128) {
-                panic!("DECIMAL128 not implemented")
+                return Err(CollectError::CollectError("DECIMAL128 not implemented".to_string()))
             }
         }
     };
@@ -170,7 +170,7 @@ macro_rules! with_series_option_u256 {
 
             // decimal128
             if $schema.u256_types.contains(&U256Type::Decimal128) {
-                panic!("DECIMAL128 not implemented")
+                return Err(CollectError::CollectError("DECIMAL128 not implemented".to_string()))
             }
         }
     };

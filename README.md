@@ -124,6 +124,14 @@ Standard types across tables:
 
 A future version of `cryo` will be able to bypass JSON-RPC and query node data directly.
 
+## Code Guide
+- Code is arranged into the following crates:
+    - `cryo_cli`: convert textual data into cryo function calls
+    - `cryo_freeze`: core cryo code
+    - `cryo_python`: cryo python adapter
+    - `cryo_to_df`: procedural macro for generating dataset definitions
+- Do not use panics (including `panic!`, `todo!`, `unwrap()`, and `expect()`) except in the following circumstances: tests, build scripts, lazy static blocks, and procedural macros
+
 ## CLI Options
 
 output of `cryo --help`:

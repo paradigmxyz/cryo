@@ -8,7 +8,7 @@ use cryo_freeze::{
     SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
 use ethers::prelude::*;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 type ChunkLabels = Vec<Option<String>>;
 
@@ -78,7 +78,11 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let time_dimension = parse_time_dimension(&chunk);
 
     let partition_by = match args.partition_by.clone() {
-        Some(dim_names) => dim_names.into_iter().map(Dim::from_name).collect(),
+        Some(dim_names) => {
+            let dims: Result<Vec<_>, _> =
+                dim_names.into_iter().map(|x| Dim::from_str(&x)).collect();
+            dims?
+        }
         None => {
             let multichunk_dims: Vec<Dim> = Dim::all_dims()
                 .iter()
@@ -92,8 +96,10 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
             }
         }
     };
-    let partitions = chunk.partition_with_labels(labels, partition_by.clone());
-    Ok((partitions, partition_by, time_dimension))
+    let partitions = chunk
+        .partition_with_labels(labels, partition_by.clone())
+        .map_err(|_| ParseError::ParseError("could not partition labels".to_string()));
+    Ok((partitions?, partition_by, time_dimension))
 }
 
 fn parse_time_dimension(partition: &Partition) -> TimeDimension {

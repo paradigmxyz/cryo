@@ -38,24 +38,25 @@ impl CollectByBlock for Erc20Balances {
     type Response = BlockErc20AddressBalance;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let signature: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");
+        let signature = FUNCTION_ERC20_BALANCE_OF.clone();
         let mut call_data = signature.clone();
-        call_data.extend(request.address());
-        let block_number = request.ethers_block_number();
-        let contract = request.ethers_contract();
+        call_data.extend(request.address()?);
+        let block_number = request.ethers_block_number()?;
+        let contract = request.ethers_contract()?;
         let balance = source.fetcher.call2(contract, call_data, block_number).await.ok();
         let balance = balance.map(|x| x.to_vec().as_slice().into());
-        Ok((request.block_number() as u32, request.contract(), request.address(), balance))
+        Ok((request.block_number()? as u32, request.contract()?, request.address()?, balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::Erc20Balances).expect("missing schema");
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::Erc20Balances).ok_or(err("schema not provided"))?;
         let (block, erc20, address, balance) = response;
         columns.n_rows += 1;
         store!(schema, columns, block_number, block);
         store!(schema, columns, erc20, erc20);
         store!(schema, columns, address, address);
         store!(schema, columns, balance, balance);
+        Ok(())
     }
 }
 

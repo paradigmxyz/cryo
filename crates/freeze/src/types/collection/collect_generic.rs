@@ -27,7 +27,7 @@ pub async fn fetch_partition<F, Fut, T>(
     source: Source,
     schemas: HashMap<Datatype, Table>,
     sender: mpsc::Sender<Result<T, CollectError>>,
-) -> Result<(), CollectError>
+) -> Result<Vec<tokio::task::JoinHandle<Result<(), CollectError>>>, CollectError>
 where
     F: Copy
         + Send
@@ -44,9 +44,27 @@ where
         let schemas = schemas.clone();
         let handle = task::spawn(async move {
             let result = f_request(rpc_params, source.clone(), schemas).await;
-            sender.send(result).await.expect("tokio mpsc send failure");
+            match sender.send(result).await {
+                Ok(_) => Ok(()),
+                Err(_) => Err(CollectError::CollectError("tokio mpsc send failure".to_string())),
+            }
         });
         handles.push(handle);
+    }
+
+    Ok(handles)
+}
+
+pub(crate) async fn join_partition_handles(
+    handles: Vec<tokio::task::JoinHandle<Result<(), CollectError>>>,
+) -> Result<(), CollectError> {
+    let results: Vec<_> = futures::future::join_all(handles).await;
+    for result in results {
+        match result {
+            Ok(Ok(())) => continue,
+            Ok(Err(e)) => return Err(e),
+            Err(join_err) => return Err(CollectError::TaskFailed(join_err)),
+        }
     }
     Ok(())
 }

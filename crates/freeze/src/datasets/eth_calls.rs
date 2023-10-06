@@ -57,18 +57,19 @@ impl CollectByBlock for EthCalls {
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let transaction = TransactionRequest {
-            to: Some(request.ethers_address().into()),
-            data: Some(request.call_data().into()),
+            to: Some(request.ethers_address()?.into()),
+            data: Some(request.call_data()?.into()),
             ..Default::default()
         };
-        let number = request.block_number();
+        let number = request.block_number()?;
         let output = source.fetcher.call(transaction, number.into()).await?;
-        Ok((number as u32, request.address(), request.call_data(), output.to_vec()))
+        Ok((number as u32, request.address()?, request.call_data()?, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) {
-        let schema = schemas.get(&Datatype::EthCalls).expect("missing schema");
-        process_eth_call(response, columns, schema)
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let schema = schemas.get(&Datatype::EthCalls).ok_or(err("schema not provided"))?;
+        process_eth_call(response, columns, schema);
+        Ok(())
     }
 }
 

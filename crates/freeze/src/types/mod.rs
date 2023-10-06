@@ -63,7 +63,7 @@ pub use sources::{Fetcher, RateLimiter, Source};
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};
 pub use summaries::FreezeSummary;
 
-pub use errors::{ChunkError, CollectError, FileError, FreezeError, ParseError};
+pub use errors::{err, ChunkError, CollectError, FileError, FreezeError, ParseError};
 
 pub use collection::*;
 pub use execution::{ExecutionEnv, ExecutionEnvBuilder};
