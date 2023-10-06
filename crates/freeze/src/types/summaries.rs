@@ -5,14 +5,17 @@ use colored::Colorize;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, ColumnType, Datatype, Dim,
-    ExecutionEnv, FileOutput, Partition, Query, Source, Table,
+    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, CollectError, ColumnType, Datatype,
+    Dim, ExecutionEnv, FileOutput, Partition, Query, Source, Table,
 };
 use std::path::PathBuf;
 
 const TITLE_R: u8 = 0;
 const TITLE_G: u8 = 225;
 const TITLE_B: u8 = 0;
+const ERROR_R: u8 = 225;
+const ERROR_G: u8 = 0;
+const ERROR_B: u8 = 0;
 
 /// summary of a freeze
 #[derive(Debug, Default)]
@@ -22,12 +25,19 @@ pub struct FreezeSummary {
     /// partitions skipped
     pub skipped: Vec<Partition>,
     /// partitions errored
-    pub errored: Vec<Option<Partition>>,
+    pub errored: Vec<(Option<Partition>, CollectError)>,
 }
 
 pub(crate) fn print_header<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
     let underline = "─".repeat(header_str.len()).truecolor(TITLE_R, TITLE_G, TITLE_B);
+    println!("{}", header_str);
+    println!("{}", underline);
+}
+
+pub(crate) fn print_header_error<A: AsRef<str>>(header: A) {
+    let header_str = header.as_ref().white().bold();
+    let underline = "─".repeat(header_str.len()).truecolor(ERROR_R, ERROR_G, ERROR_B);
     println!("{}", header_str);
     println!("{}", underline);
 }
@@ -120,7 +130,7 @@ fn print_chunks(chunks: &[Partition]) {
     for (dim, dim_stats) in vec![
         ("transaction", stats.transactions),
         ("call_data", stats.call_datas),
-        ("addresse", stats.addresses),
+        ("address", stats.addresses),
         ("contract", stats.contracts),
         ("to_address", stats.to_addresses),
         ("slot", stats.slots),
@@ -141,7 +151,7 @@ fn print_chunk<T: Ord + ValueToString>(dim: &str, dim_stats: &ChunkStats<T>) {
     if dim_stats.total_values == 1 {
         print_bullet(dim, dim_stats.min_value_to_string().unwrap_or("none".to_string()));
     } else {
-        println!("- {} chunks", dim);
+        print_bullet(format!("{} values", dim), "");
         if let Some(min_value_string) = dim_stats.min_value_to_string() {
             print_bullet_indent("min", min_value_string, 4);
         };
@@ -184,13 +194,10 @@ fn print_schema(name: &Datatype, schema: &Table) {
     } else {
         println!("sorting disabled for {}", name.name());
     }
-    let other_columns: String = name
-        .column_types()
-        .keys()
-        .copied()
-        .filter(|x| !schema.has_column(x))
-        .collect::<Vec<_>>()
-        .join(", ");
+    let other_columns =
+        name.column_types().keys().copied().filter(|x| !schema.has_column(x)).collect::<Vec<_>>();
+    let other_columns =
+        if other_columns.is_empty() { "[none]".to_string() } else { other_columns.join(", ") };
     println!("\nother available columns: {}", other_columns);
 }
 
@@ -199,9 +206,29 @@ pub(crate) fn print_cryo_conclusion(
     query: &Query,
     env: &ExecutionEnv,
 ) {
-    println!("...done");
+    if freeze_summary.errored.is_empty() {
+        println!("...done")
+    } else {
+        println!("...done (errors in {} chunks)", freeze_summary.errored.len())
+    };
     println!();
     println!();
+
+    if !freeze_summary.errored.is_empty() {
+        print_header_error("error summary");
+        let mut error_counts: HashMap<String, usize> = HashMap::new();
+        for (_partition, error) in freeze_summary.errored.iter() {
+            *error_counts.entry(error.to_string()).or_insert(0) += 1;
+        }
+        for (error, count) in error_counts.iter().take(2) {
+            println!("- {} ({}x)", error, count);
+        }
+        if error_counts.len() > 20 {
+            println!("...")
+        }
+        println!();
+        println!();
+    }
 
     let new_env = match env.t_end {
         None => Some(env.clone().set_end_time()),

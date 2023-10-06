@@ -24,14 +24,18 @@ impl ChunkData for BinaryChunk {
     }
 
     fn size(&self) -> u64 {
-        match (self.min_value(), self.max_value()) {
-            (Some(min), Some(max)) => {
-                let min_int = ethers::types::U256::from_big_endian(&min);
-                let max_int = ethers::types::U256::from_big_endian(&max);
-                (max_int - min_int).as_u64()
-            }
-            _ => 0,
+        match self {
+            BinaryChunk::Values(values) => values.len() as u64,
         }
+
+        // match (self.min_value(), self.max_value()) {
+        //     (Some(min), Some(max)) => {
+        //         let min_int = ethers::types::U256::from_big_endian(&min);
+        //         let max_int = ethers::types::U256::from_big_endian(&max);
+        //         (max_int - min_int).as_u64()
+        //     }
+        //     e => 0
+        // }
     }
 
     fn min_value(&self) -> Option<Self::Inner> {

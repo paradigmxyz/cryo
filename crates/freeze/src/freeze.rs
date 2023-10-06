@@ -1,5 +1,5 @@
 use crate::{
-    collect_partition, dataframes, reports, summaries, CollectError, Datatype, ExecutionEnv,
+    collect_partition, dataframes, err, reports, summaries, CollectError, Datatype, ExecutionEnv,
     FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source, Table, TimeDimension,
 };
 use futures::{stream::FuturesUnordered, StreamExt};
@@ -23,8 +23,8 @@ pub async fn freeze(
     sink: &FileOutput,
     env: &ExecutionEnv,
 ) -> Result<Option<FreezeSummary>, CollectError> {
-    // // check validity of query
-    // query.is_valid()?;
+    // check validity of query
+    query.is_valid()?;
 
     // get partitions
     let (payloads, skipping) = get_payloads(query, source, sink, env)?;
@@ -41,7 +41,11 @@ pub async fn freeze(
 
     // check if empty
     if payloads.is_empty() {
-        return Ok(Some(FreezeSummary { ..Default::default() }))
+        let results = FreezeSummary { skipped: skipping, ..Default::default() };
+        if env.verbose {
+            summaries::print_cryo_conclusion(&results, query, env)
+        }
+        return Ok(Some(results))
     }
 
     // create initial report
@@ -114,33 +118,19 @@ async fn perform_freeze(
         ));
     }
 
-    let mut errors = Vec::new();
-
     // aggregate results
     let mut completed = Vec::new();
     let mut errored = Vec::new();
     while let Some(result) = futures.next().await {
         match result {
             Ok((partition, Ok(()))) => completed.push(partition),
-            Ok((partition, Err(e))) => {
-                errors.push(e);
-                errored.push(Some(partition))
-            }
-            Err(_e) => errored.push(None),
+            Ok((partition, Err(e))) => errored.push((Some(partition), e)),
+            Err(_e) => errored.push((None, err("error joining chunks"))),
         }
     }
 
     if let Some(bar) = &env.bar {
         bar.finish_and_clear();
-    }
-
-    if !errors.is_empty() {
-        println!();
-        println!("ERRORS");
-        for error in errors.iter() {
-            println!("{}", error)
-        }
-        println!();
     }
 
     FreezeSummary { completed, errored, skipped }

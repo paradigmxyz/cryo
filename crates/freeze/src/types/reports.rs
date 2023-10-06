@@ -114,7 +114,7 @@ fn serialize_summary(
     let errored_paths: Vec<PathBuf> = summary
         .errored
         .iter()
-        .filter_map(|partition_option| {
+        .filter_map(|(partition_option, _error)| {
             partition_option.as_ref().map(|partition| {
                 sink.get_paths(query, partition)
                     .map(|paths| paths.values().cloned().collect::<Vec<_>>())
