@@ -60,11 +60,7 @@ impl CollectByTransaction for NativeTransfers {
 }
 
 /// process block into columns
-fn process_native_transfers(
-    traces: Vec<Trace>,
-    columns: &mut NativeTransfers,
-    schema: &Table,
-) {
+fn process_native_transfers(traces: Vec<Trace>, columns: &mut NativeTransfers, schema: &Table) {
     for (transfer_index, trace) in traces.iter().enumerate() {
         columns.n_rows += 1;
         store!(schema, columns, block_number, trace.block_number as u32);

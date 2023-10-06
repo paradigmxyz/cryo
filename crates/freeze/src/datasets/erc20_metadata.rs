@@ -74,4 +74,3 @@ impl CollectByBlock for Erc20Metadata {
 impl CollectByTransaction for Erc20Metadata {
     type Response = ();
 }
-

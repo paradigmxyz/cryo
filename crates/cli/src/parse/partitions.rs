@@ -4,8 +4,8 @@ use super::{
 };
 use crate::args::Args;
 use cryo_freeze::{
-    AddressChunk, CallDataChunk, Dim, Datatype, Fetcher, ParseError, Partition,
-    PartitionLabels, SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
+    AddressChunk, CallDataChunk, Datatype, Dim, Fetcher, ParseError, Partition, PartitionLabels,
+    SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
 use ethers::prelude::*;
 use std::{collections::HashMap, sync::Arc};

@@ -112,7 +112,7 @@ fn ensure_included_columns(
         for schema in schemas.values() {
             if schema.has_column(column) {
                 in_a_schema = true;
-                break;
+                break
             }
         }
 
@@ -124,7 +124,7 @@ fn ensure_included_columns(
         return Err(ParseError::ParseError(format!(
             "datatypes do not support these columns: {:?}",
             unknown_columns
-        )));
+        )))
     }
     Ok(())
 }
@@ -140,7 +140,7 @@ fn ensure_excluded_columns(
         for datatype in schemas.keys() {
             if datatype.column_types().contains_key(&column.as_str()) {
                 in_a_schema = true;
-                break;
+                break
             }
         }
 
@@ -152,7 +152,7 @@ fn ensure_excluded_columns(
         return Err(ParseError::ParseError(format!(
             "datatypes do not support these columns: {:?}",
             unknown_columns
-        )));
+        )))
     }
     Ok(())
 }

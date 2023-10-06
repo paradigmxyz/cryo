@@ -48,7 +48,7 @@ impl Query {
                 return Err(CollectError::CollectError(format!(
                     "need to specify {}",
                     missing.join(", ")
-                )));
+                )))
             }
         }
         Ok(())

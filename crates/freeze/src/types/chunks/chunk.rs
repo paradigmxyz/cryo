@@ -65,13 +65,3 @@ impl Chunk {
         Ok(paths)
     }
 }
-
-impl From<Vec<Chunk>> for Chunk {
-    fn from(chunks: Vec<Chunk>) -> Self {
-        match chunks.len() {
-            0 => panic!("invalid empty chunk range"),
-            1 => chunks.into_iter().next().unwrap(),
-            _ => todo!("not implemented yet"),
-        }
-    }
-}

@@ -1,5 +1,4 @@
-use crate::ColumnType;
-use crate::{CollectError, Datatype, Table, Dim};
+use crate::{CollectError, ColumnType, Datatype, Dim, Table};
 use polars::prelude::*;
 use std::collections::HashMap;
 

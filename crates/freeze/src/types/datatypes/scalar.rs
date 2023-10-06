@@ -1,8 +1,4 @@
-use crate::datasets::*;
-use crate::define_datatypes;
-use crate::types::columns::ColumnData;
-use crate::ColumnType;
-use crate::*;
+use crate::{datasets::*, define_datatypes, types::columns::ColumnData, ColumnType, *};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -62,4 +58,3 @@ impl std::str::FromStr for Datatype {
             .ok_or_else(|| ParseError::ParseError(format!("no datatype matches input: {}", s)))
     }
 }
-

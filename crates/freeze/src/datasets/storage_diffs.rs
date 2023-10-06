@@ -17,7 +17,6 @@ pub struct StorageDiffs {
     to_value: Vec<Vec<u8>>,
 }
 
-
 #[async_trait::async_trait]
 impl Dataset for StorageDiffs {
     fn name() -> &'static str {

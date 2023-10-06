@@ -1,8 +1,6 @@
-use crate::Datatype;
-use crate::*;
-use std::collections::HashMap;
+use crate::{types::collection::*, Datatype, *};
 use polars::prelude::*;
-use crate::types::collection::*;
+use std::collections::HashMap;
 
 type Result<T> = ::core::result::Result<T, CollectError>;
 

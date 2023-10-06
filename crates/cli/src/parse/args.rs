@@ -20,8 +20,6 @@ pub async fn parse_args(
 
 /// parse command string
 #[allow(dead_code)]
-pub async fn parse_str(
-    command: &str,
-) -> Result<Args, ParseError> {
+pub async fn parse_str(command: &str) -> Result<Args, ParseError> {
     Ok(Args::parse_from(command.split_whitespace()))
 }

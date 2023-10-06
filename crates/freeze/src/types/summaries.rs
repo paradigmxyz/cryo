@@ -220,7 +220,7 @@ pub(crate) fn print_cryo_conclusion(
         Ok(duration) => duration,
         Err(_e) => {
             println!("error computing system time, aborting");
-            return;
+            return
         }
     };
     let seconds = duration.as_secs();

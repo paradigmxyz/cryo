@@ -39,7 +39,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
-
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter() };

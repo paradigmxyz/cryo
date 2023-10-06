@@ -23,8 +23,8 @@ pub async fn freeze(
     sink: &FileOutput,
     env: &ExecutionEnv,
 ) -> Result<Option<FreezeSummary>, CollectError> {
-    // check validity of query
-    query.is_valid()?;
+    // // check validity of query
+    // query.is_valid()?;
 
     // get partitions
     let (payloads, skipping) = get_payloads(query, source, sink, env);

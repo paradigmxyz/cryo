@@ -108,7 +108,6 @@ pub fn _collect(
     no_verbose: bool,
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
-
     if let Some(command) = command {
         pyo3_asyncio::tokio::future_into_py(py, async move {
             match run_execute(command).await {
@@ -173,7 +172,7 @@ pub fn _collect(
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"));
+        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
     }
 }
 

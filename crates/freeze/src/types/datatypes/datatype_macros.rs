@@ -133,4 +133,3 @@ macro_rules! define_datatypes {
         }
     };
 }
-

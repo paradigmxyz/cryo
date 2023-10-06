@@ -105,7 +105,6 @@ pub fn _freeze(
     no_verbose: bool,
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
-
     if let Some(command) = command {
         freeze_command(py, command)
     } else if let Some(datatype) = datatype {
@@ -164,9 +163,9 @@ pub fn _freeze(
                     // let paths = PyDict::new(py);
                     // for (key, values) in &result.paths {
                     //     let key = key.dataset().name();
-                    //     let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
-                    //     paths.set_item(key, values).unwrap();
-                    // }
+                    //     let values: Vec<&str> = values.iter().filter_map(|p|
+                    // p.to_str()).collect();     paths.set_item(key,
+                    // values).unwrap(); }
                     // let paths = paths.to_object(py);
 
                     let dict = [
@@ -183,7 +182,7 @@ pub fn _freeze(
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatypes or command"));
+        return Err(PyErr::new::<PyTypeError, _>("must specify datatypes or command"))
     }
 }
 
@@ -214,4 +213,3 @@ fn freeze_command(py: Python<'_>, command: String) -> PyResult<&PyAny> {
         }
     })
 }
-

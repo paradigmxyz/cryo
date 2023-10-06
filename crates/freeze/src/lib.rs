@@ -13,6 +13,6 @@ mod freeze;
 mod types;
 
 pub use collect::collect;
+pub use datasets::*;
 pub use freeze::freeze;
 pub use types::*;
-pub use datasets::*;
