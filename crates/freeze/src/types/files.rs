@@ -45,14 +45,14 @@ impl FileOutput {
         partition: &Partition,
         datatype: Datatype,
     ) -> Result<PathBuf, CollectError> {
-        Ok(format!(
+        let filename = format!(
             "{}__{}__{}.{}",
             self.prefix.clone(),
             datatype.name(),
             partition.label(&query.partitioned_by)?,
             self.format.as_str(),
-        )
-        .into())
+        );
+        Ok(std::path::Path::new(&self.output_dir).join(filename))
     }
 }
 
