@@ -114,7 +114,7 @@ impl CollectByTransaction for Transactions {
     }
 }
 
-fn process_transaction(
+pub(crate) fn process_transaction(
     tx: Transaction,
     gas_used: Option<u32>,
     columns: &mut Transactions,

@@ -1,4 +1,4 @@
-use crate::{types::collection::*, Datatype, *};
+use crate::{types::collection::*, Datatype, *, datasets::transactions};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -36,6 +36,36 @@ impl CollectByBlock for BlocksAndTransactions {
         let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
         super::blocks::process_block(block, blocks, schema)?;
         <Transactions as CollectByBlock>::transform(response, transactions, schemas)?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl CollectByTransaction for BlocksAndTransactions {
+    type Response = (
+        <Blocks as CollectByTransaction>::Response,
+        <Transactions as CollectByTransaction>::Response,
+    );
+
+    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+        let (tx, gas_used) =
+            <Transactions as CollectByTransaction>::extract(request, source.clone(), schemas).await?;
+        let block_number = tx.block_number.ok_or(err("no block number for tx"))?.as_u64();
+        let block = source
+            .fetcher
+            .get_block(block_number)
+            .await?
+            .ok_or(CollectError::CollectError("block not found".to_string()))?;
+        Ok((block, (tx, gas_used)))
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        let BlocksAndTransactions(blocks, transactions) = columns;
+        let (block, (tx, gas_used)) = response;
+        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+        super::blocks::process_block(block, blocks, schema)?;
+        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
+        transactions::process_transaction(tx, gas_used, transactions, schema);
         Ok(())
     }
 }

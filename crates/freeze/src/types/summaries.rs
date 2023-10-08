@@ -235,7 +235,6 @@ pub(crate) fn print_cryo_conclusion(
         }
         println!();
         println!();
-        println!("{:?}", error_counts);
     }
 
     let new_env = match env.t_end {

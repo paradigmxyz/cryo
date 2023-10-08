@@ -91,8 +91,6 @@ macro_rules! define_datatypes {
             }
         }
 
-        const TX_ERROR: &str = "datatype cannot collect by transaction";
-
         /// collect by block
         pub async fn collect_by_block(
             datatype: MetaDatatype,
@@ -145,11 +143,16 @@ macro_rules! define_datatypes {
                     )*
                     }
                 },
-                MetaDatatype::Multi(datatype) => match datatype {
-                    MultiDatatype::BlocksAndTransactions => {
-                        Err(CollectError::CollectError(TX_ERROR.to_string()))?
+                MetaDatatype::Multi(datatype) => {
+                    let inner_request_size = None;
+                    match datatype {
+                        MultiDatatype::BlocksAndTransactions => {
+                            BlocksAndTransactions::collect_by_transaction(partition, source, &schemas, inner_request_size)
+                        }
+                        MultiDatatype::StateDiffs => {
+                            StateDiffs::collect_by_transaction(partition, source, &schemas, inner_request_size)
+                        }
                     }
-                    MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
                 },
             };
             task.await

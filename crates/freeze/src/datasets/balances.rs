@@ -53,21 +53,7 @@ impl CollectByBlock for Balances {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Balances {
-    type Response = BlockTxAddressOutput;
-
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        let tx = request.transaction_hash()?;
-        let block_number = source.fetcher.get_transaction_block_number(tx.clone()).await?;
-        let address = request.address()?;
-        let balance =
-            source.fetcher.get_balance(H160::from_slice(&address), block_number.into()).await?;
-        Ok((block_number, Some(tx), address, balance))
-    }
-
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Balances).ok_or(err("schema not provided"))?;
-        process_balance(columns, response, schema)
-    }
+    type Response = ();
 }
 
 fn process_balance(

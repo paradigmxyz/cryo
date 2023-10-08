@@ -83,7 +83,9 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
                 .filter(|dim| labels.dim_labeled(dim) && chunk.n_chunks(dim) > 1)
                 .cloned()
                 .collect();
-            if multichunk_dims.is_empty() {
+            if args.txs.is_some() {
+                vec![Dim::TransactionHash]
+            } else if multichunk_dims.is_empty() {
                 vec![Dim::BlockNumber]
             } else {
                 multichunk_dims
@@ -92,7 +94,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     };
     let partitions = chunk
         .partition_with_labels(labels, partition_by.clone())
-        .map_err(|_| ParseError::ParseError("could not partition labels".to_string()));
+        .map_err(|e| ParseError::ParseError(format!("could not partition labels ({})", e)));
     Ok((partitions?, partition_by, time_dimension))
 }
 
