@@ -4,6 +4,7 @@ use crate::{
 };
 use futures::{stream::FuturesUnordered, StreamExt};
 use std::{collections::HashMap, path::PathBuf};
+use tokio::sync::Semaphore;
 
 type PartitionPayload = (
     TimeDimension,
@@ -14,6 +15,7 @@ type PartitionPayload = (
     FileOutput,
     HashMap<Datatype, Table>,
     ExecutionEnv,
+    Option<std::sync::Arc<Semaphore>>,
 );
 
 /// collect data and output as files
@@ -54,7 +56,7 @@ pub async fn freeze(
     };
 
     // perform collection
-    let results = perform_freeze(env, payloads, skipping).await;
+    let results = freeze_partitions(env, payloads, skipping).await;
 
     // create summary
     if env.verbose {
@@ -76,6 +78,9 @@ fn get_payloads(
     sink: &FileOutput,
     env: &ExecutionEnv,
 ) -> Result<(Vec<PartitionPayload>, Vec<Partition>), CollectError> {
+    let semaphore = source
+        .max_concurrent_chunks
+        .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
     for datatype in query.datatypes.clone().into_iter() {
@@ -94,6 +99,7 @@ fn get_payloads(
                 sink.clone(),
                 query.schemas.clone(),
                 env.clone(),
+                semaphore.clone(),
             );
             payloads.push(payload);
         }
@@ -101,7 +107,7 @@ fn get_payloads(
     Ok((payloads, skipping))
 }
 
-async fn perform_freeze(
+async fn freeze_partitions(
     env: &ExecutionEnv,
     payloads: Vec<PartitionPayload>,
     skipped: Vec<Partition>,
@@ -137,8 +143,18 @@ async fn perform_freeze(
 }
 
 async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError> {
-    let (time_dimension, partition, datatype, paths, source, sink, schemas, env) = payload;
-    let dfs = collect_partition(time_dimension, datatype, partition, source, schemas).await?;
+    let (time_dim, partition, datatype, paths, source, sink, schemas, env, semaphore) = payload;
+
+    // acquire chunk semaphore
+    let _permit = match &semaphore {
+        Some(semaphore) => Some(semaphore.acquire().await),
+        None => None,
+    };
+
+    // collect data
+    let dfs = collect_partition(time_dim, datatype, partition, source, schemas).await?;
+
+    // write dataframes to disk
     for (datatype, mut df) in dfs {
         let path = paths.get(&datatype).ok_or_else(|| {
             CollectError::CollectError("could not get path for datatype".to_string())
@@ -146,8 +162,11 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
         let result = dataframes::df_to_file(&mut df, path, &sink);
         result.map_err(|_| CollectError::CollectError("error writing file".to_string()))?
     }
+
+    // update progress bar
     if let Some(bar) = env.bar {
         bar.inc(1);
     }
+
     Ok(())
 }

@@ -197,7 +197,7 @@ macro_rules! label_partition {
                                 "number of chunks should equal number of labels for dim"
                                     .to_string(),
                             ))]
-                            .into_iter();
+                            .into_iter()
                         }
                         dls2.clone()
                     }
@@ -242,7 +242,7 @@ impl Partition {
         if stored_pieces.len() != partitioned_by.len() {
             return Err(CollectError::CollectError(
                 "self.label length must match number of partition dimensions".to_string(),
-            ));
+            ))
         }
 
         let mut pieces = Vec::new();

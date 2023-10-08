@@ -23,7 +23,7 @@ pub struct Source {
     /// number of blocks per log request
     pub inner_request_size: u64,
     /// Maximum chunks collected concurrently
-    pub max_concurrent_chunks: u64,
+    pub max_concurrent_chunks: Option<u64>,
 }
 
 /// Wrapper over `Provider<P>` that adds concurrency and rate limiting controls

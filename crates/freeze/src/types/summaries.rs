@@ -80,7 +80,12 @@ pub(crate) fn print_cryo_intro(
             query.partitions.len().separate_with_commas()
         ),
     );
-    print_bullet("max concurrent chunks", source.max_concurrent_chunks.separate_with_commas());
+    match source.max_concurrent_chunks {
+        Some(max_concurrent_chunks) => {
+            print_bullet("max concurrent chunks", max_concurrent_chunks.separate_with_commas())
+        }
+        None => print_bullet("max concurrent chunks:", "[none]"),
+    };
     if query.schemas.contains_key(&Datatype::Logs) {
         print_bullet("inner request size", source.inner_request_size.to_string());
     };

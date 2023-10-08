@@ -103,11 +103,7 @@ pub(crate) fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(
     let mut chunk_start = *start;
     loop {
         let chunk_end: u64 = chunk_start + chunk_size - 1;
-        let chunk_end = if chunk_end > *end {
-            *end
-        } else {
-            chunk_end
-        };
+        let chunk_end = if chunk_end > *end { *end } else { chunk_end };
         chunks.push((chunk_start, chunk_end));
         if chunk_end == *end {
             break
