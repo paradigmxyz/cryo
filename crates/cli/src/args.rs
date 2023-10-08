@@ -157,11 +157,11 @@ pub struct Args {
     pub address: Option<Vec<String>>,
 
     /// To Address
-    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
     pub to_address: Option<Vec<String>>,
 
     /// From Address
-    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
     pub from_address: Option<Vec<String>>,
 
     /// [eth_calls] Call data to use for eth_calls
