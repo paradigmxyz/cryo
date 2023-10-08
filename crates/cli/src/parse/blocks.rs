@@ -222,6 +222,12 @@ async fn parse_block_token<P: JsonRpcClient>(
                 }
             };
 
+            let end_block = if second_ref != &"latest" && second_ref != &"" {
+                end_block - 1
+            } else {
+                end_block
+            };
+
             if end_block <= start_block {
                 Err(ParseError::ParseError(
                     "end_block should not be less than start_block".to_string(),
