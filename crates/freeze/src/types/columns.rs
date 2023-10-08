@@ -79,6 +79,11 @@ pub trait Dataset: Sync + Send {
         None
     }
 
+    /// whether to use block ranges instead of individual blocks
+    fn use_block_ranges() -> bool {
+        false
+    }
+
     /// input arg aliases
     fn arg_aliases() -> Option<HashMap<String, String>> {
         None

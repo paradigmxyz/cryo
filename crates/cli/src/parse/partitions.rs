@@ -34,10 +34,6 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let (topic2_labels, topic2s) = parse_topic(&args.topic2, "topic2")?;
     let (topic3_labels, topic3s) = parse_topic(&args.topic3, "topic3")?;
 
-    // ignore block ranges
-    let block_ranges = None;
-    let block_range_labels = None;
-
     // set default blocks
     let block_numbers = if block_numbers.is_none() && transactions.is_none() {
         Some(blocks::get_default_block_chunks(args, fetcher, schemas).await?)
@@ -49,7 +45,6 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let chunk = Partition {
         label: None,
         block_numbers,
-        block_ranges,
         transactions,
         addresses,
         contracts,
@@ -63,7 +58,6 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     };
     let labels = PartitionLabels {
         block_number_labels,
-        block_range_labels,
         transaction_hash_labels,
         call_data_labels,
         address_labels,

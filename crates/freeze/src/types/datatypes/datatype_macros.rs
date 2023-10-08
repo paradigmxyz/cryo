@@ -62,6 +62,13 @@ macro_rules! define_datatypes {
                 }
             }
 
+            /// whether to use block ranges instead of individual blocks
+            pub fn use_block_ranges(&self) -> bool {
+                match *self {
+                    $(Datatype::$datatype => $datatype::use_block_ranges(),)*
+                }
+            }
+
             /// aliases of datatype
             pub fn arg_aliases(&self) -> HashMap<String, String> {
                 match *self {
@@ -94,14 +101,21 @@ macro_rules! define_datatypes {
             schemas: HashMap<Datatype, Table>,
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {
-                MetaDatatype::Scalar(datatype) => match datatype {
+                MetaDatatype::Scalar(datatype) => {
+                    let inner_request_size = if datatype.use_block_ranges() {
+                        Some(source.inner_request_size)
+                    } else {
+                        None
+                    };
+                    match datatype {
                     $(
-                        Datatype::$datatype => $datatype::collect_by_block(partition, source, &schemas),
+                        Datatype::$datatype => $datatype::collect_by_block(partition, source, &schemas, inner_request_size),
                     )*
+                    }
                 },
                 MetaDatatype::Multi(datatype) => match datatype {
                     MultiDatatype::BlocksAndTransactions => {
-                        BlocksAndTransactions::collect_by_block(partition, source, &schemas)
+                        BlocksAndTransactions::collect_by_block(partition, source, &schemas, None)
                     }
                     MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
                 },
@@ -117,10 +131,17 @@ macro_rules! define_datatypes {
             schemas: HashMap<Datatype, Table>,
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {
-                MetaDatatype::Scalar(datatype) => match datatype {
+                MetaDatatype::Scalar(datatype) => {
+                    let inner_request_size = if datatype.use_block_ranges() {
+                        Some(source.inner_request_size)
+                    } else {
+                        None
+                    };
+                    match datatype {
                     $(
-                        Datatype::$datatype => $datatype::collect_by_transaction(partition, source, &schemas),
+                        Datatype::$datatype => $datatype::collect_by_transaction(partition, source, &schemas, inner_request_size),
                     )*
+                    }
                 },
                 MetaDatatype::Multi(datatype) => match datatype {
                     MultiDatatype::BlocksAndTransactions => {

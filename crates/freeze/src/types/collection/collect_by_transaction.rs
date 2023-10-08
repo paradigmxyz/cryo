@@ -27,11 +27,19 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
         partition: Partition,
         source: Source,
         schemas: &HashMap<Datatype, Table>,
+        inner_request_size: Option<u64>,
     ) -> Result<HashMap<Datatype, DataFrame>> {
         let (sender, receiver) = mpsc::channel(1);
         let chain_id = source.chain_id;
-        let handles =
-            fetch_partition(Self::extract, partition, source, schemas.clone(), sender).await?;
+        let handles = fetch_partition(
+            Self::extract,
+            partition,
+            source,
+            inner_request_size,
+            schemas.clone(),
+            sender,
+        )
+        .await?;
         let columns = Self::transform_channel(receiver, schemas).await?;
         join_partition_handles(handles).await?;
         columns.create_dfs(schemas, chain_id)

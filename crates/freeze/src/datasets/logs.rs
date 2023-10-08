@@ -39,6 +39,10 @@ impl Dataset for Logs {
     fn optional_parameters() -> Vec<Dim> {
         vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::Topic3]
     }
+
+    fn use_block_ranges() -> bool {
+        true
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;

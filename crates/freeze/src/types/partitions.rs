@@ -1,6 +1,6 @@
 use crate::{
-    err, AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats, CollectError, Params,
-    SlotChunk, TopicChunk, TransactionChunk,
+    err, types::chunks::Subchunk, AddressChunk, BlockChunk, CallDataChunk, ChunkData, ChunkStats,
+    CollectError, Params, SlotChunk, TopicChunk, TransactionChunk,
 };
 
 /// a dimension of chunking
@@ -8,8 +8,6 @@ use crate::{
 pub enum Dim {
     /// Block number dimension
     BlockNumber,
-    /// Block range dimension
-    BlockRange,
     /// Transaction hash dimension
     TransactionHash,
     /// CallData dimension
@@ -37,7 +35,6 @@ impl Dim {
     pub fn all_dims() -> Vec<Dim> {
         vec![
             Dim::BlockNumber,
-            Dim::BlockRange,
             Dim::TransactionHash,
             Dim::CallData,
             Dim::Address,
@@ -55,7 +52,6 @@ impl Dim {
     pub fn plural_name(&self) -> &str {
         match self {
             Dim::BlockNumber => "blocks",
-            Dim::BlockRange => "blocks",
             Dim::TransactionHash => "transactions",
             Dim::CallData => "call_datas",
             Dim::Address => "addresses",
@@ -97,7 +93,6 @@ impl std::fmt::Display for Dim {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let as_str = match self {
             Dim::BlockNumber => "block",
-            Dim::BlockRange => "block",
             Dim::TransactionHash => "transaction",
             Dim::CallData => "call_data",
             Dim::Address => "address",
@@ -120,8 +115,6 @@ pub struct Partition {
     pub label: Option<Vec<Option<String>>>,
     /// block numbers
     pub block_numbers: Option<Vec<BlockChunk>>,
-    /// block ranges
-    pub block_ranges: Option<Vec<BlockChunk>>,
     /// transactions
     pub transactions: Option<Vec<TransactionChunk>>,
     /// call datas
@@ -204,7 +197,7 @@ macro_rules! label_partition {
                                 "number of chunks should equal number of labels for dim"
                                     .to_string(),
                             ))]
-                            .into_iter()
+                            .into_iter();
                         }
                         dls2.clone()
                     }
@@ -249,7 +242,7 @@ impl Partition {
         if stored_pieces.len() != partitioned_by.len() {
             return Err(CollectError::CollectError(
                 "self.label length must match number of partition dimensions".to_string(),
-            ))
+            ));
         }
 
         let mut pieces = Vec::new();
@@ -259,7 +252,6 @@ impl Partition {
                 None => match dim {
                     Dim::BlockNumber => chunks_to_name(&self.block_numbers)?,
                     Dim::TransactionHash => chunks_to_name(&self.transactions)?,
-                    Dim::BlockRange => chunks_to_name(&self.block_ranges)?,
                     Dim::CallData => chunks_to_name(&self.call_datas)?,
                     Dim::Address => chunks_to_name(&self.addresses)?,
                     Dim::Contract => chunks_to_name(&self.contracts)?,
@@ -287,7 +279,6 @@ impl Partition {
         for chunk_dimension in partition_by.iter() {
             outputs = match chunk_dimension {
                 Dim::BlockNumber => partition!(outputs, block_numbers)?,
-                Dim::BlockRange => partition!(outputs, block_ranges)?,
                 Dim::TransactionHash => partition!(outputs, transactions)?,
                 Dim::Address => partition!(outputs, addresses)?,
                 Dim::Contract => partition!(outputs, contracts)?,
@@ -315,7 +306,6 @@ impl Partition {
             let dim_labels = labels.dim(chunk_dimension);
             outputs = match chunk_dimension {
                 Dim::BlockNumber => label_partition!(outputs, dim_labels, block_numbers)?,
-                Dim::BlockRange => label_partition!(outputs, dim_labels, block_ranges)?,
                 Dim::TransactionHash => label_partition!(outputs, dim_labels, transactions)?,
                 Dim::Address => label_partition!(outputs, dim_labels, addresses)?,
                 Dim::Contract => label_partition!(outputs, dim_labels, contracts)?,
@@ -332,13 +322,20 @@ impl Partition {
     }
 
     /// iterate through param sets of Partition
-    pub fn param_sets(&self) -> Result<Vec<Params>, CollectError> {
+    pub fn param_sets(&self, inner_request_size: Option<u64>) -> Result<Vec<Params>, CollectError> {
+        let dims = self.dims();
+        let include_block_ranges = inner_request_size.is_some() && dims.contains(&Dim::BlockNumber);
+
         let mut outputs = vec![Params::default()];
         for dimension in self.dims().iter() {
             let mut new = Vec::new();
             match dimension {
                 Dim::BlockNumber => {
-                    parametrize!(outputs, new, self.block_numbers, block_number)
+                    if !include_block_ranges {
+                        parametrize!(outputs, new, self.block_numbers, block_number)
+                    } else {
+                        new = outputs
+                    }
                 }
                 Dim::TransactionHash => {
                     parametrize!(outputs, new, self.transactions, transaction_hash)
@@ -352,30 +349,41 @@ impl Partition {
                 Dim::Topic1 => parametrize!(outputs, new, self.topic1s, topic1),
                 Dim::Topic2 => parametrize!(outputs, new, self.topic2s, topic2),
                 Dim::Topic3 => parametrize!(outputs, new, self.topic3s, topic3),
-                Dim::BlockRange => {
-                    for output in outputs.into_iter() {
-                        let chunks = self
-                            .block_ranges
-                            .as_ref()
-                            .ok_or(CollectError::CollectError("mising block ranges".to_string()))?;
-                        for chunk in chunks.iter() {
-                            match chunk {
-                                BlockChunk::Range(start, end) => new.push(Params {
-                                    block_range: Some((*start, *end)),
-                                    ..output.clone()
-                                }),
-                                _ => {
-                                    return Err(CollectError::CollectError(
-                                        "not a BlockRange".to_string(),
-                                    ))
-                                }
+            }
+            outputs = new;
+        }
+
+        // partition blocks by inner request size
+        let outputs = match (inner_request_size, self.block_numbers.clone(), include_block_ranges) {
+            (_, _, false) => outputs,
+            (Some(inner_request_size), Some(block_numbers), true) => {
+                let mut block_ranges = Vec::new();
+                for block_chunk in block_numbers.subchunk_by_size(&inner_request_size) {
+                    match block_chunk {
+                        BlockChunk::Range(start, end) => block_ranges.push(Some((start, end))),
+                        BlockChunk::Numbers(values) => {
+                            for value in values.iter() {
+                                block_ranges.push(Some((*value, *value)))
                             }
                         }
                     }
                 }
+
+                let mut new_outputs = Vec::new();
+                for output in outputs.iter() {
+                    for block_range in block_ranges.iter() {
+                        new_outputs.push(Params { block_range: *block_range, ..output.clone() })
+                    }
+                }
+                new_outputs
             }
-            outputs = new;
-        }
+            _ => {
+                return Err(CollectError::CollectError(
+                    "insufficient block information present in partition".to_string(),
+                ))
+            }
+        };
+
         Ok(outputs)
     }
 
@@ -384,9 +392,6 @@ impl Partition {
         let mut dims = Vec::new();
         if self.block_numbers.is_some() {
             dims.push(Dim::BlockNumber)
-        };
-        if self.block_ranges.is_some() {
-            dims.push(Dim::BlockRange)
         };
         if self.transactions.is_some() {
             dims.push(Dim::TransactionHash)
@@ -425,7 +430,6 @@ impl Partition {
     pub fn n_chunks(&self, dim: &Dim) -> usize {
         match dim {
             Dim::BlockNumber => self.block_numbers.as_ref().map(|x| x.len()).unwrap_or(0),
-            Dim::BlockRange => self.block_ranges.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::TransactionHash => self.transactions.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::Address => self.addresses.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::Contract => self.contracts.as_ref().map(|x| x.len()).unwrap_or(0),
@@ -444,7 +448,6 @@ impl Partition {
         let chunk = self.clone();
         PartitionStats {
             block_numbers: chunk.block_numbers.map(|c| c.stats()),
-            block_ranges: chunk.block_ranges.map(|c| c.stats()),
             transactions: chunk.transactions.map(|c| c.stats()),
             call_datas: chunk.call_datas.map(|c| c.stats()),
             addresses: chunk.addresses.map(|c| c.stats()),
@@ -472,8 +475,6 @@ pub fn meta_chunks_stats(chunks: &[Partition]) -> PartitionStats {
 pub struct PartitionStats {
     /// block numbers stats
     pub block_numbers: Option<ChunkStats<u64>>,
-    /// block ranges stats
-    pub block_ranges: Option<ChunkStats<u64>>,
     /// transactions stats
     pub transactions: Option<ChunkStats<Vec<u8>>>,
     /// call datas stats
@@ -512,7 +513,6 @@ impl PartitionStats {
     fn fold(self, other: PartitionStats) -> PartitionStats {
         PartitionStats {
             block_numbers: fold(self.block_numbers, other.block_numbers),
-            block_ranges: fold(self.block_ranges, other.block_ranges),
             transactions: fold(self.transactions, other.transactions),
             call_datas: fold(self.call_datas, other.call_datas),
             addresses: fold(self.addresses, other.addresses),
@@ -531,8 +531,6 @@ impl PartitionStats {
 pub struct PartitionLabels {
     /// block number labels
     pub block_number_labels: Option<Vec<Option<String>>>,
-    /// block range labels
-    pub block_range_labels: Option<Vec<Option<String>>>,
     /// transaction hash labels
     pub transaction_hash_labels: Option<Vec<Option<String>>>,
     /// call data labels
@@ -559,7 +557,6 @@ impl PartitionLabels {
     fn dim(&self, dim: &Dim) -> Option<Vec<Option<String>>> {
         match dim {
             Dim::BlockNumber => self.block_number_labels.clone(),
-            Dim::BlockRange => self.block_range_labels.clone(),
             Dim::TransactionHash => self.transaction_hash_labels.clone(),
             Dim::CallData => self.call_data_labels.clone(),
             Dim::Address => self.address_labels.clone(),

@@ -29,7 +29,11 @@ impl Dataset for Erc721Transfers {
     }
 
     fn optional_parameters() -> Vec<Dim> {
-        vec![Dim::BlockRange, Dim::Contract]
+        vec![Dim::Contract]
+    }
+
+    fn use_block_ranges() -> bool {
+        true
     }
 }
 

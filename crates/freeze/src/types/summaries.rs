@@ -121,7 +121,7 @@ pub(crate) fn print_cryo_intro(
 
 fn print_chunks(chunks: &[Partition]) {
     let stats = crate::types::partitions::meta_chunks_stats(chunks);
-    for (dim, dim_stats) in [("block", stats.block_numbers), ("block", stats.block_ranges)].iter() {
+    for (dim, dim_stats) in [("block", stats.block_numbers)].iter() {
         if let Some(dim_stats) = dim_stats {
             print_chunk(dim, dim_stats)
         }

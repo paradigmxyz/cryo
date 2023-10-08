@@ -25,6 +25,7 @@ pub async fn fetch_partition<F, Fut, T>(
     f_request: F,
     partition: Partition,
     source: Source,
+    inner_request_size: Option<u64>,
     schemas: HashMap<Datatype, Table>,
     sender: mpsc::Sender<Result<T, CollectError>>,
 ) -> Result<Vec<tokio::task::JoinHandle<Result<(), CollectError>>>, CollectError>
@@ -38,7 +39,7 @@ where
     T: Send + 'static,
 {
     let mut handles = Vec::new();
-    for rpc_params in partition.param_sets()?.into_iter() {
+    for rpc_params in partition.param_sets(inner_request_size)?.into_iter() {
         let sender = sender.clone();
         let source = source.clone();
         let schemas = schemas.clone();

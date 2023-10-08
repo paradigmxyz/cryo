@@ -2,7 +2,7 @@ use crate::{err, CollectError};
 use ethers::prelude::*;
 
 /// represents parameters for a single rpc call
-#[derive(Default, Clone)]
+#[derive(Default, Clone, Debug)]
 pub struct Params {
     /// block number
     pub block_number: Option<u64>,

@@ -99,12 +99,21 @@ impl NumberChunk {
 }
 
 pub(crate) fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
-    let mut chunks = Vec::new();
+    let mut chunks: Vec<(u64, u64)> = Vec::new();
     let mut chunk_start = *start;
-    while chunk_start < *end {
-        let chunk_end = (chunk_start + chunk_size).min(*end) - 1;
+    loop {
+        let chunk_end: u64 = chunk_start + chunk_size - 1;
+        let chunk_end = if chunk_end > *end {
+            *end
+        } else {
+            chunk_end
+        };
         chunks.push((chunk_start, chunk_end));
-        chunk_start += chunk_size;
+        if chunk_end == *end {
+            break
+        } else {
+            chunk_start += chunk_size;
+        }
     }
     chunks
 }
