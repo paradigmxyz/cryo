@@ -16,6 +16,7 @@ pub struct Erc20Transfers {
     from_address: Vec<Vec<u8>>,
     to_address: Vec<Vec<u8>>,
     value: Vec<U256>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

@@ -12,6 +12,7 @@ pub struct Erc20Metadata {
     name: Vec<Option<String>>,
     symbol: Vec<Option<String>>,
     decimals: Vec<Option<u32>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

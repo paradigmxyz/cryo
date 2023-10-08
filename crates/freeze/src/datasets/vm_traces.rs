@@ -20,6 +20,7 @@ pub struct VmTraces {
     storage_val: Vec<Option<Vec<u8>>>,
     op: Vec<String>,
     n_rows: usize,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

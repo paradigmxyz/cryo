@@ -20,6 +20,7 @@ pub struct Logs {
     topic3: Vec<Option<Vec<u8>>>,
     data: Vec<Vec<u8>>,
     event_cols: HashMap<String, Vec<Token>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

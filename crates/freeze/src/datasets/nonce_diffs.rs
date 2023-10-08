@@ -14,6 +14,7 @@ pub struct NonceDiffs {
     address: Vec<Vec<u8>>,
     from_value: Vec<U256>,
     to_value: Vec<U256>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

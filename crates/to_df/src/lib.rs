@@ -34,6 +34,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
         .iter()
         .filter(|(name, _)| format!("{}", quote!(#name)) != "n_rows")
         .filter(|(_, value)| format!("{}", quote!(#value)).starts_with("Vec"))
+        .filter(|(name, _)| name != "chain_id")
         .map(|(name, ty)| {
             let macro_name = match quote!(#ty).to_string().as_str() {
                 "Vec < Vec < u8 > >" => syn::Ident::new("with_series_binary", Span::call_site()),
@@ -92,7 +93,11 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
                 #(#field_processing)*
 
-                with_series!(cols, "chain_id", vec![chain_id; self.n_rows as usize], schema);
+                if self.chain_id.len() == 0 {
+                    with_series!(cols, "chain_id", vec![chain_id; self.n_rows as usize], schema);
+                } else {
+                    with_series!(cols, "chain_id", self.chain_id, schema);
+                }
 
                 let df = DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)?;
                 let mut output = HashMap::new();

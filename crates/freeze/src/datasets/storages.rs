@@ -13,6 +13,7 @@ pub struct Storages {
     address: Vec<Vec<u8>>,
     slot: Vec<Vec<u8>>,
     value: Vec<Vec<u8>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

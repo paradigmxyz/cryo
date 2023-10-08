@@ -225,14 +225,15 @@ pub(crate) fn print_cryo_conclusion(
         for (_partition, error) in freeze_summary.errored.iter() {
             *error_counts.entry(error.to_string()).or_insert(0) += 1;
         }
-        for (error, count) in error_counts.iter().take(2) {
+        for (error, count) in error_counts.iter().take(10) {
             println!("- {} ({}x)", error, count);
         }
-        if error_counts.len() > 20 {
+        if error_counts.len() > 10 {
             println!("...")
         }
         println!();
         println!();
+        println!("{:?}", error_counts);
     }
 
     let new_env = match env.t_end {

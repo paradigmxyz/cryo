@@ -22,6 +22,7 @@ pub struct Blocks {
     total_difficulty: Vec<Option<U256>>,
     size: Vec<Option<u32>>,
     base_fee_per_gas: Vec<Option<u64>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

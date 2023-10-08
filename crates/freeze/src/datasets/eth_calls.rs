@@ -14,6 +14,7 @@ pub struct EthCalls {
     call_data_hash: Vec<Vec<u8>>,
     output_data: Vec<Vec<u8>>,
     output_data_hash: Vec<Vec<u8>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

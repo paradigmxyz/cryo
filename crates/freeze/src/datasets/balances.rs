@@ -12,6 +12,7 @@ pub struct Balances {
     transaction_hash: Vec<Option<Vec<u8>>>,
     address: Vec<Vec<u8>>,
     balance: Vec<U256>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

@@ -11,6 +11,7 @@ pub struct Erc721Metadata {
     erc721: Vec<Vec<u8>>,
     name: Vec<Option<String>>,
     symbol: Vec<Option<String>>,
+    chain_id: Vec<u64>,
 }
 
 impl Dataset for Erc721Metadata {

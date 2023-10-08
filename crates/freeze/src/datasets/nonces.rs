@@ -12,6 +12,7 @@ pub struct Nonces {
     transaction_hash: Vec<Option<Vec<u8>>>,
     address: Vec<Vec<u8>>,
     nonce: Vec<u64>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

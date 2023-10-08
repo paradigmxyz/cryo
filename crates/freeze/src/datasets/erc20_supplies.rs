@@ -11,6 +11,7 @@ pub struct Erc20Supplies {
     block_number: Vec<u32>,
     erc20: Vec<Vec<u8>>,
     total_supply: Vec<Option<U256>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

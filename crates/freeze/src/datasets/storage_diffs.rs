@@ -15,6 +15,7 @@ pub struct StorageDiffs {
     slot: Vec<Vec<u8>>,
     from_value: Vec<Vec<u8>>,
     to_value: Vec<Vec<u8>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

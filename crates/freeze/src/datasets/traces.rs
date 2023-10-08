@@ -28,6 +28,7 @@ pub struct Traces {
     block_number: Vec<u32>,
     block_hash: Vec<Vec<u8>>,
     error: Vec<Option<String>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

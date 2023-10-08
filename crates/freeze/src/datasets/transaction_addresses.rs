@@ -12,6 +12,7 @@ pub struct TransactionAddresses {
     transaction_hash: Vec<Vec<u8>>,
     address: Vec<Vec<u8>>,
     relationship: Vec<String>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

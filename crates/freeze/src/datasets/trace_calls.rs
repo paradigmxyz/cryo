@@ -29,6 +29,7 @@ pub struct TraceCalls {
     error: Vec<Option<String>>,
     tx_to_address: Vec<Vec<u8>>,
     tx_call_data: Vec<Vec<u8>>,
+    chain_id: Vec<u64>,
 }
 
 impl Dataset for TraceCalls {

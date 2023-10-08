@@ -12,6 +12,7 @@ pub struct Codes {
     transaction_hash: Vec<Option<Vec<u8>>>,
     address: Vec<Vec<u8>>,
     code: Vec<Vec<u8>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

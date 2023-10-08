@@ -12,6 +12,7 @@ pub struct Erc20Balances {
     erc20: Vec<Vec<u8>>,
     address: Vec<Vec<u8>>,
     balance: Vec<Option<U256>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

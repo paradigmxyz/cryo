@@ -22,6 +22,7 @@ pub struct Transactions {
     transaction_type: Vec<Option<u32>>,
     max_priority_fee_per_gas: Vec<Option<u64>>,
     max_fee_per_gas: Vec<Option<u64>>,
+    chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

@@ -14,6 +14,7 @@ pub struct BalanceDiffs {
     address: Vec<Vec<u8>>,
     from_value: Vec<U256>,
     to_value: Vec<U256>,
+    chain_id: Vec<u64>,
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
