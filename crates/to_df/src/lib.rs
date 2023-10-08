@@ -51,26 +51,45 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
 
-    fn map_type_to_column_type(ty: &syn::Type) -> proc_macro2::TokenStream {
+    fn map_type_to_column_type(ty: &syn::Type) -> Option<proc_macro2::TokenStream> {
         match quote!(#ty).to_string().as_str() {
-            "Vec < Option < Vec < u8 > > >" => quote! { ColumnType::Binary },
-            "Vec < String >" => quote! { ColumnType::String },
-            "Vec < u32 >" => quote! { ColumnType::UInt32 },
-            "Vec < Vec < u8 > >" => quote! { ColumnType::Binary },
-            _ => quote! { ColumnType::Binary },
+            "Vec < u32 >" => Some(quote! { ColumnType::UInt32 }),
+            "Vec < u64 >" => Some(quote! { ColumnType::UInt64 }),
+            "Vec < U256 >" => Some(quote! { ColumnType::UInt256 }),
+            "Vec < i32 >" => Some(quote! { ColumnType::Int32 }),
+            "Vec < i64 >" => Some(quote! { ColumnType::Int64 }),
+            "Vec < f32 >" => Some(quote! { ColumnType::Float32 }),
+            "Vec < f64 >" => Some(quote! { ColumnType::Float64 }),
+            "Vec < String >" => Some(quote! { ColumnType::String }),
+            "Vec < Vec < u8 > >" => Some(quote! { ColumnType::Binary }),
+
+            "Vec < Option < u32 > >" => Some(quote! { ColumnType::UInt32 }),
+            "Vec < Option < u64 > >" => Some(quote! { ColumnType::UInt64 }),
+            "Vec < Option < U256 > >" => Some(quote! { ColumnType::UInt256 }),
+            "Vec < Option < i32 > >" => Some(quote! { ColumnType::Int32 }),
+            "Vec < Option < i64 > >" => Some(quote! { ColumnType::Int64 }),
+            "Vec < Option < f32 > >" => Some(quote! { ColumnType::Float32 }),
+            "Vec < Option < f64 > >" => Some(quote! { ColumnType::Float64 }),
+            "Vec < Option < String > >" => Some(quote! { ColumnType::String }),
+            "Vec < Option < Vec < u8 > > >" => Some(quote! { ColumnType::Binary }),
+            _ => None,
+            // _ => quote! {ColumnType::Binary},
         }
     }
 
-    let column_types: Vec<_> = field_names_and_types
-        .iter()
-        .map(|(name, ty)| {
-            let column_type = map_type_to_column_type(ty);
+    let datatype_str =
+        datatypes[0].segments.iter().map(|seg| seg.ident.to_string()).collect::<Vec<_>>();
+    let datatype_str = datatype_str.iter().last().unwrap();
+
+    let mut column_types = Vec::new();
+    for (name, ty) in field_names_and_types.iter() {
+        if let Some(column_type) = map_type_to_column_type(ty) {
             let field_name_str = format!("{}", quote!(#name));
-            quote! {
-                (#field_name_str, #column_type)
-            }
-        })
-        .collect();
+            column_types.push(quote! { (#field_name_str, #column_type) });
+        } else if name != "n_rows" && name != "event_cols" {
+            println!("invalid column type for {name} in table {}", datatype_str);
+        }
+    }
 
     let expanded = quote! {
         #input

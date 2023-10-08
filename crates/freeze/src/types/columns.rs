@@ -19,7 +19,10 @@ pub trait ColumnData: Default + crate::Dataset {
 
     /// default columns extracted for Dataset
     fn base_default_columns() -> Vec<&'static str> {
-        Self::column_types().keys().cloned().collect()
+        match Self::default_columns() {
+            Some(columns) => columns,
+            None => Self::column_types().keys().cloned().collect(),
+        }
     }
 
     /// default blocks for dataset
