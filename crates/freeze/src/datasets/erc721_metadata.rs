@@ -38,7 +38,7 @@ impl CollectByBlock for Erc721Metadata {
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let block_number = request.ethers_block_number()?;
-        let address = request.ethers_address()?;
+        let address = request.ethers_contract()?;
 
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
@@ -50,7 +50,7 @@ impl CollectByBlock for Erc721Metadata {
         let output = source.fetcher.call2(address, call_data, block_number).await?;
         let symbol = String::from_utf8(output.to_vec()).ok();
 
-        Ok((request.block_number()? as u32, request.address()?, name, symbol))
+        Ok((request.block_number()? as u32, request.contract()?, name, symbol))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {

@@ -45,7 +45,7 @@ impl CollectByBlock for Contracts {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
+        let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
         process_contracts(response, columns, schema)
     }
 }
@@ -59,7 +59,7 @@ impl CollectByTransaction for Contracts {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
+        let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
         process_contracts(response, columns, schema)
     }
 }
@@ -92,8 +92,8 @@ fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table
             store!(schema, columns, factory, create.from.as_bytes().into());
             store!(schema, columns, init_code, create.init.to_vec());
             store!(schema, columns, code, result.code.to_vec());
-            store!(schema, columns, code, keccak256(create.init.clone()).into());
-            store!(schema, columns, code, keccak256(result.code.clone()).into());
+            store!(schema, columns, code_hash, keccak256(create.init.clone()).into());
+            store!(schema, columns, init_code_hash, keccak256(result.code.clone()).into());
         }
     }
     Ok(())

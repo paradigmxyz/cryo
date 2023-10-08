@@ -111,6 +111,8 @@ pub(crate) fn print_cryo_intro(
         None => print_bullet("report file", "None"),
         Some(path) => print_bullet("report file", path.to_str().unwrap_or("none")),
     };
+    let dt_start: DateTime<Local> = env.t_start.into();
+    print_bullet("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
 
     // print schemas
     print_schemas(&query.schemas);

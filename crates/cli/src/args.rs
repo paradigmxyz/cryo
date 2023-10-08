@@ -178,7 +178,7 @@ pub struct Args {
 
     /// [slots] Slots
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
-    pub slots: Option<Vec<String>>,
+    pub slot: Option<Vec<String>>,
 
     /// [logs] filter logs by contract address
     #[arg(long, help_heading = "Dataset-specific Options")]

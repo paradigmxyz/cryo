@@ -29,7 +29,11 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
 
     // process concurrency info
     let max_concurrent_requests = args.max_concurrent_requests.unwrap_or(100);
-    let max_concurrent_chunks = args.max_concurrent_chunks;
+    let max_concurrent_chunks = match args.max_concurrent_chunks {
+        Some(0) => None,
+        Some(max) => Some(max),
+        None => Some(4),
+    };
 
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
     let semaphore = Some(semaphore);

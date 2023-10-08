@@ -57,7 +57,7 @@ impl CollectByBlock for TraceCalls {
         let traces: Vec<TransactionTrace> = source
             .fetcher
             .trace_call2(
-                request.ethers_address()?,
+                request.ethers_contract()?,
                 request.call_data()?,
                 vec![TraceType::Trace],
                 Some(request.ethers_block_number()?),

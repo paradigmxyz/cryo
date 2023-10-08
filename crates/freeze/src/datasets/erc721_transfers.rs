@@ -48,7 +48,7 @@ impl CollectByBlock for Erc721Transfers {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
-        Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
+        Ok(logs.into_iter().filter(|x| x.topics.len() == 4 && x.data.len() == 32).collect())
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
@@ -73,7 +73,7 @@ impl CollectByTransaction for Erc721Transfers {
 }
 
 fn is_erc721_transfer(log: &Log) -> bool {
-    log.topics.len() == 3 && log.data.len() == 32 && log.topics[0] == *EVENT_ERC721_TRANSFER
+    log.topics.len() == 4 && log.data.len() == 32 && log.topics[0] == *EVENT_ERC721_TRANSFER
 }
 
 /// process block into columns

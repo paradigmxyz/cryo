@@ -28,7 +28,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let (address_labels, addresses) = parse_address_chunks(&args.address, "address")?;
     let (contract_labels, contracts) = parse_address_chunks(&args.contract, "contract_address")?;
     let (to_address_labels, to_addresses) = parse_address_chunks(&args.to_address, "to_address")?;
-    let (slot_labels, slots) = parse_slot_chunks(&args.slots, "slot")?;
+    let (slot_labels, slots) = parse_slot_chunks(&args.slot, "slot")?;
     let (topic0_labels, topic0s) = parse_topic(&args.topic0, "topic0")?;
     let (topic1_labels, topic1s) = parse_topic(&args.topic1, "topic1")?;
     let (topic2_labels, topic2s) = parse_topic(&args.topic2, "topic2")?;

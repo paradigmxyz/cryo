@@ -1,13 +1,12 @@
-use std::fs;
-
-use polars::prelude::*;
-
-use cryo_freeze::{FileFormat, FileOutput, ParseError, Source};
-
 use crate::args::Args;
+use cryo_freeze::{FileFormat, FileOutput, ParseError, Source};
+use polars::prelude::*;
+use std::fs;
 
 pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutput, ParseError> {
     // process output directory
+    std::fs::create_dir_all(args.output_dir.clone())
+        .map_err(|_| ParseError::ParseError("could not create dir".to_string()))?;
     let output_dir = std::fs::canonicalize(args.output_dir.clone()).map_err(|_e| {
         ParseError::ParseError("Failed to canonicalize output directory".to_string())
     })?;

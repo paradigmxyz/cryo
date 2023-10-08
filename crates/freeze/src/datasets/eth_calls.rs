@@ -58,13 +58,13 @@ impl CollectByBlock for EthCalls {
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let transaction = TransactionRequest {
-            to: Some(request.ethers_address()?.into()),
+            to: Some(request.ethers_contract()?.into()),
             data: Some(request.call_data()?.into()),
             ..Default::default()
         };
         let number = request.block_number()?;
         let output = source.fetcher.call(transaction, number.into()).await?;
-        Ok((number as u32, request.address()?, request.call_data()?, output.to_vec()))
+        Ok((number as u32, request.contract()?, request.call_data()?, output.to_vec()))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {

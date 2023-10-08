@@ -117,7 +117,9 @@ macro_rules! define_datatypes {
                     MultiDatatype::BlocksAndTransactions => {
                         BlocksAndTransactions::collect_by_block(partition, source, &schemas, None)
                     }
-                    MultiDatatype::StateDiffs => Err(CollectError::CollectError(TX_ERROR.to_string()))?,
+                    MultiDatatype::StateDiffs => {
+                        StateDiffs::collect_by_block(partition, source, &schemas, None)
+                    },
                 },
             };
             task.await

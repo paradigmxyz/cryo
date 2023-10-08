@@ -40,7 +40,7 @@ impl CollectByBlock for Erc20Supplies {
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let signature: Vec<u8> = FUNCTION_ERC20_TOTAL_SUPPLY.clone();
         let mut call_data = signature.clone();
-        call_data.extend(request.address()?);
+        call_data.extend(request.contract()?);
         let block_number = request.ethers_block_number()?;
         let contract = request.ethers_contract()?;
         let output = source.fetcher.call2(contract, call_data, block_number).await.ok();
