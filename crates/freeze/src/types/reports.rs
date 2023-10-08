@@ -1,4 +1,4 @@
-use crate::{CollectError, ExecutionEnv, FileOutput, FreezeSummary, Query};
+use crate::{err, CollectError, ExecutionEnv, FileOutput, FreezeSummary, Query};
 use chrono::{DateTime, Local};
 use std::{
     fs::File,
@@ -37,7 +37,7 @@ pub(crate) fn get_report_path(
 
     // create file name
     let t_start: DateTime<Local> = env.t_start.into();
-    let timestamp: String = t_start.format("%Y-%m-%d_%H-%M-%S").to_string();
+    let timestamp: String = t_start.format("%Y-%m-%d_%H-%M-%S%.6f").to_string();
     let filename = if is_complete {
         timestamp + ".json"
     } else {
@@ -77,6 +77,13 @@ pub(crate) fn write_report(
         .map_err(|_| CollectError::CollectError("could not create report file".to_string()))?;
     file.write_all(serialized.as_bytes())
         .map_err(|_| CollectError::CollectError("could not write report data".to_string()))?;
+
+    // delete initial report
+    if freeze_summary.is_some() {
+        let incomplete_path = get_report_path(env, sink, false)?;
+        std::fs::remove_file(incomplete_path)
+            .map_err(|_| err("could not delete initial report file"))?;
+    }
 
     Ok(path)
 }
