@@ -266,23 +266,44 @@ pub(crate) fn print_cryo_conclusion(
 
     print_header("collection summary");
     print_bullet("total duration", duration_string);
-    print_bullet("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
-    print_bullet(
+    print_bullet_indent("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(), 4);
+    print_bullet_indent(
         "t_end",
         "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
+        4,
     );
-    let n_chunks = query.partitions.len();
-    print_bullet(
+    let n_chunks = query.partitions.len().separate_with_commas();
+    let width = n_chunks.len();
+    print_bullet("total chunks", n_chunks.clone());
+    print_bullet_indent(
         "chunks errored",
-        format!("  {} / {}", freeze_summary.errored.len().separate_with_commas(), n_chunks),
+        format!(
+            "  {:>width$} / {}",
+            freeze_summary.errored.len().separate_with_commas(),
+            n_chunks,
+            width = width
+        ),
+        4,
     );
-    print_bullet(
+    print_bullet_indent(
         "chunks skipped",
-        format!("  {} / {}", freeze_summary.skipped.len().separate_with_commas(), n_chunks),
+        format!(
+            "  {:>width$} / {}",
+            freeze_summary.skipped.len().separate_with_commas(),
+            n_chunks,
+            width = width
+        ),
+        4,
     );
-    print_bullet(
+    print_bullet_indent(
         "chunks collected",
-        format!("{} / {}", freeze_summary.completed.len().separate_with_commas(), n_chunks),
+        format!(
+            "{:>width$} / {}",
+            freeze_summary.completed.len().separate_with_commas(),
+            n_chunks,
+            width = width
+        ),
+        4,
     );
 
     print_chunks_speeds(query.partitions.clone(), &query.partitioned_by, total_time);
