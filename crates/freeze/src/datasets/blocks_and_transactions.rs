@@ -1,4 +1,4 @@
-use crate::{types::collection::*, Datatype, *, datasets::transactions};
+use crate::{datasets::transactions, types::collection::*, Datatype, *};
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -49,7 +49,8 @@ impl CollectByTransaction for BlocksAndTransactions {
 
     async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
         let (tx, gas_used) =
-            <Transactions as CollectByTransaction>::extract(request, source.clone(), schemas).await?;
+            <Transactions as CollectByTransaction>::extract(request, source.clone(), schemas)
+                .await?;
         let block_number = tx.block_number.ok_or(err("no block number for tx"))?.as_u64();
         let block = source
             .fetcher

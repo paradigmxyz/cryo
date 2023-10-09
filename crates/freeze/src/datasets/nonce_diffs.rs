@@ -28,14 +28,17 @@ impl Dataset for NonceDiffs {
     }
 }
 
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl CollectByBlock for NonceDiffs {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_state_diffs(request.block_number()? as u32).await
+    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+        let schema = schemas.get(&Datatype::NonceDiffs).ok_or(err("schema not provided"))?;
+        let include_txs = schema.has_column("transaction_hash");
+        source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
@@ -45,7 +48,7 @@ impl CollectByBlock for NonceDiffs {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for NonceDiffs {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = BlockTxsTraces;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
@@ -57,13 +60,13 @@ impl CollectByTransaction for NonceDiffs {
 }
 
 pub(crate) fn process_nonce_diffs(
-    response: &(Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
+    response: &BlockTxsTraces,
     columns: &mut NonceDiffs,
     schemas: &Schemas,
 ) -> Result<()> {
     let schema = schemas.get(&Datatype::NonceDiffs).ok_or(err("schema not provided"))?;
-    let (block_number, tx, traces) = response;
-    for (index, trace) in traces.iter().enumerate() {
+    let (block_number, txs, traces) = response;
+    for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {
         if let Some(ethers::types::StateDiff(state_diffs)) = &trace.state_diff {
             for (addr, diff) in state_diffs.iter() {
                 process_nonce_diff(addr, &diff.nonce, block_number, tx, index, columns, schema);

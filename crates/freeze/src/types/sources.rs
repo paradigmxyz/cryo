@@ -59,14 +59,32 @@ impl<P: JsonRpcClient> Fetcher<P> {
     pub async fn trace_block_state_diffs(
         &self,
         block: u32,
-    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
-        let result = self
-            .trace_replay_block_transactions(
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<BlockTrace>)> {
+        // get traces
+        let result = {
+            let _permit = self.permit_request().await;
+            self.trace_replay_block_transactions(
                 block.into(),
                 vec![ethers::types::TraceType::StateDiff],
             )
-            .await;
-        Ok((Some(block), None, result?))
+            .await
+        }?;
+
+        // get transactions
+        let txs = if include_transaction_hashes {
+            self.get_block(block as u64)
+                .await?
+                .ok_or(CollectError::CollectError("could not find block".to_string()))?
+                .transactions
+                .iter()
+                .map(|tx| Some(tx.0.to_vec()))
+                .collect()
+        } else {
+            vec![None; result.len()]
+        };
+
+        Ok((Some(block), txs, result))
     }
 
     /// Get VM traces of block
@@ -94,14 +112,14 @@ impl<P: JsonRpcClient> Fetcher<P> {
     pub async fn trace_transaction_state_diffs(
         &self,
         transaction_hash: Vec<u8>,
-    ) -> Result<(Option<u32>, Option<Vec<u8>>, Vec<BlockTrace>)> {
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<BlockTrace>)> {
         let result = self
             .trace_replay_transaction(
                 H256::from_slice(&transaction_hash),
                 vec![ethers::types::TraceType::StateDiff],
             )
             .await;
-        Ok((None, Some(transaction_hash), vec![result?]))
+        Ok((None, vec![Some(transaction_hash)], vec![result?]))
     }
 
     /// Get VM traces of transaction

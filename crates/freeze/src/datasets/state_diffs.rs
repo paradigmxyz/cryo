@@ -12,6 +12,7 @@ pub struct StateDiffs(
     storage_diffs::StorageDiffs,
 );
 
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 type Result<T> = ::core::result::Result<T, CollectError>;
 
 impl ToDataFrames for StateDiffs {
@@ -32,10 +33,11 @@ impl ToDataFrames for StateDiffs {
 
 #[async_trait::async_trait]
 impl CollectByBlock for StateDiffs {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
-        source.fetcher.trace_block_state_diffs(request.block_number()? as u32).await
+    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+        let include_txs = schemas.values().any(|x| x.has_column("transaction_hash"));
+        source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
@@ -45,7 +47,7 @@ impl CollectByBlock for StateDiffs {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for StateDiffs {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = BlockTxsTraces;
 
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
@@ -57,7 +59,7 @@ impl CollectByTransaction for StateDiffs {
 }
 
 fn process_state_diffs(
-    response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
+    response: BlockTxsTraces,
     columns: &mut StateDiffs,
     schemas: &HashMap<Datatype, Table>,
 ) -> Result<()> {
