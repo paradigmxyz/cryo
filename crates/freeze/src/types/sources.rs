@@ -17,7 +17,7 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 #[derive(Clone)]
 pub struct Source {
     /// Shared provider for rpc data
-    pub fetcher: Arc<Fetcher<RetryClient<Http>>>,
+    pub fetcher: Arc<Fetcher<Http>>,
     /// chain_id of network
     pub chain_id: u64,
     /// number of blocks per log request
@@ -108,78 +108,6 @@ impl<P: JsonRpcClient> Fetcher<P> {
     pub async fn trace_transaction(&self, tx_hash: TxHash) -> Result<Vec<Trace>> {
         let _permit = self.permit_request().await;
         self.provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)
-    }
-
-    /// Return output data of a contract call
-    pub async fn call(
-        &self,
-        transaction: TransactionRequest,
-        block_number: BlockNumber,
-    ) -> Result<Bytes> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .call(&transaction.into(), Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
-    /// Returns traces for given call data
-    pub async fn trace_call(
-        &self,
-        transaction: TransactionRequest,
-        trace_type: Vec<TraceType>,
-        block_number: Option<BlockNumber>,
-    ) -> Result<BlockTrace> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .trace_call(transaction, trace_type, block_number)
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
-    /// Get nonce of address
-    pub async fn get_transaction_count(
-        &self,
-        address: H160,
-        block_number: BlockNumber,
-    ) -> Result<U256> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .get_transaction_count(address, Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
-    /// Get code at address
-    pub async fn get_balance(&self, address: H160, block_number: BlockNumber) -> Result<U256> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .get_balance(address, Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
-    /// Get code at address
-    pub async fn get_code(&self, address: H160, block_number: BlockNumber) -> Result<Bytes> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .get_code(address, Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
-    }
-
-    /// Get stored data at given location
-    pub async fn get_storage_at(
-        &self,
-        address: H160,
-        slot: H256,
-        block_number: BlockNumber,
-    ) -> Result<H256> {
-        let _permit = self.permit_request().await;
-        self.provider
-            .get_storage_at(address, slot, Some(block_number.into()))
-            .await
-            .map_err(CollectError::ProviderError)
     }
 
     /// Get the block number

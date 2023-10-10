@@ -1,8 +1,7 @@
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, Datatype, Fetcher, ParseError, Subchunk, Table};
+use cryo_freeze::{BlockChunk, Chunk, ChunkData, Fetcher, ParseError, Subchunk};
 
 use crate::args::Args;
 
@@ -124,15 +123,8 @@ async fn postprocess_block_chunks<P: JsonRpcClient>(
 pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-    schemas: &HashMap<Datatype, Table>,
 ) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
-    let default_blocks = schemas
-        .keys()
-        .map(|datatype| datatype.dataset().default_blocks())
-        .find(|blocks| !blocks.is_none())
-        .unwrap_or(Some("0:latest".to_string()))
-        .unwrap();
-    let block_chunks = parse_block_inputs(&default_blocks, &fetcher).await?;
+    let block_chunks = parse_block_inputs(&String::from(r"0:latest"), &fetcher).await?;
     postprocess_block_chunks(block_chunks, args, fetcher).await
 }
 
