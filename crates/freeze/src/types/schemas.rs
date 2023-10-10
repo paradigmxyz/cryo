@@ -24,7 +24,7 @@ pub struct Table {
     /// representation to use for binary columns
     pub binary_type: ColumnEncoding,
 
-    /// log decoder for table
+    /// metadata about a table
     pub log_decoder: Option<LogDecoder>,
 }
 
