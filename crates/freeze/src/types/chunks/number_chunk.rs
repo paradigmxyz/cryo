@@ -1,6 +1,6 @@
-use ethers::types::FilterBlockOption;
-
 use super::chunk_ops::ChunkData;
+use crate::ChunkError;
+use ethers::types::FilterBlockOption;
 
 /// Chunk of blocks
 #[derive(Debug, Clone)]
@@ -15,8 +15,8 @@ pub enum NumberChunk {
 impl ChunkData for NumberChunk {
     type Inner = u64;
 
-    fn format_item(value: Self::Inner) -> String {
-        format!("{:0>8}", value)
+    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
+        Ok(format!("{:0>8}", value))
     }
 
     fn size(&self) -> u64 {
@@ -39,10 +39,18 @@ impl ChunkData for NumberChunk {
             NumberChunk::Range(_, end) => Some(*end),
         }
     }
+
+    fn values(&self) -> Vec<u64> {
+        match self {
+            NumberChunk::Numbers(numbers) => numbers.to_vec(),
+            NumberChunk::Range(start, end) => (*start..=*end).collect(),
+        }
+    }
 }
 
 impl NumberChunk {
     /// get list of block numbers in chunk
+    /// TODO: remove in favor of values()
     pub fn numbers(&self) -> Vec<u64> {
         match self {
             NumberChunk::Numbers(numbers) => numbers.to_vec(),
@@ -91,12 +99,17 @@ impl NumberChunk {
 }
 
 pub(crate) fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(u64, u64)> {
-    let mut chunks = Vec::new();
+    let mut chunks: Vec<(u64, u64)> = Vec::new();
     let mut chunk_start = *start;
-    while chunk_start < *end {
-        let chunk_end = (chunk_start + chunk_size).min(*end) - 1;
+    loop {
+        let chunk_end: u64 = chunk_start + chunk_size - 1;
+        let chunk_end = if chunk_end > *end { *end } else { chunk_end };
         chunks.push((chunk_start, chunk_end));
-        chunk_start += chunk_size;
+        if chunk_end == *end {
+            break
+        } else {
+            chunk_start += chunk_size;
+        }
     }
     chunks
 }

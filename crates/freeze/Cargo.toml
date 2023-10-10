@@ -10,16 +10,23 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+cryo_to_df = { version = "0.2.0", path = "../to_df" }
 async-trait = { workspace = true }
 ethers = { workspace = true }
 ethers-core = { workspace = true }
 futures = { workspace = true }
 governor = { workspace = true }
+heck = { workspace = true }
 indexmap = { workspace = true }
 indicatif = { workspace = true }
+lazy_static = { workspace = true }
 polars = { workspace = true }
 prefix-hex = { workspace = true }
+regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 tokio = { workspace = true }
+chrono = { workspace = true }
+colored = { workspace = true }
+thousands = { workspace = true }

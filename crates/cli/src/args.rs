@@ -1,6 +1,7 @@
 use clap_cryo::Parser;
 use color_print::cstr;
 use serde::{Deserialize, Serialize};
+use std::path::PathBuf;
 
 /// Command line arguments
 #[derive(Parser, Debug, Serialize, Deserialize)]
@@ -102,6 +103,10 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     pub n_chunks: Option<u64>,
 
+    /// Dimensions to partition by
+    #[arg(long, help_heading = "Output Options")]
+    pub partition_by: Option<Vec<String>>,
+
     /// Directory for output files
     #[arg(short, long, default_value = ".", help_heading = "Output Options")]
     pub output_dir: String,
@@ -141,43 +146,71 @@ pub struct Args {
     /// Directory to save summary report
     /// [default: {output_dir}/.cryo/reports]
     #[arg(long, help_heading = "Output Options", verbatim_doc_comment)]
-    pub report_dir: Option<String>,
+    pub report_dir: Option<PathBuf>,
 
     /// Avoid saving a summary report
     #[arg(long, help_heading = "Output Options")]
     pub no_report: bool,
 
+    /// Address
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    pub address: Option<Vec<String>>,
+
+    /// To Address
+    #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
+    pub to_address: Option<Vec<String>>,
+
+    /// From Address
+    #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
+    pub from_address: Option<Vec<String>>,
+
+    /// [eth_calls] Call data to use for eth_calls
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    pub call_data: Option<Vec<String>>,
+
+    /// [eth_calls] Function to use for eth_calls
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    pub function: Option<Vec<String>>,
+
+    /// [eth_calls] Inputs to use for eth_calls
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    pub inputs: Option<Vec<String>>,
+
+    /// [slots] Slots
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
+    pub slot: Option<Vec<String>>,
+
     /// [logs] filter logs by contract address
     #[arg(long, help_heading = "Dataset-specific Options")]
-    pub contract: Option<String>,
+    pub contract: Option<Vec<String>>,
 
     /// [logs] filter logs by topic0
     #[arg(long, visible_alias = "event", help_heading = "Dataset-specific Options")]
-    pub topic0: Option<String>,
+    pub topic0: Option<Vec<String>>,
 
     /// [logs] filter logs by topic1
     #[arg(long, help_heading = "Dataset-specific Options")]
-    pub topic1: Option<String>,
+    pub topic1: Option<Vec<String>>,
 
     /// [logs] filter logs by topic2
     #[arg(long, help_heading = "Dataset-specific Options")]
-    pub topic2: Option<String>,
+    pub topic2: Option<Vec<String>>,
 
     /// [logs] filter logs by topic3
     #[arg(long, help_heading = "Dataset-specific Options")]
-    pub topic3: Option<String>,
+    pub topic3: Option<Vec<String>>,
 
     /// [logs] Blocks per request
     #[arg(
         long,
-        value_name = "BLOCKS",
+        value_name = "SIZE",
         default_value_t = 1,
         help_heading = "Dataset-specific Options"
     )]
     pub inner_request_size: u64,
 
     /// [logs] event signature to parse
-    #[arg(long, help_heading = "Dataset-specific Options")]
+    #[arg(long, value_name = "SIGNATURE", help_heading = "Dataset-specific Options")]
     pub event_signature: Option<String>,
 }
 

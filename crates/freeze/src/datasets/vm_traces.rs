@@ -1,96 +1,14 @@
-use std::collections::HashMap;
-
+use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use tokio::sync::mpsc;
+use std::collections::HashMap;
 
-use crate::{
-    dataframes::SortableDataFrame,
-    datasets::state_diffs,
-    types::{
-        conversions::ToVecHex, BlockChunk, CollectError, ColumnType, Dataset, Datatype, RowFilter,
-        Source, Table, ToVecU8, TransactionChunk, VmTraces,
-    },
-    with_series, with_series_binary,
-};
-
-#[async_trait::async_trait]
-impl Dataset for VmTraces {
-    fn datatype(&self) -> Datatype {
-        Datatype::VmTraces
-    }
-
-    fn name(&self) -> &'static str {
-        "vm_traces"
-    }
-
-    fn column_types(&self) -> HashMap<&'static str, ColumnType> {
-        HashMap::from_iter(vec![
-            ("block_number", ColumnType::UInt32),
-            ("transaction_position", ColumnType::UInt32),
-            ("pc", ColumnType::Int64),
-            ("cost", ColumnType::Int64),
-            ("used", ColumnType::Int64),
-            ("push", ColumnType::Binary),
-            ("mem_off", ColumnType::Int32),
-            ("mem_data", ColumnType::Binary),
-            ("storage_key", ColumnType::Binary),
-            ("storage_val", ColumnType::Binary),
-            ("op", ColumnType::String),
-            ("chain_id", ColumnType::Int64),
-        ])
-    }
-
-    fn default_columns(&self) -> Vec<&'static str> {
-        vec!["block_number", "transaction_position", "pc", "cost", "used", "op"]
-    }
-
-    fn default_sort(&self) -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
-    }
-
-    async fn collect_block_chunk(
-        &self,
-        chunk: &BlockChunk,
-        source: &Source,
-        schema: &Table,
-        _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let rx = fetch_block_vm_traces(chunk, source).await;
-        vm_traces_to_df(rx, schema, source.chain_id).await
-    }
-
-    async fn collect_transaction_chunk(
-        &self,
-        chunk: &TransactionChunk,
-        source: &Source,
-        schema: &Table,
-        _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        let include_indices = schema.has_column("block_number");
-        let rx = fetch_transaction_vm_traces(chunk, source, include_indices).await;
-        vm_traces_to_df(rx, schema, source.chain_id).await
-    }
-}
-
-async fn fetch_block_vm_traces(
-    block_chunk: &BlockChunk,
-    source: &Source,
-) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
-    state_diffs::fetch_block_traces(block_chunk, &[TraceType::VmTrace], source).await
-}
-
-async fn fetch_transaction_vm_traces(
-    chunk: &TransactionChunk,
-    source: &Source,
-    include_indices: bool,
-) -> mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces> {
-    state_diffs::fetch_transaction_traces(chunk, &[TraceType::VmTrace], source, include_indices)
-        .await
-}
-
-struct VmTraceColumns {
-    block_number: Vec<u32>,
+/// columns for transactions
+#[cryo_to_df::to_df(Datatype::VmTraces)]
+#[derive(Default)]
+pub struct VmTraces {
+    block_number: Vec<Option<u32>>,
+    transaction_hash: Vec<Option<Vec<u8>>>,
     transaction_position: Vec<u32>,
     pc: Vec<u64>,
     cost: Vec<u64>,
@@ -102,157 +20,122 @@ struct VmTraceColumns {
     storage_val: Vec<Option<Vec<u8>>>,
     op: Vec<String>,
     n_rows: usize,
+    chain_id: Vec<u64>,
 }
 
-async fn vm_traces_to_df(
-    mut rx: mpsc::Receiver<state_diffs::BlockNumberTransactionsTraces>,
-    schema: &Table,
-    chain_id: u64,
-) -> Result<DataFrame, CollectError> {
-    let capacity = 100;
-    let mut columns = VmTraceColumns {
-        block_number: Vec::with_capacity(capacity),
-        transaction_position: Vec::with_capacity(capacity),
-        pc: Vec::with_capacity(capacity),
-        cost: Vec::with_capacity(capacity),
-        used: Vec::with_capacity(capacity),
-        push: Vec::with_capacity(capacity),
-        mem_off: Vec::with_capacity(capacity),
-        mem_data: Vec::with_capacity(capacity),
-        storage_key: Vec::with_capacity(capacity),
-        storage_val: Vec::with_capacity(capacity),
-        op: Vec::with_capacity(capacity),
-        n_rows: 0,
-    };
-
-    while let Some(message) = rx.recv().await {
-        match message {
-            Ok((number, block_traces)) => {
-                for (tx_pos, block_trace) in block_traces.into_iter() {
-                    if let Some(vm_trace) = block_trace.vm_trace {
-                        add_ops(vm_trace, schema, &mut columns, number, tx_pos)?;
-                    }
-                }
-            }
-            _ => return Err(CollectError::TooManyRequestsError),
-        }
+#[async_trait::async_trait]
+impl Dataset for VmTraces {
+    fn name() -> &'static str {
+        "vm_traces"
     }
 
-    let mut cols = Vec::new();
+    fn aliases() -> Vec<&'static str> {
+        vec!["opcode_traces"]
+    }
 
-    with_series!(cols, "block_number", columns.block_number, schema);
-    with_series!(cols, "transaction_position", columns.transaction_position, schema);
-    with_series!(cols, "pc", columns.pc, schema);
-    with_series!(cols, "cost", columns.cost, schema);
-    with_series!(cols, "used", columns.used, schema);
-    with_series_binary!(cols, "push", columns.push, schema);
-    with_series!(cols, "mem_off", columns.mem_off, schema);
-    with_series_binary!(cols, "mem_data", columns.mem_data, schema);
-    with_series_binary!(cols, "storage_key", columns.storage_key, schema);
-    with_series_binary!(cols, "storage_val", columns.storage_val, schema);
-    with_series!(cols, "op", columns.op, schema);
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"])
+    }
 
-    if schema.has_column("chain_id") {
-        cols.push(Series::new("chain_id", vec![chain_id; columns.n_rows]));
-    };
+    fn default_sort() -> Vec<String> {
+        vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
+    }
+}
 
-    DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)
+type Result<T> = ::core::result::Result<T, CollectError>;
+
+#[async_trait::async_trait]
+impl CollectByBlock for VmTraces {
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        source.fetcher.trace_block_vm_traces(request.block_number()? as u32).await
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        process_vm_traces(response, columns, schemas)
+    }
+}
+
+#[async_trait::async_trait]
+impl CollectByTransaction for VmTraces {
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+
+    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+        source.fetcher.trace_transaction_vm_traces(request.transaction_hash()?).await
+    }
+
+    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+        process_vm_traces(response, columns, schemas)
+    }
+}
+
+fn process_vm_traces(
+    response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
+    columns: &mut VmTraces,
+    schemas: &HashMap<Datatype, Table>,
+) -> Result<()> {
+    let (block_number, tx, block_traces) = response;
+    let schema = schemas.get(&Datatype::VmTraces).ok_or(err("schema not provided"))?;
+    for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {
+        if let Some(vm_trace) = block_trace.vm_trace {
+            add_ops(vm_trace, schema, columns, block_number, tx.clone(), tx_pos);
+        }
+    }
+    Ok(())
 }
 
 fn add_ops(
     vm_trace: VMTrace,
     schema: &Table,
-    columns: &mut VmTraceColumns,
+    columns: &mut VmTraces,
     number: Option<u32>,
-    tx_pos: u32,
-) -> Result<(), CollectError> {
+    tx_hash: Option<Vec<u8>>,
+    tx_pos: usize,
+) {
     for opcode in vm_trace.ops {
         columns.n_rows += 1;
 
-        if schema.has_column("block_number") {
-            match number {
-                Some(number) => columns.block_number.push(number),
-                None => return Err(CollectError::CollectError("block number not give".to_string())),
-            }
-        };
-        if schema.has_column("transaction_position") {
-            columns.transaction_position.push(tx_pos);
-        };
-        if schema.has_column("pc") {
-            columns.pc.push(opcode.pc as u64);
-        };
-        if schema.has_column("cost") {
-            columns.cost.push(opcode.cost);
-        };
-
+        store!(schema, columns, block_number, number);
+        store!(schema, columns, transaction_hash, tx_hash.clone());
+        store!(schema, columns, transaction_position, tx_pos as u32);
+        store!(schema, columns, pc, opcode.pc as u64);
+        store!(schema, columns, cost, opcode.cost);
         if let Some(ex) = opcode.ex {
-            if schema.has_column("used") {
-                columns.used.push(Some(ex.used));
-            };
-            if schema.has_column("push") {
-                columns.push.push(Some(ex.push.to_vec_u8()));
-            };
+            store!(schema, columns, used, Some(ex.used));
+            store!(schema, columns, push, Some(ex.push.to_vec_u8()));
+
             if let Some(mem) = ex.mem {
-                if schema.has_column("mem_off") {
-                    columns.mem_off.push(Some(mem.off as u32));
-                };
-                if schema.has_column("mem_data") {
-                    columns.mem_data.push(Some(mem.data.to_vec()));
-                };
+                store!(schema, columns, mem_off, Some(mem.off as u32));
+                store!(schema, columns, mem_data, Some(mem.data.to_vec()));
             } else {
-                if schema.has_column("mem_key") {
-                    columns.mem_off.push(None);
-                };
-                if schema.has_column("mem_val") {
-                    columns.mem_data.push(None);
-                };
+                store!(schema, columns, mem_off, None);
+                store!(schema, columns, mem_data, None);
             };
             if let Some(store) = ex.store {
-                if schema.has_column("storage_key") {
-                    columns.storage_key.push(Some(store.key.to_vec_u8()));
-                };
-                if schema.has_column("storage_val") {
-                    columns.storage_val.push(Some(store.val.to_vec_u8()));
-                };
+                store!(schema, columns, storage_key, Some(store.key.to_vec_u8()));
+                store!(schema, columns, storage_val, Some(store.val.to_vec_u8()));
             } else {
-                if schema.has_column("storage_key") {
-                    columns.storage_key.push(None);
-                };
-                if schema.has_column("storage_val") {
-                    columns.storage_val.push(None);
-                };
+                store!(schema, columns, storage_key, None);
+                store!(schema, columns, storage_val, None);
             }
         } else {
-            if schema.has_column("used") {
-                columns.used.push(None);
-            };
-            if schema.has_column("push") {
-                columns.push.push(None);
-            };
-            if schema.has_column("mem_key") {
-                columns.mem_off.push(None);
-            };
-            if schema.has_column("mem_val") {
-                columns.mem_data.push(None);
-            };
-            if schema.has_column("storage_key") {
-                columns.storage_key.push(None);
-            };
-            if schema.has_column("storage_val") {
-                columns.storage_val.push(None);
-            };
+            store!(schema, columns, used, None);
+            store!(schema, columns, push, None);
+            store!(schema, columns, mem_off, None);
+            store!(schema, columns, mem_data, None);
+            store!(schema, columns, storage_key, None);
+            store!(schema, columns, storage_val, None);
         }
         if schema.has_column("op") {
             match opcode.op {
-                ExecutedInstruction::Known(op) => columns.op.push(op.to_string()),
-                ExecutedInstruction::Unknown(op) => columns.op.push(op),
+                ExecutedInstruction::Known(op) => store!(schema, columns, op, op.to_string()),
+                ExecutedInstruction::Unknown(op) => store!(schema, columns, op, op),
             }
         };
 
         if let Some(sub) = opcode.sub {
-            add_ops(sub, schema, columns, number, tx_pos)?
+            add_ops(sub, schema, columns, number, tx_hash.clone(), tx_pos)
         }
     }
-
-    Ok(())
 }

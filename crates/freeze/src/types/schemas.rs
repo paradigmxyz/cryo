@@ -1,11 +1,14 @@
 /// types and functions related to schemas
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
-use crate::datasets::LogDecoder;
+use crate::LogDecoder;
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
 use crate::types::{ColumnEncoding, Datatype};
+
+/// collection of schemas
+pub type Schemas = HashMap<Datatype, Table>;
 
 /// Schema for a particular table
 #[derive(Clone, Debug, PartialEq)]
@@ -24,7 +27,7 @@ pub struct Table {
     /// representation to use for binary columns
     pub binary_type: ColumnEncoding,
 
-    /// metadata about a table
+    /// log decoder for table
     pub log_decoder: Option<LogDecoder>,
 }
 
@@ -159,9 +162,9 @@ impl Datatype {
         sort: Option<Vec<String>>,
         log_decoder: Option<LogDecoder>,
     ) -> Result<Table, SchemaError> {
-        let column_types = self.dataset().column_types();
+        let column_types = self.column_types();
         let all_columns = column_types.keys().map(|k| k.to_string()).collect();
-        let default_columns = self.dataset().default_columns();
+        let default_columns = self.default_columns();
         let used_columns = compute_used_columns(
             all_columns,
             default_columns,
@@ -230,11 +233,11 @@ mod tests {
 
     #[test]
     fn test_table_schema_explicit_cols() {
-        let cols = Some(vec!["number".to_string(), "hash".to_string()]);
+        let cols = Some(vec!["block_number".to_string(), "block_hash".to_string()]);
         let table = Datatype::Blocks
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
-        assert_eq!(vec!["number", "hash"], table.columns());
+        assert_eq!(vec!["block_number", "block_hash"], table.columns());
 
         // "all" marker support
         let cols = Some(vec!["all".to_string()]);
@@ -242,7 +245,7 @@ mod tests {
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
         assert_eq!(15, table.columns().len());
-        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
 
@@ -293,7 +296,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(15, table.columns().len());
-        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
 
@@ -303,7 +306,7 @@ mod tests {
         let table = Datatype::Blocks
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None, None)
             .unwrap();
-        assert_eq!(7, table.columns().len());
+        assert_eq!(8, table.columns().len());
         assert!(table.columns().contains(&"author"));
         assert!(table.columns().contains(&"extra_data"));
 
@@ -319,7 +322,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(5, table.columns().len());
+        assert_eq!(6, table.columns().len());
         assert!(!table.columns().contains(&"author"));
         assert!(!table.columns().contains(&"extra_data"));
 
@@ -336,7 +339,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(6, table.columns().len());
+        assert_eq!(7, table.columns().len());
         assert!(!table.columns().contains(&"timestamp"));
         assert!(!table.columns().contains(&"foo_bar"));
     }

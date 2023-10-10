@@ -9,14 +9,12 @@
 
 mod args;
 mod parse;
-mod reports;
 mod run;
-mod summaries;
 
 // used in main.rs but not lib.rs
 use eyre as _;
 use tokio as _;
 
 pub use args::Args;
-pub use parse::parse_opts;
+pub use parse::{parse_args, parse_str};
 pub use run::run;

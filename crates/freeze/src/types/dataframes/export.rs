@@ -1,32 +1,8 @@
-use std::{
-    collections::HashMap,
-    path::{Path, PathBuf},
-};
+use std::path::Path;
 
 use polars::prelude::*;
 
 use crate::types::{FileError, FileOutput};
-
-pub(crate) fn dfs_to_files<T>(
-    dfs: &mut HashMap<T, DataFrame>,
-    filenames: &HashMap<T, PathBuf>,
-    file_output: &FileOutput,
-) -> Result<(), FileError>
-where
-    T: std::cmp::Eq,
-    T: std::hash::Hash,
-{
-    for (name, df) in dfs.iter_mut() {
-        let filename = match filenames.get(name) {
-            Some(filename) => filename,
-            None => {
-                return Err(FileError::NoFilePathError("no path given for dataframe".to_string()))
-            }
-        };
-        df_to_file(df, filename, file_output)?
-    }
-    Ok(())
-}
 
 /// write polars dataframe to file
 pub(crate) fn df_to_file(

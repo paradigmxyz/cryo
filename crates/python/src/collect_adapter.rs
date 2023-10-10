@@ -2,14 +2,15 @@ use polars::prelude::*;
 use pyo3::{exceptions::PyTypeError, prelude::*};
 use pyo3_polars::PyDataFrame;
 
-use cryo_cli::{parse_opts, Args};
+use cryo_cli::{parse_args, Args};
 use cryo_freeze::collect;
 
 #[pyfunction(
     signature = (
-        datatype,
+        datatype = None,
         blocks = None,
         *,
+        command = None,
         txs = None,
         align = false,
         reorg_buffer = 0,
@@ -27,6 +28,7 @@ use cryo_freeze::collect;
         dry = false,
         chunk_size = 1000,
         n_chunks = None,
+        partition_by = None,
         output_dir = ".".to_string(),
         file_suffix = None,
         overwrite = false,
@@ -38,6 +40,13 @@ use cryo_freeze::collect;
         compression = vec!["lz4".to_string()],
         report_dir = None,
         no_report = false,
+        address = None,
+        to_address = None,
+        from_address = None,
+        call_data = None,
+        function = None,
+        inputs = None,
+        slot = None,
         contract = None,
         topic0 = None,
         topic1 = None,
@@ -51,8 +60,9 @@ use cryo_freeze::collect;
 #[allow(clippy::too_many_arguments)]
 pub fn _collect(
     py: Python<'_>,
-    datatype: String,
+    datatype: Option<String>,
     blocks: Option<Vec<String>>,
+    command: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
     reorg_buffer: u64,
@@ -70,6 +80,7 @@ pub fn _collect(
     dry: bool,
     chunk_size: u64,
     n_chunks: Option<u64>,
+    partition_by: Option<Vec<String>>,
     output_dir: String,
     file_suffix: Option<String>,
     overwrite: bool,
@@ -81,72 +92,105 @@ pub fn _collect(
     compression: Vec<String>,
     report_dir: Option<String>,
     no_report: bool,
-    contract: Option<String>,
-    topic0: Option<String>,
-    topic1: Option<String>,
-    topic2: Option<String>,
-    topic3: Option<String>,
+    address: Option<Vec<String>>,
+    to_address: Option<Vec<String>>,
+    from_address: Option<Vec<String>>,
+    call_data: Option<Vec<String>>,
+    function: Option<Vec<String>>,
+    inputs: Option<Vec<String>>,
+    slot: Option<Vec<String>>,
+    contract: Option<Vec<String>>,
+    topic0: Option<Vec<String>>,
+    topic1: Option<Vec<String>>,
+    topic2: Option<Vec<String>>,
+    topic3: Option<Vec<String>>,
     inner_request_size: u64,
     no_verbose: bool,
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
-    let args = Args {
-        datatype: vec![datatype],
-        blocks,
-        txs,
-        align,
-        reorg_buffer,
-        include_columns,
-        exclude_columns,
-        columns,
-        u256_types,
-        hex,
-        sort,
-        rpc,
-        network_name,
-        requests_per_second,
-        max_concurrent_requests,
-        max_concurrent_chunks,
-        dry,
-        chunk_size,
-        n_chunks,
-        output_dir,
-        file_suffix,
-        overwrite,
-        csv,
-        json,
-        row_group_size,
-        n_row_groups,
-        no_stats,
-        compression,
-        report_dir,
-        no_report,
-        contract,
-        topic0,
-        topic1,
-        topic2,
-        topic3,
-        inner_request_size,
-        no_verbose,
-        event_signature,
-    };
-
-    pyo3_asyncio::tokio::future_into_py(py, async move {
-        match run_collect(args).await {
-            // Ok(df) => Ok(Python::with_gil(|py| py.None())),
-            Ok(df) => Ok(PyDataFrame(df)),
-            Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
-        }
-    })
+    if let Some(command) = command {
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            match run_execute(command).await {
+                Ok(df) => Ok(PyDataFrame(df)),
+                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            }
+        })
+    } else if let Some(datatype) = datatype {
+        let args = Args {
+            datatype: vec![datatype],
+            blocks,
+            txs,
+            align,
+            reorg_buffer,
+            include_columns,
+            exclude_columns,
+            columns,
+            u256_types,
+            hex,
+            sort,
+            rpc,
+            network_name,
+            requests_per_second,
+            max_concurrent_requests,
+            max_concurrent_chunks,
+            dry,
+            chunk_size,
+            n_chunks,
+            partition_by,
+            output_dir,
+            file_suffix,
+            overwrite,
+            csv,
+            json,
+            row_group_size,
+            n_row_groups,
+            no_stats,
+            compression,
+            report_dir: report_dir.map(std::path::PathBuf::from),
+            no_report,
+            address,
+            to_address,
+            from_address,
+            call_data,
+            function,
+            inputs,
+            slot,
+            contract,
+            topic0,
+            topic1,
+            topic2,
+            topic3,
+            inner_request_size,
+            no_verbose,
+            event_signature,
+        };
+        pyo3_asyncio::tokio::future_into_py(py, async move {
+            match run_collect(args).await {
+                // Ok(df) => Ok(Python::with_gil(|py| py.None())),
+                Ok(df) => Ok(PyDataFrame(df)),
+                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            }
+        })
+    } else {
+        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
+    }
 }
 
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
-    let (query, source, _sink) = match parse_opts(&args).await {
+    let (query, source, _sink, _env) = match parse_args(&args).await {
         Ok(opts) => opts,
         Err(e) => panic!("error parsing opts {:?}", e),
     };
-    match collect(query.into(), source).await {
+    match collect(query, source).await {
         Ok(df) => Ok(df),
         Err(e) => panic!("error collecting {:?}", e),
     }
+}
+
+async fn run_execute(command: String) -> PolarsResult<DataFrame> {
+    let args = match cryo_cli::parse_str(command.as_str()).await {
+        Ok(opts) => opts,
+        Err(e) => panic!("error parsing opts {:?}", e),
+    };
+    run_collect(args).await
 }

@@ -1,26 +1,31 @@
-use std::collections::HashMap;
-
+use crate::{collect_partition, CollectError, Query, Source};
 use polars::prelude::*;
 
-use crate::types::{CollectError, Datatype, MultiQuery, SingleQuery, Source};
-
-/// collect data and return as dataframe
-pub async fn collect(query: SingleQuery, source: Source) -> Result<DataFrame, CollectError> {
-    if query.chunks.len() > 1 {
-        return Err(CollectError::CollectError("can only collect 1 chunk".to_string()))
+/// collect single dataframe
+pub async fn collect(query: Query, source: Source) -> Result<DataFrame, CollectError> {
+    query.is_valid()?;
+    let datatype = if query.datatypes.len() != 1 {
+        return Err(CollectError::CollectError(
+            "collect() can only collect a single datatype".to_string(),
+        ))
+    } else {
+        query.datatypes[0].clone()
     };
-    let chunk = match query.chunks.first() {
-        Some((chunk, _)) => chunk,
-        _ => return Err(CollectError::CollectError("no chunks".to_string())),
+    let partition = if query.partitions.len() != 1 {
+        return Err(CollectError::CollectError(
+            "collect() can only collect a single datatype".to_string(),
+        ))
+    } else {
+        query.partitions[0].clone()
     };
-    let filter = query.row_filter.as_ref();
-    query.datatype.dataset().collect_chunk(chunk, &source, &query.schema, filter).await
-}
-
-/// collect data and return as dataframe
-pub async fn collect_multiple(
-    _query: MultiQuery,
-    _source: Source,
-) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-    todo!()
+    let results =
+        collect_partition(query.time_dimension, datatype, partition, source, query.schemas).await?;
+    if results.len() > 1 {
+        Err(CollectError::CollectError("collect() only returns single dataframes".to_string()))
+    } else {
+        match results.into_iter().next() {
+            Some((_datatype, df)) => Ok(df),
+            None => Err(CollectError::CollectError("no dataframe result returned".to_string())),
+        }
+    }
 }

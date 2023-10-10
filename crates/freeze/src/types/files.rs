@@ -1,4 +1,5 @@
-use polars::prelude::*;
+use crate::{CollectError, Datatype, Partition, Query};
+use std::{collections::HashMap, path::PathBuf};
 
 /// Options for file output
 #[derive(Clone, Debug)]
@@ -18,7 +19,41 @@ pub struct FileOutput {
     /// Parquet statistics recording flag
     pub parquet_statistics: bool,
     /// Parquet compression options
-    pub parquet_compression: ParquetCompression,
+    pub parquet_compression: polars::prelude::ParquetCompression,
+}
+
+impl FileOutput {
+    /// get output file paths
+    pub fn get_paths(
+        &self,
+        query: &Query,
+        partition: &Partition,
+    ) -> Result<HashMap<Datatype, PathBuf>, CollectError> {
+        let mut paths = HashMap::new();
+        for meta_datatype in query.datatypes.iter() {
+            for datatype in meta_datatype.datatypes().into_iter() {
+                paths.insert(datatype, self.get_path(query, partition, datatype)?);
+            }
+        }
+        Ok(paths)
+    }
+
+    /// get output file path
+    pub fn get_path(
+        &self,
+        query: &Query,
+        partition: &Partition,
+        datatype: Datatype,
+    ) -> Result<PathBuf, CollectError> {
+        let filename = format!(
+            "{}__{}__{}.{}",
+            self.prefix.clone(),
+            datatype.name(),
+            partition.label(&query.partitioned_by)?,
+            self.format.as_str(),
+        );
+        Ok(std::path::Path::new(&self.output_dir).join(filename))
+    }
 }
 
 /// File format

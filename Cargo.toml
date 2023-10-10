@@ -1,6 +1,6 @@
 
 [workspace]
-members = ["crates/cli", "crates/freeze", "crates/python"]
+members = ["crates/cli", "crates/freeze", "crates/to_df", "crates/python"]
 
 # Explicitly set the resolver to version 2, which is the default for packages with edition >= 2021 but not virtual workspaces.
 # https://doc.rust-lang.org/edition-guide/rust-2021/default-cargo-resolver.html
@@ -31,8 +31,10 @@ eyre = "0.6.8"
 futures = "0.3.28"
 governor = "0.5.1"
 hex = "0.4.3"
+heck = "0.4.1"
 indexmap = "2.0.0"
 indicatif = "0.17.5"
+lazy_static = "1.4.0"
 polars = { version = "0.32.1", features = [
     "parquet",
     "string_encoding",
@@ -47,6 +49,7 @@ pyo3 = { version = "0.19.2", features = ["extension-module"] }
 pyo3-build-config = "0.19.0"
 pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
 pyo3-polars = "0.6.0"
+regex = "1.10.0"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
 thiserror = "1.0.40"

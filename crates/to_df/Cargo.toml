@@ -1,0 +1,17 @@
+[package]
+name = "cryo_to_df"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+homepage.workspace = true
+repository.workspace = true
+
+[lib]
+name = "cryo_to_df"
+path = "src/lib.rs"
+proc-macro = true
+
+[dependencies]
+syn = "1.0"
+quote = "1.0"
+proc-macro2 = "1.0"

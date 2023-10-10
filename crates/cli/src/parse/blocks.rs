@@ -1,20 +1,22 @@
 use ethers::prelude::*;
 use polars::prelude::*;
+use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, Chunk, ChunkData, Fetcher, ParseError, Subchunk};
+use cryo_freeze::{BlockChunk, ChunkData, Datatype, Fetcher, ParseError, Subchunk, Table};
 
 use crate::args::Args;
 
 pub(crate) async fn parse_blocks<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
+) -> Result<(Option<Vec<Option<String>>>, Option<Vec<BlockChunk>>), ParseError> {
     let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.blocks {
         Some(blocks) => blocks.iter().partition(|tx| std::path::Path::new(tx).exists()),
-        None => return Err(ParseError::ParseError("no blocks specified".to_string())),
+        None => return Ok((None, None)),
     };
 
-    let mut file_chunks = if !files.is_empty() {
+    let (file_labels, file_chunks) = if !files.is_empty() {
+        let mut file_labels = Vec::new();
         let mut file_chunks = Vec::new();
         for path in files {
             let column = if path.contains(':') {
@@ -31,11 +33,12 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
                 .split("__")
                 .last()
                 .and_then(|s| s.strip_suffix(".parquet").map(|s| s.to_string()));
-            file_chunks.push((Chunk::Block(chunk), chunk_label));
+            file_labels.push(chunk_label);
+            file_chunks.push(chunk);
         }
-        file_chunks
+        (Some(file_labels), Some(file_chunks))
     } else {
-        Vec::new()
+        (None, None)
     };
 
     let explicit_chunks = if !explicit_numbers.is_empty() {
@@ -50,8 +53,19 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
         Vec::new()
     };
 
-    file_chunks.extend(explicit_chunks);
-    Ok(file_chunks)
+    let mut block_chunks = Vec::new();
+    let labels = match (file_labels, file_chunks) {
+        (Some(file_labels), Some(file_chunks)) => {
+            let mut labels = Vec::new();
+            labels.extend(file_labels);
+            block_chunks.extend(file_chunks);
+            labels.extend(vec![None; explicit_chunks.len()]);
+            Some(labels)
+        }
+        _ => None,
+    };
+    block_chunks.extend(explicit_chunks);
+    Ok((labels, Some(block_chunks)))
 }
 
 fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError> {
@@ -96,7 +110,7 @@ async fn postprocess_block_chunks<P: JsonRpcClient>(
     block_chunks: Vec<BlockChunk>,
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
+) -> Result<Vec<BlockChunk>, ParseError> {
     // align
     let block_chunks = if args.align {
         block_chunks.into_iter().filter_map(|x| x.align(args.chunk_size)).collect()
@@ -113,18 +127,23 @@ async fn postprocess_block_chunks<P: JsonRpcClient>(
     // apply reorg buffer
     let block_chunks = apply_reorg_buffer(block_chunks, args.reorg_buffer, &fetcher).await?;
 
-    // put into Chunk enums
-    let chunks: Vec<(Chunk, Option<String>)> =
-        block_chunks.iter().map(|x| (Chunk::Block(x.clone()), None)).collect();
-
-    Ok(chunks)
+    Ok(block_chunks)
 }
 
 pub(crate) async fn get_default_block_chunks<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<(Chunk, Option<String>)>, ParseError> {
-    let block_chunks = parse_block_inputs(&String::from(r"0:latest"), &fetcher).await?;
+    schemas: &HashMap<Datatype, Table>,
+) -> Result<Vec<BlockChunk>, ParseError> {
+    let default_blocks = match schemas
+        .keys()
+        .map(|datatype| datatype.default_blocks())
+        .find(|blocks| !blocks.is_none())
+    {
+        Some(Some(blocks)) => blocks,
+        _ => "0:latest".to_string(),
+    };
+    let block_chunks = parse_block_inputs(&default_blocks, &fetcher).await?;
     postprocess_block_chunks(block_chunks, args, fetcher).await
 }
 
@@ -203,7 +222,17 @@ async fn parse_block_token<P: JsonRpcClient>(
                 }
             };
 
-            if end_block <= start_block {
+            let end_block = if second_ref != &"latest"
+                && second_ref != &""
+                && !second_ref.starts_with('+')
+                && !first_ref.starts_with('-')
+            {
+                end_block - 1
+            } else {
+                end_block
+            };
+
+            if end_block < start_block {
                 Err(ParseError::ParseError(
                     "end_block should not be less than start_block".to_string(),
                 ))
@@ -351,7 +380,12 @@ mod tests {
                     assert_eq!(block_input_test_executor(inputs, expected, &fetcher).await, res);
                 }
                 BlockInputTest::WithoutMock((inputs, expected)) => {
-                    assert_eq!(block_input_test_executor(inputs, expected, &fetcher).await, res);
+                    println!("RES {:?}", res);
+                    println!("inputs {:?}", inputs);
+                    println!("EXPECTED {:?}", expected);
+                    let actual = block_input_test_executor(inputs, expected, &fetcher).await;
+                    println!("ACTUAL {:?}", actual);
+                    assert_eq!(actual, res);
                 }
             }
         }
@@ -366,6 +400,8 @@ mod tests {
         assert_eq!(block_chunks.len(), expected.len());
         for (i, block_chunk) in block_chunks.iter().enumerate() {
             let expected_chunk = &expected[i];
+            println!("BLOCK_CHUNK {:?}", block_chunk);
+            println!("EXCPECTED_CHUNK {:?}", expected_chunk);
             match expected_chunk {
                 BlockChunk::Numbers(expected_block_numbers) => {
                     assert!(matches!(block_chunk, BlockChunk::Numbers { .. }));
@@ -373,7 +409,7 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_block_numbers != block_numbers {
-                        return false
+                        return false;
                     }
                 }
                 BlockChunk::Range(expected_range_start, expected_range_end) => {
@@ -382,7 +418,7 @@ mod tests {
                         panic!("Unexpected shape")
                     };
                     if expected_range_start != range_start || expected_range_end != range_end {
-                        return false
+                        return false;
                     }
                 }
             }
@@ -434,8 +470,8 @@ mod tests {
         // Ranges
         let tests: Vec<(BlockTokenTest<'_>, bool)> = vec![
             // Range Type
-            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 2))), true), /* Single block range */
-            (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 2))), true), /* Implicit start */
+            (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 1))), true), /* Single block range */
+            (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 1))), true), /* Implicit start */
             (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(90, 100))), true), /* Relative negative */
             (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), /* Relative positive */
             (BlockTokenTest::WithMock((r"1:latest", BlockChunk::Range(1, 12), 12)), true), /* Explicit latest */
@@ -456,7 +492,7 @@ mod tests {
         let tests: Vec<(BlockInputTest<'_>, bool)> = vec![
             // Range Type
             (
-                BlockInputTest::WithoutMock((&block_inputs_single, vec![BlockChunk::Range(1, 2)])),
+                BlockInputTest::WithoutMock((&block_inputs_single, vec![BlockChunk::Range(1, 1)])),
                 true,
             ), // Single input
             (
@@ -479,7 +515,7 @@ mod tests {
                     &block_inputs_multiple_complex,
                     vec![
                         BlockChunk::Numbers(vec![15000000, 15000001]),
-                        BlockChunk::Numbers(vec![1000, 1001, 1002]),
+                        BlockChunk::Numbers(vec![1000, 1001]),
                         BlockChunk::Numbers(vec![999999997, 999999998, 999999999, 1000000000]),
                         BlockChunk::Numbers(vec![2000]),
                     ],

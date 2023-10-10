@@ -22,17 +22,13 @@ path = "src/main.rs"
 cryo_freeze = { version = "0.2.0", path = "../freeze" }
 
 anstyle = { workspace = true }
-chrono = { workspace = true }
 clap_cryo = { workspace = true }
-colored = { workspace = true }
 color-print = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
 governor = { workspace = true }
 hex = { workspace = true }
-indicatif = { workspace = true }
 polars = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thousands = { workspace = true }
 tokio = { workspace = true }

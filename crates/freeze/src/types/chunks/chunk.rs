@@ -12,6 +12,15 @@ pub type TransactionChunk = BinaryChunk;
 /// address chunk
 pub type AddressChunk = BinaryChunk;
 
+/// slot chunk
+pub type SlotChunk = BinaryChunk;
+
+/// call data chunk
+pub type CallDataChunk = BinaryChunk;
+
+/// topic chunk
+pub type TopicChunk = BinaryChunk;
+
 /// Chunk of data
 #[derive(Debug, Clone)]
 pub enum Chunk {
@@ -54,15 +63,5 @@ impl Chunk {
             paths.insert(*datatype, path);
         }
         Ok(paths)
-    }
-}
-
-impl From<Vec<Chunk>> for Chunk {
-    fn from(chunks: Vec<Chunk>) -> Self {
-        match chunks.len() {
-            0 => panic!("invalid empty chunk range"),
-            1 => chunks.into_iter().next().unwrap(),
-            _ => todo!("not implemented yet"),
-        }
     }
 }

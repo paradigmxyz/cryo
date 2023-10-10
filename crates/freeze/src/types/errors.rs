@@ -3,6 +3,11 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use thiserror::Error;
 
+/// return basic CollectError from str slice
+pub fn err(message: &str) -> CollectError {
+    CollectError::CollectError(message.to_string())
+}
+
 /// Error related to running freeze function
 #[derive(Error, Debug)]
 pub enum FreezeError {
@@ -46,6 +51,10 @@ pub enum CollectError {
     #[error("Collect failed: {0}")]
     CollectError(String),
 
+    /// Parse error
+    #[error(transparent)]
+    ParseError(#[from] ParseError),
+
     /// Error related to provider operations
     #[error("Failed to get block: {0}")]
     ProviderError(#[source] ProviderError),
@@ -55,7 +64,7 @@ pub enum CollectError {
     TaskFailed(#[source] tokio::task::JoinError),
 
     /// Error related to polars operations
-    #[error("Failed to convert to DataFrme: {0}")]
+    #[error("Failed to convert to DataFrame: {0}")]
     PolarsError(#[from] PolarsError),
 
     /// Error related to log topic filtering
@@ -94,6 +103,10 @@ pub enum ParseError {
 /// Error performing a chunk operation
 #[derive(Error, Debug)]
 pub enum ChunkError {
+    /// Error related to parsing
+    #[error("Parsing error: {0}")]
+    ChunkError(String),
+
     /// Error in chunk specification
     #[error("Block chunk not valid")]
     InvalidChunk,

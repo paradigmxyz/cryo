@@ -1,151 +1,60 @@
+use crate::{datasets::*, define_datatypes, types::columns::ColumnData, ColumnType, *};
+use polars::prelude::*;
 use std::collections::HashMap;
 
-use async_trait;
-use polars::prelude::*;
-
-use crate::types::{
-    AddressChunk, BlockChunk, Chunk, CollectError, ColumnType, RowFilter, Source, Table,
-    TransactionChunk,
-};
-
-/// Balance Diffs Dataset
-pub struct BalanceDiffs;
-/// Blocks Dataset
-pub struct Blocks;
-/// Code Diffs Dataset
-pub struct CodeDiffs;
-/// Logs Dataset
-pub struct Logs;
-/// Nonce Diffs Dataset
-pub struct NonceDiffs;
-/// Storage Diffs Dataset
-pub struct StorageDiffs;
-/// Traces Dataset
-pub struct Traces;
-/// Transactions Dataset
-pub struct Transactions;
-/// VmTraces Dataset
-pub struct VmTraces;
-/// Native Transfers Dataset
-pub struct NativeTransfers;
-/// Contracts Dataset
-pub struct Contracts;
-
-/// enum of possible datatypes that cryo can collect
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize)]
-pub enum Datatype {
-    /// Balance Diffs
+define_datatypes!(
     BalanceDiffs,
-    /// Blocks
+    Balances,
     Blocks,
-    /// Code Diffs
     CodeDiffs,
-    /// Logs
-    Logs,
-    /// Nonce Diffs
-    NonceDiffs,
-    /// Transactions
-    Transactions,
-    /// Traces
-    Traces,
-    /// Storage Diffs
-    StorageDiffs,
-    /// VmTraces
-    VmTraces,
-    /// Native Transfers
-    NativeTransfers,
-    /// Contracts
+    Codes,
     Contracts,
-}
+    Erc20Balances,
+    Erc20Metadata,
+    Erc20Supplies,
+    Erc20Transfers,
+    Erc721Metadata,
+    Erc721Transfers,
+    EthCalls,
+    Logs,
+    NonceDiffs,
+    Nonces,
+    StorageDiffs,
+    Storages,
+    Traces,
+    TraceCalls,
+    Transactions,
+    TransactionAddresses,
+    VmTraces,
+    NativeTransfers,
+);
 
 impl Datatype {
-    /// get the Dataset struct corresponding to Datatype
-    pub fn dataset(&self) -> Box<dyn Dataset> {
-        match *self {
-            Datatype::BalanceDiffs => Box::new(BalanceDiffs),
-            Datatype::Blocks => Box::new(Blocks),
-            Datatype::CodeDiffs => Box::new(CodeDiffs),
-            Datatype::Logs => Box::new(Logs),
-            Datatype::NonceDiffs => Box::new(NonceDiffs),
-            Datatype::Transactions => Box::new(Transactions),
-            Datatype::Traces => Box::new(Traces),
-            Datatype::StorageDiffs => Box::new(StorageDiffs),
-            Datatype::VmTraces => Box::new(VmTraces),
-            Datatype::NativeTransfers => Box::new(NativeTransfers),
-            Datatype::Contracts => Box::new(Contracts),
+    fn alias_map() -> Result<HashMap<String, Datatype>, ParseError> {
+        let mut map = HashMap::new();
+        for datatype in Datatype::all() {
+            let key = datatype.name();
+            if map.contains_key(&key) {
+                return Err(ParseError::ParseError("conflict in datatype names".to_string()))
+            }
+            map.insert(key, datatype);
+            for key in datatype.aliases().into_iter() {
+                if map.contains_key(key) {
+                    return Err(ParseError::ParseError("conflict in datatype names".to_string()))
+                }
+                map.insert(key.to_owned(), datatype);
+            }
         }
+        Ok(map)
     }
 }
 
-/// Dataset manages collection and management of a particular datatype
-#[async_trait::async_trait]
-pub trait Dataset: Sync + Send {
-    // type CollectOpts;
+impl std::str::FromStr for Datatype {
+    type Err = ParseError;
 
-    /// Datatype enum corresponding to Dataset
-    fn datatype(&self) -> Datatype;
-
-    /// name of Dataset
-    fn name(&self) -> &'static str;
-
-    /// column types of dataset schema
-    fn column_types(&self) -> HashMap<&'static str, ColumnType>;
-
-    /// default columns extracted for Dataset
-    fn default_columns(&self) -> Vec<&'static str>;
-
-    /// default sort order for dataset
-    fn default_sort(&self) -> Vec<String>;
-
-    /// collect dataset for a particular chunk
-    async fn collect_chunk(
-        &self,
-        chunk: &Chunk,
-        source: &Source,
-        schema: &Table,
-        filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        match chunk {
-            Chunk::Block(chunk) => self.collect_block_chunk(chunk, source, schema, filter).await,
-            Chunk::Transaction(chunk) => {
-                self.collect_transaction_chunk(chunk, source, schema, filter).await
-            }
-            Chunk::Address(chunk) => {
-                self.collect_address_chunk(chunk, source, schema, filter).await
-            }
-        }
-    }
-
-    /// collect dataset for a particular block chunk
-    async fn collect_block_chunk(
-        &self,
-        _chunk: &BlockChunk,
-        _source: &Source,
-        _schema: &Table,
-        _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        panic!("block_chunk collection not implemented for {}", self.name())
-    }
-
-    /// collect dataset for a particular transaction chunk
-    async fn collect_transaction_chunk(
-        &self,
-        _chunk: &TransactionChunk,
-        _source: &Source,
-        _schema: &Table,
-        _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        panic!("transaction_chunk collection not implemented for {}", self.name())
-    }
-
-    /// collect dataset for a particular transaction chunk
-    async fn collect_address_chunk(
-        &self,
-        _chunk: &AddressChunk,
-        _source: &Source,
-        _schema: &Table,
-        _filter: Option<&RowFilter>,
-    ) -> Result<DataFrame, CollectError> {
-        panic!("transaction_chunk collection not implemented for {}", self.name())
+    fn from_str(s: &str) -> Result<Datatype, ParseError> {
+        let mut map = Datatype::alias_map()?;
+        map.remove(s)
+            .ok_or_else(|| ParseError::ParseError(format!("no datatype matches input: {}", s)))
     }
 }
