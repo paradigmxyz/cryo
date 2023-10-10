@@ -87,13 +87,13 @@ pub(crate) fn process_storage_diff(
     schema: &Table,
 ) {
     for (s, sub_diff) in diff.iter() {
-        columns.n_rows += 1;
         let (from, to) = match sub_diff {
-            Diff::Same => (H256::zero(), H256::zero()),
+            Diff::Same => continue,
             Diff::Born(value) => (H256::zero(), *value),
             Diff::Died(value) => (*value, H256::zero()),
             Diff::Changed(ChangedType { from, to }) => (*from, *to),
         };
+        columns.n_rows += 1;
         store!(schema, columns, block_number, *block_number);
         store!(schema, columns, transaction_index, Some(transaction_index as u64));
         store!(schema, columns, transaction_hash, transaction_hash.clone());

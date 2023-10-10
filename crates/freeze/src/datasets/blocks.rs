@@ -8,7 +8,7 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct Blocks {
     n_rows: u64,
-    hash: Vec<Option<Vec<u8>>>,
+    block_hash: Vec<Option<Vec<u8>>>,
     parent_hash: Vec<Vec<u8>>,
     author: Vec<Option<Vec<u8>>>,
     state_root: Vec<Vec<u8>>,
@@ -34,7 +34,7 @@ impl Dataset for Blocks {
     fn default_columns() -> Option<Vec<&'static str>> {
         Some(vec![
             "block_number",
-            "hash",
+            "block_hash",
             "timestamp",
             "author",
             "gas_used",
@@ -82,7 +82,7 @@ impl CollectByTransaction for Blocks {
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
         let block = source
             .fetcher
-            .get_block_by_hash(transaction.block_hash.ok_or(err("no block hash found"))?)
+            .get_block_by_hash(transaction.block_hash.ok_or(err("no block block_hash found"))?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         Ok(block)
@@ -102,7 +102,7 @@ pub(crate) fn process_block<TX>(
 ) -> Result<()> {
     columns.n_rows += 1;
 
-    store!(schema, columns, hash, block.hash.map(|x| x.0.to_vec()));
+    store!(schema, columns, block_hash, block.hash.map(|x| x.0.to_vec()));
     store!(schema, columns, parent_hash, block.parent_hash.0.to_vec());
     store!(schema, columns, author, block.author.map(|x| x.0.to_vec()));
     store!(schema, columns, state_root, block.state_root.0.to_vec());

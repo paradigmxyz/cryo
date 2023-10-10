@@ -41,6 +41,7 @@ impl CollectByBlock for Erc20Balances {
     async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
         let signature = FUNCTION_ERC20_BALANCE_OF.clone();
         let mut call_data = signature.clone();
+        call_data.extend(vec![0; 12]);
         call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;
         let contract = request.ethers_contract()?;

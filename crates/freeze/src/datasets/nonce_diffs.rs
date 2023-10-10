@@ -85,13 +85,13 @@ pub(crate) fn process_nonce_diff(
     columns: &mut NonceDiffs,
     schema: &Table,
 ) {
-    columns.n_rows += 1;
     let (from, to) = match diff {
-        Diff::Same => (U256::zero(), U256::zero()),
+        Diff::Same => return,
         Diff::Born(value) => (U256::zero(), *value),
         Diff::Died(value) => (*value, U256::zero()),
         Diff::Changed(ChangedType { from, to }) => (*from, *to),
     };
+    columns.n_rows += 1;
     store!(schema, columns, block_number, *block_number);
     store!(schema, columns, transaction_index, Some(transaction_index as u64));
     store!(schema, columns, transaction_hash, transaction_hash.clone());

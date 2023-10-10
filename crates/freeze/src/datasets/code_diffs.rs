@@ -85,13 +85,19 @@ pub(crate) fn process_code_diff(
     columns: &mut CodeDiffs,
     schema: &Table,
 ) {
-    columns.n_rows += 1;
+    // this code will skip self-destructs and EOAs
     let (from, to) = match diff {
-        Diff::Same => (H256::zero().as_bytes().to_vec(), H256::zero().as_bytes().to_vec()),
-        Diff::Born(value) => (H256::zero().as_bytes().to_vec(), value.to_vec()),
-        Diff::Died(value) => (value.to_vec(), H256::zero().as_bytes().to_vec()),
+        Diff::Same => return,
+        Diff::Born(value) => {
+            if value.is_empty() {
+                return;
+            };
+            (Vec::new(), value.to_vec())
+        }
+        Diff::Died(value) => (value.to_vec(), Vec::new()),
         Diff::Changed(ChangedType { from, to }) => (from.to_vec(), to.to_vec()),
     };
+    columns.n_rows += 1;
     store!(schema, columns, block_number, *block_number);
     store!(schema, columns, transaction_index, Some(transaction_index as u64));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
