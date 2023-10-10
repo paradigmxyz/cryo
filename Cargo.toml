@@ -49,6 +49,7 @@ pyo3 = { version = "0.19.2", features = ["extension-module"] }
 pyo3-build-config = "0.19.0"
 pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
 pyo3-polars = "0.6.0"
+regex = "1.10.0"
 serde = { version = "1.0.183", features = ["derive"] }
 serde_json = "1.0.104"
 thiserror = "1.0.40"

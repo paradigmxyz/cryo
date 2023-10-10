@@ -14,7 +14,7 @@ pub struct NativeTransfers {
     transaction_hash: Vec<Option<Vec<u8>>>,
     from_address: Vec<Vec<u8>>,
     to_address: Vec<Vec<u8>>,
-    value: Vec<Vec<u8>>,
+    value: Vec<U256>,
     chain_id: Vec<u64>,
 }
 
@@ -81,7 +81,7 @@ fn process_native_transfers(
             Action::Call(action) => {
                 store!(schema, columns, from_address, action.from.as_bytes().to_vec());
                 store!(schema, columns, to_address, action.to.as_bytes().to_vec());
-                store!(schema, columns, value, action.value.to_vec_u8());
+                store!(schema, columns, value, action.value);
             }
             Action::Create(action) => {
                 store!(schema, columns, from_address, action.from.as_bytes().to_vec());
@@ -91,17 +91,17 @@ fn process_native_transfers(
                     }
                     _ => store!(schema, columns, to_address, vec![0; 32]),
                 }
-                store!(schema, columns, value, action.value.to_vec_u8());
+                store!(schema, columns, value, action.value);
             }
             Action::Suicide(action) => {
                 store!(schema, columns, from_address, action.address.as_bytes().to_vec());
                 store!(schema, columns, to_address, action.refund_address.as_bytes().to_vec());
-                store!(schema, columns, value, action.balance.to_vec_u8());
+                store!(schema, columns, value, action.balance);
             }
             Action::Reward(action) => {
                 store!(schema, columns, from_address, vec![0; 20]);
                 store!(schema, columns, to_address, action.author.as_bytes().to_vec());
-                store!(schema, columns, value, action.value.to_vec_u8());
+                store!(schema, columns, value, action.value);
             }
         }
     }

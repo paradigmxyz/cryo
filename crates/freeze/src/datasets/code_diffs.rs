@@ -90,7 +90,7 @@ pub(crate) fn process_code_diff(
         Diff::Same => return,
         Diff::Born(value) => {
             if value.is_empty() {
-                return;
+                return
             };
             (Vec::new(), value.to_vec())
         }

@@ -1,3 +1,4 @@
+use super::erc20_metadata::remove_control_characters;
 use crate::*;
 use polars::prelude::*;
 use std::collections::HashMap;
@@ -43,12 +44,12 @@ impl CollectByBlock for Erc721Metadata {
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let name = String::from_utf8(output.to_vec()).ok();
+        let name = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
 
         // symbol
         let call_data = FUNCTION_ERC20_SYMBOL.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let symbol = String::from_utf8(output.to_vec()).ok();
+        let symbol = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
 
         Ok((request.block_number()? as u32, request.contract()?, name, symbol))
     }

@@ -9,6 +9,8 @@ use std::collections::HashMap;
 #[derive(Default)]
 pub struct TraceCalls {
     n_rows: u64,
+    block_number: Vec<u32>,
+    transaction_position: Vec<u32>,
     action_from: Vec<Option<Vec<u8>>>,
     action_to: Vec<Option<Vec<u8>>>,
     action_value: Vec<String>,
@@ -24,8 +26,6 @@ pub struct TraceCalls {
     result_address: Vec<Option<Vec<u8>>>,
     trace_address: Vec<String>,
     subtraces: Vec<u32>,
-    transaction_position: Vec<u32>,
-    block_number: Vec<u32>,
     error: Vec<Option<String>>,
     tx_to_address: Vec<Vec<u8>>,
     tx_call_data: Vec<Vec<u8>>,

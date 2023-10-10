@@ -31,8 +31,12 @@ impl Dataset for Erc20Metadata {
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
-
 type BlockAddressNameSymbolDecimals = (u32, Vec<u8>, Option<String>, Option<String>, Option<u32>);
+
+pub(crate) fn remove_control_characters(s: &str) -> String {
+    let re = regex::Regex::new(r"[ \x00-\x1F\x7F]").unwrap();
+    re.replace_all(s, "").to_string()
+}
 
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Metadata {
@@ -45,12 +49,12 @@ impl CollectByBlock for Erc20Metadata {
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let name = String::from_utf8(output.to_vec()).ok();
+        let name = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
 
         // symbol
         let call_data = FUNCTION_ERC20_SYMBOL.clone();
         let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let symbol = String::from_utf8(output.to_vec()).ok();
+        let symbol = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
 
         // decimals
         let call_data = FUNCTION_ERC20_DECIMALS.clone();

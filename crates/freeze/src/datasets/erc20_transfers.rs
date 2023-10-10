@@ -92,8 +92,8 @@ fn process_erc20_transfers(
             store!(schema, columns, log_index, li.as_u32());
             store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());
             store!(schema, columns, erc20, log.address.as_bytes().to_vec());
-            store!(schema, columns, from_address, log.topics[1].as_bytes().to_vec());
-            store!(schema, columns, to_address, log.topics[2].as_bytes().to_vec());
+            store!(schema, columns, from_address, log.topics[1].as_bytes()[12..].to_vec());
+            store!(schema, columns, to_address, log.topics[2].as_bytes()[12..].to_vec());
             store!(schema, columns, value, log.data.to_vec().as_slice().into());
         }
     }
