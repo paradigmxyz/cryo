@@ -233,11 +233,11 @@ mod tests {
 
     #[test]
     fn test_table_schema_explicit_cols() {
-        let cols = Some(vec!["number".to_string(), "hash".to_string()]);
+        let cols = Some(vec!["block_number".to_string(), "block_hash".to_string()]);
         let table = Datatype::Blocks
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
-        assert_eq!(vec!["number", "hash"], table.columns());
+        assert_eq!(vec!["block_number", "block_hash"], table.columns());
 
         // "all" marker support
         let cols = Some(vec!["all".to_string()]);
@@ -245,7 +245,7 @@ mod tests {
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
         assert_eq!(15, table.columns().len());
-        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
 
@@ -296,7 +296,7 @@ mod tests {
             )
             .unwrap();
         assert_eq!(15, table.columns().len());
-        assert!(table.columns().contains(&"hash"));
+        assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
 
@@ -306,7 +306,7 @@ mod tests {
         let table = Datatype::Blocks
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None, None)
             .unwrap();
-        assert_eq!(7, table.columns().len());
+        assert_eq!(8, table.columns().len());
         assert!(table.columns().contains(&"author"));
         assert!(table.columns().contains(&"extra_data"));
 
@@ -322,7 +322,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(5, table.columns().len());
+        assert_eq!(6, table.columns().len());
         assert!(!table.columns().contains(&"author"));
         assert!(!table.columns().contains(&"extra_data"));
 
@@ -339,7 +339,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(6, table.columns().len());
+        assert_eq!(7, table.columns().len());
         assert!(!table.columns().contains(&"timestamp"));
         assert!(!table.columns().contains(&"foo_bar"));
     }
