@@ -228,7 +228,7 @@ async fn parse_block_token<P: JsonRpcClient>(
                 end_block
             };
 
-            if end_block <= start_block {
+            if end_block < start_block {
                 Err(ParseError::ParseError(
                     "end_block should not be less than start_block".to_string(),
                 ))
