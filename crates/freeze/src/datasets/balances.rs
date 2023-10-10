@@ -9,7 +9,6 @@ use std::collections::HashMap;
 pub struct Balances {
     n_rows: usize,
     block_number: Vec<u32>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
     address: Vec<Vec<u8>>,
     balance: Vec<U256>,
     chain_id: Vec<u64>,
@@ -61,10 +60,9 @@ fn process_balance(
     data: BlockTxAddressOutput,
     schema: &Table,
 ) -> Result<()> {
-    let (block, tx, address, balance) = data;
+    let (block, _tx, address, balance) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);
-    store!(schema, columns, transaction_hash, tx);
     store!(schema, columns, address, address);
     store!(schema, columns, balance, balance);
     Ok(())
