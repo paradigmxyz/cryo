@@ -232,6 +232,9 @@ async fn parse_block_token<P: JsonRpcClient>(
                 end_block
             };
 
+            let start_block =
+                if first_ref.starts_with('-') { start_block + 1 } else { start_block };
+
             if end_block < start_block {
                 Err(ParseError::ParseError(
                     "end_block should not be less than start_block".to_string(),
