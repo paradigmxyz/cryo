@@ -62,14 +62,12 @@ impl<P: JsonRpcClient> Fetcher<P> {
         include_transaction_hashes: bool,
     ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<BlockTrace>)> {
         // get traces
-        let result = {
-            let _permit = self.permit_request().await;
-            self.trace_replay_block_transactions(
+        let result = self
+            .trace_replay_block_transactions(
                 block.into(),
                 vec![ethers::types::TraceType::StateDiff],
             )
-            .await
-        }?;
+            .await?;
 
         // get transactions
         let txs = if include_transaction_hashes {
