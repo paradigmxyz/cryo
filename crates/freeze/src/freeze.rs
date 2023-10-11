@@ -3,7 +3,10 @@ use crate::{
     FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source, Table, TimeDimension,
 };
 use futures::{stream::FuturesUnordered, StreamExt};
-use std::{collections::HashMap, path::PathBuf};
+use std::{
+    collections::{HashMap, HashSet},
+    path::PathBuf,
+};
 use tokio::sync::Semaphore;
 
 type PartitionPayload = (
@@ -83,6 +86,7 @@ fn get_payloads(
         .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
+    let mut all_paths = HashSet::new();
     for datatype in query.datatypes.clone().into_iter() {
         for partition in query.partitions.clone().into_iter() {
             let paths = sink.get_paths(query, &partition)?;
@@ -90,6 +94,17 @@ fn get_payloads(
                 skipping.push(partition);
                 continue
             }
+
+            // check for path collisions
+            let paths_set: HashSet<_> = paths.clone().into_values().collect();
+            if paths_set.intersection(&all_paths).next().is_none() {
+                all_paths.extend(paths_set);
+            } else {
+                let message =
+                    format!("output path collision: {:?}", paths_set.intersection(&all_paths));
+                return Err(err(&message))
+            };
+
             let payload = (
                 query.time_dimension.clone(),
                 partition.clone(),
