@@ -89,7 +89,7 @@ fn get_payloads(
     let mut all_paths = HashSet::new();
     for datatype in query.datatypes.clone().into_iter() {
         for partition in query.partitions.clone().into_iter() {
-            let paths = sink.get_paths(query, &partition)?;
+            let paths = sink.get_paths(query, &partition, Some(vec![datatype.clone()]))?;
             if !sink.overwrite && paths.values().all(|path| path.exists()) {
                 skipping.push(partition);
                 continue
