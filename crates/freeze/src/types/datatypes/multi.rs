@@ -7,6 +7,9 @@ pub enum MultiDatatype {
     /// blocks and transactions
     BlocksAndTransactions,
 
+    /// call trace derivatives
+    CallTraceDerivatives,
+
     /// balance diffs, code diffs, nonce diffs, and storage diffs
     StateDiffs,
 }
@@ -22,11 +25,18 @@ impl MultiDatatype {
                 Datatype::NonceDiffs,
                 Datatype::StorageDiffs,
             ],
+            MultiDatatype::CallTraceDerivatives => {
+                vec![Datatype::Contracts, Datatype::NativeTransfers, Datatype::Traces]
+            }
         }
     }
 
     /// return all variants of multi datatype
     pub fn variants() -> Vec<MultiDatatype> {
-        vec![MultiDatatype::BlocksAndTransactions, MultiDatatype::StateDiffs]
+        vec![
+            MultiDatatype::BlocksAndTransactions,
+            MultiDatatype::CallTraceDerivatives,
+            MultiDatatype::StateDiffs,
+        ]
     }
 }

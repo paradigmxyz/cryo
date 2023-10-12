@@ -34,7 +34,7 @@ impl CollectByBlock for BlocksAndTransactions {
         let BlocksAndTransactions(blocks, transactions) = columns;
         let (block, _) = response.clone();
         let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
-        super::blocks::process_block(block, blocks, schema)?;
+        blocks::process_block(block, blocks, schema)?;
         <Transactions as CollectByBlock>::transform(response, transactions, schemas)?;
         Ok(())
     }
@@ -64,7 +64,7 @@ impl CollectByTransaction for BlocksAndTransactions {
         let BlocksAndTransactions(blocks, transactions) = columns;
         let (block, (tx, gas_used)) = response;
         let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
-        super::blocks::process_block(block, blocks, schema)?;
+        blocks::process_block(block, blocks, schema)?;
         let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         transactions::process_transaction(tx, gas_used, transactions, schema);
         Ok(())

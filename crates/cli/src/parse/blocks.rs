@@ -222,15 +222,12 @@ async fn parse_block_token<P: JsonRpcClient>(
                 }
             };
 
-            let end_block = if second_ref != &"latest" &&
-                second_ref != &"" &&
-                !second_ref.starts_with('+') &&
-                !first_ref.starts_with('-')
-            {
-                end_block - 1
-            } else {
-                end_block
-            };
+            let end_block =
+                if second_ref != &"latest" && second_ref != &"" && !first_ref.starts_with('-') {
+                    end_block - 1
+                } else {
+                    end_block
+                };
 
             let start_block =
                 if first_ref.starts_with('-') { start_block + 1 } else { start_block };
@@ -476,7 +473,7 @@ mod tests {
             (BlockTokenTest::WithoutMock((r"1:2", BlockChunk::Range(1, 1))), true), /* Single block range */
             (BlockTokenTest::WithoutMock((r"0:2", BlockChunk::Range(0, 1))), true), /* Implicit start */
             (BlockTokenTest::WithoutMock((r"-10:100", BlockChunk::Range(91, 100))), true), /* Relative negative */
-            (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 110))), true), /* Relative positive */
+            (BlockTokenTest::WithoutMock((r"10:+100", BlockChunk::Range(10, 109))), true), /* Relative positive */
             (BlockTokenTest::WithMock((r"1:latest", BlockChunk::Range(1, 12), 12)), true), /* Explicit latest */
             (BlockTokenTest::WithMock((r"1:", BlockChunk::Range(1, 12), 12)), true), /* Implicit latest */
             // Number type
@@ -517,7 +514,7 @@ mod tests {
                 BlockInputTest::WithoutMock((
                     &block_inputs_multiple_complex,
                     vec![
-                        BlockChunk::Numbers(vec![15000000, 15000001]),
+                        BlockChunk::Numbers(vec![15000000]),
                         BlockChunk::Numbers(vec![1000, 1001]),
                         BlockChunk::Numbers(vec![999999998, 999999999, 1000000000]),
                         BlockChunk::Numbers(vec![2000]),

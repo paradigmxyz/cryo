@@ -40,8 +40,8 @@ impl CollectByBlock for NativeTransfers {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
-        process_native_transfers(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_native_transfers(&traces, columns, schemas)
     }
 }
 
@@ -54,17 +54,18 @@ impl CollectByTransaction for NativeTransfers {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
-        process_native_transfers(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_native_transfers(&traces, columns, schemas)
     }
 }
 
 /// process block into columns
-fn process_native_transfers(
-    traces: Vec<Trace>,
+pub(crate) fn process_native_transfers(
+    traces: &[Trace],
     columns: &mut NativeTransfers,
-    schema: &Table,
+    schemas: &Schemas,
 ) -> Result<()> {
+    let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
     for (transfer_index, trace) in traces.iter().enumerate() {
         columns.n_rows += 1;
         store!(schema, columns, block_number, trace.block_number as u32);

@@ -88,19 +88,6 @@ pub(crate) fn write_report(
     Ok(path)
 }
 
-// fn serialize_summary(
-//     summary: &FreezeSummary,
-//     query: &Query,
-//     sink: &FileOutput,
-// ) -> Result<SerializedFreezeSummary, CollectError> { SerializedFreezeSummary { completed_paths:
-//   summary .completed .iter() .flat_map(|partition| { sink.get_paths(query,
-//   partition).values().cloned().collect::<Vec<_>>().into_iter() }) .collect(), errored_paths:
-//   summary .errored .iter() .filter_map(|partition_option| {
-//   partition_option.as_ref().map(|partition| { sink.get_paths(query, partition) .values()
-//   .cloned() .collect::<Vec<_>>() .into_iter() }) }) .flatten() .collect(), n_skipped:
-//   summary.skipped.len() as u64, }
-// }
-
 fn serialize_summary(
     summary: &FreezeSummary,
     query: &Query,
@@ -110,7 +97,7 @@ fn serialize_summary(
         .completed
         .iter()
         .map(|partition| {
-            sink.get_paths(query, partition)
+            sink.get_paths(query, partition, None)
                 .map(|paths| paths.values().cloned().collect::<Vec<_>>())
         })
         .collect::<Result<Vec<_>, _>>()?
@@ -123,7 +110,7 @@ fn serialize_summary(
         .iter()
         .filter_map(|(partition_option, _error)| {
             partition_option.as_ref().map(|partition| {
-                sink.get_paths(query, partition)
+                sink.get_paths(query, partition, None)
                     .map(|paths| paths.values().cloned().collect::<Vec<_>>())
             })
         })

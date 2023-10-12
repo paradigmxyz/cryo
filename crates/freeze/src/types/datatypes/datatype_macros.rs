@@ -115,6 +115,9 @@ macro_rules! define_datatypes {
                     MultiDatatype::BlocksAndTransactions => {
                         BlocksAndTransactions::collect_by_block(partition, source, &schemas, None)
                     }
+                    MultiDatatype::CallTraceDerivatives => {
+                        CallTraceDerivatives::collect_by_block(partition, source, &schemas, None)
+                    }
                     MultiDatatype::StateDiffs => {
                         StateDiffs::collect_by_block(partition, source, &schemas, None)
                     },
@@ -148,6 +151,9 @@ macro_rules! define_datatypes {
                     match datatype {
                         MultiDatatype::BlocksAndTransactions => {
                             BlocksAndTransactions::collect_by_transaction(partition, source, &schemas, inner_request_size)
+                        }
+                        MultiDatatype::CallTraceDerivatives => {
+                            CallTraceDerivatives::collect_by_transaction(partition, source, &schemas, None)
                         }
                         MultiDatatype::StateDiffs => {
                             StateDiffs::collect_by_transaction(partition, source, &schemas, inner_request_size)

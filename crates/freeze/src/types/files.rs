@@ -1,4 +1,4 @@
-use crate::{CollectError, Datatype, Partition, Query};
+use crate::{CollectError, Datatype, MetaDatatype, Partition, Query};
 use std::{collections::HashMap, path::PathBuf};
 
 /// Options for file output
@@ -28,9 +28,15 @@ impl FileOutput {
         &self,
         query: &Query,
         partition: &Partition,
+        meta_datatypes: Option<Vec<MetaDatatype>>,
     ) -> Result<HashMap<Datatype, PathBuf>, CollectError> {
         let mut paths = HashMap::new();
-        for meta_datatype in query.datatypes.iter() {
+        let meta_datatypes = if let Some(meta_datatypes) = meta_datatypes {
+            meta_datatypes
+        } else {
+            query.datatypes.clone()
+        };
+        for meta_datatype in meta_datatypes.iter() {
             for datatype in meta_datatype.datatypes().into_iter() {
                 paths.insert(datatype, self.get_path(query, partition, datatype)?);
             }

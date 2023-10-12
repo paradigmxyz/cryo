@@ -45,8 +45,8 @@ impl CollectByBlock for Contracts {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
-        process_contracts(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_contracts(&traces, columns, schemas)
     }
 }
 
@@ -59,14 +59,18 @@ impl CollectByTransaction for Contracts {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
-        process_contracts(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_contracts(&traces, columns, schemas)
     }
 }
 
 /// process block into columns
-fn process_contracts(traces: Vec<Trace>, columns: &mut Contracts, schema: &Table) -> Result<()> {
-    let traces = traces::filter_failed_traces(traces);
+pub(crate) fn process_contracts(
+    traces: &[Trace],
+    columns: &mut Contracts,
+    schemas: &Schemas,
+) -> Result<()> {
+    let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
     let mut deployer = H160([0; 20]);
     let mut create_index = 0;
     for trace in traces.iter() {

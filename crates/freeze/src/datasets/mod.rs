@@ -1,34 +1,55 @@
-mod balance_diffs;
-mod balances;
-mod blocks;
-mod blocks_and_transactions;
-mod code_diffs;
-mod codes;
-mod contracts;
-mod erc20_balances;
-mod erc20_metadata;
-mod erc20_supplies;
-mod erc20_transfers;
-mod erc721_metadata;
-mod erc721_transfers;
-mod eth_calls;
-mod logs;
-mod native_transfers;
-mod nonce_diffs;
-mod nonces;
-mod state_diffs;
-mod storage_diffs;
-mod storages;
-mod trace_calls;
-mod traces;
-mod transaction_addresses;
-mod transactions;
-mod vm_traces;
+/// balance diffs
+pub mod balance_diffs;
+/// balances
+pub mod balances;
+/// blocks
+pub mod blocks;
+/// code diffs
+pub mod code_diffs;
+/// codes
+pub mod codes;
+/// contracts
+pub mod contracts;
+/// erc20 balances
+pub mod erc20_balances;
+/// erc20 metadata
+pub mod erc20_metadata;
+/// erc20 supplies
+pub mod erc20_supplies;
+/// erc20 transfers
+pub mod erc20_transfers;
+/// erc721 metadata
+pub mod erc721_metadata;
+/// erc721 transfers
+pub mod erc721_transfers;
+/// eth calls
+pub mod eth_calls;
+/// logs
+pub mod logs;
+/// native transfers
+pub mod native_transfers;
+/// nonce diffs
+pub mod nonce_diffs;
+/// nonces
+pub mod nonces;
+/// storage diffs
+pub mod storage_diffs;
+/// storages
+pub mod storages;
+/// trace calls
+pub mod trace_calls;
+/// traces
+pub mod traces;
+/// transaction addresses
+pub mod transaction_addresses;
+/// transactions
+pub mod transactions;
+/// vm traces
+pub mod vm_traces;
 
 pub use balance_diffs::*;
 pub use balances::*;
 pub use blocks::*;
-pub use blocks_and_transactions::*;
 pub use code_diffs::*;
 pub use codes::*;
 pub use contracts::*;
@@ -43,7 +64,6 @@ pub use logs::*;
 pub use native_transfers::*;
 pub use nonce_diffs::*;
 pub use nonces::*;
-pub use state_diffs::*;
 pub use storage_diffs::*;
 pub use storages::*;
 pub use trace_calls::*;

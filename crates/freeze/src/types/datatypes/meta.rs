@@ -21,12 +21,14 @@ impl MetaDatatype {
 
 /// cluster datatypes into MultiDatatype / ScalarDatatype groups
 pub fn cluster_datatypes(dts: Vec<Datatype>) -> Vec<MetaDatatype> {
+    // use MultiDatatypes that have at least 2 ScalarDatatypes in datatype list
     let mdts: Vec<MultiDatatype> = MultiDatatype::variants()
         .iter()
-        .filter(|mdt| mdt.datatypes().iter().all(|x| dts.contains(x)))
+        .filter(|mdt| mdt.datatypes().iter().filter(|x| dts.contains(x)).count() >= 2)
         .cloned()
         .collect();
-    let mdt_dts: Vec<Datatype> = mdts.iter().flat_map(|mdt| mdt.datatypes()).collect();
+    let mdt_dts: Vec<Datatype> =
+        mdts.iter().flat_map(|mdt| mdt.datatypes()).filter(|dt| dts.contains(dt)).collect();
     let other_dts: Vec<Datatype> = dts.iter().filter(|dt| !mdt_dts.contains(dt)).copied().collect();
 
     [

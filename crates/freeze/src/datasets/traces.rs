@@ -53,8 +53,8 @@ impl CollectByBlock for Traces {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
-        process_traces(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_traces(&traces, columns, schemas)
     }
 }
 
@@ -67,12 +67,17 @@ impl CollectByTransaction for Traces {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
-        process_traces(response, columns, schema)
+        let traces = traces::filter_failed_traces(response);
+        process_traces(&traces, columns, schemas)
     }
 }
 /// process block into columns
-fn process_traces(traces: Vec<Trace>, columns: &mut Traces, schema: &Table) -> Result<()> {
+pub(crate) fn process_traces(
+    traces: &[Trace],
+    columns: &mut Traces,
+    schemas: &Schemas,
+) -> Result<()> {
+    let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
     for trace in traces.iter() {
         columns.n_rows += 1;
         process_action(&trace.action, columns, schema);
