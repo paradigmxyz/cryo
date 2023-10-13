@@ -44,7 +44,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
@@ -61,7 +65,11 @@ impl CollectByBlock for Erc721Transfers {
 impl CollectByTransaction for Erc721Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc721_transfer).collect())
     }

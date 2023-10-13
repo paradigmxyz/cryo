@@ -38,7 +38,11 @@ impl ToDataFrames for CallTraceDerivatives {
 impl CollectByBlock for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_block(request.block_number()?.into()).await
     }
 
@@ -52,7 +56,11 @@ impl CollectByBlock for CallTraceDerivatives {
 impl CollectByTransaction for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 

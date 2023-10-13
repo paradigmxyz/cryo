@@ -36,7 +36,11 @@ type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>);
 impl CollectByBlock for Codes {
     type Response = BlockTxAddressOutput;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let address = request.address()?;
         let block_number = request.block_number()? as u32;
         let output =

@@ -35,7 +35,11 @@ impl Dataset for BalanceDiffs {
 impl CollectByBlock for BalanceDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let schema = schemas.get(&Datatype::BalanceDiffs).ok_or(err("schema not provided"))?;
         let include_txs = schema.has_column("transaction_hash");
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
@@ -50,7 +54,11 @@ impl CollectByBlock for BalanceDiffs {
 impl CollectByTransaction for BalanceDiffs {
     type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 

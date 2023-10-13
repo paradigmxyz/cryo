@@ -55,7 +55,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Blocks {
     type Response = Block<TxHash>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let block = source
             .fetcher
             .get_block(request.block_number()?)
@@ -74,7 +78,11 @@ impl CollectByBlock for Blocks {
 impl CollectByTransaction for Blocks {
     type Response = Block<TxHash>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let transaction = source
             .fetcher
             .get_transaction(request.ethers_transaction_hash()?)

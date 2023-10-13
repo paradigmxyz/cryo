@@ -52,7 +52,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Logs {
     type Response = Vec<Log>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.get_logs(&request.ethers_log_filter()?).await
     }
 
@@ -66,7 +70,11 @@ impl CollectByBlock for Logs {
 impl CollectByTransaction for Logs {
     type Response = Vec<Log>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.get_transaction_logs(request.transaction_hash()?).await
     }
 

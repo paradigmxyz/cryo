@@ -26,7 +26,11 @@ impl ToDataFrames for BlocksAndTransactions {
 impl CollectByBlock for BlocksAndTransactions {
     type Response = <Transactions as CollectByBlock>::Response;
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         <Transactions as CollectByBlock>::extract(request, source, schemas).await
     }
 
@@ -47,7 +51,11 @@ impl CollectByTransaction for BlocksAndTransactions {
         <Transactions as CollectByTransaction>::Response,
     );
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let (tx, gas_used) =
             <Transactions as CollectByTransaction>::extract(request, source.clone(), schemas)
                 .await?;

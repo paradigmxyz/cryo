@@ -2,7 +2,7 @@ use crate::{collect_partition, CollectError, Query, Source};
 use polars::prelude::*;
 
 /// collect single dataframe
-pub async fn collect(query: Query, source: Source) -> Result<DataFrame, CollectError> {
+pub async fn collect(query: Query, source: Arc<Source>) -> Result<DataFrame, CollectError> {
     query.is_valid()?;
     let datatype = if query.datatypes.len() != 1 {
         return Err(CollectError::CollectError(

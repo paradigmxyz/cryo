@@ -37,7 +37,11 @@ type BlockErc20Supply = (u32, Vec<u8>, Option<U256>);
 impl CollectByBlock for Erc20Supplies {
     type Response = BlockErc20Supply;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let signature: Vec<u8> = FUNCTION_ERC20_TOTAL_SUPPLY.clone();
         let mut call_data = signature.clone();
         call_data.extend(request.contract()?);

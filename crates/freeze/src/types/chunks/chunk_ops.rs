@@ -1,4 +1,5 @@
 use crate::{ChunkError, Datatype, FileError, FileOutput};
+use thousands::Separable;
 
 /// Trait for common chunk methods
 pub trait ChunkData: Sized {
@@ -107,7 +108,7 @@ pub trait ValueToString {
 
 impl ValueToString for u64 {
     fn to_value_string(&self) -> String {
-        self.to_string()
+        self.separate_with_commas()
     }
 }
 

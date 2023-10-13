@@ -6,6 +6,7 @@ use futures::{stream::FuturesUnordered, StreamExt};
 use std::{
     collections::{HashMap, HashSet},
     path::PathBuf,
+    sync::Arc,
 };
 use tokio::sync::Semaphore;
 
@@ -14,7 +15,7 @@ type PartitionPayload = (
     Partition,
     MetaDatatype,
     HashMap<Datatype, PathBuf>,
-    Source,
+    Arc<Source>,
     FileOutput,
     HashMap<Datatype, Table>,
     ExecutionEnv,
@@ -84,6 +85,7 @@ fn get_payloads(
     let semaphore = source
         .max_concurrent_chunks
         .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
+    let source = Arc::new(source.clone());
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
     let mut all_paths = HashSet::new();
@@ -128,6 +130,7 @@ async fn freeze_partitions(
     skipped: Vec<Partition>,
 ) -> FreezeSummary {
     if let Some(bar) = &env.bar {
+        bar.set_length(payloads.len() as u64);
         bar.inc(0);
     }
 

@@ -48,7 +48,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_block_vm_traces(request.block_number()? as u32).await
     }
 
@@ -61,7 +65,11 @@ impl CollectByBlock for VmTraces {
 impl CollectByTransaction for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction_vm_traces(request.transaction_hash()?).await
     }
 

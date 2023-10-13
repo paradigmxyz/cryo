@@ -40,7 +40,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Contracts {
     type Response = Vec<Trace>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_block(request.ethers_block_number()?).await
     }
 
@@ -54,7 +58,11 @@ impl CollectByBlock for Contracts {
 impl CollectByTransaction for Contracts {
     type Response = Vec<Trace>;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 

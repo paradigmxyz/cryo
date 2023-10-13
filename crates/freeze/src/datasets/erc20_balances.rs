@@ -38,7 +38,11 @@ type BlockErc20AddressBalance = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 impl CollectByBlock for Erc20Balances {
     type Response = BlockErc20AddressBalance;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let signature = FUNCTION_ERC20_BALANCE_OF.clone();
         let mut call_data = signature.clone();
         call_data.extend(vec![0; 12]);

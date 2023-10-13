@@ -39,7 +39,11 @@ type BlockLogsTraces = (Block<TxHash>, Vec<Log>, Vec<Trace>);
 impl CollectByBlock for TransactionAddresses {
     type Response = BlockLogsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let block_number = request.ethers_block_number()?;
         let block = source.fetcher.get_block(request.block_number()?).await?;
         let block = block.ok_or(CollectError::CollectError("block not found".to_string()))?;
@@ -66,7 +70,11 @@ impl CollectByBlock for TransactionAddresses {
 impl CollectByTransaction for TransactionAddresses {
     type Response = BlockLogsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
 
         let tx_data = source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {

@@ -95,7 +95,7 @@ macro_rules! define_datatypes {
         pub async fn collect_by_block(
             datatype: MetaDatatype,
             partition: Partition,
-            source: Source,
+            source: Arc<Source>,
             schemas: HashMap<Datatype, Table>,
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {
@@ -130,7 +130,7 @@ macro_rules! define_datatypes {
         pub async fn collect_by_transaction(
             datatype: MetaDatatype,
             partition: Partition,
-            source: Source,
+            source: Arc<Source>,
             schemas: HashMap<Datatype, Table>,
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {

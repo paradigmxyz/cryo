@@ -42,7 +42,11 @@ pub(crate) fn remove_control_characters(s: &str) -> String {
 impl CollectByBlock for Erc20Metadata {
     type Response = BlockAddressNameSymbolDecimals;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let block_number = request.ethers_block_number()?;
         let address = request.ethers_address()?;
 

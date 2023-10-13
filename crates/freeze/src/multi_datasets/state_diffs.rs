@@ -34,7 +34,11 @@ impl ToDataFrames for StateDiffs {
 impl CollectByBlock for StateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let include_txs = schemas.values().any(|x| x.has_column("transaction_hash"));
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
@@ -48,7 +52,11 @@ impl CollectByBlock for StateDiffs {
 impl CollectByTransaction for StateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 

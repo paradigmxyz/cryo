@@ -56,7 +56,11 @@ type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Vec<u8>);
 impl CollectByBlock for EthCalls {
     type Response = EthCallsResponse;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         let transaction = TransactionRequest {
             to: Some(request.ethers_contract()?.into()),
             data: Some(request.call_data()?.into()),

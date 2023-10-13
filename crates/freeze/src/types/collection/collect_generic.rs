@@ -9,7 +9,7 @@ pub async fn collect_partition(
     time_dimension: TimeDimension,
     datatype: MetaDatatype,
     partition: Partition,
-    source: Source,
+    source: Arc<Source>,
     schemas: HashMap<Datatype, Table>,
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
     match time_dimension {
@@ -24,7 +24,7 @@ pub async fn collect_partition(
 pub async fn fetch_partition<F, Fut, T>(
     f_request: F,
     partition: Partition,
-    source: Source,
+    source: Arc<Source>,
     inner_request_size: Option<u64>,
     schemas: HashMap<Datatype, Table>,
     sender: mpsc::Sender<Result<T, CollectError>>,
@@ -32,7 +32,7 @@ pub async fn fetch_partition<F, Fut, T>(
 where
     F: Copy
         + Send
-        + for<'a> Fn(Params, Source, HashMap<Datatype, Table>) -> Fut
+        + for<'a> Fn(Params, Arc<Source>, HashMap<Datatype, Table>) -> Fut
         + std::marker::Sync
         + 'static,
     Fut: Future<Output = Result<T, CollectError>> + Send + 'static,

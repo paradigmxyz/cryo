@@ -44,7 +44,10 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         fetcher: Arc::new(fetcher),
         chain_id,
         inner_request_size: args.inner_request_size,
+        max_concurrent_requests: args.requests_per_second.map(|x| x as u64),
         max_concurrent_chunks,
+        max_requests_per_second: args.requests_per_second.map(|x| x as u64),
+        rpc_url,
     };
 
     Ok(output)

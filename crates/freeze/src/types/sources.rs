@@ -22,8 +22,14 @@ pub struct Source {
     pub chain_id: u64,
     /// number of blocks per log request
     pub inner_request_size: u64,
+    /// Maximum requests collected concurrently
+    pub max_concurrent_requests: Option<u64>,
     /// Maximum chunks collected concurrently
     pub max_concurrent_chunks: Option<u64>,
+    /// Maximum requests per second
+    pub max_requests_per_second: Option<u64>,
+    /// Rpc Url
+    pub rpc_url: String,
 }
 
 /// Wrapper over `Provider<P>` that adds concurrency and rate limiting controls

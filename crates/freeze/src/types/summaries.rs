@@ -67,37 +67,68 @@ pub(crate) fn print_cryo_intro(
 ) {
     print_header("cryo parameters");
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
-    print_bullet("datatypes", datatype_strs.join(", "));
-    print_bullet("network", &sink.prefix);
+    print_bullet("data", "");
+    print_bullet_indent("datatypes", datatype_strs.join(", "), 4);
     // let rpc_url = cli::parse_rpc_url(args);
     // print_bullet("provider", rpc_url);
     print_chunks(&query.partitions);
-    print_bullet(
-        "chunks to collect",
-        format!(
-            "{} / {}",
-            n_chunks_remaining.separate_with_commas(),
-            query.partitions.len().separate_with_commas()
+
+    print_bullet("source", "");
+    print_bullet_indent("network", &sink.prefix, 4);
+    print_bullet_indent("rpc url", &source.rpc_url, 4);
+    match source.max_requests_per_second {
+        Some(max_requests_per_second) => print_bullet_indent(
+            "max requests per second",
+            max_requests_per_second.separate_with_commas(),
+            4,
         ),
-    );
+        None => print_bullet_indent("max requests per second", "unlimited", 4),
+    };
+    match source.max_concurrent_requests {
+        Some(max_concurrent_requests) => print_bullet_indent(
+            "max concurrent requests",
+            max_concurrent_requests.separate_with_commas(),
+            4,
+        ),
+        None => print_bullet_indent("max concurrent requests", "unlimited", 4),
+    };
     match source.max_concurrent_chunks {
-        Some(max_concurrent_chunks) => {
-            print_bullet("max concurrent chunks", max_concurrent_chunks.separate_with_commas())
-        }
-        None => print_bullet("max concurrent chunks:", "[none]"),
+        Some(max_concurrent_chunks) => print_bullet_indent(
+            "max concurrent chunks",
+            max_concurrent_chunks.separate_with_commas(),
+            4,
+        ),
+        None => print_bullet_indent("max concurrent chunks:", "unlimited", 4),
     };
+
     if query.schemas.contains_key(&Datatype::Logs) {
-        print_bullet("inner request size", source.inner_request_size.to_string());
+        print_bullet_indent("inner request size", source.inner_request_size.to_string(), 4);
     };
-    print_bullet("output format", sink.format.as_str());
-    print_bullet("output dir", sink.output_dir.to_string_lossy());
+
+    print_bullet("output", "");
+    if let Some(partition) = query.partitions.first() {
+        let stats = partition.stats();
+        if let Some(dim) = query.partitioned_by.first() {
+            if dim == &Dim::BlockNumber {
+                if let Some(block_numbers) = stats.block_numbers {
+                    let chunk_size = block_numbers.chunk_size;
+                    print_bullet_indent("chunk size", chunk_size.separate_with_commas(), 4);
+                }
+            }
+        }
+    }
+    print_bullet_indent("n chunks", query.partitions.len().separate_with_commas(), 4);
+    print_bullet_indent("chunks remaining", n_chunks_remaining.to_string(), 4);
+    print_bullet_indent("output format", sink.format.as_str(), 4);
+    print_bullet_indent("output dir", sink.output_dir.clone().to_string_lossy(), 4);
 
     // print report path
     let report_path = if env.report && n_chunks_remaining > 0 {
         match super::reports::get_report_path(env, sink, true) {
             Ok(report_path) => {
-                let stripped_path: PathBuf = match report_path.strip_prefix("./") {
-                    Ok(stripped) => PathBuf::from(stripped),
+                let stripped_path: PathBuf = match report_path.strip_prefix(sink.output_dir.clone())
+                {
+                    Ok(stripped) => PathBuf::from("$OUTPUT_DIR").join(PathBuf::from(stripped)),
                     Err(_) => report_path,
                 };
                 Some(stripped_path)
@@ -108,11 +139,10 @@ pub(crate) fn print_cryo_intro(
         None
     };
     match report_path {
-        None => print_bullet("report file", "None"),
-        Some(path) => print_bullet("report file", path.to_str().unwrap_or("none")),
+        None => print_bullet_indent("report file", "None", 4),
+        Some(path) => print_bullet_indent("report file", path.to_str().unwrap_or("none"), 4),
     };
     let dt_start: DateTime<Local> = env.t_start.into();
-    print_bullet("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string());
 
     // print schemas
     print_schemas(&query.schemas);
@@ -123,28 +153,29 @@ pub(crate) fn print_cryo_intro(
 
     println!();
     println!();
-    print_header("collecting data")
+    print_header("collecting data");
+    println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
 }
 
 fn print_chunks(chunks: &[Partition]) {
     let stats = crate::types::partitions::meta_chunks_stats(chunks);
-    for (dim, dim_stats) in [("block", stats.block_numbers)].iter() {
+    for (dim, dim_stats) in [(Dim::BlockNumber, stats.block_numbers)].iter() {
         if let Some(dim_stats) = dim_stats {
             print_chunk(dim, dim_stats)
         }
     }
 
     for (dim, dim_stats) in vec![
-        ("transaction", stats.transactions),
-        ("call_data", stats.call_datas),
-        ("address", stats.addresses),
-        ("contract", stats.contracts),
-        ("to_address", stats.to_addresses),
-        ("slot", stats.slots),
-        ("topic0", stats.topic0s),
-        ("topic1", stats.topic1s),
-        ("topic2", stats.topic2s),
-        ("topic3", stats.topic3s),
+        (Dim::TransactionHash, stats.transactions),
+        (Dim::CallData, stats.call_datas),
+        (Dim::Address, stats.addresses),
+        (Dim::Contract, stats.contracts),
+        (Dim::ToAddress, stats.to_addresses),
+        (Dim::Slot, stats.slots),
+        (Dim::Topic0, stats.topic0s),
+        (Dim::Topic1, stats.topic1s),
+        (Dim::Topic2, stats.topic2s),
+        (Dim::Topic3, stats.topic3s),
     ]
     .iter()
     {
@@ -154,20 +185,31 @@ fn print_chunks(chunks: &[Partition]) {
     }
 }
 
-fn print_chunk<T: Ord + ValueToString>(dim: &str, dim_stats: &ChunkStats<T>) {
+fn print_chunk<T: Ord + ValueToString>(dim: &Dim, dim_stats: &ChunkStats<T>) {
     if dim_stats.total_values == 1 {
-        print_bullet(dim, dim_stats.min_value_to_string().unwrap_or("none".to_string()));
+        print_bullet_indent(
+            format!("{}", dim),
+            dim_stats.min_value_to_string().unwrap_or("none".to_string()),
+            4,
+        );
     } else {
-        print_bullet(format!("{} values", dim), "");
-        if let Some(min_value_string) = dim_stats.min_value_to_string() {
-            print_bullet_indent("min", min_value_string, 4);
-        };
-        if let Some(max_value_string) = dim_stats.max_value_to_string() {
-            print_bullet_indent("max", max_value_string, 4);
-        };
-        print_bullet_indent("n_values", dim_stats.total_values.to_string(), 4);
-        print_bullet_indent("n_chunks", dim_stats.n_chunks.to_string(), 4);
-        print_bullet_indent("chunk size", dim_stats.chunk_size.to_string(), 4);
+        match (dim_stats.min_value_to_string(), dim_stats.max_value_to_string()) {
+            (Some(min), Some(max)) => print_bullet_indent(
+                dim.plural_name(),
+                format!(
+                    "n={} min={} max={}",
+                    dim_stats.total_values.separate_with_commas(),
+                    min,
+                    max
+                ),
+                4,
+            ),
+            _ => print_bullet_indent(
+                dim.plural_name(),
+                format!("n={}", dim_stats.total_values.separate_with_commas()),
+                4,
+            ),
+        }
     }
 }
 
@@ -213,8 +255,23 @@ pub(crate) fn print_cryo_conclusion(
     query: &Query,
     env: &ExecutionEnv,
 ) {
+    let new_env = match env.t_end {
+        None => Some(env.clone().set_end_time()),
+        Some(_) => None,
+    };
+    let env: &ExecutionEnv = match &new_env {
+        Some(e) => e,
+        None => env,
+    };
+    let t_end = match env.t_end {
+        Some(t_end) => t_end,
+        _ => return,
+    };
+    let dt_data_done: DateTime<Local> = t_end.into();
+
+    println!("   done at {}", dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str());
+
     if freeze_summary.errored.is_empty() {
-        println!("...done")
     } else {
         println!("...done (errors in {} chunks)", freeze_summary.errored.len())
     };
@@ -223,6 +280,7 @@ pub(crate) fn print_cryo_conclusion(
 
     if !freeze_summary.errored.is_empty() {
         print_header_error("error summary");
+        println!("(errors in {} chunks)", freeze_summary.errored.len());
         let mut error_counts: HashMap<String, usize> = HashMap::new();
         for (_partition, error) in freeze_summary.errored.iter() {
             *error_counts.entry(error.to_string()).or_insert(0) += 1;
@@ -237,21 +295,6 @@ pub(crate) fn print_cryo_conclusion(
         println!();
     }
 
-    let new_env = match env.t_end {
-        None => Some(env.clone().set_end_time()),
-        Some(_) => None,
-    };
-    let env: &ExecutionEnv = match &new_env {
-        Some(e) => e,
-        None => env,
-    };
-
-    let dt_start: DateTime<Local> = env.t_start.into();
-    let t_end = match env.t_end {
-        Some(t_end) => t_end,
-        _ => return,
-    };
-    let dt_data_done: DateTime<Local> = t_end.into();
     let duration = match t_end.duration_since(env.t_start) {
         Ok(duration) => duration,
         Err(_e) => {
@@ -266,21 +309,17 @@ pub(crate) fn print_cryo_conclusion(
 
     print_header("collection summary");
     print_bullet("total duration", duration_string);
-    print_bullet_indent("t_start", dt_start.format("%Y-%m-%d %H:%M:%S%.3f").to_string(), 4);
-    print_bullet_indent(
-        "t_end",
-        "  ".to_string() + dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str(),
-        4,
-    );
-    let n_chunks = query.partitions.len().separate_with_commas();
-    let width = n_chunks.len();
-    print_bullet("total chunks", n_chunks.clone());
+    let n_chunks = query.partitions.len();
+    let n_chunks_str = n_chunks.separate_with_commas();
+    let width = n_chunks_str.len();
+    print_bullet("total chunks", n_chunks_str.clone());
     print_bullet_indent(
         "chunks errored",
         format!(
-            "  {:>width$} / {}",
+            "  {:>width$} / {} ({}%)",
             freeze_summary.errored.len().separate_with_commas(),
-            n_chunks,
+            &n_chunks_str,
+            format_float((100 * freeze_summary.errored.len() / n_chunks) as f64),
             width = width
         ),
         4,
@@ -288,9 +327,10 @@ pub(crate) fn print_cryo_conclusion(
     print_bullet_indent(
         "chunks skipped",
         format!(
-            "  {:>width$} / {}",
+            "  {:>width$} / {} ({}%)",
             freeze_summary.skipped.len().separate_with_commas(),
-            n_chunks,
+            n_chunks_str,
+            format_float((100 * freeze_summary.skipped.len() / n_chunks) as f64),
             width = width
         ),
         4,
@@ -298,15 +338,16 @@ pub(crate) fn print_cryo_conclusion(
     print_bullet_indent(
         "chunks collected",
         format!(
-            "{:>width$} / {}",
+            "{:>width$} / {} ({}%)",
             freeze_summary.completed.len().separate_with_commas(),
-            n_chunks,
+            n_chunks_str,
+            format_float((100 * freeze_summary.completed.len() / n_chunks) as f64),
             width = width
         ),
         4,
     );
 
-    print_chunks_speeds(query.partitions.clone(), &query.partitioned_by, total_time);
+    print_chunks_speeds(freeze_summary.completed.clone(), &query.partitioned_by, total_time);
 }
 
 macro_rules! print_dim_speed {
@@ -344,22 +385,46 @@ fn print_unit_speeds(name: String, n_completed: u64, total_time: f64) {
     let per_minute = per_second * 60.0;
     let per_hour = per_minute * 60.0;
     let per_day = per_hour * 24.0;
-    print_bullet("total ".to_string() + name.as_str(), n_completed.separate_with_commas());
-    print_bullet_indent(name.clone() + " per second", format_float(per_second), 4);
-    print_bullet_indent(name.clone() + " per minute", format_float(per_minute), 4);
+
+    let per_day_str = format_float(per_day);
+    let per_hour_str = format_float(per_hour);
+    let per_minute_str = format_float(per_minute);
+    let per_second_str = format_float(per_second);
+
+    let width = per_day_str.len();
+
+    print_bullet(name.clone() + " collected", n_completed.separate_with_commas());
     print_bullet_indent(
-        name.clone() + " per hour",
-        "  ".to_string() + format_float(per_hour).as_str(),
+        name.clone() + " per second",
+        format!("{:>width$}", per_second_str, width = width - 3),
         4,
     );
-    print_bullet_indent(name + " per day", "   ".to_string() + format_float(per_day).as_str(), 4);
+    print_bullet_indent(
+        name.clone() + " per minute",
+        format!("{:>width$}", per_minute_str, width = width - 3),
+        4,
+    );
+    print_bullet_indent(
+        name.clone() + " per hour",
+        format!("{:>width$}", per_hour_str, width = std::cmp::max(5, width - 1)),
+        4,
+    );
+    print_bullet_indent(name + " per day", format!("{:>width$}", per_day_str, width = 6), 4);
 }
 
 fn format_float(number: f64) -> String {
-    round_to_decimal_places(number, 1).separate_with_commas()
-}
+    let decimal_places = 1;
 
-fn round_to_decimal_places(number: f64, dp: u32) -> f64 {
-    let multiplier = 10f64.powi(dp as i32);
-    (number * multiplier).round() / multiplier
+    let int_part = number.trunc() as i64;
+    let frac_multiplier = 10f64.powi(decimal_places as i32);
+    let frac_part = (number.fract() * frac_multiplier).round() as usize;
+
+    if frac_part == 0 {
+        return format!("{}.0", int_part.separate_with_commas())
+    }
+
+    let frac_str =
+        format!("{:0>width$}", frac_part, width = decimal_places).trim_end_matches('0').to_string();
+
+    format!("{}.{}", int_part.separate_with_commas(), frac_str)
 }

@@ -46,7 +46,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for Transactions {
     type Response = (Block<Transaction>, Option<Vec<u32>>);
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let block = source
             .fetcher
             .get_block_with_txs(request.block_number()?)
@@ -84,7 +88,11 @@ impl CollectByBlock for Transactions {
 impl CollectByTransaction for Transactions {
     type Response = (Transaction, Option<u32>);
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
         let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         let transaction = source

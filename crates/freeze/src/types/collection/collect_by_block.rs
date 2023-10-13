@@ -13,7 +13,7 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     type Response: Send;
 
     /// fetch dataset data by block
-    async fn extract(_request: Params, _: Source, _: Schemas) -> Result<Self::Response> {
+    async fn extract(_request: Params, _: Arc<Source>, _: Schemas) -> Result<Self::Response> {
         Err(CollectError::CollectError("CollectByBlock not implemented".to_string()))
     }
 
@@ -25,7 +25,7 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
     /// collect data into DataFrame
     async fn collect_by_block(
         partition: Partition,
-        source: Source,
+        source: Arc<Source>,
         schemas: &HashMap<Datatype, Table>,
         inner_request_size: Option<u64>,
     ) -> Result<HashMap<Datatype, DataFrame>> {

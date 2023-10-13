@@ -36,7 +36,11 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 impl CollectByBlock for StorageDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        schemas: Schemas,
+    ) -> Result<Self::Response> {
         let schema = schemas.get(&Datatype::StorageDiffs).ok_or(err("schema not provided"))?;
         let include_txs = schema.has_column("transaction_hash");
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
@@ -51,7 +55,11 @@ impl CollectByBlock for StorageDiffs {
 impl CollectByTransaction for StorageDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(request: Params, source: Source, _schemas: Schemas) -> Result<Self::Response> {
+    async fn extract(
+        request: Params,
+        source: Arc<Source>,
+        _schemas: Schemas,
+    ) -> Result<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
