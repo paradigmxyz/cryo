@@ -55,7 +55,7 @@ pub(crate) fn write_report(
     freeze_summary: Option<&FreezeSummary>,
 ) -> Result<PathBuf, CollectError> {
     // determine version
-    let cryo_version = get_cryo_version();
+    let cryo_version = CRYO_VERSION.to_string();
     let serialized_summary = match freeze_summary {
         Some(x) => Some(serialize_summary(x, query, sink)?),
         None => None,
@@ -126,10 +126,5 @@ fn serialize_summary(
     })
 }
 
-fn get_cryo_version() -> String {
-    format!(
-        "{}__{}",
-        env!("CARGO_PKG_VERSION"),
-        option_env!("GIT_DESCRIPTION").unwrap_or("unknown")
-    )
-}
+/// cryo version
+pub const CRYO_VERSION: &str = env!("GIT_DESCRIPTION");

@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct VmTraces {
     block_number: Vec<Option<u32>>,
     transaction_hash: Vec<Option<Vec<u8>>>,
-    transaction_position: Vec<u32>,
+    transaction_index: Vec<u32>,
     pc: Vec<u64>,
     cost: Vec<u64>,
     used: Vec<Option<u64>>,
@@ -34,11 +34,11 @@ impl Dataset for VmTraces {
     }
 
     fn default_columns() -> Option<Vec<&'static str>> {
-        Some(vec!["block_number", "transaction_position", "pc", "cost", "used", "op", "chain_id"])
+        Some(vec!["block_number", "transaction_index", "pc", "cost", "used", "op", "chain_id"])
     }
 
     fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_position".to_string(), "used".to_string()]
+        vec!["block_number".to_string(), "transaction_index".to_string(), "used".to_string()]
     }
 }
 
@@ -106,7 +106,7 @@ fn add_ops(
 
         store!(schema, columns, block_number, number);
         store!(schema, columns, transaction_hash, tx_hash.clone());
-        store!(schema, columns, transaction_position, tx_pos as u32);
+        store!(schema, columns, transaction_index, tx_pos as u32);
         store!(schema, columns, pc, opcode.pc as u64);
         store!(schema, columns, cost, opcode.cost);
         if let Some(ex) = opcode.ex {

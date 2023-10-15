@@ -29,6 +29,7 @@ pub mod execution;
 
 /// report generation
 pub mod reports;
+pub use reports::CRYO_VERSION;
 
 /// type specifications for dataframes
 #[macro_use]
