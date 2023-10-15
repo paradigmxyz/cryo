@@ -16,8 +16,8 @@ pub struct Transactions {
     to_address: Vec<Option<Vec<u8>>>,
     value: Vec<U256>,
     input: Vec<Vec<u8>>,
-    gas_limit: Vec<u32>,
-    gas_used: Vec<Option<u32>>,
+    gas_limit: Vec<u64>,
+    gas_used: Vec<Option<u64>>,
     gas_price: Vec<Option<u64>>,
     transaction_type: Vec<Option<u32>>,
     max_priority_fee_per_gas: Vec<Option<u64>>,
@@ -44,7 +44,7 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type Response = (Block<Transaction>, Option<Vec<u32>>);
+    type Response = (Block<Transaction>, Option<Vec<u64>>);
 
     async fn extract(
         request: Params,
@@ -86,7 +86,7 @@ impl CollectByBlock for Transactions {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
-    type Response = (Transaction, Option<u32>);
+    type Response = (Transaction, Option<u64>);
 
     async fn extract(
         request: Params,
@@ -107,7 +107,7 @@ impl CollectByTransaction for Transactions {
                 .await?
                 .ok_or(CollectError::CollectError("transaction not found".to_string()))?
                 .gas_used
-                .map(|x| x.as_u32())
+                .map(|x| x.as_u64())
         } else {
             None
         };
@@ -124,7 +124,7 @@ impl CollectByTransaction for Transactions {
 
 pub(crate) fn process_transaction(
     tx: Transaction,
-    gas_used: Option<u32>,
+    gas_used: Option<u64>,
     columns: &mut Transactions,
     schema: &Table,
 ) {
@@ -137,7 +137,7 @@ pub(crate) fn process_transaction(
     store!(schema, columns, nonce, tx.nonce.as_u64());
     store!(schema, columns, value, tx.value);
     store!(schema, columns, input, tx.input.to_vec());
-    store!(schema, columns, gas_limit, tx.gas.as_u32());
+    store!(schema, columns, gas_limit, tx.gas.as_u64());
     store!(schema, columns, gas_used, gas_used);
     store!(schema, columns, gas_price, tx.gas_price.map(|gas_price| gas_price.as_u64()));
     store!(schema, columns, transaction_type, tx.transaction_type.map(|value| value.as_u32()));

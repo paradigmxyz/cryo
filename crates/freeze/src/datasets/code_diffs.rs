@@ -9,7 +9,7 @@ use std::collections::HashMap;
 pub struct CodeDiffs {
     n_rows: u64,
     block_number: Vec<Option<u32>>,
-    transaction_index: Vec<Option<u64>>,
+    transaction_index: Vec<Option<u32>>,
     transaction_hash: Vec<Option<Vec<u8>>>,
     address: Vec<Vec<u8>>,
     from_value: Vec<Vec<u8>>,
@@ -107,7 +107,7 @@ pub(crate) fn process_code_diff(
     };
     columns.n_rows += 1;
     store!(schema, columns, block_number, *block_number);
-    store!(schema, columns, transaction_index, Some(transaction_index as u64));
+    store!(schema, columns, transaction_index, Some(transaction_index as u32));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
     store!(schema, columns, address, addr.as_bytes().to_vec());
     store!(schema, columns, from_value, from);
