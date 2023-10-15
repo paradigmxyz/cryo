@@ -79,11 +79,11 @@ pub struct Args {
     #[arg(short('l'), long, value_name = "limit", help_heading = "Acquisition Options")]
     pub requests_per_second: Option<u32>,
 
-    /// Specify max retries on provider errors
+    /// Max retries for provider errors
     #[arg(long, default_value_t = 5, value_name = "R", help_heading = "Acquisition Options")]
     pub max_retries: u32,
 
-    /// Specify initial backoff for retry strategy (ms)
+    /// Initial backoff for retries (ms)
     #[arg(long, default_value_t = 500, value_name = "B", help_heading = "Acquisition Options")]
     pub initial_backoff: u64,
 
