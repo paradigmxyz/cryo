@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 /// Command line arguments
 #[derive(Parser, Debug, Serialize, Deserialize)]
-#[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str(), allow_negative_numbers = true)]
+#[command(name = "cryo", author, version = cryo_freeze::CRYO_VERSION, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str(), allow_negative_numbers = true)]
 pub struct Args {
     /// datatype to collect
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
