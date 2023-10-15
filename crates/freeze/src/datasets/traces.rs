@@ -23,7 +23,7 @@ pub struct Traces {
     result_address: Vec<Option<Vec<u8>>>,
     trace_address: Vec<String>,
     subtraces: Vec<u32>,
-    transaction_position: Vec<Option<u32>>,
+    transaction_index: Vec<Option<u32>>,
     transaction_hash: Vec<Option<Vec<u8>>>,
     block_number: Vec<u32>,
     block_hash: Vec<Vec<u8>>,
@@ -38,7 +38,7 @@ impl Dataset for Traces {
     }
 
     fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_position".to_string()]
+        vec!["block_number".to_string(), "transaction_index".to_string()]
     }
 }
 
@@ -98,7 +98,7 @@ pub(crate) fn process_traces(
             trace.trace_address.iter().map(|n| n.to_string()).collect::<Vec<String>>().join("_")
         );
         store!(schema, columns, subtraces, trace.subtraces as u32);
-        store!(schema, columns, transaction_position, trace.transaction_position.map(|x| x as u32));
+        store!(schema, columns, transaction_index, trace.transaction_position.map(|x| x as u32));
         store!(
             schema,
             columns,
