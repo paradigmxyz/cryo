@@ -35,12 +35,8 @@ impl Dataset for EthCalls {
         Some("latest".to_string())
     }
 
-    fn arg_aliases() -> Option<HashMap<String, String>> {
-        let aliases = [("address", "contract"), ("to_address", "contract")]
-            .iter()
-            .map(|(k, v)| (k.to_string(), v.to_string()))
-            .collect();
-        Some(aliases)
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Address, Dim::Contract), (Dim::ToAddress, Dim::Contract)].into_iter().collect())
     }
 
     fn required_parameters() -> Vec<Dim> {

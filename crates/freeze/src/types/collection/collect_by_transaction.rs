@@ -59,4 +59,9 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
         }
         Ok(columns)
     }
+
+    /// whether data can be collected by transaction
+    fn can_collect_by_transaction() -> bool {
+        std::any::type_name::<Self::Response>() != "()"
+    }
 }

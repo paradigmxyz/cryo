@@ -62,7 +62,7 @@ pub use schemas::{ColumnType, Schemas, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source};
 // pub(crate) use summaries::FreezeSummaryAgg;
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};
-pub use summaries::FreezeSummary;
+pub use summaries::{print_all_datasets, print_dataset_info, FreezeSummary};
 
 pub use errors::{err, ChunkError, CollectError, FileError, FreezeError, ParseError};
 

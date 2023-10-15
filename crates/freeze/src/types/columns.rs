@@ -31,7 +31,7 @@ pub trait ColumnData: Default + crate::Dataset {
     }
 
     /// input arg aliases
-    fn base_arg_aliases() -> HashMap<String, String> {
+    fn base_arg_aliases() -> HashMap<Dim, Dim> {
         match Self::arg_aliases() {
             Some(x) => x,
             None => HashMap::new(),
@@ -88,7 +88,7 @@ pub trait Dataset: Sync + Send {
     }
 
     /// input arg aliases
-    fn arg_aliases() -> Option<HashMap<String, String>> {
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
         None
     }
 }

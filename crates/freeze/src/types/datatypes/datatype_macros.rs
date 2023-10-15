@@ -70,7 +70,7 @@ macro_rules! define_datatypes {
             }
 
             /// aliases of datatype
-            pub fn arg_aliases(&self) -> HashMap<String, String> {
+            pub fn arg_aliases(&self) -> HashMap<Dim, Dim> {
                 match *self {
                     $(Datatype::$datatype => $datatype::base_arg_aliases(),)*
                 }
@@ -87,6 +87,20 @@ macro_rules! define_datatypes {
             pub fn optional_parameters(&self) -> Vec<Dim> {
                 match *self {
                     $(Datatype::$datatype => $datatype::optional_parameters(),)*
+                }
+            }
+
+            /// whether datatype can be collected by block
+            pub fn can_collect_by_block(&self) -> bool {
+                match *self {
+                    $(Datatype::$datatype => $datatype::can_collect_by_block(),)*
+                }
+            }
+
+            /// whether datatype can be collected by block
+            pub fn can_collect_by_transaction(&self) -> bool {
+                match *self {
+                    $(Datatype::$datatype => $datatype::can_collect_by_transaction(),)*
                 }
             }
         }
