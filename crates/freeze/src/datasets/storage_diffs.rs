@@ -7,15 +7,15 @@ use std::collections::HashMap;
 #[cryo_to_df::to_df(Datatype::StorageDiffs)]
 #[derive(Default)]
 pub struct StorageDiffs {
-    n_rows: u64,
-    block_number: Vec<Option<u32>>,
-    transaction_index: Vec<Option<u64>>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
-    address: Vec<Vec<u8>>,
-    slot: Vec<Vec<u8>>,
-    from_value: Vec<Vec<u8>>,
-    to_value: Vec<Vec<u8>>,
-    chain_id: Vec<u64>,
+    pub(crate) n_rows: u64,
+    pub(crate) block_number: Vec<Option<u32>>,
+    pub(crate) transaction_index: Vec<Option<u64>>,
+    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
+    pub(crate) address: Vec<Vec<u8>>,
+    pub(crate) slot: Vec<Vec<u8>>,
+    pub(crate) from_value: Vec<Vec<u8>>,
+    pub(crate) to_value: Vec<Vec<u8>>,
+    pub(crate) chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]

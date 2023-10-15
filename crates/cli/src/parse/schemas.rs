@@ -18,6 +18,12 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
                 datatypes.push(Datatype::NonceDiffs);
                 datatypes.push(Datatype::StorageDiffs);
             }
+            "geth_state_diffs" => {
+                datatypes.push(Datatype::GethBalanceDiffs);
+                datatypes.push(Datatype::GethCodeDiffs);
+                datatypes.push(Datatype::GethNonceDiffs);
+                datatypes.push(Datatype::GethStorageDiffs);
+            }
             datatype_str => datatypes.push(Datatype::from_str(datatype_str)?),
         }
     }
