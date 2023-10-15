@@ -17,6 +17,7 @@ define_datatypes!(
     Erc721Transfers,
     EthCalls,
     Logs,
+    NativeTransfers,
     NonceDiffs,
     Nonces,
     StorageDiffs,
@@ -26,7 +27,6 @@ define_datatypes!(
     Transactions,
     TransactionAddresses,
     VmTraces,
-    NativeTransfers,
 );
 
 impl Datatype {

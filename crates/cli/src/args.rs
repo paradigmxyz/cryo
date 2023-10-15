@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 /// Command line arguments
 #[derive(Parser, Debug, Serialize, Deserialize)]
-#[command(name = "cryo", author, version, about = get_about_str(), long_about = None, styles=get_styles(), after_help=get_after_str(), allow_negative_numbers = true)]
+#[command(name = "cryo", author, version, about = &get_about_str(), long_about = None, styles=get_styles(), after_help=&get_after_str(), allow_negative_numbers = true)]
 pub struct Args {
     /// datatype to collect
     #[arg(required = true, help=get_datatype_help(), num_args(1..))]
@@ -239,12 +239,15 @@ pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
         .invalid(comment)
 }
 
-fn get_about_str() -> &'static str {
+use colored::Colorize;
+
+fn get_about_str() -> String {
     cstr!(r#"<white><bold>cryo</bold></white> extracts blockchain data to parquet, csv, or json"#)
+        .to_string()
 }
 
-fn get_after_str() -> &'static str {
-    cstr!(
+fn get_after_str() -> String {
+    let args = cstr!(
         r#"
 <white><bold>Block specification syntax</bold></white>
 - can use numbers                    <white><bold>--blocks 5000 6000 7000</bold></white>
@@ -261,22 +264,20 @@ fn get_after_str() -> &'static str {
                                      (default column name is <white><bold>transaction_hash</bold></white>)
 - can use multiple parquet files     <white><bold>--txs ./path/to/ethereum__logs*.parquet</bold></white>
 "#
-    )
+    );
+
+    let header = "Optional Subcommands:".truecolor(0, 225, 0).bold().to_string();
+    let subcommands = cstr!(
+        r#"
+      <white><bold>cryo datasets</bold></white>                  list all datasets
+      <white><bold>cryo info</bold></white>"#
+    );
+    let post_subcommands = " <DATASET(S)>         show info about a dataset";
+    format!("{}{}{}\n{}", header, subcommands, post_subcommands, args)
 }
 
 fn get_datatype_help() -> &'static str {
     cstr!(
-        r#"datatype(s) to collect, one or more of:
-- <white><bold>blocks</bold></white>
-- <white><bold>transactions</bold></white>  (alias = <white><bold>txs</bold></white>)
-- <white><bold>logs</bold></white>          (alias = <white><bold>events</bold></white>)
-- <white><bold>contracts</bold></white>
-- <white><bold>traces</bold></white>        (alias = <white><bold>call_traces</bold></white>)
-- <white><bold>state_diffs</bold></white>   (= balance + code + nonce + storage diffs)
-- <white><bold>balance_diffs</bold></white>
-- <white><bold>code_diffs</bold></white>
-- <white><bold>nonce_diffs</bold></white>
-- <white><bold>storage_diffs</bold></white>
-- <white><bold>vm_traces</bold></white>     (alias = <white><bold>opcode_traces</bold></white>)"#
+        r#"datatype(s) to collect, use <white><bold>cryo datasets</bold></white> to see all available"#
     )
 }

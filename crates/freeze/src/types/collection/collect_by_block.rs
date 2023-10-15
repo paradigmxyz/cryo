@@ -59,4 +59,9 @@ pub trait CollectByBlock: 'static + Send + Default + ToDataFrames {
         }
         Ok(columns)
     }
+
+    /// whether data can be collected by block
+    fn can_collect_by_block() -> bool {
+        std::any::type_name::<Self::Response>() != "()"
+    }
 }
