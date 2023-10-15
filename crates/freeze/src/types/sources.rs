@@ -464,7 +464,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
     pub async fn geth_debug_trace_transaction_calls(
         &self,
         transaction_hash: Vec<u8>,
-        include_transaction_hashes: bool,
+        include_block_number: bool,
     ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>)> {
         let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer);
         let config = GethDebugTracerConfig::BuiltInTracer(
@@ -476,7 +476,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
             ..Default::default()
         };
         let (block, txs, traces) = self
-            .geth_debug_trace_transaction(transaction_hash, options, include_transaction_hashes)
+            .geth_debug_trace_transaction(transaction_hash, options, include_block_number)
             .await?;
 
         let mut calls = Vec::new();

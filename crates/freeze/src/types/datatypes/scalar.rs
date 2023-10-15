@@ -20,6 +20,7 @@ define_datatypes!(
     GethBalanceDiffs,
     GethStorageDiffs,
     GethNonceDiffs,
+    GethTraces,
     Logs,
     NonceDiffs,
     Nonces,
