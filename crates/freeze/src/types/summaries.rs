@@ -205,7 +205,6 @@ pub(crate) fn print_cryo_intro(
         None => print_bullet_indent("report file", "None", 4),
         Some(path) => print_bullet_indent("report file", path.to_str().unwrap_or("none"), 4),
     };
-    let dt_start: DateTime<Local> = env.t_start.into();
 
     // print schemas
     print_schemas(&query.schemas);
@@ -216,7 +215,6 @@ pub(crate) fn print_cryo_intro(
         println!();
         println!();
         print_header("collecting data");
-        println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
     }
 }
 
@@ -331,7 +329,9 @@ pub(crate) fn print_cryo_conclusion(
         _ => return,
     };
     let dt_data_done: DateTime<Local> = t_end.into();
+    let dt_start: DateTime<Local> = env.t_start.into();
 
+    println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
     println!("   done at {}", dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str());
 
     if freeze_summary.errored.is_empty() {

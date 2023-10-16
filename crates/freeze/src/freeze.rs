@@ -124,6 +124,7 @@ fn get_payloads(
     Ok((payloads, skipping))
 }
 
+use chrono::{DateTime, Local};
 async fn freeze_partitions(
     env: &ExecutionEnv,
     payloads: Vec<PartitionPayload>,
@@ -131,7 +132,11 @@ async fn freeze_partitions(
 ) -> FreezeSummary {
     if let Some(bar) = &env.bar {
         bar.set_length(payloads.len() as u64);
-        bar.inc(0);
+        if let Some(payload) = &payloads.first() {
+            let (_, _, _, _, _, _, _, env, _) = payload;
+            let dt_start: DateTime<Local> = env.t_start.into();
+            bar.set_message(format!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f")));
+        }
     }
 
     // spawn task for each partition

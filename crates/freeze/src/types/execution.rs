@@ -49,7 +49,7 @@ fn new_bar(n: u64) -> Result<Arc<ProgressBar>, CollectError> {
     let bar = Arc::new(ProgressBar::new(n));
     bar.set_style(
         indicatif::ProgressStyle::default_bar()
-            .template("{wide_bar:.green} {human_pos} / {human_len}   ETA={eta_precise} ")
+            .template("{wide_msg} ⏳ = {eta_precise} \n{wide_bar:.green}  {human_pos} / {human_len}  ⌛ = {elapsed_precise} ")
             .map_err(|_| CollectError::CollectError("error creating progress bar".to_string()))?,
     );
     Ok(bar)
