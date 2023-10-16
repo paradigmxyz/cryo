@@ -24,6 +24,16 @@ pub mod erc721_metadata;
 pub mod erc721_transfers;
 /// eth calls
 pub mod eth_calls;
+/// geth balance diffs
+pub mod geth_balance_diffs;
+/// geth code diffs
+pub mod geth_code_diffs;
+/// geth nonce diffs
+pub mod geth_nonce_diffs;
+/// geth storage diffs
+pub mod geth_storage_diffs;
+/// geth traces
+pub mod geth_traces;
 /// logs
 pub mod logs;
 /// native transfers
@@ -60,6 +70,11 @@ pub use erc20_transfers::*;
 pub use erc721_metadata::*;
 pub use erc721_transfers::*;
 pub use eth_calls::*;
+pub use geth_balance_diffs::*;
+pub use geth_code_diffs::*;
+pub use geth_nonce_diffs::*;
+pub use geth_storage_diffs::*;
+pub use geth_traces::*;
 pub use logs::*;
 pub use native_transfers::*;
 pub use nonce_diffs::*;

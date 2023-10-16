@@ -328,6 +328,198 @@ impl<P: JsonRpcClient> Fetcher<P> {
             .map_err(CollectError::ProviderError)
     }
 
+    /// get geth debug block traces
+    pub async fn geth_debug_trace_block(
+        &self,
+        block_number: u32,
+        options: GethDebugTracingOptions,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<GethTrace>)> {
+        let traces = {
+            let _permit = self.permit_request().await;
+            self.provider
+                .debug_trace_block_by_number(Some(block_number.into()), options)
+                .await
+                .map_err(CollectError::ProviderError)?
+        };
+
+        let txs = if include_transaction_hashes {
+            match self.get_block(block_number as u64).await? {
+                Some(block) => {
+                    block.transactions.iter().map(|x| Some(x.as_bytes().to_vec())).collect()
+                }
+                None => {
+                    return Err(CollectError::CollectError(
+                        "could not get block for txs".to_string(),
+                    ))
+                }
+            }
+        } else {
+            vec![None; traces.len()]
+        };
+
+        Ok((Some(block_number), txs, traces))
+    }
+
+    /// get geth debug block call traces
+    pub async fn geth_debug_trace_block_calls(
+        &self,
+        block_number: u32,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer);
+        let config = GethDebugTracerConfig::BuiltInTracer(
+            GethDebugBuiltInTracerConfig::CallTracer(CallConfig { ..Default::default() }),
+        );
+        let options = GethDebugTracingOptions {
+            tracer: Some(tracer),
+            tracer_config: Some(config),
+            ..Default::default()
+        };
+        let (block, txs, traces) =
+            self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::CallTracer(call_frame)) => calls.push(call_frame),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block diff traces
+    pub async fn geth_debug_trace_block_diffs(
+        &self,
+        block_number: u32,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<DiffMode>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer);
+        let config = GethDebugTracerConfig::BuiltInTracer(
+            GethDebugBuiltInTracerConfig::PreStateTracer(PreStateConfig { diff_mode: Some(true) }),
+        );
+        let options = GethDebugTracingOptions {
+            tracer: Some(tracer),
+            tracer_config: Some(config),
+            ..Default::default()
+        };
+        let (block, txs, traces) =
+            self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
+
+        let mut diffs = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::PreStateTracer(PreStateFrame::Diff(diff))) => {
+                    diffs.push(diff)
+                }
+                GethTrace::Unknown(ethers::utils::__serde_json::Value::Object(map)) => {
+                    let diff = parse_geth_diff_object(map)?;
+                    diffs.push(diff)
+                }
+                _ => {
+                    println!("{:?}", trace);
+                    return Err(CollectError::CollectError("invalid trace result".to_string()))
+                }
+            }
+        }
+        Ok((block, txs, diffs))
+    }
+
+    /// get geth debug transaction traces
+    pub async fn geth_debug_trace_transaction(
+        &self,
+        transaction_hash: Vec<u8>,
+        options: GethDebugTracingOptions,
+        include_block_number: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<GethTrace>)> {
+        let ethers_tx = H256::from_slice(&transaction_hash);
+
+        let trace = {
+            let _permit = self.permit_request().await;
+            self.provider
+                .debug_trace_transaction(ethers_tx, options)
+                .await
+                .map_err(CollectError::ProviderError)?
+        };
+        let traces = vec![trace];
+
+        let block_number = if include_block_number {
+            match self.get_transaction(ethers_tx).await? {
+                Some(tx) => tx.block_number.map(|x| x.as_u32()),
+                None => {
+                    return Err(CollectError::CollectError(
+                        "could not get block for txs".to_string(),
+                    ))
+                }
+            }
+        } else {
+            None
+        };
+
+        Ok((block_number, vec![Some(transaction_hash)], traces))
+    }
+
+    /// get geth debug block call traces
+    pub async fn geth_debug_trace_transaction_calls(
+        &self,
+        transaction_hash: Vec<u8>,
+        include_block_number: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::CallTracer);
+        let config = GethDebugTracerConfig::BuiltInTracer(
+            GethDebugBuiltInTracerConfig::CallTracer(CallConfig { ..Default::default() }),
+        );
+        let options = GethDebugTracingOptions {
+            tracer: Some(tracer),
+            tracer_config: Some(config),
+            ..Default::default()
+        };
+        let (block, txs, traces) = self
+            .geth_debug_trace_transaction(transaction_hash, options, include_block_number)
+            .await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::CallTracer(call_frame)) => calls.push(call_frame),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block diff traces
+    pub async fn geth_debug_trace_transaction_diffs(
+        &self,
+        transaction_hash: Vec<u8>,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<DiffMode>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer);
+        let config = GethDebugTracerConfig::BuiltInTracer(
+            GethDebugBuiltInTracerConfig::PreStateTracer(PreStateConfig { diff_mode: Some(true) }),
+        );
+        let options = GethDebugTracingOptions {
+            tracer: Some(tracer),
+            tracer_config: Some(config),
+            ..Default::default()
+        };
+        let (block, txs, traces) = self
+            .geth_debug_trace_transaction(transaction_hash, options, include_transaction_hashes)
+            .await?;
+
+        let mut diffs = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::PreStateTracer(PreStateFrame::Diff(diff))) => {
+                    diffs.push(diff)
+                }
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, diffs))
+    }
+
     async fn permit_request(
         &self,
     ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {
@@ -346,7 +538,21 @@ impl<P: JsonRpcClient> Fetcher<P> {
     }
 }
 
+use crate::err;
+use std::collections::BTreeMap;
 use tokio::task;
+
+fn parse_geth_diff_object(
+    map: ethers::utils::__serde_json::Map<String, ethers::utils::__serde_json::Value>,
+) -> Result<DiffMode> {
+    println!("HERE {:?}", map);
+    let pre: BTreeMap<H160, AccountState> = serde_json::from_value(map["pre"].clone())
+        .map_err(|_| err("cannot deserialize pre diff"))?;
+    let post: BTreeMap<H160, AccountState> = serde_json::from_value(map["post"].clone())
+        .map_err(|_| err("cannot deserialize pre diff"))?;
+
+    Ok(DiffMode { pre, post })
+}
 
 impl Source {
     /// get gas used by transactions in block
