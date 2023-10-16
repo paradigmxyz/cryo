@@ -27,7 +27,7 @@ fn find_arg_aliases(args: &Args, schemas: &Schemas) -> Vec<(Dim, Dim)> {
     for datatype in schemas.keys() {
         let aliases = datatype.arg_aliases();
         if aliases.is_empty() {
-            continue;
+            continue
         }
         for dim in datatype.required_parameters() {
             if args.dim_is_none(&dim) {
