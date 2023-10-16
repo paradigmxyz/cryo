@@ -31,6 +31,10 @@ impl Dataset for Erc20Supplies {
     fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
         Some([(Dim::Contract, Dim::Address)].into_iter().collect())
     }
+
+    fn default_blocks() -> Option<String> {
+        Some("latest".to_string())
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
