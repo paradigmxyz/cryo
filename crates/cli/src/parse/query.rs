@@ -1,6 +1,6 @@
 use super::{parse_schemas, partitions};
 use crate::args::Args;
-use cryo_freeze::{Fetcher, ParseError, Query, Schemas, Dim};
+use cryo_freeze::{Dim, Fetcher, ParseError, Query, Schemas};
 use ethers::prelude::*;
 use std::sync::Arc;
 
@@ -11,11 +11,8 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
     let schemas = parse_schemas(args)?;
 
     let arg_aliases = find_arg_aliases(args, &schemas);
-    let new_args = if !arg_aliases.is_empty() {
-        Some(apply_arg_aliases(args, arg_aliases)?)
-    } else {
-        None
-    };
+    let new_args =
+        if !arg_aliases.is_empty() { Some(apply_arg_aliases(args, arg_aliases)?) } else { None };
     let args = new_args.as_ref().unwrap_or(args);
 
     let (partitions, partitioned_by, time_dimension) =
@@ -30,7 +27,7 @@ fn find_arg_aliases(args: &Args, schemas: &Schemas) -> Vec<(Dim, Dim)> {
     for datatype in schemas.keys() {
         let aliases = datatype.arg_aliases();
         if aliases.is_empty() {
-            continue
+            continue;
         }
         for dim in datatype.required_parameters() {
             if args.dim_is_none(&dim) {
@@ -44,7 +41,6 @@ fn find_arg_aliases(args: &Args, schemas: &Schemas) -> Vec<(Dim, Dim)> {
     }
     swaps
 }
-
 
 trait DimIsNone {
     fn dim_is_some(&self, dim: &Dim) -> bool;
@@ -85,17 +81,28 @@ impl DimIsNone for Args {
     }
 }
 
-
 fn apply_arg_aliases(args: &Args, arg_aliases: Vec<(Dim, Dim)>) -> Result<Args, ParseError> {
     let mut args = (*args).clone();
     for (k, v) in arg_aliases.iter() {
         args = match (k, v) {
-            (Dim::Contract, Dim::Address) => Args { address: args.contract.clone(), ..args },
-            (Dim::ToAddress, Dim::Address) => Args { address: args.to_address.clone(), ..args },
-            (Dim::Address, Dim::Contract) => Args { contract: args.address.clone(), ..args },
-            (Dim::ToAddress, Dim::Contract) => Args { contract: args.to_address.clone(), ..args },
-            (Dim::Address, Dim::ToAddress) => Args { to_address: args.address.clone(), ..args },
-            (Dim::Contract, Dim::ToAddress) => Args { to_address: args.contract.clone(), ..args },
+            (Dim::Contract, Dim::Address) => {
+                Args { address: args.contract.clone(), contract: None, ..args }
+            }
+            (Dim::ToAddress, Dim::Address) => {
+                Args { address: args.to_address.clone(), to_address: None, ..args }
+            }
+            (Dim::Address, Dim::Contract) => {
+                Args { contract: args.address.clone(), address: None, ..args }
+            }
+            (Dim::ToAddress, Dim::Contract) => {
+                Args { contract: args.to_address.clone(), to_address: None, ..args }
+            }
+            (Dim::Address, Dim::ToAddress) => {
+                Args { to_address: args.address.clone(), address: None, ..args }
+            }
+            (Dim::Contract, Dim::ToAddress) => {
+                Args { to_address: args.contract.clone(), contract: None, ..args }
+            }
             _ => return Err(ParseError::ParseError("invalid arg alias pairing".to_string())),
         };
     }
