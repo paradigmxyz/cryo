@@ -25,6 +25,10 @@ impl Dataset for Erc20Balances {
         vec!["block_number".to_string()]
     }
 
+    fn default_blocks() -> Option<String> {
+        Some("latest".to_string())
+    }
+
     fn required_parameters() -> Vec<Dim> {
         vec![Dim::Contract, Dim::Address]
     }

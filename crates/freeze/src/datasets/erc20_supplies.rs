@@ -25,7 +25,15 @@ impl Dataset for Erc20Supplies {
     }
 
     fn required_parameters() -> Vec<Dim> {
-        vec![Dim::Contract]
+        vec![Dim::Address]
+    }
+
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Contract, Dim::Address)].into_iter().collect())
+    }
+
+    fn default_blocks() -> Option<String> {
+        Some("latest".to_string())
     }
 }
 
@@ -44,12 +52,12 @@ impl CollectByBlock for Erc20Supplies {
     ) -> Result<Self::Response> {
         let signature: Vec<u8> = FUNCTION_ERC20_TOTAL_SUPPLY.clone();
         let mut call_data = signature.clone();
-        call_data.extend(request.contract()?);
+        call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;
-        let contract = request.ethers_contract()?;
+        let contract = request.ethers_address()?;
         let output = source.fetcher.call2(contract, call_data, block_number).await.ok();
         let output = output.map(|x| x.to_vec().as_slice().into());
-        Ok((request.block_number()? as u32, request.contract()?, output))
+        Ok((request.block_number()? as u32, request.address()?, output))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {

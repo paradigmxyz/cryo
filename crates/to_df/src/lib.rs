@@ -5,6 +5,7 @@ use proc_macro2::Span;
 use quote::quote;
 use syn::{parse_macro_input, ItemStruct};
 
+/// implements ToDataFrames and ColumnData for struct
 #[proc_macro_attribute]
 pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
     let input = parse_macro_input!(input as ItemStruct);

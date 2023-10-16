@@ -77,7 +77,7 @@ pub fn print_dataset_info(datatype: Datatype, schema: &Table) {
     } else {
         print_bullet("parameter aliases", "");
         for (key, value) in arg_aliases.iter() {
-            print_bullet_indent(key.plural_name(), value.plural_name(), 4);
+            println!("    - {} -> {}", key.plural_name(), value.plural_name());
         }
     }
     println!();
