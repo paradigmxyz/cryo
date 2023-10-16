@@ -10,7 +10,7 @@ use std::collections::HashMap;
 pub struct TraceCalls {
     n_rows: u64,
     block_number: Vec<u32>,
-    transaction_position: Vec<u32>,
+    transaction_index: Vec<u32>,
     action_from: Vec<Option<Vec<u8>>>,
     action_to: Vec<Option<Vec<u8>>>,
     action_value: Vec<String>,
@@ -38,11 +38,19 @@ impl Dataset for TraceCalls {
     }
 
     fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_position".to_string()]
+        vec!["block_number".to_string(), "transaction_index".to_string()]
+    }
+
+    fn default_blocks() -> Option<String> {
+        Some("latest".to_string())
     }
 
     fn required_parameters() -> Vec<Dim> {
         vec![Dim::Contract, Dim::CallData]
+    }
+
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Address, Dim::Contract), (Dim::ToAddress, Dim::Contract)].into_iter().collect())
     }
 }
 
@@ -89,7 +97,7 @@ fn process_transaction_traces(
     schema: &Table,
 ) {
     let (block_number, contract, call_data, traces) = response;
-    for (transaction_position, trace) in traces.iter().enumerate() {
+    for (transaction_index, trace) in traces.iter().enumerate() {
         columns.n_rows += 1;
 
         process_action(&trace.action, columns, schema);
@@ -102,7 +110,7 @@ fn process_transaction_traces(
             trace.trace_address.iter().map(|n| n.to_string()).collect::<Vec<String>>().join("_")
         );
         store!(schema, columns, subtraces, trace.subtraces as u32);
-        store!(schema, columns, transaction_position, transaction_position as u32);
+        store!(schema, columns, transaction_index, transaction_index as u32);
         store!(schema, columns, block_number, block_number);
         store!(schema, columns, error, trace.error.clone());
         store!(schema, columns, tx_to_address, contract.clone());

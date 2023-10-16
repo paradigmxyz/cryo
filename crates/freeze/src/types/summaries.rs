@@ -28,6 +28,63 @@ pub struct FreezeSummary {
     pub errored: Vec<(Option<Partition>, CollectError)>,
 }
 
+/// print all datasets
+pub fn print_all_datasets() {
+    print_header("cryo datasets");
+    for datatype in Datatype::all().iter() {
+        print_bullet_key(datatype.name())
+    }
+}
+
+/// print info about datasets
+pub fn print_dataset_info(datatype: Datatype, schema: &Table) {
+    print_header(datatype.name());
+
+    match (datatype.can_collect_by_block(), datatype.can_collect_by_transaction()) {
+        (true, true) => print_bullet_key("can collect by block or by transaction"),
+        (true, false) => print_bullet_key("can collect by block and not by transaction"),
+        (false, true) => print_bullet_key("can collect by transaction and not by block"),
+        (false, false) => print_bullet_key("cannot collect by block or by transaction"),
+    }
+    let required_parameters = datatype
+        .required_parameters()
+        .iter()
+        .map(|x| format!("{}", x))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let required_parameters =
+        if required_parameters.is_empty() { "[none]".to_string() } else { required_parameters };
+    print_bullet("required parameters", required_parameters);
+
+    let optional_parameters = datatype
+        .optional_parameters()
+        .iter()
+        .map(|x| format!("{}", x))
+        .collect::<Vec<_>>()
+        .join(", ");
+    let optional_parameters =
+        if optional_parameters.is_empty() { "[none]".to_string() } else { optional_parameters };
+    print_bullet("optional parameters", optional_parameters);
+
+    let dataset_aliases = datatype.aliases().join(", ");
+    let dataset_aliases =
+        if dataset_aliases.is_empty() { "[none]".to_string() } else { dataset_aliases };
+    print_bullet("dataset aliases", dataset_aliases);
+
+    let arg_aliases = datatype.arg_aliases();
+    if arg_aliases.is_empty() {
+        print_bullet("parameter aliases", "[none]");
+    } else {
+        print_bullet("parameter aliases", "");
+        for (key, value) in arg_aliases.iter() {
+            println!("    - {} -> {}", key.plural_name(), value.plural_name());
+        }
+    }
+    println!();
+    println!();
+    print_schema(&datatype, schema);
+}
+
 pub(crate) fn print_header<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
     let underline = "─".repeat(header_str.len()).truecolor(TITLE_R, TITLE_G, TITLE_B);
@@ -40,6 +97,12 @@ pub(crate) fn print_header_error<A: AsRef<str>>(header: A) {
     let underline = "─".repeat(header_str.len()).truecolor(ERROR_R, ERROR_G, ERROR_B);
     println!("{}", header_str);
     println!("{}", underline);
+}
+
+fn print_bullet_key<A: AsRef<str>>(key: A) {
+    let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let key_str = key.as_ref().white().bold();
+    println!("{}{}", bullet_str, key_str);
 }
 
 fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
@@ -149,12 +212,12 @@ pub(crate) fn print_cryo_intro(
 
     if env.dry {
         println!("\n\n[dry run, exiting]");
+    } else {
+        println!();
+        println!();
+        print_header("collecting data");
+        println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
     }
-
-    println!();
-    println!();
-    print_header("collecting data");
-    println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
 }
 
 fn print_chunks(chunks: &[Partition]) {

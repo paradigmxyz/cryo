@@ -22,6 +22,7 @@ define_datatypes!(
     GethNonceDiffs,
     GethTraces,
     Logs,
+    NativeTransfers,
     NonceDiffs,
     Nonces,
     StorageDiffs,
@@ -31,7 +32,6 @@ define_datatypes!(
     Transactions,
     TransactionAddresses,
     VmTraces,
-    NativeTransfers,
 );
 
 impl Datatype {

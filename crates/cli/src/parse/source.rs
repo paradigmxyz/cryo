@@ -18,9 +18,9 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
 
     let rate_limiter = match args.requests_per_second {
-        Some(rate_limit) => match NonZeroU32::new(rate_limit) {
-            Some(value) => {
-                let quota = Quota::per_second(value);
+        Some(rate_limit) => match (NonZeroU32::new(1), NonZeroU32::new(rate_limit)) {
+            (Some(one), Some(value)) => {
+                let quota = Quota::per_second(value).allow_burst(one);
                 Some(RateLimiter::direct(quota))
             }
             _ => None,

@@ -556,7 +556,7 @@ fn parse_geth_diff_object(
 
 impl Source {
     /// get gas used by transactions in block
-    pub async fn get_txs_gas_used(&self, block: &Block<Transaction>) -> Result<Vec<u32>> {
+    pub async fn get_txs_gas_used(&self, block: &Block<Transaction>) -> Result<Vec<u64>> {
         match get_txs_gas_used_per_block(block, self.fetcher.clone()).await {
             Ok(value) => Ok(value),
             Err(_) => get_txs_gas_used_per_tx(block, self.fetcher.clone()).await,
@@ -567,17 +567,17 @@ impl Source {
 async fn get_txs_gas_used_per_block<P: JsonRpcClient>(
     block: &Block<Transaction>,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<u32>> {
+) -> Result<Vec<u64>> {
     // let fetcher = Arc::new(fetcher);
     let block_number = match block.number {
         Some(number) => number,
         None => return Err(CollectError::CollectError("no block number".to_string())),
     };
     let receipts = fetcher.get_block_receipts(block_number.as_u64()).await?;
-    let mut gas_used: Vec<u32> = Vec::new();
+    let mut gas_used: Vec<u64> = Vec::new();
     for receipt in receipts {
         match receipt.gas_used {
-            Some(value) => gas_used.push(value.as_u32()),
+            Some(value) => gas_used.push(value.as_u64()),
             None => return Err(CollectError::CollectError("no gas_used for tx".to_string())),
         }
     }
@@ -587,7 +587,7 @@ async fn get_txs_gas_used_per_block<P: JsonRpcClient>(
 async fn get_txs_gas_used_per_tx<P: JsonRpcClient + 'static>(
     block: &Block<Transaction>,
     fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<u32>> {
+) -> Result<Vec<u64>> {
     // let fetcher = Arc::new(*fetcher.clone());
     let mut tasks = Vec::new();
     for tx in &block.transactions {
@@ -602,10 +602,10 @@ async fn get_txs_gas_used_per_tx<P: JsonRpcClient + 'static>(
         tasks.push(task);
     }
 
-    let mut gas_used: Vec<u32> = Vec::new();
+    let mut gas_used: Vec<u64> = Vec::new();
     for task in tasks {
         match task.await {
-            Ok(Ok(Some(value))) => gas_used.push(value.as_u32()),
+            Ok(Ok(Some(value))) => gas_used.push(value.as_u64()),
             _ => return Err(CollectError::CollectError("gas_used not available from node".into())),
         }
     }

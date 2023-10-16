@@ -25,7 +25,11 @@ impl Dataset for Erc721Metadata {
     }
 
     fn required_parameters() -> Vec<Dim> {
-        vec![Dim::Contract]
+        vec![Dim::Address]
+    }
+
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Contract, Dim::Address)].into_iter().collect())
     }
 }
 
@@ -43,7 +47,7 @@ impl CollectByBlock for Erc721Metadata {
         _schemas: Schemas,
     ) -> Result<Self::Response> {
         let block_number = request.ethers_block_number()?;
-        let address = request.ethers_contract()?;
+        let address = request.ethers_address()?;
 
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
@@ -55,7 +59,7 @@ impl CollectByBlock for Erc721Metadata {
         let output = source.fetcher.call2(address, call_data, block_number).await?;
         let symbol = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
 
-        Ok((request.block_number()? as u32, request.contract()?, name, symbol))
+        Ok((request.block_number()? as u32, request.address()?, name, symbol))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {

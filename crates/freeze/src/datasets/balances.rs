@@ -27,6 +27,10 @@ impl Dataset for Balances {
     fn required_parameters() -> Vec<Dim> {
         vec![Dim::Address]
     }
+
+    fn default_blocks() -> Option<String> {
+        Some("latest".to_string())
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
