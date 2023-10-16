@@ -27,6 +27,10 @@ impl Dataset for Codes {
     fn required_parameters() -> Vec<Dim> {
         vec![Dim::Address]
     }
+
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Contract, Dim::Address)].into_iter().collect())
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;

@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use std::path::PathBuf;
 
 /// Command line arguments
-#[derive(Parser, Debug, Serialize, Deserialize)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
 #[command(name = "cryo", author, version = cryo_freeze::CRYO_VERSION, about = &get_about_str(), long_about = None, styles=get_styles(), after_help=&get_after_str(), allow_negative_numbers = true)]
 pub struct Args {
     /// datatype to collect

@@ -44,6 +44,10 @@ impl Dataset for TraceCalls {
     fn required_parameters() -> Vec<Dim> {
         vec![Dim::Contract, Dim::CallData]
     }
+
+    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+        Some([(Dim::Address, Dim::Contract), (Dim::ToAddress, Dim::Contract)].into_iter().collect())
+    }
 }
 
 type Result<T> = ::core::result::Result<T, CollectError>;
