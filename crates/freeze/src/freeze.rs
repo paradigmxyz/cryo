@@ -2,6 +2,7 @@ use crate::{
     collect_partition, dataframes, err, reports, summaries, CollectError, Datatype, ExecutionEnv,
     FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source, Table, TimeDimension,
 };
+use chrono::{DateTime, Local};
 use futures::{stream::FuturesUnordered, StreamExt};
 use std::{
     collections::{HashMap, HashSet},
@@ -124,7 +125,6 @@ fn get_payloads(
     Ok((payloads, skipping))
 }
 
-use chrono::{DateTime, Local};
 async fn freeze_partitions(
     env: &ExecutionEnv,
     payloads: Vec<PartitionPayload>,
