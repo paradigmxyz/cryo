@@ -247,33 +247,16 @@ fn get_about_str() -> String {
 }
 
 fn get_after_str() -> String {
-    let args = cstr!(
-        r#"
-<white><bold>Block specification syntax</bold></white>
-- can use numbers                    <white><bold>--blocks 5000 6000 7000</bold></white>
-- can use ranges                     <white><bold>--blocks 12M:13M 15M:16M</bold></white>
-- numbers can contain { _ . K M B }  <white><bold>5_000 5K 15M 15.5M</bold></white>
-- omiting range end means latest     <white><bold>15.5M:</bold></white> == <white><bold>15.5M:latest</bold></white>
-- omitting range start means 0       <white><bold>:700</bold></white> == <white><bold>0:700</bold></white>
-- minus on start means minus end     <white><bold>-1000:7000</bold></white> == <white><bold>6000:7000</bold></white>
-- plus sign on end means plus start  <white><bold>15M:+1000</bold></white> == <white><bold>15M:15.001K</bold></white>
-
-<white><bold>Transaction hash specification syntax</bold></white>
-- can use transaction hashes         <white><bold>--txs TX_HASH1 TX_HASH2 TX_HASH3</bold></white>
-- can use a parquet file             <white><bold>--txs ./path/to/file.parquet[:COLUMN_NAME]</bold></white>
-                                     (default column name is <white><bold>transaction_hash</bold></white>)
-- can use multiple parquet files     <white><bold>--txs ./path/to/ethereum__logs*.parquet</bold></white>
-"#
-    );
-
     let header = "Optional Subcommands:".truecolor(0, 225, 0).bold().to_string();
     let subcommands = cstr!(
         r#"
-      <white><bold>cryo datasets</bold></white>                  list all datasets
-      <white><bold>cryo info</bold></white>"#
+      <white><bold>cryo help</bold></white>                      display help message
+      <white><bold>cryo help syntax</bold></white>               display block + transaction specification syntax
+      <white><bold>cryo help datasets</bold></white>             display list of all datasets
+      <white><bold>cryo help</bold></white>"#
     );
-    let post_subcommands = " <DATASET(S)>         show info about a dataset";
-    format!("{}{}{}\n{}", header, subcommands, post_subcommands, args)
+    let post_subcommands = " <DATASET(S)>         display info about a dataset";
+    format!("{}{}{}", header, subcommands, post_subcommands)
 }
 
 fn get_datatype_help() -> &'static str {
