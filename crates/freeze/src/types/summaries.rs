@@ -129,6 +129,7 @@ pub(crate) fn print_cryo_intro(
     n_chunks_remaining: u64,
 ) {
     print_header("cryo parameters");
+    print_bullet("version", super::reports::CRYO_VERSION);
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
     print_bullet("data", "");
     print_bullet_indent("datatypes", datatype_strs.join(", "), 4);
