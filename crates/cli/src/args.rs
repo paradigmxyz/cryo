@@ -45,11 +45,11 @@ pub struct Args {
     #[arg(short, long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub include_columns: Option<Vec<String>>,
 
-    /// Columns to exclude from the default output
+    /// Columns to exclude from the defaults
     #[arg(short, long, value_name="COLS", num_args(0..), help_heading="Content Options")]
     pub exclude_columns: Option<Vec<String>>,
 
-    /// Columns to use instead of the default columns,
+    /// Columns to use instead of the defaults,
     /// use `all` to use all available columns
     #[arg(long, value_name="COLS", num_args(0..), verbatim_doc_comment, help_heading="Content Options")]
     pub columns: Option<Vec<String>>,
@@ -83,7 +83,7 @@ pub struct Args {
     #[arg(long, default_value_t = 5, value_name = "R", help_heading = "Acquisition Options")]
     pub max_retries: u32,
 
-    /// Initial backoff for retries (ms)
+    /// Initial retry backoff time (ms)
     #[arg(long, default_value_t = 500, value_name = "B", help_heading = "Acquisition Options")]
     pub initial_backoff: u64,
 
