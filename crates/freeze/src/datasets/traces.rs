@@ -194,7 +194,7 @@ pub(crate) fn reward_type_to_string(reward_type: &RewardType) -> String {
     match reward_type {
         RewardType::Block => "reward".to_string(),
         RewardType::Uncle => "uncle".to_string(),
-        RewardType::EmptyStep => "emtpy_step".to_string(),
+        RewardType::EmptyStep => "empty_step".to_string(),
         RewardType::External => "external".to_string(),
     }
 }

@@ -32,7 +32,7 @@ async fn handle_help_subcommands(args: args::Args) -> Result<Option<FreezeSummar
 - can use numbers                    <white><bold>--blocks 5000 6000 7000</bold></white>
 - can use ranges                     <white><bold>--blocks 12M:13M 15M:16M</bold></white>
 - numbers can contain { _ . K M B }  <white><bold>5_000 5K 15M 15.5M</bold></white>
-- omiting range end means latest     <white><bold>15.5M:</bold></white> == <white><bold>15.5M:latest</bold></white>
+- omitting range end means latest    <white><bold>15.5M:</bold></white> == <white><bold>15.5M:latest</bold></white>
 - omitting range start means 0       <white><bold>:700</bold></white> == <white><bold>0:700</bold></white>
 - minus on start means minus end     <white><bold>-1000:7000</bold></white> == <white><bold>6000:7000</bold></white>
 - plus sign on end means plus start  <white><bold>15M:+1000</bold></white> == <white><bold>15M:15.001K</bold></white>
