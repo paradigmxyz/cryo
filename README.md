@@ -10,6 +10,17 @@
 
 *note that `cryo`'s default settings will slam a node too hard for use with 3rd party RPC providers. Instead, `--requests-per-second` and `--max-concurrent-requests` should be used to impose ratelimits. Such settings will be handled automatically in a future release*.
 
+## Contents
+
+1. [Example Usage](#example-usage)
+2. [Installation](#installation)
+3. [Data Schema](#data-schemas)
+4. [Code Guide](#code-guide)
+5. [Documenation](#documentation)
+    1. [Basics](#cryo-help)
+    2. [Syntax](#cryo-syntax)
+    3. [Datasets](#cryo-datasets)
+
 ## Example Usage
 
 use as `cryo <dataset> [OPTIONS]`
@@ -24,21 +35,6 @@ use as `cryo <dataset> [OPTIONS]`
 | Extract all USDC events | `cryo logs --contract 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` |
 
 `cryo` uses `ETH_RPC_URL` env var as the data source unless `--rpc <url>` is given
-
-## Datasets
-
-cryo can extract the following datasets from EVM nodes:
-- `blocks`
-- `transactions` (alias = `txs`)
-- `logs` (alias = `events`)
-- `contracts`
-- `traces` (alias = `call_traces`)
-- `state_diffs` (alias for `storage_diffs` + `balance_diff` + `nonce_diffs` + `code_diffs`)
-- `balance_diffs`
-- `code_diffs`
-- `storage_diffs`
-- `nonce_diffs`
-- `vm_traces` (alias = `opcode_traces`)
 
 ## Installation
 
@@ -81,7 +77,7 @@ maturin build --release
 pip install <OUTPUT_OF_MATURIN_BUILD>.whl
 ```
 
-## Data Schema
+## Data Schemas
 
 Many `cryo` cli options will affect output schemas by adding/removing columns or changing column datatypes.
 
@@ -133,9 +129,15 @@ A future version of `cryo` will be able to bypass JSON-RPC and query node data d
     - `cryo_to_df`: procedural macro for generating dataset definitions
 - Do not use panics (including `panic!`, `todo!`, `unwrap()`, and `expect()`) except in the following circumstances: tests, build scripts, lazy static blocks, and procedural macros
 
-## CLI Options
+## Documentation
 
-output of `cryo --help`:
+1. [cryo help](#cryo-help)
+2. [cryo syntax](#cryo-syntax)
+3. [cryo datasets](#cryo-datasets)
+
+#### cryo help
+
+(output of `cryo help`)
 
 ```
 cryo extracts blockchain data to parquet, csv, or json
@@ -143,77 +145,152 @@ cryo extracts blockchain data to parquet, csv, or json
 Usage: cryo [OPTIONS] <DATATYPE>...
 
 Arguments:
-  <DATATYPE>...  datatype(s) to collect, one or more of:
-                 - blocks
-                 - transactions  (alias = txs)
-                 - logs          (alias = events)
-                 - contracts
-                 - traces        (alias = call_traces)
-                 - state_diffs   (= balance + code + nonce + storage diffs)
-                 - balance_diffs
-                 - code_diffs
-                 - nonce_diffs
-                 - storage_diffs
-                 - vm_traces     (alias = opcode_traces)
+  <DATATYPE>...  datatype(s) to collect, use cryo datasets to see all available
 
 Options:
-  -h, --help     Print help
-  -V, --version  Print version
+      --no-verbose  Run quietly without printing information to stdout
+  -h, --help        Print help
+  -V, --version     Print version
 
 Content Options:
-  -b, --blocks <BLOCKS>              Block numbers, see syntax below [default: 0:latest]
-  -a, --align                        Align block chunk boundaries to regular intervals
-                                     e.g. (1000, 2000, 3000) instead of (1106, 2106, 3106)
-      --reorg-buffer <N_BLOCKS>      Reorg buffer, save blocks only when they are this old,
+  -b, --blocks <BLOCKS>...           Block numbers, see syntax below
+  -t, --txs <TXS>...                 Transaction hashes, see syntax below
+  -a, --align                        Align chunk boundaries to regular intervals,
+                                     e.g. (1000 2000 3000), not (1106 2106 3106)
+      --reorg-buffer <N_BLOCKS>      Reorg buffer, save blocks only when this old,
                                      can be a number of blocks [default: 0]
-  -i, --include-columns [<COLS>...]  Columns to include alongside the default output
-  -e, --exclude-columns [<COLS>...]  Columns to exclude from the default output
-      --columns [<COLS>...]          Use these columns instead of the default
+  -i, --include-columns [<COLS>...]  Columns to include alongside the defaults,
+                                     use `all` to include all available columns
+  -e, --exclude-columns [<COLS>...]  Columns to exclude from the defaults
+      --columns [<COLS>...]          Columns to use instead of the defaults,
+                                     use `all` to use all available columns
+      --u256-types <U256_TYPES>...   Set output datatype(s) of U256 integers
+                                     [default: binary, string, f64]
       --hex                          Use hex string encoding for binary columns
-  -s, --sort [<SORT>...]             Columns(s) to sort by
+  -s, --sort [<SORT>...]             Columns(s) to sort by, `none` for unordered
 
 Source Options:
   -r, --rpc <RPC>                    RPC url [default: ETH_RPC_URL env var]
-      --network-name <NETWORK_NAME>  Network name [default: use name of eth_getChainId]
+      --network-name <NETWORK_NAME>  Network name [default: name of eth_getChainId]
 
 Acquisition Options:
   -l, --requests-per-second <limit>  Ratelimit on requests per second
+      --max-retries <R>              Max retries for provider errors [default: 5]
+      --initial-backoff <B>          Initial retry backoff time (ms) [default: 500]
       --max-concurrent-requests <M>  Global number of concurrent requests
       --max-concurrent-chunks <M>    Number of chunks processed concurrently
-      --max-concurrent-blocks <M>    Number blocks within a chunk processed concurrently
   -d, --dry                          Dry run, collect no data
 
 Output Options:
   -c, --chunk-size <CHUNK_SIZE>      Number of blocks per file [default: 1000]
       --n-chunks <N_CHUNKS>          Number of files (alternative to --chunk-size)
+      --partition-by <PARTITION_BY>  Dimensions to partition by
   -o, --output-dir <OUTPUT_DIR>      Directory for output files [default: .]
+      --subdirs <SUBDIRS>...         Subdirectories for output files
+                                     can be `datatype`, `network`, or custom string
       --file-suffix <FILE_SUFFIX>    Suffix to attach to end of each filename
-      --overwrite                    Overwrite existing files instead of skipping them
+      --overwrite                    Overwrite existing files instead of skipping
       --csv                          Save as csv instead of parquet
       --json                         Save as json instead of parquet
       --row-group-size <GROUP_SIZE>  Number of rows per row group in parquet file
       --n-row-groups <N_ROW_GROUPS>  Number of rows groups in parquet file
       --no-stats                     Do not write statistics to parquet files
-      --compression <NAME [#]>...    Set compression algorithm and level [default: lz4]
+      --compression <NAME [#]>...    Compression algorithm and level [default: lz4]
+      --report-dir <REPORT_DIR>      Directory to save summary report
+                                     [default: {output_dir}/.cryo/reports]
+      --no-report                    Avoid saving a summary report
 
 Dataset-specific Options:
-      --contract <CONTRACT>          [logs] filter logs by contract address
-      --topic0 <TOPIC0>              [logs] filter logs by topic0 [aliases: event]
-      --topic1 <TOPIC1>              [logs] filter logs by topic1
-      --topic2 <TOPIC2>              [logs] filter logs by topic2
-      --topic3 <TOPIC3>              [logs] filter logs by topic3
-      --log-request-size <N_BLOCKS>  [logs] Number of blocks per log request [default: 1]
+      --address <ADDRESS>...         Address(es)
+      --to-address <address>...      To Address(es)
+      --from-address <address>...    From Address(es)
+      --call-data <CALL_DATA>...     Call data(s) to use for eth_calls
+      --function <FUNCTION>...       Function(s) to use for eth_calls
+      --inputs <INPUTS>...           Input(s) to use for eth_calls
+      --slot <SLOT>...               Slot(s)
+      --contract <CONTRACT>...       Contract address(es)
+      --topic0 <TOPIC0>...           Topic0(s) [aliases: event]
+      --topic1 <TOPIC1>...           Topic1(s)
+      --topic2 <TOPIC2>...           Topic2(s)
+      --topic3 <TOPIC3>...           Topic3(s)
+      --event-signature <SIG>...     Event signature for log decoding
+      --inner-request-size <BLOCKS>  Blocks per request (eth_getLogs) [default: 1]
 
+Optional Subcommands:
+      cryo help                      display help message
+      cryo help syntax               display block + tx specification syntax
+      cryo help datasets             display list of all datasets
+      cryo help <DATASET(S)>         display info about a dataset
+```
 
+#### cryo syntax
+
+(output of `cryo help syntax`)
+
+```
 Block specification syntax
-- can use numbers                    --blocks 5000
-- can use numbers list (use "")      --blocks "5000 6000 7000"
+- can use numbers                    --blocks 5000 6000 7000
 - can use ranges                     --blocks 12M:13M 15M:16M
+- can use a parquet file             --blocks ./path/to/file.parquet[:COLUMN_NAME]
+- can use multiple parquet files     --blocks ./path/to/files/*.parquet[:COLUMN_NAME]
 - numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
 - omitting range end means latest    15.5M: == 15.5M:latest
 - omitting range start means 0       :700 == 0:700
 - minus on start means minus end     -1000:7000 == 6000:7000
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
-- mix formats                        "15M:+1 1000:1002 -3:1b 2000"
+- can use every nth value            2000:5000:1000 == 2000 3000 4000
+- can use n values total             100:200/5 == 100 124 149 174 199
+
+Transaction specification syntax
+- can use transaction hashes         --txs TX_HASH1 TX_HASH2 TX_HASH3
+- can use a parquet file             --txs ./path/to/file.parquet[:COLUMN_NAME]
+                                     (default column name is transaction_hash)
+- can use multiple parquet files     --txs ./path/to/ethereum__logs*.parquet
 ```
 
+#### cryo datasets
+
+(output of `cryo help datasets`)
+
+```
+cryo datasets
+─────────────
+- balance_diffs
+- balances
+- blocks
+- code_diffs
+- codes
+- contracts
+- erc20_balances
+- erc20_metadata
+- erc20_supplies
+- erc20_transfers
+- erc721_metadata
+- erc721_transfers
+- eth_calls
+- geth_code_diffs
+- geth_balance_diffs
+- geth_storage_diffs
+- geth_nonce_diffs
+- geth_traces
+- logs
+- native_transfers
+- nonce_diffs
+- nonces
+- storage_diffs
+- storages
+- traces
+- trace_calls
+- transactions
+- transaction_addresses
+- vm_traces
+
+dataset group names
+───────────────────
+- blocks_and_transactions: blocks, transactions
+- call_trace_derivatives: contracts, native_transfers, traces
+- geth_state_diffs: geth_balance_diffs, geth_code_diffs, geth_nonce_diffs, geth_storage_diffs
+- state_diffs: balance_diffs, code_diffs, nonce_diffs, storage_diffs
+
+use cryo help <DATASET> to print info about a specific dataset
+```
