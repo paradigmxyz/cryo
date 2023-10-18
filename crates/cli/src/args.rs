@@ -160,66 +160,66 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     pub no_report: bool,
 
-    /// Address
+    /// Address(es)
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub address: Option<Vec<String>>,
 
-    /// To Address
+    /// To Address(es)
     #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
     pub to_address: Option<Vec<String>>,
 
-    /// From Address
+    /// From Address(es)
     #[arg(long, help_heading = "Dataset-specific Options", value_name="address", num_args(1..))]
     pub from_address: Option<Vec<String>>,
 
-    /// [eth_calls] Call data to use for eth_calls
+    /// Call data(s) to use for eth_calls
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub call_data: Option<Vec<String>>,
 
-    /// [eth_calls] Function to use for eth_calls
+    /// Function(s) to use for eth_calls
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub function: Option<Vec<String>>,
 
-    /// [eth_calls] Inputs to use for eth_calls
+    /// Input(s) to use for eth_calls
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub inputs: Option<Vec<String>>,
 
-    /// [slots] Slots
+    /// Slot(s)
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub slot: Option<Vec<String>>,
 
-    /// [logs] filter logs by contract address
-    #[arg(long, help_heading = "Dataset-specific Options")]
+    /// Contract address(es)
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub contract: Option<Vec<String>>,
 
-    /// [logs] filter logs by topic0
-    #[arg(long, visible_alias = "event", help_heading = "Dataset-specific Options")]
+    /// Topic0(s)
+    #[arg(long, visible_alias = "event", help_heading = "Dataset-specific Options", num_args(1..))]
     pub topic0: Option<Vec<String>>,
 
-    /// [logs] filter logs by topic1
-    #[arg(long, help_heading = "Dataset-specific Options")]
+    /// Topic1(s)
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub topic1: Option<Vec<String>>,
 
-    /// [logs] filter logs by topic2
-    #[arg(long, help_heading = "Dataset-specific Options")]
+    /// Topic2(s)
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub topic2: Option<Vec<String>>,
 
-    /// [logs] filter logs by topic3
-    #[arg(long, help_heading = "Dataset-specific Options")]
+    /// Topic3(s)
+    #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub topic3: Option<Vec<String>>,
 
-    /// [logs] Blocks per request
+    /// Event signature for log decoding
+    #[arg(long, value_name = "SIG", help_heading = "Dataset-specific Options", num_args(1..))]
+    pub event_signature: Option<String>,
+
+    /// Blocks per request (eth_getLogs)
     #[arg(
         long,
-        value_name = "SIZE",
+        value_name = "BLOCKS",
         default_value_t = 1,
         help_heading = "Dataset-specific Options"
     )]
     pub inner_request_size: u64,
-
-    /// [logs] event signature to parse
-    #[arg(long, value_name = "SIGNATURE", help_heading = "Dataset-specific Options")]
-    pub event_signature: Option<String>,
 }
 
 pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
@@ -251,7 +251,7 @@ fn get_after_str() -> String {
     let subcommands = cstr!(
         r#"
       <white><bold>cryo help</bold></white>                      display help message
-      <white><bold>cryo help syntax</bold></white>               display block + transaction specification syntax
+      <white><bold>cryo help syntax</bold></white>               display block + tx specification syntax
       <white><bold>cryo help datasets</bold></white>             display list of all datasets
       <white><bold>cryo help</bold></white>"#
     );
