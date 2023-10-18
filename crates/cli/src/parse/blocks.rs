@@ -190,62 +190,136 @@ async fn parse_block_token<P: JsonRpcClient>(
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
-            let (start_block, end_block) = match (first_ref, second_ref) {
-                _ if first_ref.starts_with('-') => {
-                    let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
-                    let start_block = end_block
-                        .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
-                            ParseError::ParseError("start_block parse error".to_string())
-                        })?)
-                        .ok_or_else(|| {
-                            ParseError::ParseError("start_block underflow".to_string())
-                        })?;
-                    (start_block, end_block)
-                }
-                _ if second_ref.starts_with('+') => {
-                    let start_block =
-                        parse_block_number(first_ref, RangePosition::First, fetcher).await?;
-                    let end_block = start_block
-                        .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
-                            ParseError::ParseError("start_block parse error".to_string())
-                        })?)
-                        .ok_or_else(|| ParseError::ParseError("end_block underflow".to_string()))?;
-                    (start_block, end_block)
-                }
-                _ => {
-                    let start_block =
-                        parse_block_number(first_ref, RangePosition::First, fetcher).await?;
-                    let end_block =
-                        parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
-                    (start_block, end_block)
-                }
+            let parts: Vec<_> = second_ref.split('/').collect();
+            let (second_ref, n_keep) = if parts.len() == 2 {
+                let n_keep = parts[1].parse::<u32>().map_err(|_| {
+                    ParseError::ParseError("cannot parse block interval size".to_string())
+                })?;
+                (parts[0], Some(n_keep))
+            } else {
+                (*second_ref, None)
             };
 
-            let end_block =
-                if second_ref != &"latest" && second_ref != &"" && !first_ref.starts_with('-') {
-                    end_block - 1
-                } else {
-                    end_block
-                };
-
-            let start_block =
-                if first_ref.starts_with('-') { start_block + 1 } else { start_block };
-
-            if end_block < start_block {
-                Err(ParseError::ParseError(
-                    "end_block should not be less than start_block".to_string(),
-                ))
-            } else if as_range {
-                Ok(BlockChunk::Range(start_block, end_block))
-            } else {
-                Ok(BlockChunk::Numbers((start_block..=end_block).collect()))
-            }
+            let (start_block, end_block) =
+                parse_block_range(first_ref, second_ref, fetcher).await?;
+            block_range_to_block_chunk(start_block, end_block, as_range, None, n_keep)
+        }
+        [first_ref, second_ref, third_ref] => {
+            let (start_block, end_block) =
+                parse_block_range(first_ref, second_ref, fetcher).await?;
+            let range_size = third_ref
+                .parse::<u32>()
+                .map_err(|_e| ParseError::ParseError("start_block parse error".to_string()))?;
+            block_range_to_block_chunk(start_block, end_block, false, Some(range_size), None)
         }
         _ => Err(ParseError::ParseError(
             "blocks must be in format block_number or start_block:end_block".to_string(),
         )),
     }
+}
+
+fn block_range_to_block_chunk(
+    start_block: u64,
+    end_block: u64,
+    as_range: bool,
+    skip: Option<u32>,
+    n_blocks: Option<u32>,
+) -> Result<BlockChunk, ParseError> {
+    if end_block < start_block {
+        Err(ParseError::ParseError("end_block should not be less than start_block".to_string()))
+    } else if let Some(n_blocks) = n_blocks {
+        let blocks = evenly_spaced_subset((start_block..=end_block).collect(), n_blocks as usize);
+        Ok(BlockChunk::Numbers(blocks))
+    } else if as_range {
+        Ok(BlockChunk::Range(start_block, end_block))
+    } else {
+        let blocks = match skip {
+            Some(skip) => (start_block..=end_block)
+                .enumerate()
+                .filter(|(idx, _)| idx % (skip as usize) == 0)
+                .map(|(_, value)| value)
+                .collect(),
+            None => match n_blocks {
+                Some(n_blocks) => {
+                    evenly_spaced_subset((start_block..=end_block).collect(), n_blocks as usize)
+                }
+                None => (start_block..=end_block).collect(),
+            },
+        };
+        Ok(BlockChunk::Numbers(blocks))
+    }
+}
+
+fn evenly_spaced_subset<T: Clone>(items: Vec<T>, subset_length: usize) -> Vec<T> {
+    if subset_length == 0 || items.is_empty() {
+        return Vec::new()
+    }
+
+    if subset_length >= items.len() {
+        return items.to_vec()
+    }
+
+    let original_length = items.len();
+    let interval = (original_length - 1) as f64 / (subset_length - 1) as f64;
+
+    let mut accumulator: f64 = 0.0;
+    let mut subset = Vec::with_capacity(subset_length);
+
+    for _ in 0..subset_length {
+        let index = accumulator.floor() as usize;
+        subset.push(items[index].clone());
+        accumulator += interval;
+    }
+
+    subset
+}
+
+async fn parse_block_range<P>(
+    first_ref: &str,
+    second_ref: &str,
+    fetcher: &Fetcher<P>,
+) -> Result<(u64, u64), ParseError>
+where
+    P: JsonRpcClient,
+{
+    let (start_block, end_block) = match (first_ref, second_ref) {
+        _ if first_ref.starts_with('-') => {
+            let end_block = parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
+            let start_block =
+                end_block
+                    .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_block parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("start_block underflow".to_string()))?;
+            (start_block, end_block)
+        }
+        _ if second_ref.starts_with('+') => {
+            let start_block = parse_block_number(first_ref, RangePosition::First, fetcher).await?;
+            let end_block =
+                start_block
+                    .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_block parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("end_block underflow".to_string()))?;
+            (start_block, end_block)
+        }
+        _ => {
+            let start_block = parse_block_number(first_ref, RangePosition::First, fetcher).await?;
+            let end_block = parse_block_number(second_ref, RangePosition::Last, fetcher).await?;
+            (start_block, end_block)
+        }
+    };
+
+    let end_block =
+        if second_ref != "latest" && !second_ref.is_empty() && !first_ref.starts_with('-') {
+            end_block - 1
+        } else {
+            end_block
+        };
+
+    let start_block = if first_ref.starts_with('-') { start_block + 1 } else { start_block };
+
+    Ok((start_block, end_block))
 }
 
 async fn parse_block_number<P: JsonRpcClient>(
