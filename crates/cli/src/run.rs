@@ -31,13 +31,17 @@ async fn handle_help_subcommands(args: args::Args) -> Result<Option<FreezeSummar
             r#"<white><bold>Block specification syntax</bold></white>
 - can use numbers                    <white><bold>--blocks 5000 6000 7000</bold></white>
 - can use ranges                     <white><bold>--blocks 12M:13M 15M:16M</bold></white>
+- can use a parquet file             <white><bold>--blocks ./path/to/file.parquet[:COLUMN_NAME]</bold></white>
+- can use multiple parquet files     <white><bold>--blocks ./path/to/files/*.parquet[:COLUMN_NAME]</bold></white>
 - numbers can contain { _ . K M B }  <white><bold>5_000 5K 15M 15.5M</bold></white>
 - omitting range end means latest    <white><bold>15.5M:</bold></white> == <white><bold>15.5M:latest</bold></white>
 - omitting range start means 0       <white><bold>:700</bold></white> == <white><bold>0:700</bold></white>
 - minus on start means minus end     <white><bold>-1000:7000</bold></white> == <white><bold>6000:7000</bold></white>
 - plus sign on end means plus start  <white><bold>15M:+1000</bold></white> == <white><bold>15M:15.001K</bold></white>
+- can use every nth value            <white><bold>2000:5000:1000</bold></white> == <white><bold>2000 3000 4000</bold></white>
+- can use n values total             <white><bold>100:200/5</bold></white> == <white><bold>100 124 149 174 199</bold></white>
 
-<white><bold>Transaction hash specification syntax</bold></white>
+<white><bold>Transaction specification syntax</bold></white>
 - can use transaction hashes         <white><bold>--txs TX_HASH1 TX_HASH2 TX_HASH3</bold></white>
 - can use a parquet file             <white><bold>--txs ./path/to/file.parquet[:COLUMN_NAME]</bold></white>
                                      (default column name is <white><bold>transaction_hash</bold></white>)
