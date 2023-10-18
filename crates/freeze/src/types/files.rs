@@ -1,4 +1,4 @@
-use crate::{CollectError, Datatype, MetaDatatype, Partition, Query};
+use crate::{CollectError, Datatype, MetaDatatype, ParseError, Partition, Query};
 use std::{collections::HashMap, path::PathBuf};
 
 /// Options for file output
@@ -10,6 +10,8 @@ pub struct FileOutput {
     pub prefix: String,
     /// Suffix to use at the end of file names
     pub suffix: Option<String>,
+    /// subdirectories to use
+    pub subdirs: Vec<SubDir>,
     /// Whether to overwrite existing files or skip them
     pub overwrite: bool,
     /// File format to used for output files
@@ -20,6 +22,17 @@ pub struct FileOutput {
     pub parquet_statistics: bool,
     /// Parquet compression options
     pub parquet_compression: polars::prelude::ParquetCompression,
+}
+
+/// Possible item to use as subdirectory
+#[derive(Clone, Debug)]
+pub enum SubDir {
+    /// datatype
+    Datatype,
+    /// network
+    Network,
+    /// custom string
+    Custom(String),
 }
 
 impl FileOutput {
@@ -58,7 +71,22 @@ impl FileOutput {
             partition.label(&query.partitioned_by)?,
             self.format.as_str(),
         );
-        Ok(std::path::Path::new(&self.output_dir).join(filename))
+        let filename = std::path::Path::new(&filename).to_path_buf();
+
+        let mut output_dir = std::path::Path::new(&self.output_dir).to_path_buf();
+        for subdir in self.subdirs.iter() {
+            let subdir_str: String = match subdir {
+                SubDir::Network => self.prefix.clone(),
+                SubDir::Datatype => datatype.name(),
+                SubDir::Custom(subdir_str) => subdir_str.to_string(),
+            };
+            output_dir = output_dir.join(std::path::Path::new(&subdir_str));
+        }
+
+        std::fs::create_dir_all(output_dir.clone())
+            .map_err(|_| ParseError::ParseError("could not create dir".to_string()))?;
+
+        Ok(output_dir.join(filename))
     }
 }
 

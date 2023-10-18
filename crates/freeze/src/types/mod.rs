@@ -56,7 +56,7 @@ pub use chunks::{
 pub use conversions::{bytes_to_u32, ToVecHex, ToVecU8};
 pub use dataframes::*;
 pub use datatypes::*;
-pub use files::{ColumnEncoding, FileFormat, FileOutput};
+pub use files::{ColumnEncoding, FileFormat, FileOutput, SubDir};
 pub use queries::{Query, TimeDimension};
 pub use schemas::{ColumnType, Schemas, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source};

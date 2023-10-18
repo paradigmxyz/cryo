@@ -1,5 +1,5 @@
 use crate::args::Args;
-use cryo_freeze::{FileFormat, FileOutput, ParseError, Source};
+use cryo_freeze::{FileFormat, FileOutput, ParseError, Source, SubDir};
 use polars::prelude::*;
 use std::fs;
 
@@ -28,8 +28,11 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
     let format = parse_output_format(args)?;
     let file_prefix = parse_network_name(args, source.chain_id);
 
+    let subdirs = parse_subdirs(args);
+
     let output = FileOutput {
         output_dir,
+        subdirs,
         parquet_statistics: !args.no_stats,
         overwrite: args.overwrite,
         prefix: file_prefix,
@@ -40,6 +43,20 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
     };
 
     Ok(output)
+}
+
+pub(crate) fn parse_subdirs(args: &Args) -> Vec<SubDir> {
+    let mut subdirs = Vec::new();
+    for arg in args.subdirs.iter() {
+        if arg == "datatype" {
+            subdirs.push(SubDir::Datatype)
+        } else if arg == "network" {
+            subdirs.push(SubDir::Network)
+        } else {
+            subdirs.push(SubDir::Custom(arg.clone()))
+        }
+    }
+    subdirs
 }
 
 pub(crate) fn parse_network_name(args: &Args, chain_id: u64) -> String {
