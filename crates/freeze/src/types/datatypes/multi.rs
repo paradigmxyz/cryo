@@ -49,4 +49,9 @@ impl MultiDatatype {
             MultiDatatype::StateDiffs,
         ]
     }
+
+    /// name
+    pub fn name(&self) -> String {
+        format!("{}", heck::AsSnakeCase(format!("{:?}", self)))
+    }
 }

@@ -1,6 +1,6 @@
 use std::collections::{HashMap, HashSet};
 
-use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, ParseError, Table};
+use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiDatatype, ParseError, Table};
 
 use super::file_output;
 use crate::args::Args;
@@ -10,22 +10,16 @@ use std::str::FromStr;
 fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError> {
     let mut datatypes = Vec::new();
 
-    for raw_input in raw_inputs {
-        match raw_input.as_str() {
-            "state_diffs" => {
-                datatypes.push(Datatype::BalanceDiffs);
-                datatypes.push(Datatype::CodeDiffs);
-                datatypes.push(Datatype::NonceDiffs);
-                datatypes.push(Datatype::StorageDiffs);
+    'outer: for raw_input in raw_inputs {
+        for multi_datatype in MultiDatatype::variants().iter() {
+            if raw_input.as_str() == multi_datatype.name() {
+                for datatype in multi_datatype.datatypes() {
+                    datatypes.push(datatype)
+                }
+                continue 'outer
             }
-            "geth_state_diffs" => {
-                datatypes.push(Datatype::GethBalanceDiffs);
-                datatypes.push(Datatype::GethCodeDiffs);
-                datatypes.push(Datatype::GethNonceDiffs);
-                datatypes.push(Datatype::GethStorageDiffs);
-            }
-            datatype_str => datatypes.push(Datatype::from_str(datatype_str)?),
         }
+        datatypes.push(Datatype::from_str(raw_input)?);
     }
     Ok(datatypes)
 }

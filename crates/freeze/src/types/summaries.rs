@@ -6,7 +6,7 @@ use thousands::Separable;
 
 use crate::{
     chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, CollectError, ColumnType, Datatype,
-    Dim, ExecutionEnv, FileOutput, Partition, Query, Source, Table,
+    Dim, ExecutionEnv, FileOutput, MultiDatatype, Partition, Query, Source, Table,
 };
 use std::path::PathBuf;
 
@@ -33,6 +33,14 @@ pub fn print_all_datasets() {
     print_header("cryo datasets");
     for datatype in Datatype::all().iter() {
         print_bullet_key(datatype.name())
+    }
+    println!();
+    print_header("dataset group names");
+    for datatype in MultiDatatype::variants().iter() {
+        let name = heck::AsSnakeCase(format!("{:?}", datatype)).to_string();
+        let subtypes =
+            datatype.datatypes().iter().map(|dt| dt.name()).collect::<Vec<_>>().join(", ");
+        print_bullet(name, subtypes)
     }
 }
 
@@ -133,8 +141,6 @@ pub(crate) fn print_cryo_intro(
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
     print_bullet("data", "");
     print_bullet_indent("datatypes", datatype_strs.join(", "), 4);
-    // let rpc_url = cli::parse_rpc_url(args);
-    // print_bullet("provider", rpc_url);
     print_chunks(&query.partitions);
 
     print_bullet("source", "");
