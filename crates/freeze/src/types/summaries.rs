@@ -42,6 +42,8 @@ pub fn print_all_datasets() {
             datatype.datatypes().iter().map(|dt| dt.name()).collect::<Vec<_>>().join(", ");
         print_bullet(name, subtypes)
     }
+    println!();
+    println!("use {} to print info about a specific dataset", "cryo help <DATASET>".bold().white())
 }
 
 /// print info about datasets

@@ -121,7 +121,7 @@ pub struct Args {
 
     /// Subdirectories for output files
     /// can be `datatype`, `network`, or custom string
-    #[arg(long, help_heading = "Output Options", num_args(1..))]
+    #[arg(long, help_heading = "Output Options", verbatim_doc_comment, num_args(1..))]
     pub subdirs: Vec<String>,
 
     /// Suffix to attach to end of each filename
