@@ -1,6 +1,6 @@
 use super::{parse_schemas, partitions};
 use crate::args::Args;
-use cryo_freeze::{Dim, Fetcher, ParseError, Query, Schemas};
+use cryo_freeze::{Dim, Fetcher, ParseError, Query, QueryLabels, Schemas};
 use ethers::prelude::*;
 use std::sync::Arc;
 
@@ -18,7 +18,8 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
     let (partitions, partitioned_by, time_dimension) =
         partitions::parse_partitions(args, fetcher, &schemas).await?;
     let datatypes = cryo_freeze::cluster_datatypes(schemas.keys().cloned().collect());
-    Ok(Query { datatypes, schemas, time_dimension, partitions, partitioned_by })
+    let labels = QueryLabels { align: args.align, reorg_buffer: args.reorg_buffer };
+    Ok(Query { datatypes, schemas, time_dimension, partitions, partitioned_by, labels })
 }
 
 fn find_arg_aliases(args: &Args, schemas: &Schemas) -> Vec<(Dim, Dim)> {

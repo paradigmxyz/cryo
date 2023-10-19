@@ -37,7 +37,7 @@ pub async fn freeze(
     let (payloads, skipping) = get_payloads(query, source, sink, env)?;
 
     // print summary
-    if env.verbose {
+    if env.verbose >= 1 {
         summaries::print_cryo_intro(query, source, sink, env, payloads.len() as u64);
     }
 
@@ -49,7 +49,7 @@ pub async fn freeze(
     // check if empty
     if payloads.is_empty() {
         let results = FreezeSummary { skipped: skipping, ..Default::default() };
-        if env.verbose {
+        if env.verbose >= 1 {
             summaries::print_cryo_conclusion(&results, query, env)
         }
         return Ok(Some(results))
@@ -64,7 +64,7 @@ pub async fn freeze(
     let results = freeze_partitions(env, payloads, skipping).await;
 
     // create summary
-    if env.verbose {
+    if env.verbose >= 1 {
         summaries::print_cryo_conclusion(&results, query, env)
     }
 

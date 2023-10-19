@@ -14,6 +14,17 @@ pub struct Query {
     pub partitions: Vec<Partition>,
     /// Partitioning
     pub partitioned_by: Vec<Dim>,
+    /// Labels (these are non-functional)
+    pub labels: QueryLabels,
+}
+
+/// query labels (non-functional)
+#[derive(Clone)]
+pub struct QueryLabels {
+    /// align
+    pub align: bool,
+    /// reorg buffer
+    pub reorg_buffer: u64,
 }
 
 impl Query {

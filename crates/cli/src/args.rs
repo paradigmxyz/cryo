@@ -114,6 +114,10 @@ pub struct Args {
     #[arg(long)]
     pub remember: bool,
 
+    /// Extra verbosity
+    #[arg(short, long)]
+    pub verbose: bool,
+
     /// Run quietly without printing information to stdout
     #[arg(long)]
     pub no_verbose: bool,
@@ -140,7 +144,7 @@ pub struct Args {
     pub subdirs: Vec<String>,
 
     /// Suffix to attach to end of each filename
-    #[arg(long, help_heading = "Output Options")]
+    #[arg(long, help_heading = "Output Options", hide = true)]
     pub file_suffix: Option<String>,
 
     /// Overwrite existing files instead of skipping

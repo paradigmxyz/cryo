@@ -57,6 +57,7 @@ use cryo_freeze::collect;
         topic2 = None,
         topic3 = None,
         inner_request_size = 1,
+        verbose = false,
         no_verbose = false,
         event_signature = None,
     )
@@ -113,6 +114,7 @@ pub fn _collect(
     topic2: Option<Vec<String>>,
     topic3: Option<Vec<String>>,
     inner_request_size: u64,
+    verbose: bool,
     no_verbose: bool,
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
@@ -173,6 +175,7 @@ pub fn _collect(
             topic2,
             topic3,
             inner_request_size,
+            verbose,
             no_verbose,
             event_signature,
         };

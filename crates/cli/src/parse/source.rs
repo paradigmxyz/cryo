@@ -5,7 +5,7 @@ use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
 
-use cryo_freeze::{Fetcher, ParseError, Source};
+use cryo_freeze::{Fetcher, ParseError, Source, SourceLabels};
 
 use crate::args::Args;
 
@@ -44,10 +44,14 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         fetcher: Arc::new(fetcher),
         chain_id,
         inner_request_size: args.inner_request_size,
-        max_concurrent_requests: args.requests_per_second.map(|x| x as u64),
         max_concurrent_chunks,
-        max_requests_per_second: args.requests_per_second.map(|x| x as u64),
         rpc_url,
+        labels: SourceLabels {
+            max_concurrent_requests: args.requests_per_second.map(|x| x as u64),
+            max_requests_per_second: args.requests_per_second.map(|x| x as u64),
+            max_retries: Some(args.max_retries),
+            initial_backoff: Some(args.initial_backoff),
+        },
     };
 
     Ok(output)

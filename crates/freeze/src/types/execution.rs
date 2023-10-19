@@ -8,7 +8,7 @@ pub struct ExecutionEnv {
     /// dry run
     pub dry: bool,
     /// verbose output
-    pub verbose: bool,
+    pub verbose: u32,
     /// whether to generate report
     pub report: bool,
     /// progress bar
@@ -58,7 +58,7 @@ fn new_bar(n: u64) -> Result<Arc<ProgressBar>, CollectError> {
 /// build ExecutionEnv using builder pattern
 pub struct ExecutionEnvBuilder {
     dry: bool,
-    verbose: bool,
+    verbose: u32,
     report: bool,
     bar: Option<Arc<ProgressBar>>,
     cli_command: Option<Vec<String>>,
@@ -73,7 +73,7 @@ impl Default for ExecutionEnvBuilder {
     fn default() -> Self {
         ExecutionEnvBuilder {
             dry: false,
-            verbose: true,
+            verbose: 1,
             report: true,
             bar: None,
             cli_command: Some(std::env::args().collect()),
@@ -99,7 +99,7 @@ impl ExecutionEnvBuilder {
     }
 
     /// verbose output
-    pub fn verbose(mut self, verbose: bool) -> Self {
+    pub fn verbose(mut self, verbose: u32) -> Self {
         self.verbose = verbose;
         self
     }

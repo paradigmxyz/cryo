@@ -143,12 +143,15 @@ pub(crate) fn print_cryo_intro(
     let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
     print_bullet("data", "");
     print_bullet_indent("datatypes", datatype_strs.join(", "), 4);
-    print_chunks(&query.partitions);
+
+    let align = Some(query.labels.align);
+    let reorg_buffer = Some(query.labels.reorg_buffer);
+    print_chunks(&query.partitions, align, reorg_buffer);
 
     print_bullet("source", "");
     print_bullet_indent("network", &sink.prefix, 4);
     print_bullet_indent("rpc url", &source.rpc_url, 4);
-    match source.max_requests_per_second {
+    match source.labels.max_requests_per_second {
         Some(max_requests_per_second) => print_bullet_indent(
             "max requests per second",
             max_requests_per_second.separate_with_commas(),
@@ -156,7 +159,7 @@ pub(crate) fn print_cryo_intro(
         ),
         None => print_bullet_indent("max requests per second", "unlimited", 4),
     };
-    match source.max_concurrent_requests {
+    match source.labels.max_concurrent_requests {
         Some(max_concurrent_requests) => print_bullet_indent(
             "max concurrent requests",
             max_concurrent_requests.separate_with_commas(),
@@ -172,6 +175,21 @@ pub(crate) fn print_cryo_intro(
         ),
         None => print_bullet_indent("max concurrent chunks:", "unlimited", 4),
     };
+
+    if env.verbose > 1 {
+        match source.labels.max_retries {
+            Some(max_retries) => {
+                print_bullet_indent("max retries", max_retries.separate_with_commas(), 4)
+            }
+            None => print_bullet_indent("max retries", "[none]", 4),
+        };
+        match source.labels.initial_backoff {
+            Some(initial_backoff) => {
+                print_bullet_indent("initial backoff", initial_backoff.separate_with_commas(), 4)
+            }
+            None => print_bullet_indent("initial retry backoff", "[none]", 4),
+        };
+    }
 
     if query.schemas.contains_key(&Datatype::Logs) {
         print_bullet_indent("inner request size", source.inner_request_size.to_string(), 4);
@@ -189,8 +207,13 @@ pub(crate) fn print_cryo_intro(
             }
         }
     }
-    print_bullet_indent("n chunks", query.partitions.len().separate_with_commas(), 4);
-    print_bullet_indent("chunks remaining", n_chunks_remaining.to_string(), 4);
+
+    let chunk_text = format!(
+        "{} / {}",
+        n_chunks_remaining.separate_with_commas(),
+        query.partitions.len().separate_with_commas()
+    );
+    print_bullet_indent("chunks to collect", chunk_text, 4);
     print_bullet_indent("output format", sink.format.as_str(), 4);
     print_bullet_indent("output dir", sink.output_dir.clone().to_string_lossy(), 4);
 
@@ -227,11 +250,11 @@ pub(crate) fn print_cryo_intro(
     }
 }
 
-fn print_chunks(chunks: &[Partition]) {
+fn print_chunks(chunks: &[Partition], align: Option<bool>, reorg_buffer: Option<u64>) {
     let stats = crate::types::partitions::meta_chunks_stats(chunks);
     for (dim, dim_stats) in [(Dim::BlockNumber, stats.block_numbers)].iter() {
         if let Some(dim_stats) = dim_stats {
-            print_chunk(dim, dim_stats)
+            print_chunk(dim, dim_stats, align, reorg_buffer)
         }
     }
 
@@ -250,12 +273,17 @@ fn print_chunks(chunks: &[Partition]) {
     .iter()
     {
         if let Some(dim_stats) = dim_stats {
-            print_chunk(dim, dim_stats)
+            print_chunk(dim, dim_stats, None, None)
         }
     }
 }
 
-fn print_chunk<T: Ord + ValueToString>(dim: &Dim, dim_stats: &ChunkStats<T>) {
+fn print_chunk<T: Ord + ValueToString>(
+    dim: &Dim,
+    dim_stats: &ChunkStats<T>,
+    align: Option<bool>,
+    reorg_buffer: Option<u64>,
+) {
     if dim_stats.total_values == 1 {
         print_bullet_indent(
             format!("{}", dim),
@@ -264,16 +292,21 @@ fn print_chunk<T: Ord + ValueToString>(dim: &Dim, dim_stats: &ChunkStats<T>) {
         );
     } else {
         match (dim_stats.min_value_to_string(), dim_stats.max_value_to_string()) {
-            (Some(min), Some(max)) => print_bullet_indent(
-                dim.plural_name(),
-                format!(
+            (Some(min), Some(max)) => {
+                let mut text = format!(
                     "n={} min={} max={}",
                     dim_stats.total_values.separate_with_commas(),
                     min,
                     max
-                ),
-                4,
-            ),
+                );
+                if let Some(align) = align {
+                    text = format!("{} align={}", text, align);
+                };
+                if let Some(reorg_buffer) = reorg_buffer {
+                    text = format!("{} reorg_buffer={}", text, reorg_buffer);
+                };
+                print_bullet_indent(dim.plural_name(), text, 4)
+            }
             _ => print_bullet_indent(
                 dim.plural_name(),
                 format!("n={}", dim_stats.total_values.separate_with_commas()),
