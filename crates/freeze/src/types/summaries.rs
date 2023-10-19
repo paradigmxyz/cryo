@@ -299,9 +299,13 @@ fn print_chunk<T: Ord + ValueToString>(
                     min,
                     max
                 );
-                if let Some(align) = align {
-                    text = format!("{} align={}", text, align);
-                };
+
+                match align {
+                    Some(true) => text = format!("{} align=yes", text),
+                    Some(false) => text = format!("{} align=no", text),
+                    None => {}
+                }
+
                 if let Some(reorg_buffer) = reorg_buffer {
                     text = format!("{} reorg_buffer={}", text, reorg_buffer);
                 };

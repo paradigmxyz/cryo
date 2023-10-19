@@ -1,3 +1,5 @@
+/// address appearances
+pub mod address_appearances;
 /// balance diffs
 pub mod balance_diffs;
 /// balances
@@ -42,21 +44,20 @@ pub mod native_transfers;
 pub mod nonce_diffs;
 /// nonces
 pub mod nonces;
+/// slots
+pub mod slots;
 /// storage diffs
 pub mod storage_diffs;
-/// storages
-pub mod storages;
 /// trace calls
 pub mod trace_calls;
 /// traces
 pub mod traces;
-/// transaction addresses
-pub mod transaction_addresses;
 /// transactions
 pub mod transactions;
 /// vm traces
 pub mod vm_traces;
 
+pub use address_appearances::*;
 pub use balance_diffs::*;
 pub use balances::*;
 pub use blocks::*;
@@ -79,10 +80,9 @@ pub use logs::*;
 pub use native_transfers::*;
 pub use nonce_diffs::*;
 pub use nonces::*;
+pub use slots::*;
 pub use storage_diffs::*;
-pub use storages::*;
 pub use trace_calls::*;
 pub use traces::*;
-pub use transaction_addresses::*;
 pub use transactions::*;
 pub use vm_traces::*;
