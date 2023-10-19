@@ -28,10 +28,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl Dataset for GethTraces {
-    fn name() -> &'static str {
-        "geth_traces"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

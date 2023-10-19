@@ -16,10 +16,6 @@ pub struct Balances {
 
 #[async_trait::async_trait]
 impl Dataset for Balances {
-    fn name() -> &'static str {
-        "balances"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }

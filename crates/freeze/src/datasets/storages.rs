@@ -17,10 +17,6 @@ pub struct Storages {
 
 #[async_trait::async_trait]
 impl Dataset for Storages {
-    fn name() -> &'static str {
-        "storages"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
     }

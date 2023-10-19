@@ -19,10 +19,6 @@ pub struct NonceDiffs {
 
 #[async_trait::async_trait]
 impl Dataset for NonceDiffs {
-    fn name() -> &'static str {
-        "nonce_diffs"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

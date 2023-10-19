@@ -17,10 +17,6 @@ pub struct TransactionAddresses {
 
 #[async_trait::async_trait]
 impl Dataset for TransactionAddresses {
-    fn name() -> &'static str {
-        "transaction_addresses"
-    }
-
     fn default_sort() -> Vec<String> {
         vec![
             "block_number".to_string(),

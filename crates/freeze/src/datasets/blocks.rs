@@ -27,10 +27,6 @@ pub struct Blocks {
 
 #[async_trait::async_trait]
 impl Dataset for Blocks {
-    fn name() -> &'static str {
-        "blocks"
-    }
-
     fn default_columns() -> Option<Vec<&'static str>> {
         Some(vec![
             "block_number",

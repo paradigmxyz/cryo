@@ -17,12 +17,7 @@ pub struct GethStorageDiffs {
     pub(crate) chain_id: Vec<u64>,
 }
 
-#[async_trait::async_trait]
 impl Dataset for GethStorageDiffs {
-    fn name() -> &'static str {
-        "geth_storage_diffs"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

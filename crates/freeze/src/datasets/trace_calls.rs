@@ -33,10 +33,6 @@ pub struct TraceCalls {
 }
 
 impl Dataset for TraceCalls {
-    fn name() -> &'static str {
-        "trace_calls"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

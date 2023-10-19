@@ -27,10 +27,6 @@ pub struct Transactions {
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
-    fn name() -> &'static str {
-        "transactions"
-    }
-
     fn aliases() -> Vec<&'static str> {
         vec!["txs"]
     }

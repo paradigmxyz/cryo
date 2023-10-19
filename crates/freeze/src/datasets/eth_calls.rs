@@ -19,10 +19,6 @@ pub struct EthCalls {
 
 #[async_trait::async_trait]
 impl Dataset for EthCalls {
-    fn name() -> &'static str {
-        "eth_calls"
-    }
-
     fn default_columns() -> Option<Vec<&'static str>> {
         Some(vec!["block_number", "contract_address", "call_data", "output_data", "chain_id"])
     }
