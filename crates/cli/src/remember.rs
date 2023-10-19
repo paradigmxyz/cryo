@@ -1,3 +1,9 @@
+// using --remember saves the current command as the "default" for the current directory
+// - this default in invoked whenever cryo is run without specifying datatypes
+// - only one default command is remembered for each directory
+// - remembered commands are only activated when datatypes are omitted
+// - can add `--dry` or any other additional arguments to override remembered arguments
+
 use crate::args::Args;
 use cryo_freeze::ParseError;
 use serde::{Deserialize, Serialize};
