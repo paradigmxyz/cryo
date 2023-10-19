@@ -7,6 +7,7 @@ use cryo_cli::{run, Args};
         datatype = None,
         blocks = None,
         *,
+        remember = false,
         command = None,
         txs = None,
         align = false,
@@ -62,6 +63,7 @@ pub fn _freeze(
     py: Python<'_>,
     datatype: Option<Vec<String>>,
     blocks: Option<Vec<String>>,
+    remember: bool,
     command: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
@@ -117,6 +119,7 @@ pub fn _freeze(
         let args = Args {
             datatype,
             blocks,
+            remember,
             txs,
             align,
             reorg_buffer,

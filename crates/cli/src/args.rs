@@ -1,14 +1,25 @@
 use clap_cryo::Parser;
 use color_print::cstr;
+use colored::Colorize;
 use serde::{Deserialize, Serialize};
-use std::path::PathBuf;
+use serde_json::Value;
+use std::{default::Default, path::PathBuf};
 
 /// Command line arguments
-#[derive(Parser, Debug, Serialize, Deserialize, Clone)]
-#[command(name = "cryo", author, version = cryo_freeze::CRYO_VERSION, about = &get_about_str(), long_about = None, styles=get_styles(), after_help=&get_after_str(), allow_negative_numbers = true)]
+#[derive(Parser, Debug, Serialize, Deserialize, Clone, Default)]
+#[command(
+    name = "cryo",
+    author,
+    version = cryo_freeze::CRYO_VERSION,
+    about = &get_about_str(),
+    long_about = None,
+    styles=get_styles(),
+    after_help=&get_after_str(),
+    allow_negative_numbers = true,
+)]
 pub struct Args {
-    /// datatype to collect
-    #[arg(required = true, help=get_datatype_help(), num_args(1..))]
+    /// Datatype to collect
+    #[arg(help=get_datatype_help(), num_args(0..))]
     pub datatype: Vec<String>,
 
     /// Block numbers, see syntax below
@@ -98,6 +109,10 @@ pub struct Args {
     /// Dry run, collect no data
     #[arg(short, long, help_heading = "Acquisition Options")]
     pub dry: bool,
+
+    /// Remember current command for future use
+    #[arg(long)]
+    pub remember: bool,
 
     /// Run quietly without printing information to stdout
     #[arg(long)]
@@ -227,6 +242,30 @@ pub struct Args {
     pub inner_request_size: u64,
 }
 
+impl Args {
+    pub(crate) fn merge_with_precedence(self, other: Args) -> Self {
+        let default_struct = Args::default();
+
+        let mut s1_value: Value = serde_json::to_value(&self).expect("Failed to serialize to JSON");
+        let s2_value: Value = serde_json::to_value(&other).expect("Failed to serialize to JSON");
+        let default_value: Value =
+            serde_json::to_value(&default_struct).expect("Failed to serialize to JSON");
+
+        if let (Value::Object(s1_map), Value::Object(s2_map), Value::Object(default_map)) =
+            (&mut s1_value, &s2_value, &default_value)
+        {
+            for (k, v) in s2_map.iter() {
+                // If the value in s2 is different from the default, overwrite the value in s1
+                if default_map.get(k) != Some(v) {
+                    s1_map.insert(k.clone(), v.clone());
+                }
+            }
+        }
+
+        serde_json::from_value(s1_value).expect("Failed to deserialize from JSON")
+    }
+}
+
 pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
     let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
     let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
@@ -243,8 +282,6 @@ pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
         .valid(title)
         .invalid(comment)
 }
-
-use colored::Colorize;
 
 fn get_about_str() -> String {
     cstr!(r#"<white><bold>cryo</bold></white> extracts blockchain data to parquet, csv, or json"#)

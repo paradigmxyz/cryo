@@ -1,6 +1,7 @@
-use crate::{args, parse};
+use crate::{args, parse, remember};
 use clap_cryo::Parser;
 use color_print::cstr;
+use colored::Colorize;
 use cryo_freeze::{CollectError, ExecutionEnv, FreezeSummary};
 use std::{sync::Arc, time::SystemTime};
 
@@ -11,12 +12,39 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, CollectError
         return handle_help_subcommands(args).await
     }
 
+    // remember previous command
+    let args = if args.datatype.is_empty() {
+        let remembered = remember::load_remembered_command(args.output_dir.clone().into())?;
+        if remembered.cryo_version != cryo_freeze::CRYO_VERSION {
+            eprintln!("remembered command comes from different cryo version, proceed with caution");
+            eprintln!();
+        };
+        println!(
+            "{} {} {}",
+            "remembering previous command:".truecolor(170, 170, 170),
+            "cryo".bold().white(),
+            remembered.command.into_iter().skip(1).collect::<Vec<_>>().join(" ").white().bold()
+        );
+        println!();
+        args.merge_with_precedence(remembered.args)
+    } else {
+        args
+    };
+
+    // remember current command
+    if args.remember {
+        println!("remembering this command for future use");
+        println!();
+        remember::save_remembered_command(args.output_dir.clone().into(), &args)?;
+    }
+
     // handle regular flow
     let t_start_parse = Some(SystemTime::now());
     let (query, source, sink, env) = match parse::parse_args(&args).await {
         Ok(opts) => opts,
         Err(e) => return Err(e.into()),
     };
+
     let source = Arc::new(source);
     let env = ExecutionEnv { t_start_parse, ..env };
     let env = env.set_start_time();

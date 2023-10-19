@@ -10,6 +10,7 @@ use cryo_freeze::collect;
         datatype = None,
         blocks = None,
         *,
+        remember = false,
         command = None,
         txs = None,
         align = false,
@@ -65,6 +66,7 @@ pub fn _collect(
     py: Python<'_>,
     datatype: Option<String>,
     blocks: Option<Vec<String>>,
+    remember: bool,
     command: Option<String>,
     txs: Option<Vec<String>>,
     align: bool,
@@ -125,6 +127,7 @@ pub fn _collect(
         let args = Args {
             datatype: vec![datatype],
             blocks,
+            remember,
             txs,
             align,
             reorg_buffer,

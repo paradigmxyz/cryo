@@ -4,6 +4,7 @@ use clap_cryo::Parser;
 
 mod args;
 mod parse;
+mod remember;
 mod run;
 
 pub use args::Args;
