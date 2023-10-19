@@ -4,9 +4,9 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::TransactionAddresses)]
+#[cryo_to_df::to_df(Datatype::AddressAppearances)]
 #[derive(Default)]
-pub struct TransactionAddresses {
+pub struct AddressAppearances {
     n_rows: usize,
     block_number: Vec<u32>,
     transaction_hash: Vec<Vec<u8>>,
@@ -16,7 +16,7 @@ pub struct TransactionAddresses {
 }
 
 #[async_trait::async_trait]
-impl Dataset for TransactionAddresses {
+impl Dataset for AddressAppearances {
     fn default_sort() -> Vec<String> {
         vec![
             "block_number".to_string(),
@@ -32,7 +32,7 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 type BlockLogsTraces = (Block<TxHash>, Vec<Log>, Vec<Trace>);
 
 #[async_trait::async_trait]
-impl CollectByBlock for TransactionAddresses {
+impl CollectByBlock for AddressAppearances {
     type Response = BlockLogsTraces;
 
     async fn extract(
@@ -57,13 +57,13 @@ impl CollectByBlock for TransactionAddresses {
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         let schema =
-            schemas.get(&Datatype::TransactionAddresses).ok_or(err("schema not provided"))?;
+            schemas.get(&Datatype::AddressAppearances).ok_or(err("schema not provided"))?;
         process_appearances(response, columns, schema)
     }
 }
 
 #[async_trait::async_trait]
-impl CollectByTransaction for TransactionAddresses {
+impl CollectByTransaction for AddressAppearances {
     type Response = BlockLogsTraces;
 
     async fn extract(
@@ -103,7 +103,7 @@ impl CollectByTransaction for TransactionAddresses {
 
     fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
         let schema =
-            schemas.get(&Datatype::TransactionAddresses).ok_or(err("schema not provided"))?;
+            schemas.get(&Datatype::AddressAppearances).ok_or(err("schema not provided"))?;
         process_appearances(response, columns, schema)
     }
 }
@@ -123,7 +123,7 @@ fn name(log: &Log) -> Option<&'static str> {
     }
 }
 
-impl TransactionAddresses {
+impl AddressAppearances {
     fn process_first_transaction(
         &mut self,
         block_author: H160,
@@ -218,7 +218,7 @@ impl TransactionAddresses {
 
 fn process_appearances(
     traces: BlockLogsTraces,
-    columns: &mut TransactionAddresses,
+    columns: &mut AddressAppearances,
     schema: &Table,
 ) -> Result<()> {
     let (block, logs, traces) = traces;
