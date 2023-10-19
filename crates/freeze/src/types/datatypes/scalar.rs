@@ -3,6 +3,7 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 define_datatypes!(
+    AddressAppearances,
     BalanceDiffs,
     Balances,
     Blocks,
@@ -25,12 +26,11 @@ define_datatypes!(
     NativeTransfers,
     NonceDiffs,
     Nonces,
+    Slots,
     StorageDiffs,
-    Storages,
     Traces,
     TraceCalls,
     Transactions,
-    TransactionAddresses,
     VmTraces,
 );
 

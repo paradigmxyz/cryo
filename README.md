@@ -255,6 +255,7 @@ Transaction specification syntax
 ```
 cryo datasets
 ─────────────
+- address_appearances
 - balance_diffs
 - balances
 - blocks
@@ -277,12 +278,11 @@ cryo datasets
 - native_transfers
 - nonce_diffs
 - nonces
+- slots
 - storage_diffs
-- storages
 - traces
 - trace_calls
 - transactions
-- transaction_addresses
 - vm_traces
 
 dataset group names
