@@ -9,6 +9,7 @@
 
 mod args;
 mod parse;
+mod remember;
 mod run;
 
 // used in main.rs but not lib.rs
