@@ -25,10 +25,6 @@ pub struct VmTraces {
 
 #[async_trait::async_trait]
 impl Dataset for VmTraces {
-    fn name() -> &'static str {
-        "vm_traces"
-    }
-
     fn aliases() -> Vec<&'static str> {
         vec!["opcode_traces"]
     }

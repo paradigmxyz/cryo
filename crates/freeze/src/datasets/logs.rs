@@ -25,10 +25,6 @@ pub struct Logs {
 
 #[async_trait::async_trait]
 impl Dataset for Logs {
-    fn name() -> &'static str {
-        "logs"
-    }
-
     fn aliases() -> Vec<&'static str> {
         vec!["events"]
     }

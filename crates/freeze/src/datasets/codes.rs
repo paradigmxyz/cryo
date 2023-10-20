@@ -16,10 +16,6 @@ pub struct Codes {
 
 #[async_trait::async_trait]
 impl Dataset for Codes {
-    fn name() -> &'static str {
-        "codes"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string()]
     }

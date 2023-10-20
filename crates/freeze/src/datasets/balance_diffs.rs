@@ -22,10 +22,6 @@ type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl Dataset for BalanceDiffs {
-    fn name() -> &'static str {
-        "balance_diffs"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

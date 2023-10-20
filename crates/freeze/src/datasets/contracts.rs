@@ -25,10 +25,6 @@ pub struct Contracts {
 
 #[async_trait::async_trait]
 impl Dataset for Contracts {
-    fn name() -> &'static str {
-        "contracts"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "create_index".to_string()]
     }

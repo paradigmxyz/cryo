@@ -19,10 +19,6 @@ pub struct CodeDiffs {
 
 #[async_trait::async_trait]
 impl Dataset for CodeDiffs {
-    fn name() -> &'static str {
-        "code_diffs"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }

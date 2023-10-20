@@ -51,9 +51,6 @@ pub trait ToDataFrames: Sized {
 
 /// Dataset manages collection and management of a particular datatype
 pub trait Dataset: Sync + Send {
-    /// name of Dataset
-    fn name() -> &'static str;
-
     /// alias of Dataset
     fn aliases() -> Vec<&'static str> {
         vec![]

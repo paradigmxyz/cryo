@@ -17,10 +17,6 @@ pub struct Erc20Balances {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Balances {
-    fn name() -> &'static str {
-        "erc20_balances"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string()]
     }

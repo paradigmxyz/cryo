@@ -17,10 +17,6 @@ pub struct Slots {
 
 #[async_trait::async_trait]
 impl Dataset for Slots {
-    fn name() -> &'static str {
-        "slots"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
     }

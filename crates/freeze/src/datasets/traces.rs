@@ -33,10 +33,6 @@ pub struct Traces {
 
 #[async_trait::async_trait]
 impl Dataset for Traces {
-    fn name() -> &'static str {
-        "traces"
-    }
-
     fn default_sort() -> Vec<String> {
         vec!["block_number".to_string(), "transaction_index".to_string()]
     }
