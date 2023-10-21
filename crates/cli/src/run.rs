@@ -12,9 +12,12 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, CollectError
         return handle_help_subcommands(args).await
     }
 
+    let cryo_dir: std::path::PathBuf = args.output_dir.clone().into();
+    let cryo_dir = cryo_dir.join(".cryo");
+
     // remember previous command
     let args = if args.datatype.is_empty() {
-        let remembered = remember::load_remembered_command(args.output_dir.clone().into())?;
+        let remembered = remember::load_remembered_command(cryo_dir.clone())?;
         if remembered.cryo_version != cryo_freeze::CRYO_VERSION {
             eprintln!("remembered command comes from different cryo version, proceed with caution");
             eprintln!();
@@ -35,7 +38,7 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, CollectError
     if args.remember {
         println!("remembering this command for future use");
         println!();
-        remember::save_remembered_command(args.output_dir.clone().into(), &args)?;
+        remember::save_remembered_command(cryo_dir, &args)?;
     }
 
     // handle regular flow
