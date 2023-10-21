@@ -3,6 +3,9 @@ use ethers::prelude::*;
 use polars::prelude::*;
 use thiserror::Error;
 
+/// standard CollectError Result
+pub type R<T> = ::core::result::Result<T, CollectError>;
+
 /// return basic CollectError from str slice
 pub fn err(message: &str) -> CollectError {
     CollectError::CollectError(message.to_string())

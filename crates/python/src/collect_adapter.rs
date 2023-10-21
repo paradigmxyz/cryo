@@ -196,7 +196,7 @@ async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
         Ok(opts) => opts,
         Err(e) => panic!("error parsing opts {:?}", e),
     };
-    match collect(query, source.into()).await {
+    match collect(query.into(), source.into()).await {
         Ok(df) => Ok(df),
         Err(e) => panic!("error collecting {:?}", e),
     }

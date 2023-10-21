@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::StorageDiffs)]
@@ -26,24 +25,19 @@ impl Dataset for StorageDiffs {
 }
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
-type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl CollectByBlock for StorageDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        let schema = schemas.get(&Datatype::StorageDiffs).ok_or(err("schema not provided"))?;
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let schema = query.schemas.get_schema(&Datatype::StorageDiffs)?;
         let include_txs = schema.has_column("transaction_hash");
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_storage_diffs(&response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_storage_diffs(&response, columns, &query.schemas)
     }
 }
 
@@ -51,16 +45,12 @@ impl CollectByBlock for StorageDiffs {
 impl CollectByTransaction for StorageDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_storage_diffs(&response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_storage_diffs(&response, columns, &query.schemas)
     }
 }
 
@@ -68,7 +58,7 @@ pub(crate) fn process_storage_diffs(
     response: &BlockTxsTraces,
     columns: &mut StorageDiffs,
     schemas: &Schemas,
-) -> Result<()> {
+) -> R<()> {
     let schema = schemas.get(&Datatype::StorageDiffs).ok_or(err("schema not provided"))?;
     let (block_number, txs, traces) = response;
     for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {

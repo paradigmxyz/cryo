@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::VmTraces)]
@@ -38,22 +37,16 @@ impl Dataset for VmTraces {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_block_vm_traces(request.block_number()? as u32).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_vm_traces(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_vm_traces(response, columns, &query.schemas)
     }
 }
 
@@ -61,24 +54,20 @@ impl CollectByBlock for VmTraces {
 impl CollectByTransaction for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction_vm_traces(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_vm_traces(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_vm_traces(response, columns, &query.schemas)
     }
 }
 
 fn process_vm_traces(
     response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
     columns: &mut VmTraces,
-    schemas: &HashMap<Datatype, Table>,
-) -> Result<()> {
+    schemas: &Schemas,
+) -> R<()> {
     let (block_number, tx, block_traces) = response;
     let schema = schemas.get(&Datatype::VmTraces).ok_or(err("schema not provided"))?;
     for (tx_pos, block_trace) in block_traces.into_iter().enumerate() {

@@ -58,13 +58,13 @@ pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput, SubDir};
 pub use queries::{Query, QueryLabels, TimeDimension};
-pub use schemas::{ColumnType, Schemas, Table, U256Type};
+pub use schemas::{ColumnType, SchemaFunctions, Schemas, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source, SourceLabels};
 // pub(crate) use summaries::FreezeSummaryAgg;
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};
 pub use summaries::{print_all_datasets, print_dataset_info, FreezeSummary};
 
-pub use errors::{err, ChunkError, CollectError, FileError, FreezeError, ParseError};
+pub use errors::{err, ChunkError, CollectError, FileError, FreezeError, ParseError, R};
 
 pub use collection::*;
 pub use execution::{ExecutionEnv, ExecutionEnvBuilder};

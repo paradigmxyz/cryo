@@ -110,7 +110,7 @@ macro_rules! define_datatypes {
             datatype: MetaDatatype,
             partition: Partition,
             source: Arc<Source>,
-            schemas: HashMap<Datatype, Table>,
+            query: Arc<Query>
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {
                 MetaDatatype::Scalar(datatype) => {
@@ -121,22 +121,22 @@ macro_rules! define_datatypes {
                     };
                     match datatype {
                     $(
-                        Datatype::$datatype => $datatype::collect_by_block(partition, source, &schemas, inner_request_size),
+                        Datatype::$datatype => $datatype::collect_by_block(partition, source, query, inner_request_size),
                     )*
                     }
                 },
                 MetaDatatype::Multi(datatype) => match datatype {
                     MultiDatatype::BlocksAndTransactions => {
-                        BlocksAndTransactions::collect_by_block(partition, source, &schemas, None)
+                        BlocksAndTransactions::collect_by_block(partition, source, query, None)
                     }
                     MultiDatatype::CallTraceDerivatives => {
-                        CallTraceDerivatives::collect_by_block(partition, source, &schemas, None)
+                        CallTraceDerivatives::collect_by_block(partition, source, query, None)
                     }
                     MultiDatatype::GethStateDiffs => {
-                        GethStateDiffs::collect_by_block(partition, source, &schemas, None)
+                        GethStateDiffs::collect_by_block(partition, source, query, None)
                     },
                     MultiDatatype::StateDiffs => {
-                        StateDiffs::collect_by_block(partition, source, &schemas, None)
+                        StateDiffs::collect_by_block(partition, source, query, None)
                     },
                 },
             };
@@ -148,7 +148,7 @@ macro_rules! define_datatypes {
             datatype: MetaDatatype,
             partition: Partition,
             source: Arc<Source>,
-            schemas: HashMap<Datatype, Table>,
+            query: Arc<Query>,
         ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
             let task = match datatype {
                 MetaDatatype::Scalar(datatype) => {
@@ -159,7 +159,7 @@ macro_rules! define_datatypes {
                     };
                     match datatype {
                     $(
-                        Datatype::$datatype => $datatype::collect_by_transaction(partition, source, &schemas, inner_request_size),
+                        Datatype::$datatype => $datatype::collect_by_transaction(partition, source, query, inner_request_size),
                     )*
                     }
                 },
@@ -167,16 +167,16 @@ macro_rules! define_datatypes {
                     let inner_request_size = None;
                     match datatype {
                         MultiDatatype::BlocksAndTransactions => {
-                            BlocksAndTransactions::collect_by_transaction(partition, source, &schemas, inner_request_size)
+                            BlocksAndTransactions::collect_by_transaction(partition, source, query, inner_request_size)
                         }
                         MultiDatatype::CallTraceDerivatives => {
-                            CallTraceDerivatives::collect_by_transaction(partition, source, &schemas, None)
+                            CallTraceDerivatives::collect_by_transaction(partition, source, query, None)
                         }
                         MultiDatatype::GethStateDiffs => {
-                            GethStateDiffs::collect_by_transaction(partition, source, &schemas, None)
+                            GethStateDiffs::collect_by_transaction(partition, source, query, None)
                         },
                         MultiDatatype::StateDiffs => {
-                            StateDiffs::collect_by_transaction(partition, source, &schemas, inner_request_size)
+                            StateDiffs::collect_by_transaction(partition, source, query, inner_request_size)
                         }
                     }
                 },

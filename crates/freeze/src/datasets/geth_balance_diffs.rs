@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::GethBalanceDiffs)]
@@ -17,8 +16,6 @@ pub struct GethBalanceDiffs {
     pub(crate) chain_id: Vec<u64>,
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl Dataset for GethBalanceDiffs {
     fn default_sort() -> Vec<String> {
@@ -30,15 +27,12 @@ impl Dataset for GethBalanceDiffs {
 impl CollectByBlock for GethBalanceDiffs {
     type Response = <GethStateDiffs as CollectByBlock>::Response;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        <GethStateDiffs as CollectByBlock>::extract(request, source, schemas).await
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        <GethStateDiffs as CollectByBlock>::extract(request, source, query).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schemas = &query.schemas;
         geth_state_diffs::process_geth_diffs(&response, Some(columns), None, None, None, schemas)
     }
 }
@@ -47,15 +41,12 @@ impl CollectByBlock for GethBalanceDiffs {
 impl CollectByTransaction for GethBalanceDiffs {
     type Response = <GethStateDiffs as CollectByTransaction>::Response;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        <GethStateDiffs as CollectByTransaction>::extract(request, source, schemas).await
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        <GethStateDiffs as CollectByTransaction>::extract(request, source, query).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schemas = &query.schemas;
         geth_state_diffs::process_geth_diffs(&response, Some(columns), None, None, None, schemas)
     }
 }

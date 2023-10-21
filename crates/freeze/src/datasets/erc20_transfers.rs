@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Erc20Transfers)]
@@ -34,25 +33,19 @@ impl Dataset for Erc20Transfers {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
         Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Erc20Transfers).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Erc20Transfers)?;
         process_erc20_transfers(response, columns, schema)
     }
 }
@@ -61,17 +54,13 @@ impl CollectByBlock for Erc20Transfers {
 impl CollectByTransaction for Erc20Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc20_transfer).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Erc20Transfers).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Erc20Transfers)?;
         process_erc20_transfers(response, columns, schema)
     }
 }
@@ -81,11 +70,7 @@ fn is_erc20_transfer(log: &Log) -> bool {
 }
 
 /// process block into columns
-fn process_erc20_transfers(
-    logs: Vec<Log>,
-    columns: &mut Erc20Transfers,
-    schema: &Table,
-) -> Result<()> {
+fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20Transfers, schema: &Table) -> R<()> {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)

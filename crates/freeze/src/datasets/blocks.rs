@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Blocks)]
@@ -45,17 +44,11 @@ impl Dataset for Blocks {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Blocks {
     type Response = Block<TxHash>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let block = source
             .fetcher
             .get_block(request.block_number()?)
@@ -64,8 +57,8 @@ impl CollectByBlock for Blocks {
         Ok(block)
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         process_block(response, columns, schema)
     }
 }
@@ -74,11 +67,7 @@ impl CollectByBlock for Blocks {
 impl CollectByTransaction for Blocks {
     type Response = Block<TxHash>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let transaction = source
             .fetcher
             .get_transaction(request.ethers_transaction_hash()?)
@@ -92,18 +81,14 @@ impl CollectByTransaction for Blocks {
         Ok(block)
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         process_block(response, columns, schema)
     }
 }
 
 /// process block into columns
-pub(crate) fn process_block<TX>(
-    block: Block<TX>,
-    columns: &mut Blocks,
-    schema: &Table,
-) -> Result<()> {
+pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: &Table) -> R<()> {
     columns.n_rows += 1;
 
     store!(schema, columns, block_hash, block.hash.map(|x| x.0.to_vec()));

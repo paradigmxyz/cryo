@@ -11,14 +11,12 @@ pub struct CallTraceDerivatives(
     traces::Traces,
 );
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 impl ToDataFrames for CallTraceDerivatives {
     fn create_dfs(
         self,
         schemas: &HashMap<Datatype, Table>,
         chain_id: u64,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> R<HashMap<Datatype, DataFrame>> {
         let CallTraceDerivatives(contracts, native_transfers, traces) = self;
         let mut output = HashMap::new();
         if schemas.contains_key(&Datatype::Contracts) {
@@ -38,17 +36,13 @@ impl ToDataFrames for CallTraceDerivatives {
 impl CollectByBlock for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_block(request.block_number()?.into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_call_trace_derivatives(traces, columns, schemas)
+        process_call_trace_derivatives(traces, columns, &query.schemas)
     }
 }
 
@@ -56,17 +50,13 @@ impl CollectByBlock for CallTraceDerivatives {
 impl CollectByTransaction for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_call_trace_derivatives(traces, columns, schemas)
+        process_call_trace_derivatives(traces, columns, &query.schemas)
     }
 }
 
@@ -74,7 +64,7 @@ fn process_call_trace_derivatives(
     response: Vec<Trace>,
     columns: &mut CallTraceDerivatives,
     schemas: &HashMap<Datatype, Table>,
-) -> Result<()> {
+) -> R<()> {
     let CallTraceDerivatives(contracts, native_transfers, traces) = columns;
     if schemas.contains_key(&Datatype::Contracts) {
         contracts::process_contracts(&response, contracts, schemas)?;

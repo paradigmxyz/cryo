@@ -1,14 +1,24 @@
 /// types and functions related to schemas
 use std::collections::{HashMap, HashSet};
 
-use crate::LogDecoder;
+use crate::{err, CollectError, ColumnEncoding, Datatype, LogDecoder};
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
-use crate::types::{ColumnEncoding, Datatype};
-
 /// collection of schemas
 pub type Schemas = HashMap<Datatype, Table>;
+
+/// funcitons for Schemas
+pub trait SchemaFunctions {
+    /// get schema
+    fn get_schema(&self, datatype: &Datatype) -> Result<&Table, CollectError>;
+}
+
+impl SchemaFunctions for HashMap<Datatype, Table> {
+    fn get_schema(&self, datatype: &Datatype) -> Result<&Table, CollectError> {
+        self.get(datatype).ok_or(err(format!("schema for {} missing", datatype.name()).as_str()))
+    }
+}
 
 /// Schema for a particular table
 #[derive(Clone, Debug, PartialEq)]

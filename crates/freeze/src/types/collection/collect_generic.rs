@@ -6,16 +6,15 @@ use tokio::{sync::mpsc, task};
 
 /// collect single partition
 pub async fn collect_partition(
-    time_dimension: TimeDimension,
     datatype: MetaDatatype,
     partition: Partition,
+    query: Arc<Query>,
     source: Arc<Source>,
-    schemas: HashMap<Datatype, Table>,
 ) -> Result<HashMap<Datatype, DataFrame>, CollectError> {
-    match time_dimension {
-        TimeDimension::Blocks => collect_by_block(datatype, partition, source, schemas).await,
+    match query.time_dimension {
+        TimeDimension::Blocks => collect_by_block(datatype, partition, source, query).await,
         TimeDimension::Transactions => {
-            collect_by_transaction(datatype, partition, source, schemas).await
+            collect_by_transaction(datatype, partition, source, query).await
         }
     }
 }
@@ -26,13 +25,13 @@ pub async fn fetch_partition<F, Fut, T>(
     partition: Partition,
     source: Arc<Source>,
     inner_request_size: Option<u64>,
-    schemas: HashMap<Datatype, Table>,
+    query: Arc<Query>,
     sender: mpsc::Sender<Result<T, CollectError>>,
 ) -> Result<Vec<tokio::task::JoinHandle<Result<(), CollectError>>>, CollectError>
 where
     F: Copy
         + Send
-        + for<'a> Fn(Params, Arc<Source>, HashMap<Datatype, Table>) -> Fut
+        + for<'a> Fn(Params, Arc<Source>, Arc<Query>) -> Fut
         + std::marker::Sync
         + 'static,
     Fut: Future<Output = Result<T, CollectError>> + Send + 'static,
@@ -42,9 +41,9 @@ where
     for rpc_params in partition.param_sets(inner_request_size)?.into_iter() {
         let sender = sender.clone();
         let source = source.clone();
-        let schemas = schemas.clone();
+        let query = query.clone();
         let handle = task::spawn(async move {
-            let result = f_request(rpc_params, source.clone(), schemas).await;
+            let result = f_request(rpc_params, source.clone(), query.clone()).await;
             match sender.send(result).await {
                 Ok(_) => Ok(()),
                 Err(_) => Err(CollectError::CollectError("tokio mpsc send failure".to_string())),

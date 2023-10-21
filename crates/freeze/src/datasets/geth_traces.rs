@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for geth traces
 #[cryo_to_df::to_df(Datatype::GethTraces)]
@@ -24,8 +23,6 @@ pub struct GethTraces {
     chain_id: Vec<u64>,
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl Dataset for GethTraces {
     fn default_sort() -> Vec<String> {
@@ -33,42 +30,28 @@ impl Dataset for GethTraces {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
-
 #[async_trait::async_trait]
 impl CollectByBlock for GethTraces {
-    type Response = BlockTxsTraces;
+    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>)> {
-        let schema =
-            schemas.get(&Datatype::GethTraces).ok_or(err("schema for geth_traces missing"))?;
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let schema = query.schemas.get_schema(&Datatype::GethTraces)?;
         let include_transaction = schema.has_column("block_number");
-        source
-            .fetcher
-            .geth_debug_trace_block_calls(request.block_number()? as u32, include_transaction)
-            .await
+        let block_number = request.block_number()? as u32;
+        source.fetcher.geth_debug_trace_block_calls(block_number, include_transaction).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_geth_traces(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_geth_traces(response, columns, &query.schemas)
     }
 }
 
 #[async_trait::async_trait]
 impl CollectByTransaction for GethTraces {
-    type Response = BlockTxsTraces;
+    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>)> {
-        let schema =
-            schemas.get(&Datatype::GethTraces).ok_or(err("schema for geth_traces missing"))?;
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let schema = query.schemas.get_schema(&Datatype::GethTraces)?;
         let include_block_number = schema.has_column("block_number");
         source
             .fetcher
@@ -76,16 +59,16 @@ impl CollectByTransaction for GethTraces {
             .await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_geth_traces(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_geth_traces(response, columns, &query.schemas)
     }
 }
 
 fn process_geth_traces(
-    traces: BlockTxsTraces,
+    traces: (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>),
     columns: &mut GethTraces,
     schemas: &Schemas,
-) -> Result<()> {
+) -> R<()> {
     let (block_number, txs, traces) = traces;
     let schema = schemas.get(&Datatype::GethTraces).ok_or(err("schema for geth_traces missing"))?;
     for (tx_index, (tx, trace)) in txs.into_iter().zip(traces).enumerate() {
@@ -102,7 +85,7 @@ fn process_trace(
     tx: &Option<Vec<u8>>,
     tx_index: u32,
     trace_address: Vec<u32>,
-) -> Result<()> {
+) -> R<()> {
     columns.n_rows += 1;
     store!(schema, columns, typ, trace.typ);
     store!(schema, columns, from_address, trace.from.as_bytes().to_vec());
@@ -134,7 +117,7 @@ fn process_trace(
     Ok(())
 }
 
-fn noa_to_vec_u8(value: Option<NameOrAddress>) -> Result<Option<Vec<u8>>> {
+fn noa_to_vec_u8(value: Option<NameOrAddress>) -> R<Option<Vec<u8>>> {
     match value {
         Some(NameOrAddress::Address(address)) => Ok(Some(address.as_bytes().to_vec())),
         Some(NameOrAddress::Name(_)) => Err(err("block name string not allowed")),

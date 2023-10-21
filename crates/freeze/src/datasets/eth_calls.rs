@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::EthCalls)]
@@ -31,7 +30,7 @@ impl Dataset for EthCalls {
         Some("latest".to_string())
     }
 
-    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+    fn arg_aliases() -> Option<std::collections::HashMap<Dim, Dim>> {
         Some([(Dim::Address, Dim::Contract), (Dim::ToAddress, Dim::Contract)].into_iter().collect())
     }
 
@@ -40,19 +39,13 @@ impl Dataset for EthCalls {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Vec<u8>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for EthCalls {
     type Response = EthCallsResponse;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let transaction = TransactionRequest {
             to: Some(request.ethers_contract()?.into()),
             data: Some(request.call_data()?.into()),
@@ -63,8 +56,8 @@ impl CollectByBlock for EthCalls {
         Ok((number as u32, request.contract()?, request.call_data()?, output.to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::EthCalls).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::EthCalls)?;
         process_eth_call(response, columns, schema);
         Ok(())
     }
