@@ -383,11 +383,6 @@ pub(crate) fn print_cryo_conclusion(
 
     println!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f"));
     println!("   done at {}", dt_data_done.format("%Y-%m-%d %H:%M:%S%.3f").to_string().as_str());
-
-    if freeze_summary.errored.is_empty() {
-    } else {
-        println!("...done (errors in {} chunks)", freeze_summary.errored.len())
-    };
     println!();
     println!();
 
