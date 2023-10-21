@@ -3,7 +3,6 @@ use crate::*;
 use ethers::prelude::*;
 use ethers_core::utils::keccak256;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Contracts)]
@@ -30,23 +29,17 @@ impl Dataset for Contracts {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Contracts {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_block(request.ethers_block_number()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_contracts(&traces, columns, schemas)
+        process_contracts(&traces, columns, &query.schemas)
     }
 }
 
@@ -54,17 +47,13 @@ impl CollectByBlock for Contracts {
 impl CollectByTransaction for Contracts {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_contracts(&traces, columns, schemas)
+        process_contracts(&traces, columns, &query.schemas)
     }
 }
 
@@ -73,7 +62,7 @@ pub(crate) fn process_contracts(
     traces: &[Trace],
     columns: &mut Contracts,
     schemas: &Schemas,
-) -> Result<()> {
+) -> R<()> {
     let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
     let mut deployer = H160([0; 20]);
     let mut create_index = 0;

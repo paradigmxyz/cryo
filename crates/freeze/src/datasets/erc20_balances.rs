@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Erc20Balances)]
@@ -30,19 +29,11 @@ impl Dataset for Erc20Balances {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
-type BlockErc20AddressBalance = (u32, Vec<u8>, Vec<u8>, Option<U256>);
-
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Balances {
-    type Response = BlockErc20AddressBalance;
+    type Response = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let signature = FUNCTION_ERC20_BALANCE_OF.clone();
         let mut call_data = signature.clone();
         call_data.extend(vec![0; 12]);
@@ -54,8 +45,8 @@ impl CollectByBlock for Erc20Balances {
         Ok((request.block_number()? as u32, request.contract()?, request.address()?, balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Erc20Balances).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Erc20Balances)?;
         let (block, erc20, address, balance) = response;
         columns.n_rows += 1;
         store!(schema, columns, block_number, block);

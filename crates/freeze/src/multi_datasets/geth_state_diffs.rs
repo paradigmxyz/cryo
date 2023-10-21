@@ -27,7 +27,7 @@ impl ToDataFrames for GethStateDiffs {
         self,
         schemas: &HashMap<Datatype, Table>,
         chain_id: u64,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> R<HashMap<Datatype, DataFrame>> {
         let GethStateDiffs(balance_diffs, code_diffs, nonce_diffs, storage_diffs) = self;
         let mut output = HashMap::new();
         if let Some(balance_diffs) = balance_diffs {
@@ -47,23 +47,18 @@ impl ToDataFrames for GethStateDiffs {
 }
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::DiffMode>);
-type Result<T> = ::core::result::Result<T, CollectError>;
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethStateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block_number = request.block_number()? as u32;
-        let include_txs = schemas.values().any(|x| x.has_column("transaction_hash"));
+        let include_txs = query.schemas.values().any(|x| x.has_column("transaction_hash"));
         source.fetcher.geth_debug_trace_block_diffs(block_number, include_txs).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let GethStateDiffs(ref mut balances, ref mut codes, ref mut nonces, ref mut storages) =
             columns;
         process_geth_diffs(
@@ -72,7 +67,7 @@ impl CollectByBlock for GethStateDiffs {
             codes.as_mut(),
             nonces.as_mut(),
             storages.as_mut(),
-            schemas,
+            &query.schemas,
         )
     }
 }
@@ -81,19 +76,15 @@ impl CollectByBlock for GethStateDiffs {
 impl CollectByTransaction for GethStateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        let include_block_number = schemas.values().any(|x| x.has_column("transaction_hash"));
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let include_block_number = query.schemas.values().any(|x| x.has_column("transaction_hash"));
         source
             .fetcher
             .geth_debug_trace_transaction_diffs(request.transaction_hash()?, include_block_number)
             .await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let GethStateDiffs(ref mut balances, ref mut codes, ref mut nonces, ref mut storages) =
             columns;
         process_geth_diffs(
@@ -102,7 +93,7 @@ impl CollectByTransaction for GethStateDiffs {
             codes.as_mut(),
             nonces.as_mut(),
             storages.as_mut(),
-            schemas,
+            &query.schemas,
         )
     }
 }
@@ -114,7 +105,7 @@ pub(crate) fn process_geth_diffs(
     mut nonces: Option<&mut GethNonceDiffs>,
     mut storages: Option<&mut GethStorageDiffs>,
     schemas: &Schemas,
-) -> Result<()> {
+) -> R<()> {
     let (block_number, txs, traces) = response;
     let balance_schema = schemas.get(&Datatype::GethBalanceDiffs);
     let code_schema = schemas.get(&Datatype::GethCodeDiffs);
@@ -162,7 +153,7 @@ fn add_balances(
     columns: &mut GethBalanceDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
-) -> Result<()> {
+) -> R<()> {
     let (from_value, to_value) = parse_pre_post(pre, post, U256::zero);
     let (block_number, transaction_index, transaction_hash) = index;
     columns.n_rows += 1;
@@ -182,7 +173,7 @@ fn add_codes(
     columns: &mut GethCodeDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
-) -> Result<()> {
+) -> R<()> {
     let blank = String::new();
     let (from_value, to_value) = match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),
@@ -218,7 +209,7 @@ fn add_nonces(
     columns: &mut GethNonceDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
-) -> Result<()> {
+) -> R<()> {
     let (from_value, to_value) = parse_pre_post(pre, post, U256::zero);
     let (block_number, transaction_index, transaction_hash) = index;
     columns.n_rows += 1;
@@ -238,7 +229,7 @@ fn add_storages(
     columns: &mut GethStorageDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
-) -> Result<()> {
+) -> R<()> {
     let blank = BTreeMap::new();
     let (pre, post) = match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),

@@ -1,8 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
-use ethers_core::abi::Token;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Logs)]
@@ -19,7 +17,7 @@ pub struct Logs {
     topic2: Vec<Option<Vec<u8>>>,
     topic3: Vec<Option<Vec<u8>>>,
     data: Vec<Vec<u8>>,
-    event_cols: HashMap<String, Vec<Token>>,
+    event_cols: std::collections::HashMap<String, Vec<ethers_core::abi::Token>>,
     chain_id: Vec<u64>,
 }
 
@@ -42,22 +40,16 @@ impl Dataset for Logs {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Logs {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.get_logs(&request.ethers_log_filter()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Logs).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Logs)?;
         process_logs(response, columns, schema)
     }
 }
@@ -66,22 +58,18 @@ impl CollectByBlock for Logs {
 impl CollectByTransaction for Logs {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.get_transaction_logs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Logs).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Logs)?;
         process_logs(response, columns, schema)
     }
 }
 
 /// process block into columns
-fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> Result<()> {
+fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)

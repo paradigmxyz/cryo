@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Transactions)]
@@ -36,23 +35,17 @@ impl Dataset for Transactions {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
     type Response = (Block<Transaction>, Option<Vec<u64>>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block = source
             .fetcher
             .get_block_with_txs(request.block_number()?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
-        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
+        let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let gas_used = if schema.has_column("gas_used") {
             Some(source.get_txs_gas_used(&block).await?)
         } else {
@@ -61,8 +54,8 @@ impl CollectByBlock for Transactions {
         Ok((block, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let (block, gas_used) = response;
         match gas_used {
             Some(gas_used) => {
@@ -84,13 +77,9 @@ impl CollectByBlock for Transactions {
 impl CollectByTransaction for Transactions {
     type Response = (Transaction, Option<u64>);
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
-        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
+        let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let transaction = source
             .fetcher
             .get_transaction(tx_hash)
@@ -110,9 +99,9 @@ impl CollectByTransaction for Transactions {
         Ok((transaction, gas_used))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let (transaction, gas_used) = response;
-        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
         process_transaction(transaction, gas_used, columns, schema);
         Ok(())
     }

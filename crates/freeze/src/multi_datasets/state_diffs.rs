@@ -12,14 +12,13 @@ pub struct StateDiffs(
 );
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
-type Result<T> = ::core::result::Result<T, CollectError>;
 
 impl ToDataFrames for StateDiffs {
     fn create_dfs(
         self,
         schemas: &HashMap<Datatype, Table>,
         chain_id: u64,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> R<HashMap<Datatype, DataFrame>> {
         let StateDiffs(balances, codes, nonces, storages) = self;
         let mut output = HashMap::new();
         output.extend(balances.create_dfs(schemas, chain_id)?);
@@ -34,17 +33,13 @@ impl ToDataFrames for StateDiffs {
 impl CollectByBlock for StateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        let include_txs = schemas.values().any(|x| x.has_column("transaction_hash"));
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let include_txs = query.schemas.values().any(|x| x.has_column("transaction_hash"));
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_state_diffs(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_state_diffs(response, columns, &query.schemas)
     }
 }
 
@@ -52,16 +47,12 @@ impl CollectByBlock for StateDiffs {
 impl CollectByTransaction for StateDiffs {
     type Response = BlockTxsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_state_diffs(response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_state_diffs(response, columns, &query.schemas)
     }
 }
 
@@ -69,7 +60,7 @@ fn process_state_diffs(
     response: BlockTxsTraces,
     columns: &mut StateDiffs,
     schemas: &HashMap<Datatype, Table>,
-) -> Result<()> {
+) -> R<()> {
     let StateDiffs(balances, codes, nonces, storages) = columns;
     balance_diffs::process_balance_diffs(&response, balances, schemas)?;
     code_diffs::process_code_diffs(&response, codes, schemas)?;

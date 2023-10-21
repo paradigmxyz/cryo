@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for balances
 #[cryo_to_df::to_df(Datatype::Slots)]
@@ -29,7 +28,7 @@ impl Dataset for Slots {
         vec!["storages"]
     }
 
-    fn arg_aliases() -> Option<HashMap<Dim, Dim>> {
+    fn arg_aliases() -> Option<std::collections::HashMap<Dim, Dim>> {
         Some([(Dim::Contract, Dim::Address)].into_iter().collect())
     }
 
@@ -38,18 +37,13 @@ impl Dataset for Slots {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
 type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>, Vec<u8>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Slots {
     type Response = BlockTxAddressOutput;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let address = request.address()?;
         let block_number = request.block_number()? as u32;
         let slot = request.slot()?;
@@ -64,8 +58,8 @@ impl CollectByBlock for Slots {
         Ok((block_number, None, address, slot, output.as_bytes().to_vec()))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Slots).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Slots)?;
         process_nonce(columns, response, schema)
     }
 }
@@ -75,7 +69,7 @@ impl CollectByTransaction for Slots {
     type Response = ();
 }
 
-fn process_nonce(columns: &mut Slots, data: BlockTxAddressOutput, schema: &Table) -> Result<()> {
+fn process_nonce(columns: &mut Slots, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
     let (block, _tx, address, slot, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);

@@ -2,8 +2,6 @@ use crate::{datasets::transactions, types::collection::*, Datatype, *};
 use polars::prelude::*;
 use std::collections::HashMap;
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 /// BlocksAndTransactions
 #[derive(Default)]
 pub struct BlocksAndTransactions(Blocks, Transactions);
@@ -13,7 +11,7 @@ impl ToDataFrames for BlocksAndTransactions {
         self,
         schemas: &HashMap<Datatype, Table>,
         chain_id: u64,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> R<HashMap<Datatype, DataFrame>> {
         let BlocksAndTransactions(blocks, transactions) = self;
         let mut output = HashMap::new();
         output.extend(blocks.create_dfs(schemas, chain_id)?);
@@ -26,20 +24,16 @@ impl ToDataFrames for BlocksAndTransactions {
 impl CollectByBlock for BlocksAndTransactions {
     type Response = <Transactions as CollectByBlock>::Response;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        <Transactions as CollectByBlock>::extract(request, source, schemas).await
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        <Transactions as CollectByBlock>::extract(request, source, query).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
         let (block, _) = response.clone();
-        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+        let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
-        <Transactions as CollectByBlock>::transform(response, transactions, schemas)?;
+        <Transactions as CollectByBlock>::transform(response, transactions, query)?;
         Ok(())
     }
 }
@@ -51,14 +45,9 @@ impl CollectByTransaction for BlocksAndTransactions {
         <Transactions as CollectByTransaction>::Response,
     );
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let (tx, gas_used) =
-            <Transactions as CollectByTransaction>::extract(request, source.clone(), schemas)
-                .await?;
+            <Transactions as CollectByTransaction>::extract(request, source.clone(), query).await?;
         let block_number = tx.block_number.ok_or(err("no block number for tx"))?.as_u64();
         let block = source
             .fetcher
@@ -68,12 +57,12 @@ impl CollectByTransaction for BlocksAndTransactions {
         Ok((block, (tx, gas_used)))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
         let (block, (tx, gas_used)) = response;
-        let schema = schemas.get(&Datatype::Blocks).ok_or(err("schema not provided"))?;
+        let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
-        let schema = schemas.get(&Datatype::Transactions).ok_or(err("schema not provided"))?;
+        let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         transactions::process_transaction(tx, gas_used, transactions, schema);
         Ok(())
     }

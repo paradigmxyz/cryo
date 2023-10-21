@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::CodeDiffs)]
@@ -24,50 +23,41 @@ impl Dataset for CodeDiffs {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
-type Result<T> = ::core::result::Result<T, CollectError>;
+type BlockTxTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for CodeDiffs {
-    type Response = BlockTxsTraces;
+    type Response = BlockTxTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        schemas: Schemas,
-    ) -> Result<Self::Response> {
-        let schema = schemas.get(&Datatype::CodeDiffs).ok_or(err("schema not provided"))?;
+    async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        let schema = query.schemas.get(&Datatype::CodeDiffs).ok_or(err("schema not provided"))?;
         let include_txs = schema.has_column("transaction_hash");
         source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_code_diffs(&response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_code_diffs(&response, columns, &query.schemas)
     }
 }
 
 #[async_trait::async_trait]
 impl CollectByTransaction for CodeDiffs {
-    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
+    type Response = BlockTxTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        process_code_diffs(&response, columns, schemas)
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        process_code_diffs(&response, columns, &query.schemas)
     }
 }
 
 pub(crate) fn process_code_diffs(
-    response: &BlockTxsTraces,
+    response: &BlockTxTraces,
     columns: &mut CodeDiffs,
     schemas: &Schemas,
-) -> Result<()> {
+) -> R<()> {
     let schema = schemas.get(&Datatype::CodeDiffs).ok_or(err("schema not provided"))?;
     let (block_number, txs, traces) = response;
     for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {

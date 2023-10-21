@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Erc721Transfers)]
@@ -34,25 +33,19 @@ impl Dataset for Erc721Transfers {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
         Ok(logs.into_iter().filter(|x| x.topics.len() == 4 && x.data.len() == 0).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Erc721Transfers).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Erc721Transfers)?;
         process_erc721_transfers(response, columns, schema)
     }
 }
@@ -61,17 +54,13 @@ impl CollectByBlock for Erc721Transfers {
 impl CollectByTransaction for Erc721Transfers {
     type Response = Vec<Log>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc721_transfer).collect())
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Erc721Transfers).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::Erc721Transfers)?;
         process_erc721_transfers(response, columns, schema)
     }
 }
@@ -85,7 +74,7 @@ fn process_erc721_transfers(
     logs: Vec<Log>,
     columns: &mut Erc721Transfers,
     schema: &Table,
-) -> Result<()> {
+) -> R<()> {
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)

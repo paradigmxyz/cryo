@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::Traces)]
@@ -38,23 +37,17 @@ impl Dataset for Traces {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 #[async_trait::async_trait]
 impl CollectByBlock for Traces {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_block(request.block_number()?.into()).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_traces(&traces, columns, schemas)
+        process_traces(&traces, columns, &query.schemas)
     }
 }
 
@@ -62,25 +55,17 @@ impl CollectByBlock for Traces {
 impl CollectByTransaction for Traces {
     type Response = Vec<Trace>;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let traces = traces::filter_failed_traces(response);
-        process_traces(&traces, columns, schemas)
+        process_traces(&traces, columns, &query.schemas)
     }
 }
 /// process block into columns
-pub(crate) fn process_traces(
-    traces: &[Trace],
-    columns: &mut Traces,
-    schemas: &Schemas,
-) -> Result<()> {
+pub(crate) fn process_traces(traces: &[Trace], columns: &mut Traces, schemas: &Schemas) -> R<()> {
     let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
     for trace in traces.iter() {
         columns.n_rows += 1;

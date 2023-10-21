@@ -99,9 +99,9 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
             fn create_dfs(
                 self,
-                schemas: &HashMap<Datatype, Table>,
+                schemas: &std::collections::HashMap<Datatype, Table>,
                 chain_id: u64,
-            ) -> Result<HashMap<Datatype, DataFrame>> {
+            ) -> R<std::collections::HashMap<Datatype, DataFrame>> {
                 let datatypes = vec![#(#datatypes),*];
                 let datatype = if datatypes.len() == 1 {
                     datatypes[0]
@@ -120,7 +120,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 }
 
                 let df = DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)?;
-                let mut output = HashMap::new();
+                let mut output = std::collections::HashMap::new();
                 output.insert(datatype, df);
                 Ok(output)
             }
@@ -128,8 +128,8 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
         impl ColumnData for #name {
 
-            fn column_types() -> HashMap<&'static str, ColumnType> {
-                HashMap::from_iter(vec![
+            fn column_types() -> std::collections::HashMap<&'static str, ColumnType> {
+                std::collections::HashMap::from_iter(vec![
                     #(#column_types),*
                 ])
             }

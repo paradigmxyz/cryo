@@ -1,7 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashMap;
 
 /// columns for balances
 #[cryo_to_df::to_df(Datatype::Balances)]
@@ -29,18 +28,13 @@ impl Dataset for Balances {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
 type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, U256);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Balances {
     type Response = BlockTxAddressOutput;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let address = request.address()?;
         let block_number = request.block_number()? as u32;
         let balance =
@@ -48,8 +42,8 @@ impl CollectByBlock for Balances {
         Ok((block_number, None, address, balance))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema = schemas.get(&Datatype::Balances).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get(&Datatype::Balances).ok_or(err("schema not provided"))?;
         process_balance(columns, response, schema)
     }
 }
@@ -59,11 +53,7 @@ impl CollectByTransaction for Balances {
     type Response = ();
 }
 
-fn process_balance(
-    columns: &mut Balances,
-    data: BlockTxAddressOutput,
-    schema: &Table,
-) -> Result<()> {
+fn process_balance(columns: &mut Balances, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
     let (block, _tx, address, balance) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);

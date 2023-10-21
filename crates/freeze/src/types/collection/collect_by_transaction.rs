@@ -1,10 +1,10 @@
 use super::collect_generic::{fetch_partition, join_partition_handles};
-use crate::{CollectError, Datatype, Params, Partition, Schemas, Source, Table, ToDataFrames};
+use crate::{CollectError, Datatype, Params, Partition, Query, Source, ToDataFrames};
 use polars::prelude::*;
 use std::collections::HashMap;
 use tokio::sync::mpsc;
 
-type Result<T> = ::core::result::Result<T, CollectError>;
+type R<T> = ::core::result::Result<T, CollectError>;
 
 /// defines how to collect dataset by block
 #[async_trait::async_trait]
@@ -13,12 +13,12 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
     type Response: Send;
 
     /// fetch dataset data by transaction
-    async fn extract(_request: Params, _: Arc<Source>, _: Schemas) -> Result<Self::Response> {
+    async fn extract(_request: Params, _: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         Err(CollectError::CollectError("CollectByTransaction not implemented".to_string()))
     }
 
     /// transform block data response into column data
-    fn transform(_response: Self::Response, _columns: &mut Self, _schemas: &Schemas) -> Result<()> {
+    fn transform(_response: Self::Response, _columns: &mut Self, _query: &Arc<Query>) -> R<()> {
         Err(CollectError::CollectError("CollectByTransaction not implemented".to_string()))
     }
 
@@ -26,9 +26,9 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
     async fn collect_by_transaction(
         partition: Partition,
         source: Arc<Source>,
-        schemas: &HashMap<Datatype, Table>,
+        query: Arc<Query>,
         inner_request_size: Option<u64>,
-    ) -> Result<HashMap<Datatype, DataFrame>> {
+    ) -> R<HashMap<Datatype, DataFrame>> {
         let (sender, receiver) = mpsc::channel(1);
         let chain_id = source.chain_id;
         let handles = fetch_partition(
@@ -36,24 +36,24 @@ pub trait CollectByTransaction: 'static + Send + Default + ToDataFrames {
             partition,
             source,
             inner_request_size,
-            schemas.clone(),
+            query.clone(),
             sender,
         )
         .await?;
-        let columns = Self::transform_channel(receiver, schemas).await?;
+        let columns = Self::transform_channel(receiver, &query).await?;
         join_partition_handles(handles).await?;
-        columns.create_dfs(schemas, chain_id)
+        columns.create_dfs(&query.schemas, chain_id)
     }
 
     /// convert transaction-derived data to dataframe
     async fn transform_channel(
-        mut receiver: mpsc::Receiver<Result<Self::Response>>,
-        schemas: &HashMap<Datatype, Table>,
-    ) -> Result<Self> {
+        mut receiver: mpsc::Receiver<R<Self::Response>>,
+        query: &Arc<Query>,
+    ) -> R<Self> {
         let mut columns = Self::default();
         while let Some(message) = receiver.recv().await {
             match message {
-                Ok(message) => Self::transform(message, &mut columns, schemas)?,
+                Ok(message) => Self::transform(message, &mut columns, query)?,
                 Err(e) => return Err(e),
             }
         }

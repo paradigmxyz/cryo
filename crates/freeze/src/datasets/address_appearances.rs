@@ -27,19 +27,13 @@ impl Dataset for AddressAppearances {
     }
 }
 
-type Result<T> = ::core::result::Result<T, CollectError>;
-
 type BlockLogsTraces = (Block<TxHash>, Vec<Log>, Vec<Trace>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for AddressAppearances {
     type Response = BlockLogsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let block_number = request.ethers_block_number()?;
         let block = source.fetcher.get_block(request.block_number()?).await?;
         let block = block.ok_or(CollectError::CollectError("block not found".to_string()))?;
@@ -55,9 +49,8 @@ impl CollectByBlock for AddressAppearances {
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema =
-            schemas.get(&Datatype::AddressAppearances).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::AddressAppearances)?;
         process_appearances(response, columns, schema)
     }
 }
@@ -66,11 +59,7 @@ impl CollectByBlock for AddressAppearances {
 impl CollectByTransaction for AddressAppearances {
     type Response = BlockLogsTraces;
 
-    async fn extract(
-        request: Params,
-        source: Arc<Source>,
-        _schemas: Schemas,
-    ) -> Result<Self::Response> {
+    async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
 
         let tx_data = source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {
@@ -101,9 +90,8 @@ impl CollectByTransaction for AddressAppearances {
         Ok((block, logs, traces))
     }
 
-    fn transform(response: Self::Response, columns: &mut Self, schemas: &Schemas) -> Result<()> {
-        let schema =
-            schemas.get(&Datatype::AddressAppearances).ok_or(err("schema not provided"))?;
+    fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
+        let schema = query.schemas.get_schema(&Datatype::AddressAppearances)?;
         process_appearances(response, columns, schema)
     }
 }
@@ -220,7 +208,7 @@ fn process_appearances(
     traces: BlockLogsTraces,
     columns: &mut AddressAppearances,
     schema: &Table,
-) -> Result<()> {
+) -> R<()> {
     let (block, logs, traces) = traces;
     let mut logs_by_tx: HashMap<H256, Vec<Log>> = HashMap::new();
     for log in logs.into_iter() {

@@ -1,6 +1,6 @@
 use crate::{
     collect_partition, dataframes, err, reports, summaries, CollectError, Datatype, ExecutionEnv,
-    FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source, Table, TimeDimension,
+    FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source,
 };
 use chrono::{DateTime, Local};
 use futures::{stream::FuturesUnordered, StreamExt};
@@ -12,13 +12,12 @@ use std::{
 use tokio::sync::Semaphore;
 
 type PartitionPayload = (
-    TimeDimension,
     Partition,
     MetaDatatype,
     HashMap<Datatype, PathBuf>,
+    Arc<Query>,
     Arc<Source>,
     FileOutput,
-    HashMap<Datatype, Table>,
     ExecutionEnv,
     Option<std::sync::Arc<Semaphore>>,
 );
@@ -87,6 +86,7 @@ fn get_payloads(
         .max_concurrent_chunks
         .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
     let source = Arc::new(source.clone());
+    let arc_query = Arc::new(query.clone());
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
     let mut all_paths = HashSet::new();
@@ -109,13 +109,12 @@ fn get_payloads(
             };
 
             let payload = (
-                query.time_dimension.clone(),
                 partition.clone(),
                 datatype.clone(),
                 paths,
+                arc_query.clone(),
                 source.clone(),
                 sink.clone(),
-                query.schemas.clone(),
                 env.clone(),
                 semaphore.clone(),
             );
@@ -133,7 +132,7 @@ async fn freeze_partitions(
     if let Some(bar) = &env.bar {
         bar.set_length(payloads.len() as u64);
         if let Some(payload) = &payloads.first() {
-            let (_, _, _, _, _, _, _, env, _) = payload;
+            let (_, _, _, _, _, _, env, _) = payload;
             let dt_start: DateTime<Local> = env.t_start.into();
             bar.set_message(format!("started at {}", dt_start.format("%Y-%m-%d %H:%M:%S%.3f")));
         }
@@ -143,7 +142,7 @@ async fn freeze_partitions(
     let mut futures = FuturesUnordered::new();
     for payload in payloads.into_iter() {
         futures.push(tokio::spawn(
-            async move { (payload.1.clone(), freeze_partition(payload).await) },
+            async move { (payload.0.clone(), freeze_partition(payload).await) },
         ));
     }
 
@@ -166,7 +165,7 @@ async fn freeze_partitions(
 }
 
 async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError> {
-    let (time_dim, partition, datatype, paths, source, sink, schemas, env, semaphore) = payload;
+    let (partition, datatype, paths, query, source, sink, env, semaphore) = payload;
 
     // acquire chunk semaphore
     let _permit = match &semaphore {
@@ -175,7 +174,7 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
     };
 
     // collect data
-    let dfs = collect_partition(time_dim, datatype, partition, source, schemas).await?;
+    let dfs = collect_partition(datatype, partition, query, source).await?;
 
     // write dataframes to disk
     for (datatype, mut df) in dfs {
