@@ -212,10 +212,11 @@ pub(crate) fn print_cryo_intro(
         }
     }
 
+    let n_datatypes = query.datatypes.len();
     let chunk_text = format!(
         "{} / {}",
         n_chunks_remaining.separate_with_commas(),
-        query.partitions.len().separate_with_commas()
+        (n_datatypes * query.partitions.len()).separate_with_commas()
     );
     print_bullet_indent("chunks to collect", chunk_text, 4);
     print_bullet_indent("output format", sink.format.as_str(), 4);
@@ -417,7 +418,7 @@ pub(crate) fn print_cryo_conclusion(
 
     print_header("collection summary");
     print_bullet("total duration", duration_string);
-    let n_chunks = query.partitions.len();
+    let n_chunks = query.partitions.len() * query.datatypes.len();
     let n_chunks_str = n_chunks.separate_with_commas();
     let width = n_chunks_str.len();
     print_bullet("total chunks", n_chunks_str.clone());
@@ -455,37 +456,48 @@ pub(crate) fn print_cryo_conclusion(
         4,
     );
 
-    print_chunks_speeds(freeze_summary.completed.clone(), &query.partitioned_by, total_time);
+    print_chunks_speeds(
+        freeze_summary.completed.clone(),
+        &query.partitioned_by,
+        total_time,
+        query.datatypes.len() as u64,
+    );
 }
 
 macro_rules! print_dim_speed {
-    ($chunks:expr, $partition_by:expr, $total_time:expr, $name:ident, $dim:expr) => {
+    ($chunks:expr, $partition_by:expr, $total_time:expr, $name:ident, $dim:expr, $n_dts:expr) => {
         if $partition_by.contains(&$dim) {
             print_chunk_speed(
                 $dim.plural_name(),
                 $total_time,
                 $chunks.iter().map(|c| c.$name.clone()).collect(),
+                $n_dts,
             );
         };
     };
 }
 
-fn print_chunks_speeds(chunks: Vec<Partition>, partition_by: &[Dim], total_time: f64) {
-    print_dim_speed!(chunks, partition_by, total_time, block_numbers, Dim::BlockNumber);
-    print_dim_speed!(chunks, partition_by, total_time, transactions, Dim::TransactionHash);
-    print_dim_speed!(chunks, partition_by, total_time, call_datas, Dim::CallData);
-    print_dim_speed!(chunks, partition_by, total_time, addresses, Dim::Address);
-    print_dim_speed!(chunks, partition_by, total_time, contracts, Dim::Contract);
-    print_dim_speed!(chunks, partition_by, total_time, slots, Dim::Slot);
-    print_dim_speed!(chunks, partition_by, total_time, topic0s, Dim::Topic0);
-    print_dim_speed!(chunks, partition_by, total_time, topic1s, Dim::Topic1);
-    print_dim_speed!(chunks, partition_by, total_time, topic2s, Dim::Topic2);
-    print_dim_speed!(chunks, partition_by, total_time, topic3s, Dim::Topic3);
+fn print_chunks_speeds(chunks: Vec<Partition>, partition_by: &[Dim], total_time: f64, n_dts: u64) {
+    print_dim_speed!(chunks, partition_by, total_time, block_numbers, Dim::BlockNumber, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, transactions, Dim::TransactionHash, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, call_datas, Dim::CallData, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, addresses, Dim::Address, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, contracts, Dim::Contract, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, slots, Dim::Slot, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, topic0s, Dim::Topic0, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, topic1s, Dim::Topic1, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, topic2s, Dim::Topic2, n_dts);
+    print_dim_speed!(chunks, partition_by, total_time, topic3s, Dim::Topic3, n_dts);
 }
 
-fn print_chunk_speed<T: ChunkData>(name: &str, total_time: f64, chunks: Vec<Option<Vec<T>>>) {
+fn print_chunk_speed<T: ChunkData>(
+    name: &str,
+    total_time: f64,
+    chunks: Vec<Option<Vec<T>>>,
+    n_dts: u64,
+) {
     let flat_chunks: Vec<T> = chunks.into_iter().flatten().flatten().collect();
-    let n_completed = flat_chunks.size();
+    let n_completed = flat_chunks.size() / n_dts;
     print_unit_speeds(name.into(), n_completed, total_time);
 }
 fn print_unit_speeds(name: String, n_completed: u64, total_time: f64) {
