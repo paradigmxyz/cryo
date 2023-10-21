@@ -14,6 +14,8 @@ pub struct Query {
     pub partitions: Vec<Partition>,
     /// Partitioning
     pub partitioned_by: Vec<Dim>,
+    /// Exclude failed
+    pub exclude_failed: bool,
     /// Labels (these are non-functional)
     pub labels: QueryLabels,
 }

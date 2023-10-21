@@ -108,6 +108,8 @@ impl U256Type {
 /// datatype of column
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum ColumnType {
+    /// Boolean column type
+    Boolean,
     /// UInt32 column type
     UInt32,
     /// UInt64 column type
@@ -136,6 +138,7 @@ impl ColumnType {
     /// convert ColumnType to str
     pub fn as_str(&self) -> &'static str {
         match *self {
+            ColumnType::Boolean => "bool",
             ColumnType::UInt32 => "uint32",
             ColumnType::UInt64 => "uint64",
             ColumnType::UInt256 => "uint256",

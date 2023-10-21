@@ -78,6 +78,10 @@ pub struct Args {
     #[arg(short, long, num_args(0..), help_heading="Content Options")]
     pub sort: Option<Vec<String>>,
 
+    /// Exclude items from failed transactions
+    #[arg(long, help_heading = "Content Options")]
+    pub exclude_failed: bool,
+
     /// RPC url [default: ETH_RPC_URL env var]
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,

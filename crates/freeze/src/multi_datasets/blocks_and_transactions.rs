@@ -30,7 +30,7 @@ impl CollectByBlock for BlocksAndTransactions {
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
-        let (block, _) = response.clone();
+        let (block, _, _) = response.clone();
         let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
         <Transactions as CollectByBlock>::transform(response, transactions, query)?;
@@ -46,7 +46,7 @@ impl CollectByTransaction for BlocksAndTransactions {
     );
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
-        let (tx, gas_used) =
+        let (tx, receipt, exclude_failed) =
             <Transactions as CollectByTransaction>::extract(request, source.clone(), query).await?;
         let block_number = tx.block_number.ok_or(err("no block number for tx"))?.as_u64();
         let block = source
@@ -54,16 +54,16 @@ impl CollectByTransaction for BlocksAndTransactions {
             .get_block(block_number)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
-        Ok((block, (tx, gas_used)))
+        Ok((block, (tx, receipt, exclude_failed)))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
-        let (block, (tx, gas_used)) = response;
+        let (block, (tx, receipt, exclude_failed)) = response;
         let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        transactions::process_transaction(tx, gas_used, transactions, schema);
+        transactions::process_transaction(tx, receipt, transactions, schema, exclude_failed)?;
         Ok(())
     }
 }

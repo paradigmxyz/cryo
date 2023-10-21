@@ -46,7 +46,8 @@ impl CollectByBlock for Traces {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
-        let traces = traces::filter_failed_traces(response);
+        let traces =
+            if query.exclude_failed { traces::filter_failed_traces(response) } else { response };
         process_traces(&traces, columns, &query.schemas)
     }
 }
@@ -60,7 +61,8 @@ impl CollectByTransaction for Traces {
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
-        let traces = traces::filter_failed_traces(response);
+        let traces =
+            if query.exclude_failed { traces::filter_failed_traces(response) } else { response };
         process_traces(&traces, columns, &query.schemas)
     }
 }
