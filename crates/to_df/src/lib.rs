@@ -54,6 +54,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
     fn map_type_to_column_type(ty: &syn::Type) -> Option<proc_macro2::TokenStream> {
         match quote!(#ty).to_string().as_str() {
+            "Vec < bool >" => Some(quote! { ColumnType::Boolean }),
             "Vec < u32 >" => Some(quote! { ColumnType::UInt32 }),
             "Vec < u64 >" => Some(quote! { ColumnType::UInt64 }),
             "Vec < U256 >" => Some(quote! { ColumnType::UInt256 }),
@@ -64,6 +65,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             "Vec < String >" => Some(quote! { ColumnType::String }),
             "Vec < Vec < u8 > >" => Some(quote! { ColumnType::Binary }),
 
+            "Vec < Option < bool > >" => Some(quote! { ColumnType::Boolean }),
             "Vec < Option < u32 > >" => Some(quote! { ColumnType::UInt32 }),
             "Vec < Option < u64 > >" => Some(quote! { ColumnType::UInt64 }),
             "Vec < Option < U256 > >" => Some(quote! { ColumnType::UInt256 }),

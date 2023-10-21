@@ -19,7 +19,15 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
         partitions::parse_partitions(args, fetcher, &schemas).await?;
     let datatypes = cryo_freeze::cluster_datatypes(schemas.keys().cloned().collect());
     let labels = QueryLabels { align: args.align, reorg_buffer: args.reorg_buffer };
-    Ok(Query { datatypes, schemas, time_dimension, partitions, partitioned_by, labels })
+    Ok(Query {
+        datatypes,
+        schemas,
+        time_dimension,
+        partitions,
+        partitioned_by,
+        exclude_failed: args.exclude_failed,
+        labels,
+    })
 }
 
 fn find_arg_aliases(args: &Args, schemas: &Schemas) -> Vec<(Dim, Dim)> {

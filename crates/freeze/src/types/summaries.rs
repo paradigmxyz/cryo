@@ -148,6 +148,10 @@ pub(crate) fn print_cryo_intro(
     let reorg_buffer = Some(query.labels.reorg_buffer);
     print_chunks(&query.partitions, align, reorg_buffer);
 
+    if env.verbose > 1 {
+        print_bullet_indent("exclude failed items", query.exclude_failed.to_string(), 4);
+    }
+
     print_bullet("source", "");
     print_bullet_indent("network", &sink.prefix, 4);
     print_bullet_indent("rpc url", &source.rpc_url, 4);
