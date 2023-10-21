@@ -17,13 +17,8 @@ pub struct AddressAppearances {
 
 #[async_trait::async_trait]
 impl Dataset for AddressAppearances {
-    fn default_sort() -> Vec<String> {
-        vec![
-            "block_number".to_string(),
-            "transaction_hash".to_string(),
-            "address".to_string(),
-            "relationship".to_string(),
-        ]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "transaction_hash", "address", "relationship"])
     }
 }
 

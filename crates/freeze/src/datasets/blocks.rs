@@ -38,10 +38,6 @@ impl Dataset for Blocks {
             "chain_id",
         ])
     }
-
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string()]
-    }
 }
 
 #[async_trait::async_trait]

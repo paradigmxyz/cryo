@@ -37,7 +37,7 @@ macro_rules! define_datatypes {
             /// default sorting columns of datatype
             pub fn default_sort(&self) -> Vec<String> {
                 match *self {
-                    $(Datatype::$datatype => $datatype::default_sort(),)*
+                    $(Datatype::$datatype => $datatype::base_default_sort(),)*
                 }
             }
 

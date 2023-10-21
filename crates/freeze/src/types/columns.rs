@@ -30,6 +30,26 @@ pub trait ColumnData: Default + crate::Dataset {
         Self::default_blocks()
     }
 
+    /// default sort for dataset
+    fn base_default_sort() -> Vec<String> {
+        match Self::default_sort() {
+            Some(sort) => sort.iter().map(|x| x.to_string()).collect(),
+            None => {
+                let mut sort = Vec::new();
+                let columns = Self::column_types();
+                for name in ["block_number", "transaction_index", "log_index"] {
+                    if (name == "transaction_index") & columns.contains_key("log_index") {
+                        continue
+                    }
+                    if columns.contains_key(name) {
+                        sort.push(name.to_string())
+                    }
+                }
+                sort
+            }
+        }
+    }
+
     /// input arg aliases
     fn base_arg_aliases() -> HashMap<Dim, Dim> {
         match Self::arg_aliases() {
@@ -57,7 +77,9 @@ pub trait Dataset: Sync + Send {
     }
 
     /// default sort order for dataset
-    fn default_sort() -> Vec<String>;
+    fn default_sort() -> Option<Vec<&'static str>> {
+        None
+    }
 
     /// default columns extracted for Dataset
     fn default_columns() -> Option<Vec<&'static str>> {

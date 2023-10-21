@@ -32,10 +32,6 @@ pub struct TraceCalls {
 }
 
 impl Dataset for TraceCalls {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-
     fn default_blocks() -> Option<String> {
         Some("latest".to_string())
     }

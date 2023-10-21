@@ -15,8 +15,8 @@ pub struct Erc20Supplies {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Supplies {
-    fn default_sort() -> Vec<String> {
-        vec!["erc20".to_string(), "block_number".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["erc20", "block_number"])
     }
 
     fn required_parameters() -> Vec<Dim> {

@@ -17,11 +17,7 @@ pub struct GethBalanceDiffs {
 }
 
 #[async_trait::async_trait]
-impl Dataset for GethBalanceDiffs {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-}
+impl Dataset for GethBalanceDiffs {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethBalanceDiffs {

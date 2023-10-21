@@ -15,8 +15,8 @@ pub struct Nonces {
 
 #[async_trait::async_trait]
 impl Dataset for Nonces {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "address".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "address"])
     }
 
     fn required_parameters() -> Vec<Dim> {

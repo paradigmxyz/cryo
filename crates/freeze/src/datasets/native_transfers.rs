@@ -18,11 +18,7 @@ pub struct NativeTransfers {
 }
 
 #[async_trait::async_trait]
-impl Dataset for NativeTransfers {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transfer_index".to_string()]
-    }
-}
+impl Dataset for NativeTransfers {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for NativeTransfers {

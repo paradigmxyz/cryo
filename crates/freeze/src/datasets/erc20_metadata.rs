@@ -16,8 +16,8 @@ pub struct Erc20Metadata {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Metadata {
-    fn default_sort() -> Vec<String> {
-        vec!["symbol".to_string(), "block_number".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["symbol", "block_number"])
     }
 
     fn default_blocks() -> Option<String> {

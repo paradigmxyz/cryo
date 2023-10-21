@@ -27,10 +27,6 @@ impl Dataset for Logs {
         vec!["events"]
     }
 
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "log_index".to_string()]
-    }
-
     fn optional_parameters() -> Vec<Dim> {
         vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::Topic3]
     }
