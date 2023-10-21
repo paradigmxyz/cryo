@@ -39,6 +39,9 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
         .map(|(name, ty)| {
             let macro_name = match quote!(#ty).to_string().as_str() {
                 "Vec < Vec < u8 > >" => syn::Ident::new("with_series_binary", Span::call_site()),
+                "Vec < Option < Vec < u8 > > >" => {
+                    syn::Ident::new("with_series_binary", Span::call_site())
+                }
                 "Vec < U256 >" => syn::Ident::new("with_series_u256", Span::call_site()),
                 "Vec < Option < U256 > >" => {
                     syn::Ident::new("with_series_option_u256", Span::call_site())
