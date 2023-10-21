@@ -22,8 +22,8 @@ impl Dataset for EthCalls {
         Some(vec!["block_number", "contract_address", "call_data", "output_data", "chain_id"])
     }
 
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "contract_address".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "contract_address"])
     }
 
     fn default_blocks() -> Option<String> {

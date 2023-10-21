@@ -31,11 +31,7 @@ pub struct Traces {
 }
 
 #[async_trait::async_trait]
-impl Dataset for Traces {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-}
+impl Dataset for Traces {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for Traces {

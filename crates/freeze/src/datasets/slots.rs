@@ -16,8 +16,8 @@ pub struct Slots {
 
 #[async_trait::async_trait]
 impl Dataset for Slots {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "address".to_string(), "slot".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "address", "slot"])
     }
 
     fn required_parameters() -> Vec<Dim> {

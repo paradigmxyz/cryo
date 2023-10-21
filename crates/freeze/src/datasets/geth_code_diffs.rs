@@ -16,11 +16,7 @@ pub struct GethCodeDiffs {
 }
 
 #[async_trait::async_trait]
-impl Dataset for GethCodeDiffs {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-}
+impl Dataset for GethCodeDiffs {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethCodeDiffs {

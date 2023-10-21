@@ -24,8 +24,8 @@ pub struct Contracts {
 
 #[async_trait::async_trait]
 impl Dataset for Contracts {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "create_index".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "create_index"])
     }
 }
 

@@ -17,11 +17,7 @@ pub struct GethNonceDiffs {
 }
 
 #[async_trait::async_trait]
-impl Dataset for GethNonceDiffs {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-}
+impl Dataset for GethNonceDiffs {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethNonceDiffs {

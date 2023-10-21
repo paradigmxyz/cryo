@@ -30,10 +30,6 @@ impl Dataset for Transactions {
     fn aliases() -> Vec<&'static str> {
         vec!["txs"]
     }
-
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
 }
 
 #[async_trait::async_trait]

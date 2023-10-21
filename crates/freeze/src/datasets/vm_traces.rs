@@ -32,8 +32,8 @@ impl Dataset for VmTraces {
         Some(vec!["block_number", "transaction_index", "pc", "cost", "used", "op", "chain_id"])
     }
 
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string(), "used".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["block_number", "transaction_index", "used"])
     }
 }
 

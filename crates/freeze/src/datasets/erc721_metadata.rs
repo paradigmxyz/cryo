@@ -15,8 +15,8 @@ pub struct Erc721Metadata {
 }
 
 impl Dataset for Erc721Metadata {
-    fn default_sort() -> Vec<String> {
-        vec!["symbol".to_string(), "block_number".to_string()]
+    fn default_sort() -> Option<Vec<&'static str>> {
+        Some(vec!["symbol", "block_number"])
     }
 
     fn required_parameters() -> Vec<Dim> {

@@ -17,11 +17,7 @@ pub struct NonceDiffs {
 }
 
 #[async_trait::async_trait]
-impl Dataset for NonceDiffs {
-    fn default_sort() -> Vec<String> {
-        vec!["block_number".to_string(), "transaction_index".to_string()]
-    }
-}
+impl Dataset for NonceDiffs {}
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 
