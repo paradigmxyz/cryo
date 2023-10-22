@@ -1,7 +1,7 @@
 /// types and functions related to schemas
 use std::collections::{HashMap, HashSet};
 
-use crate::{err, CollectError, ColumnEncoding, Datatype, LogDecoder};
+use crate::{err, CollectError, Datatype, LogDecoder};
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
@@ -160,6 +160,25 @@ pub enum SchemaError {
     /// Invalid column being operated on
     #[error("Invalid column")]
     InvalidColumn,
+}
+
+/// Encoding for binary data in a column
+#[derive(Clone, Eq, PartialEq, Debug)]
+pub enum ColumnEncoding {
+    /// Raw binary encoding
+    Binary,
+    /// Hex binary encoding
+    Hex,
+}
+
+impl ColumnEncoding {
+    /// convert ColumnEncoding to str
+    pub fn as_str(&self) -> &'static str {
+        match *self {
+            ColumnEncoding::Binary => "binary",
+            ColumnEncoding::Hex => "hex",
+        }
+    }
 }
 
 impl Datatype {

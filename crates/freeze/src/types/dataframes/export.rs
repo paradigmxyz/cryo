@@ -7,9 +7,10 @@ use crate::types::{FileError, FileOutput};
 /// write polars dataframe to file
 pub(crate) fn df_to_file(
     df: &mut DataFrame,
-    filename: &Path,
+    filename: &str,
     file_output: &FileOutput,
 ) -> Result<(), FileError> {
+    let filename: std::path::PathBuf = filename.into();
     let tmp_filename = filename.with_extension("_tmp");
     let result = match filename.extension().and_then(|ex| ex.to_str()) {
         Some("parquet") => df_to_parquet(df, &tmp_filename, file_output),

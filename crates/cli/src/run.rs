@@ -51,7 +51,7 @@ pub async fn run(args: args::Args) -> Result<Option<FreezeSummary>, CollectError
     let source = Arc::new(source);
     let env = ExecutionEnv { t_start_parse, ..env };
     let env = env.set_start_time();
-    cryo_freeze::freeze(&query, &source, &sink, &env).await
+    cryo_freeze::freeze(&query, &source, sink, &env).await
 }
 
 async fn handle_help_subcommands(args: args::Args) -> Result<Option<FreezeSummary>, CollectError> {

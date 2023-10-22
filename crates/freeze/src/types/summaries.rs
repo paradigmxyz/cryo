@@ -2,11 +2,12 @@ use std::collections::HashMap;
 
 use chrono::{DateTime, Local};
 use colored::Colorize;
+use std::sync::Arc;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, CollectError, ColumnType, Datatype,
-    Dim, ExecutionEnv, FileOutput, MultiDatatype, Partition, Query, Source, Table,
+    chunks::chunk_ops::ValueToString, get_network_name, ChunkData, ChunkStats, CollectError,
+    ColumnType, Datatype, Dim, ExecutionEnv, MultiDatatype, Partition, Query, Sink, Source, Table,
 };
 use std::path::PathBuf;
 
@@ -134,7 +135,7 @@ fn print_bullet_indent<A: AsRef<str>, B: AsRef<str>>(key: A, value: B, indent: u
 pub(crate) fn print_cryo_intro(
     query: &Query,
     source: &Source,
-    sink: &FileOutput,
+    sink: &Arc<dyn Sink>,
     env: &ExecutionEnv,
     n_chunks_remaining: u64,
 ) {
@@ -152,8 +153,13 @@ pub(crate) fn print_cryo_intro(
         print_bullet_indent("exclude failed items", query.exclude_failed.to_string(), 4);
     }
 
+    let network = match get_network_name(source.chain_id) {
+        Some(name) => name,
+        None => source.chain_id.to_string(),
+    };
+
     print_bullet("source", "");
-    print_bullet_indent("network", &sink.prefix, 4);
+    print_bullet_indent("network", network, 4);
     print_bullet_indent("rpc url", &source.rpc_url, 4);
     match source.labels.max_requests_per_second {
         Some(max_requests_per_second) => print_bullet_indent(
@@ -219,15 +225,18 @@ pub(crate) fn print_cryo_intro(
         (n_datatypes * query.partitions.len()).separate_with_commas()
     );
     print_bullet_indent("chunks to collect", chunk_text, 4);
-    print_bullet_indent("output format", sink.format.as_str(), 4);
-    print_bullet_indent("output dir", sink.output_dir.clone().to_string_lossy(), 4);
+    print_bullet_indent("output format", sink.output_format(), 4);
+    let output_dir = match sink.output_location() {
+        Ok(output_dir) => output_dir,
+        Err(_) => "bad output location".to_string(),
+    };
+    print_bullet_indent("output dir", output_dir.clone(), 4);
 
     // print report path
     let report_path = if env.report && n_chunks_remaining > 0 {
-        match super::reports::get_report_path(env, sink, true) {
+        match super::reports::get_report_path(env, true) {
             Ok(report_path) => {
-                let stripped_path: PathBuf = match report_path.strip_prefix(sink.output_dir.clone())
-                {
+                let stripped_path: PathBuf = match report_path.strip_prefix(output_dir) {
                     Ok(stripped) => PathBuf::from("$OUTPUT_DIR").join(PathBuf::from(stripped)),
                     Err(_) => report_path,
                 };

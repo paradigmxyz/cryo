@@ -1,12 +1,11 @@
 use crate::{
-    collect_partition, dataframes, err, reports, summaries, CollectError, Datatype, ExecutionEnv,
-    FileOutput, FreezeSummary, MetaDatatype, Partition, Query, Source,
+    collect_partition, err, reports, summaries, CollectError, Datatype, ExecutionEnv,
+    FreezeSummary, MetaDatatype, Partition, Query, Sink, Source,
 };
 use chrono::{DateTime, Local};
 use futures::{stream::FuturesUnordered, StreamExt};
 use std::{
     collections::{HashMap, HashSet},
-    path::PathBuf,
     sync::Arc,
 };
 use tokio::sync::Semaphore;
@@ -14,10 +13,10 @@ use tokio::sync::Semaphore;
 type PartitionPayload = (
     Partition,
     MetaDatatype,
-    HashMap<Datatype, PathBuf>,
+    HashMap<Datatype, String>,
     Arc<Query>,
     Arc<Source>,
-    FileOutput,
+    Arc<dyn Sink>,
     ExecutionEnv,
     Option<std::sync::Arc<Semaphore>>,
 );
@@ -26,18 +25,18 @@ type PartitionPayload = (
 pub async fn freeze(
     query: &Query,
     source: &Source,
-    sink: &FileOutput,
+    sink: Arc<dyn Sink>,
     env: &ExecutionEnv,
 ) -> Result<Option<FreezeSummary>, CollectError> {
     // check validity of query
     query.is_valid()?;
 
     // get partitions
-    let (payloads, skipping) = get_payloads(query, source, sink, env)?;
+    let (payloads, skipping) = get_payloads(query, source, &sink, env)?;
 
     // print summary
     if env.verbose >= 1 {
-        summaries::print_cryo_intro(query, source, sink, env, payloads.len() as u64);
+        summaries::print_cryo_intro(query, source, &sink, env, payloads.len() as u64);
     }
 
     // check dry run
@@ -56,7 +55,7 @@ pub async fn freeze(
 
     // create initial report
     if env.report {
-        reports::write_report(env, query, sink, None)?;
+        reports::write_report(env, query, &sink, None)?;
     };
 
     // perform collection
@@ -69,7 +68,7 @@ pub async fn freeze(
 
     // create final report
     if env.report {
-        reports::write_report(env, query, sink, Some(&results))?;
+        reports::write_report(env, query, &sink, Some(&results))?;
     };
 
     // return
@@ -79,7 +78,7 @@ pub async fn freeze(
 fn get_payloads(
     query: &Query,
     source: &Source,
-    sink: &FileOutput,
+    sink: &Arc<dyn Sink>,
     env: &ExecutionEnv,
 ) -> Result<(Vec<PartitionPayload>, Vec<Partition>), CollectError> {
     let semaphore = source
@@ -89,29 +88,28 @@ fn get_payloads(
     let arc_query = Arc::new(query.clone());
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
-    let mut all_paths = HashSet::new();
+    let mut all_ids = HashSet::new();
     for datatype in query.datatypes.clone().into_iter() {
         for partition in query.partitions.clone().into_iter() {
-            let paths = sink.get_paths(query, &partition, Some(vec![datatype.clone()]))?;
-            if !sink.overwrite && paths.values().all(|path| path.exists()) {
+            let ids = sink.get_ids(query, &partition, Some(vec![datatype.clone()]))?;
+            if !sink.overwrite() && ids.values().all(|path| sink.exists(path)) {
                 skipping.push(partition);
                 continue
             }
 
             // check for path collisions
-            let paths_set: HashSet<_> = paths.clone().into_values().collect();
-            if paths_set.intersection(&all_paths).next().is_none() {
-                all_paths.extend(paths_set);
+            let ids_set: HashSet<_> = ids.clone().into_values().collect();
+            if ids_set.intersection(&all_ids).next().is_none() {
+                all_ids.extend(ids_set);
             } else {
-                let message =
-                    format!("output path collision: {:?}", paths_set.intersection(&all_paths));
+                let message = format!("output id collision: {:?}", ids_set.intersection(&all_ids));
                 return Err(err(&message))
             };
 
             let payload = (
                 partition.clone(),
                 datatype.clone(),
-                paths,
+                ids,
                 arc_query.clone(),
                 source.clone(),
                 sink.clone(),
@@ -165,7 +163,7 @@ async fn freeze_partitions(
 }
 
 async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError> {
-    let (partition, datatype, paths, query, source, sink, env, semaphore) = payload;
+    let (partition, datatype, ids, query, source, sink, env, semaphore) = payload;
 
     // acquire chunk semaphore
     let _permit = match &semaphore {
@@ -178,11 +176,8 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
 
     // write dataframes to disk
     for (datatype, mut df) in dfs {
-        let path = paths.get(&datatype).ok_or_else(|| {
-            CollectError::CollectError("could not get path for datatype".to_string())
-        })?;
-        let result = dataframes::df_to_file(&mut df, path, &sink);
-        result.map_err(|_| CollectError::CollectError("error writing file".to_string()))?
+        let id = ids.get(&datatype).ok_or_else(|| err("could not get id for datatype"))?;
+        sink.sink_df(&mut df, id)?;
     }
 
     // update progress bar

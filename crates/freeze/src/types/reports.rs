@@ -1,10 +1,6 @@
-use crate::{err, CollectError, ExecutionEnv, FileOutput, FreezeSummary, Query};
+use crate::{err, CollectError, ExecutionEnv, FreezeSummary, Query, Sink};
 use chrono::{DateTime, Local};
-use std::{
-    fs::File,
-    io::Write,
-    path::{Path, PathBuf},
-};
+use std::{fs::File, io::Write, path::PathBuf, sync::Arc};
 
 #[derive(serde::Serialize, Debug)]
 struct FreezeReport {
@@ -17,20 +13,18 @@ struct FreezeReport {
 
 #[derive(serde::Serialize, Debug)]
 struct SerializedFreezeSummary {
-    completed_paths: Vec<PathBuf>,
-    errored_paths: Vec<PathBuf>,
+    completed_paths: Vec<String>,
+    errored_paths: Vec<String>,
     n_skipped: u64,
 }
 
 pub(crate) fn get_report_path(
     env: &ExecutionEnv,
-    sink: &FileOutput,
     is_complete: bool,
 ) -> Result<PathBuf, CollectError> {
-    // create directory
-    let report_dir = match &env.report_dir {
-        Some(report_dir) => Path::new(&report_dir).into(),
-        None => Path::new(&sink.output_dir).join(".cryo/reports"),
+    let report_dir = match env.report_dir.clone() {
+        Some(report_dir) => report_dir,
+        None => return Err(err("report dir unspecified")),
     };
     std::fs::create_dir_all(&report_dir)
         .map_err(|_| CollectError::CollectError("could not create report dir".to_string()))?;
@@ -51,7 +45,7 @@ pub(crate) fn get_report_path(
 pub(crate) fn write_report(
     env: &ExecutionEnv,
     query: &Query,
-    sink: &FileOutput,
+    sink: &Arc<dyn Sink>,
     freeze_summary: Option<&FreezeSummary>,
 ) -> Result<PathBuf, CollectError> {
     // determine version
@@ -70,7 +64,7 @@ pub(crate) fn write_report(
         .map_err(|_| CollectError::CollectError("could not serialize report".to_string()))?;
 
     // create path
-    let path = get_report_path(env, sink, freeze_summary.is_some())?;
+    let path = get_report_path(env, freeze_summary.is_some())?;
 
     // save to file
     let mut file = File::create(&path)
@@ -80,7 +74,7 @@ pub(crate) fn write_report(
 
     // delete initial report
     if freeze_summary.is_some() {
-        let incomplete_path = get_report_path(env, sink, false)?;
+        let incomplete_path = get_report_path(env, false)?;
         std::fs::remove_file(incomplete_path)
             .map_err(|_| err("could not delete initial report file"))?;
     }
@@ -91,13 +85,13 @@ pub(crate) fn write_report(
 fn serialize_summary(
     summary: &FreezeSummary,
     query: &Query,
-    sink: &FileOutput,
+    sink: &Arc<dyn Sink>,
 ) -> Result<SerializedFreezeSummary, CollectError> {
-    let completed_paths: Vec<PathBuf> = summary
+    let completed_paths: Vec<String> = summary
         .completed
         .iter()
         .map(|partition| {
-            sink.get_paths(query, partition, None)
+            sink.get_ids(query, partition, None)
                 .map(|paths| paths.values().cloned().collect::<Vec<_>>())
         })
         .collect::<Result<Vec<_>, _>>()?
@@ -105,12 +99,12 @@ fn serialize_summary(
         .flatten()
         .collect();
 
-    let errored_paths: Vec<PathBuf> = summary
+    let errored_paths: Vec<String> = summary
         .errored
         .iter()
         .filter_map(|(partition_option, _error)| {
             partition_option.as_ref().map(|partition| {
-                sink.get_paths(query, partition, None)
+                sink.get_ids(query, partition, None)
                     .map(|paths| paths.values().cloned().collect::<Vec<_>>())
             })
         })

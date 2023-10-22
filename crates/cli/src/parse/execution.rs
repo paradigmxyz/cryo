@@ -12,11 +12,16 @@ pub(crate) fn parse_execution_env(args: &Args, n_tasks: u64) -> Result<Execution
         (false, false) => 1,
     };
 
+    let report_dir = match args.report_dir.clone() {
+        Some(report_dir) => Some(report_dir),
+        None => Some(std::path::Path::new(&args.output_dir).join(".cryo/reports")),
+    };
+
     let builder = ExecutionEnvBuilder::new()
         .dry(args.dry)
         .verbose(verbose)
         .report(!args.no_report)
-        .report_dir(args.report_dir.clone())
+        .report_dir(report_dir)
         .args(args_str);
 
     let builder = if !args.no_verbose {
