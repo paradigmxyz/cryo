@@ -110,7 +110,7 @@ Standard types across tables:
 |dataset|blocks per request|results per block|method|
 |-|-|-|-|
 |Blocks|1|1|`eth_getBlockByNumber`|
-|Transactions|1|multiple|`eth_getBlockByNumber`|
+|Transactions|1|multiple|`eth_getBlockByNumber`, `eth_getBlockReceipts`, `eth_getTransactionReceipt`|
 |Logs|multiple|multiple|`eth_getLogs`|
 |Contracts|1|multiple|`trace_block`|
 |Traces|1|multiple|`trace_block`|
