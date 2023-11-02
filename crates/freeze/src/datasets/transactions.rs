@@ -7,7 +7,7 @@ use polars::prelude::*;
 #[derive(Default)]
 pub struct Transactions {
     n_rows: u64,
-    block_number: Vec<Option<u64>>,
+    block_number: Vec<Option<u32>>,
     transaction_index: Vec<Option<u64>>,
     transaction_hash: Vec<Vec<u8>>,
     nonce: Vec<u64>,
@@ -122,7 +122,7 @@ pub(crate) fn process_transaction(
     };
 
     columns.n_rows += 1;
-    store!(schema, columns, block_number, tx.block_number.map(|x| x.as_u64()));
+    store!(schema, columns, block_number, tx.block_number.map(|x| x.as_u32()));
     store!(schema, columns, transaction_index, tx.transaction_index.map(|x| x.as_u64()));
     store!(schema, columns, transaction_hash, tx.hash.as_bytes().to_vec());
     store!(schema, columns, from_address, tx.from.as_bytes().to_vec());
