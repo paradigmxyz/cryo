@@ -74,7 +74,7 @@ pip install maturin
 git clone https://github.com/paradigmxyz/cryo
 cd cryo/crates/python
 maturin build --release
-pip install <OUTPUT_OF_MATURIN_BUILD>.whl
+pip install --force-reinstall <OUTPUT_OF_MATURIN_BUILD>.whl
 ```
 
 ## Data Schemas
