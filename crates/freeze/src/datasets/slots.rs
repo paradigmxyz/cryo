@@ -60,7 +60,7 @@ impl CollectByBlock for Slots {
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Slots)?;
-        process_nonce(columns, response, schema)
+        process_slot(columns, response, schema)
     }
 }
 
@@ -69,7 +69,7 @@ impl CollectByTransaction for Slots {
     type Response = ();
 }
 
-fn process_nonce(columns: &mut Slots, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
+fn process_slot(columns: &mut Slots, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
     let (block, _tx, address, slot, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);

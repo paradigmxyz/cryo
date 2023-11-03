@@ -138,6 +138,9 @@ macro_rules! define_datatypes {
                     MultiDatatype::StateDiffs => {
                         StateDiffs::collect_by_block(partition, source, query, None)
                     },
+                    MultiDatatype::StateReads => {
+                        StateReads::collect_by_block(partition, source, query, None)
+                    },
                 },
             };
             task.await
@@ -177,7 +180,10 @@ macro_rules! define_datatypes {
                         },
                         MultiDatatype::StateDiffs => {
                             StateDiffs::collect_by_transaction(partition, source, query, inner_request_size)
-                        }
+                        },
+                        MultiDatatype::StateReads => {
+                            StateReads::collect_by_transaction(partition, source, query, inner_request_size)
+                        },
                     }
                 },
             };

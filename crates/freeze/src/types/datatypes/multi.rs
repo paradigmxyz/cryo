@@ -15,6 +15,9 @@ pub enum MultiDatatype {
 
     /// balance diffs, code diffs, nonce diffs, and storage diffs
     StateDiffs,
+
+    /// balance reads, code reads, nonce reads, and storage reads
+    StateReads,
 }
 
 impl MultiDatatype {
@@ -37,6 +40,12 @@ impl MultiDatatype {
                 Datatype::NonceDiffs,
                 Datatype::StorageDiffs,
             ],
+            MultiDatatype::StateReads => vec![
+                Datatype::BalanceReads,
+                Datatype::CodeReads,
+                Datatype::NonceReads,
+                Datatype::StorageReads,
+            ],
         }
     }
 
@@ -47,6 +56,7 @@ impl MultiDatatype {
             MultiDatatype::CallTraceDerivatives,
             MultiDatatype::GethStateDiffs,
             MultiDatatype::StateDiffs,
+            MultiDatatype::StateReads,
         ]
     }
 

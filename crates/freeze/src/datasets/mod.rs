@@ -2,12 +2,16 @@
 pub mod address_appearances;
 /// balance diffs
 pub mod balance_diffs;
+/// balance reads
+pub mod balance_reads;
 /// balances
 pub mod balances;
 /// blocks
 pub mod blocks;
 /// code diffs
 pub mod code_diffs;
+/// code reads
+pub mod code_reads;
 /// codes
 pub mod codes;
 /// contracts
@@ -42,6 +46,8 @@ pub mod logs;
 pub mod native_transfers;
 /// nonce diffs
 pub mod nonce_diffs;
+/// nonce reads
+pub mod nonce_reads;
 /// nonces
 pub mod nonces;
 /// slots
@@ -61,9 +67,11 @@ pub mod vm_traces;
 
 pub use address_appearances::*;
 pub use balance_diffs::*;
+pub use balance_reads::*;
 pub use balances::*;
 pub use blocks::*;
 pub use code_diffs::*;
+pub use code_reads::*;
 pub use codes::*;
 pub use contracts::*;
 pub use erc20_balances::*;
@@ -81,6 +89,7 @@ pub use geth_traces::*;
 pub use logs::*;
 pub use native_transfers::*;
 pub use nonce_diffs::*;
+pub use nonce_reads::*;
 pub use nonces::*;
 pub use slots::*;
 pub use storage_diffs::*;

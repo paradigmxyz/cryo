@@ -48,7 +48,7 @@ impl CollectByBlock for Codes {
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Codes)?;
-        process_nonce(columns, response, schema)
+        process_code(columns, response, schema)
     }
 }
 
@@ -57,7 +57,7 @@ impl CollectByTransaction for Codes {
     type Response = ();
 }
 
-fn process_nonce(columns: &mut Codes, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
+fn process_code(columns: &mut Codes, data: BlockTxAddressOutput, schema: &Table) -> R<()> {
     let (block, _tx, address, output) = data;
     columns.n_rows += 1;
     store!(schema, columns, block_number, block);
