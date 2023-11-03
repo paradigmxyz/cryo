@@ -43,7 +43,7 @@ impl Source {
         let block_number =
             block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
         if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
-            return Ok(receipts);
+            return Ok(receipts)
         }
 
         // fallback to `eth_getTransactionReceipt`
@@ -499,7 +499,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
                 }
                 _ => {
                     println!("{:?}", trace);
-                    return Err(CollectError::CollectError("invalid trace result".to_string()));
+                    return Err(CollectError::CollectError("invalid trace result".to_string()))
                 }
             }
         }

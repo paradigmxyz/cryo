@@ -11,8 +11,8 @@ pub struct NonceDiffs {
     pub(crate) transaction_index: Vec<Option<u32>>,
     pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
     pub(crate) address: Vec<Vec<u8>>,
-    pub(crate) from_value: Vec<U256>,
-    pub(crate) to_value: Vec<U256>,
+    pub(crate) from_value: Vec<u64>,
+    pub(crate) to_value: Vec<u64>,
     pub(crate) chain_id: Vec<u64>,
 }
 
@@ -86,6 +86,6 @@ pub(crate) fn process_nonce_diff(
     store!(schema, columns, transaction_index, Some(transaction_index as u32));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
     store!(schema, columns, address, addr.as_bytes().to_vec());
-    store!(schema, columns, from_value, from);
-    store!(schema, columns, to_value, to);
+    store!(schema, columns, from_value, from.as_u64());
+    store!(schema, columns, to_value, to.as_u64());
 }
