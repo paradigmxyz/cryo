@@ -44,7 +44,7 @@ impl CollectByBlock for Transactions {
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let receipt = if schema.has_column("gas_used") | schema.has_column("success") {
-            Some(source.fetcher.get_block_receipts(request.block_number()?).await?)
+            Some(source.get_tx_receipts_in_block(&block).await?)
         } else {
             None
         };

@@ -6,7 +6,10 @@ use governor::{
     middleware::NoOpMiddleware,
     state::{direct::NotKeyed, InMemoryState},
 };
-use tokio::sync::{AcquireError, Semaphore, SemaphorePermit};
+use tokio::{
+    sync::{AcquireError, Semaphore, SemaphorePermit},
+    task,
+};
 
 use crate::CollectError;
 
@@ -28,6 +31,46 @@ pub struct Source {
     pub rpc_url: String,
     /// Labels (these are non-functional)
     pub labels: SourceLabels,
+}
+
+impl Source {
+    /// Returns all receipts for a block.
+    /// Tries to use `eth_getBlockReceipts` first, and falls back to `eth_getTransactionReceipt`
+    pub async fn get_tx_receipts_in_block(
+        &self,
+        block: &Block<Transaction>,
+    ) -> Result<Vec<TransactionReceipt>> {
+        let block_number =
+            block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
+        if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
+            return Ok(receipts)
+        }
+
+        // fallback to `eth_getTransactionReceipt`
+        let mut tasks = Vec::new();
+        for tx in &block.transactions {
+            let tx_hash = tx.hash;
+            let fetcher = self.fetcher.clone();
+            let task = task::spawn(async move {
+                match fetcher.get_transaction_receipt(tx_hash).await? {
+                    Some(receipt) => Ok(receipt),
+                    None => {
+                        Err(CollectError::CollectError("could not find tx receipt".to_string()))
+                    }
+                }
+            });
+            tasks.push(task);
+        }
+        let mut receipts = Vec::new();
+        for task in tasks {
+            match task.await {
+                Ok(receipt) => receipts.push(receipt?),
+                Err(e) => return Err(CollectError::TaskFailed(e)),
+            }
+        }
+
+        Ok(receipts)
+    }
 }
 
 /// source labels (non-functional)
@@ -185,6 +228,9 @@ impl<P: JsonRpcClient> Fetcher<P> {
     }
 
     /// Returns all receipts for a block.
+    /// Note that this uses the `eth_getBlockReceipts` method which is not supported by all nodes.
+    /// Consider using `FetcherExt::get_tx_receipts_in_block` which takes a block, and falls back to
+    /// `eth_getTransactionReceipt` if `eth_getBlockReceipts` is not supported.
     pub async fn get_block_receipts(&self, block_num: u64) -> Result<Vec<TransactionReceipt>> {
         let _permit = self.permit_request().await;
         Self::map_err(self.provider.get_block_receipts(block_num).await)
@@ -551,7 +597,6 @@ impl<P: JsonRpcClient> Fetcher<P> {
 
 use crate::err;
 use std::collections::BTreeMap;
-use tokio::task;
 
 fn parse_geth_diff_object(
     map: ethers::utils::__serde_json::Map<String, ethers::utils::__serde_json::Value>,
@@ -563,63 +608,4 @@ fn parse_geth_diff_object(
         .map_err(|_| err("cannot deserialize pre diff"))?;
 
     Ok(DiffMode { pre, post })
-}
-
-impl Source {
-    /// get gas used by transactions in block
-    pub async fn get_txs_gas_used(&self, block: &Block<Transaction>) -> Result<Vec<u64>> {
-        match get_txs_gas_used_per_block(block, self.fetcher.clone()).await {
-            Ok(value) => Ok(value),
-            Err(_) => get_txs_gas_used_per_tx(block, self.fetcher.clone()).await,
-        }
-    }
-}
-
-async fn get_txs_gas_used_per_block<P: JsonRpcClient>(
-    block: &Block<Transaction>,
-    fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<u64>> {
-    // let fetcher = Arc::new(fetcher);
-    let block_number = match block.number {
-        Some(number) => number,
-        None => return Err(CollectError::CollectError("no block number".to_string())),
-    };
-    let receipts = fetcher.get_block_receipts(block_number.as_u64()).await?;
-    let mut gas_used: Vec<u64> = Vec::new();
-    for receipt in receipts {
-        match receipt.gas_used {
-            Some(value) => gas_used.push(value.as_u64()),
-            None => return Err(CollectError::CollectError("no gas_used for tx".to_string())),
-        }
-    }
-    Ok(gas_used)
-}
-
-async fn get_txs_gas_used_per_tx<P: JsonRpcClient + 'static>(
-    block: &Block<Transaction>,
-    fetcher: Arc<Fetcher<P>>,
-) -> Result<Vec<u64>> {
-    // let fetcher = Arc::new(*fetcher.clone());
-    let mut tasks = Vec::new();
-    for tx in &block.transactions {
-        let tx_clone = tx.hash;
-        let fetcher = fetcher.clone();
-        let task = task::spawn(async move {
-            match fetcher.get_transaction_receipt(tx_clone).await? {
-                Some(receipt) => Ok(receipt.gas_used),
-                None => Err(CollectError::CollectError("could not find tx receipt".to_string())),
-            }
-        });
-        tasks.push(task);
-    }
-
-    let mut gas_used: Vec<u64> = Vec::new();
-    for task in tasks {
-        match task.await {
-            Ok(Ok(Some(value))) => gas_used.push(value.as_u64()),
-            _ => return Err(CollectError::CollectError("gas_used not available from node".into())),
-        }
-    }
-
-    Ok(gas_used)
 }
