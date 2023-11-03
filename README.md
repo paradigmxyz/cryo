@@ -1,14 +1,16 @@
 # ❄️🧊 cryo 🧊❄️
 
-[![Rust](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml)
+[![Rust](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml/badge.svg)](https://github.com/paradigmxyz/cryo/actions/workflows/build_and_test.yml) [![Telegram Chat](https://img.shields.io/badge/Telegram-join_chat-blue.svg)](https://t.me/paradigm_data)
 
 `cryo` is the easiest way to extract blockchain data to parquet, csv, json, or a python dataframe.
 
-`cryo` is also extremely flexible, with [many different options](#cli-options) to control how data is extracted + filtered + formatted
+`cryo` is also extremely flexible, with [many different options](#cryo-help) to control how data is extracted + filtered + formatted
 
 *`cryo` is an early WIP, please report bugs + feedback to the issue tracker*
 
 *note that `cryo`'s default settings will slam a node too hard for use with 3rd party RPC providers. Instead, `--requests-per-second` and `--max-concurrent-requests` should be used to impose ratelimits. Such settings will be handled automatically in a future release*.
+
+to discuss cryo, check out [the telegram group](https://t.me/paradigm_data)
 
 ## Contents
 
