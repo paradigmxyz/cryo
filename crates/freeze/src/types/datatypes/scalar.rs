@@ -28,6 +28,7 @@ define_datatypes!(
     Nonces,
     Slots,
     StorageDiffs,
+    StorageReads,
     Traces,
     TraceCalls,
     Transactions,
