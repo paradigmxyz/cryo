@@ -48,6 +48,8 @@ pub mod nonces;
 pub mod slots;
 /// storage diffs
 pub mod storage_diffs;
+/// storage reads
+pub mod storage_reads;
 /// trace calls
 pub mod trace_calls;
 /// traces
@@ -82,6 +84,7 @@ pub use nonce_diffs::*;
 pub use nonces::*;
 pub use slots::*;
 pub use storage_diffs::*;
+pub use storage_reads::*;
 pub use trace_calls::*;
 pub use traces::*;
 pub use transactions::*;

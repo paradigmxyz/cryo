@@ -43,7 +43,7 @@ impl Source {
         let block_number =
             block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
         if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
-            return Ok(receipts)
+            return Ok(receipts);
         }
 
         // fallback to `eth_getTransactionReceipt`
@@ -419,6 +419,29 @@ impl<P: JsonRpcClient> Fetcher<P> {
     }
 
     /// get geth debug block call traces
+    pub async fn geth_debug_trace_block_prestate(
+        &self,
+        block_number: u32,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer);
+        let options = GethDebugTracingOptions { tracer: Some(tracer), ..Default::default() };
+        let (block, txs, traces) =
+            self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::PreStateTracer(PreStateFrame::Default(
+                    PreStateMode(frame),
+                ))) => calls.push(frame),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block call traces
     pub async fn geth_debug_trace_block_calls(
         &self,
         block_number: u32,
@@ -476,7 +499,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
                 }
                 _ => {
                     println!("{:?}", trace);
-                    return Err(CollectError::CollectError("invalid trace result".to_string()))
+                    return Err(CollectError::CollectError("invalid trace result".to_string()));
                 }
             }
         }
@@ -515,6 +538,30 @@ impl<P: JsonRpcClient> Fetcher<P> {
         };
 
         Ok((block_number, vec![Some(transaction_hash)], traces))
+    }
+
+    /// get geth debug block call traces
+    pub async fn geth_debug_trace_transaction_prestate(
+        &self,
+        transaction_hash: Vec<u8>,
+        include_block_number: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>)> {
+        let tracer = GethDebugTracerType::BuiltInTracer(GethDebugBuiltInTracerType::PreStateTracer);
+        let options = GethDebugTracingOptions { tracer: Some(tracer), ..Default::default() };
+        let (block, txs, traces) = self
+            .geth_debug_trace_transaction(transaction_hash, options, include_block_number)
+            .await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::PreStateTracer(PreStateFrame::Default(
+                    PreStateMode(frame),
+                ))) => calls.push(frame),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
     }
 
     /// get geth debug block call traces
