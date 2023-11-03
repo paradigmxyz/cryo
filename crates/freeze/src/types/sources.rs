@@ -33,6 +33,46 @@ pub struct Source {
     pub labels: SourceLabels,
 }
 
+impl Source {
+    /// Returns all receipts for a block.
+    /// Tries to use `eth_getBlockReceipts` first, and falls back to `eth_getTransactionReceipt`
+    pub async fn get_tx_receipts_in_block(
+        &self,
+        block: &Block<Transaction>,
+    ) -> Result<Vec<TransactionReceipt>> {
+        let block_number =
+            block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
+        if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
+            return Ok(receipts)
+        }
+
+        // fallback to `eth_getTransactionReceipt`
+        let mut tasks = Vec::new();
+        for tx in &block.transactions {
+            let tx_hash = tx.hash;
+            let fetcher = self.fetcher.clone();
+            let task = task::spawn(async move {
+                match fetcher.get_transaction_receipt(tx_hash).await? {
+                    Some(receipt) => Ok(receipt),
+                    None => {
+                        Err(CollectError::CollectError("could not find tx receipt".to_string()))
+                    }
+                }
+            });
+            tasks.push(task);
+        }
+        let mut receipts = Vec::new();
+        for task in tasks {
+            match task.await {
+                Ok(receipt) => receipts.push(receipt?),
+                Err(e) => return Err(CollectError::TaskFailed(e)),
+            }
+        }
+
+        Ok(receipts)
+    }
+}
+
 /// source labels (non-functional)
 #[derive(Clone)]
 pub struct SourceLabels {
@@ -552,58 +592,6 @@ impl<P: JsonRpcClient> Fetcher<P> {
 
     fn map_err<T>(res: ::core::result::Result<T, ProviderError>) -> Result<T> {
         res.map_err(CollectError::ProviderError)
-    }
-}
-
-/// Extension methods for `Fetcher<Provider<P>>` that requires single `Fetcher` instance to make
-/// multiple RPC calls concurrently
-#[async_trait::async_trait]
-pub trait FetcherExt {
-    /// Returns all receipts for a block.
-    /// Tries to use `eth_getBlockReceipts` first, and falls back to `eth_getTransactionReceipt`
-    async fn get_tx_receipts_in_block(
-        &self,
-        block: &Block<Transaction>,
-    ) -> Result<Vec<TransactionReceipt>>;
-}
-
-#[async_trait::async_trait]
-impl<P: JsonRpcClient + 'static> FetcherExt for Arc<Fetcher<P>> {
-    async fn get_tx_receipts_in_block(
-        &self,
-        block: &Block<Transaction>,
-    ) -> Result<Vec<TransactionReceipt>> {
-        let block_number =
-            block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
-        match self.get_block_receipts(block_number).await {
-            Ok(receipts) => return Ok(receipts),
-            Err(_) => (),
-        };
-
-        // fallback to `eth_getTransactionReceipt`
-        let mut tasks = Vec::new();
-        for tx in &block.transactions {
-            let tx_hash = tx.hash;
-            let self_clone = self.clone();
-            let task = task::spawn(async move {
-                match self_clone.get_transaction_receipt(tx_hash).await? {
-                    Some(receipt) => Ok(receipt),
-                    None => {
-                        Err(CollectError::CollectError("could not find tx receipt".to_string()))
-                    }
-                }
-            });
-            tasks.push(task);
-        }
-        let mut receipts = Vec::new();
-        for task in tasks {
-            match task.await {
-                Ok(receipt) => receipts.push(receipt?),
-                Err(e) => return Err(CollectError::TaskFailed(e)),
-            }
-        }
-
-        Ok(receipts)
     }
 }
 
