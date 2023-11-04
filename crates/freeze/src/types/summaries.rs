@@ -32,7 +32,20 @@ pub struct FreezeSummary {
 pub fn print_all_datasets() {
     print_header("cryo datasets");
     for datatype in Datatype::all().iter() {
-        print_bullet_key(datatype.name())
+        let aliases = datatype.aliases();
+        if aliases.len() > 1 {
+            print_bullet_parenthetical(
+                datatype.name(),
+                "aliases = ".to_string() + aliases.join(", ").as_str(),
+            )
+        } else if !aliases.is_empty() {
+            print_bullet_parenthetical(
+                datatype.name(),
+                "alias = ".to_string() + aliases.join(", ").as_str(),
+            )
+        } else {
+            print_bullet_key(datatype.name())
+        }
     }
     println!();
     print_header("dataset group names");
@@ -121,6 +134,13 @@ fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     let value_str = value.as_ref().truecolor(170, 170, 170);
     let colon_str = ": ".truecolor(TITLE_R, TITLE_G, TITLE_B);
     println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
+}
+
+fn print_bullet_parenthetical<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
+    let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
+    let key_str = key.as_ref().white().bold();
+    let value_str = value.as_ref().truecolor(170, 170, 170);
+    println!("{}{} ({})", bullet_str, key_str, value_str);
 }
 
 fn print_bullet_indent<A: AsRef<str>, B: AsRef<str>>(key: A, value: B, indent: usize) {
