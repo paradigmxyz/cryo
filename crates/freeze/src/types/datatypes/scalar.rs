@@ -25,6 +25,7 @@ define_datatypes!(
     GethStorageDiffs,
     GethNonceDiffs,
     GethTraces,
+    JavascriptTraces,
     Logs,
     NativeTransfers,
     NonceDiffs,

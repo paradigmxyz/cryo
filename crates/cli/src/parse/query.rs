@@ -26,6 +26,7 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
         partitions,
         partitioned_by,
         exclude_failed: args.exclude_failed,
+        js_tracer: args.js_tracer.clone(),
         labels,
     })
 }

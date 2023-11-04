@@ -16,6 +16,8 @@ pub struct Query {
     pub partitioned_by: Vec<Dim>,
     /// Exclude failed
     pub exclude_failed: bool,
+    /// Javascript tracer
+    pub js_tracer: Option<String>,
     /// Labels (these are non-functional)
     pub labels: QueryLabels,
 }

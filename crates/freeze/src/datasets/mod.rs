@@ -42,6 +42,8 @@ pub mod geth_nonce_diffs;
 pub mod geth_storage_diffs;
 /// geth traces
 pub mod geth_traces;
+/// javascript traces
+pub mod javascript_traces;
 /// logs
 pub mod logs;
 /// native transfers
@@ -89,6 +91,7 @@ pub use geth_code_diffs::*;
 pub use geth_nonce_diffs::*;
 pub use geth_storage_diffs::*;
 pub use geth_traces::*;
+pub use javascript_traces::*;
 pub use logs::*;
 pub use native_transfers::*;
 pub use nonce_diffs::*;

@@ -248,6 +248,10 @@ pub struct Args {
         help_heading = "Dataset-specific Options"
     )]
     pub inner_request_size: u64,
+
+    /// Event signature for log decoding
+    #[arg(long, value_name = "tracer", help_heading = "Dataset-specific Options")]
+    pub js_tracer: Option<String>,
 }
 
 impl Args {
