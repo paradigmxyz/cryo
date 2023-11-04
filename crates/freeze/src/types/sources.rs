@@ -419,6 +419,28 @@ impl<P: JsonRpcClient> Fetcher<P> {
     }
 
     /// get geth debug block call traces
+    pub async fn geth_debug_trace_block_javascript_traces(
+        &self,
+        js_tracer: String,
+        block_number: u32,
+        include_transaction_hashes: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<serde_json::Value>)> {
+        let tracer = GethDebugTracerType::JsTracer(js_tracer);
+        let options = GethDebugTracingOptions { tracer: Some(tracer), ..Default::default() };
+        let (block, txs, traces) =
+            self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Unknown(value) => calls.push(value),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block call traces
     pub async fn geth_debug_trace_block_4byte_traces(
         &self,
         block_number: u32,
@@ -561,6 +583,29 @@ impl<P: JsonRpcClient> Fetcher<P> {
         };
 
         Ok((block_number, vec![Some(transaction_hash)], traces))
+    }
+
+    /// get geth debug block javascript traces
+    pub async fn geth_debug_trace_transaction_javascript_traces(
+        &self,
+        js_tracer: String,
+        transaction_hash: Vec<u8>,
+        include_block_number: bool,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<serde_json::Value>)> {
+        let tracer = GethDebugTracerType::JsTracer(js_tracer);
+        let options = GethDebugTracingOptions { tracer: Some(tracer), ..Default::default() };
+        let (block, txs, traces) = self
+            .geth_debug_trace_transaction(transaction_hash, options, include_block_number)
+            .await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Unknown(value) => calls.push(value),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
     }
 
     /// get geth debug block 4byte traces
