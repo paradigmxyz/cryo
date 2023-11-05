@@ -440,7 +440,27 @@ impl<P: JsonRpcClient> Fetcher<P> {
         Ok((block, txs, calls))
     }
 
-    /// get geth debug block call traces
+    /// get geth debug block opcode traces
+    pub async fn geth_debug_trace_block_opcodes(
+        &self,
+        block_number: u32,
+        include_transaction_hashes: bool,
+        options: GethDebugTracingOptions,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<DefaultFrame>)> {
+        let (block, txs, traces) =
+            self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::Default(frame)) => calls.push(frame),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block 4byte traces
     pub async fn geth_debug_trace_block_4byte_traces(
         &self,
         block_number: u32,
@@ -602,6 +622,27 @@ impl<P: JsonRpcClient> Fetcher<P> {
         for trace in traces.into_iter() {
             match trace {
                 GethTrace::Unknown(value) => calls.push(value),
+                _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
+            }
+        }
+        Ok((block, txs, calls))
+    }
+
+    /// get geth debug block opcode traces
+    pub async fn geth_debug_trace_transaction_opcodes(
+        &self,
+        transaction_hash: Vec<u8>,
+        include_block_number: bool,
+        options: GethDebugTracingOptions,
+    ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<DefaultFrame>)> {
+        let (block, txs, traces) = self
+            .geth_debug_trace_transaction(transaction_hash, options, include_block_number)
+            .await?;
+
+        let mut calls = Vec::new();
+        for trace in traces.into_iter() {
+            match trace {
+                GethTrace::Known(GethTraceFrame::Default(frame)) => calls.push(frame),
                 _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
             }
         }
