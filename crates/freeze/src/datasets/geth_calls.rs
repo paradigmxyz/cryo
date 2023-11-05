@@ -3,9 +3,9 @@ use ethers::prelude::*;
 use polars::prelude::*;
 
 /// columns for geth traces
-#[cryo_to_df::to_df(Datatype::GethTraces)]
+#[cryo_to_df::to_df(Datatype::GethCalls)]
 #[derive(Default)]
-pub struct GethTraces {
+pub struct GethCalls {
     n_rows: u64,
     typ: Vec<String>,
     from_address: Vec<Vec<u8>>,
@@ -24,14 +24,14 @@ pub struct GethTraces {
 }
 
 #[async_trait::async_trait]
-impl Dataset for GethTraces {}
+impl Dataset for GethCalls {}
 
 #[async_trait::async_trait]
-impl CollectByBlock for GethTraces {
+impl CollectByBlock for GethCalls {
     type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
-        let schema = query.schemas.get_schema(&Datatype::GethTraces)?;
+        let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
         let include_transaction = schema.has_column("block_number");
         let block_number = request.block_number()? as u32;
         source.fetcher.geth_debug_trace_block_calls(block_number, include_transaction).await
@@ -43,11 +43,11 @@ impl CollectByBlock for GethTraces {
 }
 
 #[async_trait::async_trait]
-impl CollectByTransaction for GethTraces {
+impl CollectByTransaction for GethCalls {
     type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
-        let schema = query.schemas.get_schema(&Datatype::GethTraces)?;
+        let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
         let include_block_number = schema.has_column("block_number");
         source
             .fetcher
@@ -62,11 +62,11 @@ impl CollectByTransaction for GethTraces {
 
 fn process_geth_traces(
     traces: (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>),
-    columns: &mut GethTraces,
+    columns: &mut GethCalls,
     schemas: &Schemas,
 ) -> R<()> {
     let (block_number, txs, traces) = traces;
-    let schema = schemas.get(&Datatype::GethTraces).ok_or(err("schema for geth_traces missing"))?;
+    let schema = schemas.get(&Datatype::GethCalls).ok_or(err("schema for geth_traces missing"))?;
     for (tx_index, (tx, trace)) in txs.into_iter().zip(traces).enumerate() {
         process_trace(trace, columns, schema, &block_number, &tx, tx_index as u32, vec![])?
     }
@@ -75,7 +75,7 @@ fn process_geth_traces(
 
 fn process_trace(
     trace: CallFrame,
-    columns: &mut GethTraces,
+    columns: &mut GethCalls,
     schema: &Table,
     block_number: &Option<u32>,
     tx: &Option<Vec<u8>>,

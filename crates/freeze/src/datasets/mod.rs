@@ -34,14 +34,16 @@ pub mod eth_calls;
 pub mod four_byte_traces;
 /// geth balance diffs
 pub mod geth_balance_diffs;
+/// geth calls
+pub mod geth_calls;
 /// geth code diffs
 pub mod geth_code_diffs;
 /// geth nonce diffs
 pub mod geth_nonce_diffs;
+/// geth opcodes
+pub mod geth_opcodes;
 /// geth storage diffs
 pub mod geth_storage_diffs;
-/// geth traces
-pub mod geth_traces;
 /// javascript traces
 pub mod javascript_traces;
 /// logs
@@ -87,10 +89,11 @@ pub use erc721_transfers::*;
 pub use eth_calls::*;
 pub use four_byte_traces::*;
 pub use geth_balance_diffs::*;
+pub use geth_calls::*;
 pub use geth_code_diffs::*;
 pub use geth_nonce_diffs::*;
+pub use geth_opcodes::*;
 pub use geth_storage_diffs::*;
-pub use geth_traces::*;
 pub use javascript_traces::*;
 pub use logs::*;
 pub use native_transfers::*;
