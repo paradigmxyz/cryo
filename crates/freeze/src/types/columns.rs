@@ -15,7 +15,7 @@ macro_rules! store {
 /// container for a dataset partition
 pub trait ColumnData: Default + crate::Dataset {
     /// column types
-    fn column_types() -> HashMap<&'static str, ColumnType>;
+    fn column_types() -> indexmap::IndexMap<&'static str, ColumnType>;
 
     /// default columns extracted for Dataset
     fn base_default_columns() -> Vec<&'static str> {

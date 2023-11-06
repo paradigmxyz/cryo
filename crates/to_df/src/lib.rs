@@ -133,8 +133,8 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
 
         impl ColumnData for #name {
 
-            fn column_types() -> std::collections::HashMap<&'static str, ColumnType> {
-                std::collections::HashMap::from_iter(vec![
+            fn column_types() -> indexmap::IndexMap<&'static str, ColumnType> {
+                indexmap::IndexMap::from_iter(vec![
                     #(#column_types),*
                 ])
             }
