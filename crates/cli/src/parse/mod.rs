@@ -6,6 +6,7 @@ mod parse_utils;
 mod partitions;
 mod query;
 pub(crate) mod schemas;
+mod sink;
 mod source;
 
 pub use args::*;

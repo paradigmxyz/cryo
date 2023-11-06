@@ -56,9 +56,9 @@ pub use chunks::{
 pub use conversions::{bytes_to_u32, ToVecHex, ToVecU8};
 pub use dataframes::*;
 pub use datatypes::*;
-pub use files::{ColumnEncoding, FileFormat, FileOutput, SubDir};
+pub use files::{FileFormat, FileOutput, SubDir};
 pub use queries::{Query, QueryLabels, TimeDimension};
-pub use schemas::{ColumnType, SchemaFunctions, Schemas, Table, U256Type};
+pub use schemas::{ColumnEncoding, ColumnType, SchemaFunctions, Schemas, Table, U256Type};
 pub use sources::{Fetcher, RateLimiter, Source, SourceLabels};
 // pub(crate) use summaries::FreezeSummaryAgg;
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};
@@ -74,3 +74,11 @@ pub use signatures::*;
 /// decoders
 pub mod decoders;
 pub use decoders::*;
+
+/// sinks
+pub mod sinks;
+pub use sinks::*;
+
+/// directory
+pub mod directory;
+pub use directory::*;

@@ -111,22 +111,3 @@ impl FileFormat {
         }
     }
 }
-
-/// Encoding for binary data in a column
-#[derive(Clone, Eq, PartialEq, Debug)]
-pub enum ColumnEncoding {
-    /// Raw binary encoding
-    Binary,
-    /// Hex binary encoding
-    Hex,
-}
-
-impl ColumnEncoding {
-    /// convert ColumnEncoding to str
-    pub fn as_str(&self) -> &'static str {
-        match *self {
-            ColumnEncoding::Binary => "binary",
-            ColumnEncoding::Hex => "hex",
-        }
-    }
-}
