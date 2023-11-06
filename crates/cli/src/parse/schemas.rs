@@ -24,7 +24,9 @@ fn parse_datatypes(raw_inputs: &Vec<String>) -> Result<Vec<Datatype>, ParseError
     Ok(datatypes)
 }
 
-pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, ParseError> {
+pub(crate) fn parse_schemas(
+    args: &Args,
+) -> Result<(Vec<Datatype>, HashMap<Datatype, Table>), ParseError> {
     // parse inputs
     let datatypes = parse_datatypes(&args.datatype)?;
     let sort = parse_sort_columns(&args.sort, &datatypes)?;
@@ -69,7 +71,7 @@ pub(crate) fn parse_schemas(args: &Args) -> Result<HashMap<Datatype, Table>, Par
         ensure_excluded_columns(exclude_columns, schemas)?
     };
 
-    schemas
+    Ok((datatypes, schemas?))
 }
 
 fn parse_u256_types(args: &Args) -> Result<HashSet<U256Type>, ParseError> {

@@ -2,7 +2,7 @@ use crate::{args, parse, remember};
 use clap_cryo::Parser;
 use color_print::cstr;
 use colored::Colorize;
-use cryo_freeze::{CollectError, ExecutionEnv, FreezeSummary};
+use cryo_freeze::{err, CollectError, ExecutionEnv, FreezeSummary};
 use std::{sync::Arc, time::SystemTime};
 
 /// run cli
@@ -83,13 +83,17 @@ async fn handle_help_subcommands(args: args::Args) -> Result<Option<FreezeSummar
         cryo_freeze::print_all_datasets();
     } else {
         let args = args::Args { datatype: args.datatype[1..].to_vec(), ..args };
-        let schemas = super::parse::schemas::parse_schemas(&args)?;
-        for (datatype, schema) in schemas.iter() {
+        let (datatypes, schemas) = super::parse::schemas::parse_schemas(&args)?;
+        for datatype in datatypes.into_iter() {
             if schemas.len() > 1 {
                 println!();
                 println!();
+            };
+            if let Some(schema) = schemas.get(&datatype) {
+                cryo_freeze::print_dataset_info(datatype, schema);
+            } else {
+                return Err(err("missing schema for datatype"))
             }
-            cryo_freeze::print_dataset_info(*datatype, schema);
         }
     }
     Ok(None)

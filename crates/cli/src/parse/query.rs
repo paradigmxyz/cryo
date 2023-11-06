@@ -8,7 +8,7 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
 ) -> Result<Query, ParseError> {
-    let schemas = parse_schemas(args)?;
+    let (datatypes, schemas) = parse_schemas(args)?;
 
     let arg_aliases = find_arg_aliases(args, &schemas);
     let new_args =
@@ -17,7 +17,7 @@ pub(crate) async fn parse_query<P: JsonRpcClient>(
 
     let (partitions, partitioned_by, time_dimension) =
         partitions::parse_partitions(args, fetcher, &schemas).await?;
-    let datatypes = cryo_freeze::cluster_datatypes(schemas.keys().cloned().collect());
+    let datatypes = cryo_freeze::cluster_datatypes(datatypes);
     let labels = QueryLabels { align: args.align, reorg_buffer: args.reorg_buffer };
     Ok(Query {
         datatypes,
