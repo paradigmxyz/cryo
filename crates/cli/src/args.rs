@@ -111,6 +111,7 @@ pub struct Args {
     pub max_concurrent_chunks: Option<u64>,
 
     /// Chunk collection order (normal, reverse, or random)
+    #[arg(long, help_heading = "Acquisition Options")]
     pub chunk_order: Option<String>,
 
     /// Dry run, collect no data

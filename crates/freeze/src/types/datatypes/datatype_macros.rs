@@ -56,7 +56,7 @@ macro_rules! define_datatypes {
             }
 
             /// default column types of datatype
-            pub fn column_types(&self) -> HashMap<&'static str, ColumnType> {
+            pub fn column_types(&self) -> indexmap::IndexMap<&'static str, ColumnType> {
                 match *self {
                     $(Datatype::$datatype => $datatype::column_types(),)*
                 }
