@@ -18,7 +18,11 @@ pub struct StorageDiffs {
 }
 
 #[async_trait::async_trait]
-impl Dataset for StorageDiffs {}
+impl Dataset for StorageDiffs {
+    fn aliases() -> Vec<&'static str> {
+        vec!["slot_diffs"]
+    }
+}
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
 

@@ -18,7 +18,11 @@ pub struct StorageReads {
 }
 
 #[async_trait::async_trait]
-impl Dataset for StorageReads {}
+impl Dataset for StorageReads {
+    fn aliases() -> Vec<&'static str> {
+        vec!["slot_reads"]
+    }
+}
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>);
 
