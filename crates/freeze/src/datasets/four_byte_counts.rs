@@ -3,9 +3,9 @@ use polars::prelude::*;
 use std::collections::BTreeMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::FourByteTraces)]
+#[cryo_to_df::to_df(Datatype::FourByteCounts)]
 #[derive(Default)]
-pub struct FourByteTraces {
+pub struct FourByteCounts {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
@@ -17,21 +17,21 @@ pub struct FourByteTraces {
 }
 
 #[async_trait::async_trait]
-impl Dataset for FourByteTraces {
+impl Dataset for FourByteCounts {
     fn aliases() -> Vec<&'static str> {
-        vec!["4byte_traces"]
+        vec!["4byte_counts"]
     }
 }
 
 type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<String, u64>>);
 
 #[async_trait::async_trait]
-impl CollectByBlock for FourByteTraces {
+impl CollectByBlock for FourByteCounts {
     type Response = BlockTxsTraces;
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema =
-            query.schemas.get(&Datatype::FourByteTraces).ok_or(err("schema not provided"))?;
+            query.schemas.get(&Datatype::FourByteCounts).ok_or(err("schema not provided"))?;
         let include_txs = schema.has_column("transaction_hash");
         source
             .fetcher
@@ -45,12 +45,12 @@ impl CollectByBlock for FourByteTraces {
 }
 
 #[async_trait::async_trait]
-impl CollectByTransaction for FourByteTraces {
+impl CollectByTransaction for FourByteCounts {
     type Response = BlockTxsTraces;
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema =
-            query.schemas.get(&Datatype::FourByteTraces).ok_or(err("schema not provided"))?;
+            query.schemas.get(&Datatype::FourByteCounts).ok_or(err("schema not provided"))?;
         let include_block_number = schema.has_column("block_number");
         let tx = request.transaction_hash()?;
         source.fetcher.geth_debug_trace_transaction_4byte_traces(tx, include_block_number).await
@@ -63,10 +63,10 @@ impl CollectByTransaction for FourByteTraces {
 
 pub(crate) fn process_storage_reads(
     response: &BlockTxsTraces,
-    columns: &mut FourByteTraces,
+    columns: &mut FourByteCounts,
     schemas: &Schemas,
 ) -> R<()> {
-    let schema = schemas.get(&Datatype::FourByteTraces).ok_or(err("schema not provided"))?;
+    let schema = schemas.get(&Datatype::FourByteCounts).ok_or(err("schema not provided"))?;
     let (block_number, txs, traces) = response;
     for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {
         for (signature_size, count) in trace.iter() {

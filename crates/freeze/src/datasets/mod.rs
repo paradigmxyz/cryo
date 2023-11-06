@@ -30,8 +30,8 @@ pub mod erc721_metadata;
 pub mod erc721_transfers;
 /// eth calls
 pub mod eth_calls;
-/// four_byte traces
-pub mod four_byte_traces;
+/// four byte counts
+pub mod four_byte_counts;
 /// geth balance diffs
 pub mod geth_balance_diffs;
 /// geth calls
@@ -87,7 +87,7 @@ pub use erc20_transfers::*;
 pub use erc721_metadata::*;
 pub use erc721_transfers::*;
 pub use eth_calls::*;
-pub use four_byte_traces::*;
+pub use four_byte_counts::*;
 pub use geth_balance_diffs::*;
 pub use geth_calls::*;
 pub use geth_code_diffs::*;

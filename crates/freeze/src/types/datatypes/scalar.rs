@@ -19,7 +19,7 @@ define_datatypes!(
     Erc721Metadata,
     Erc721Transfers,
     EthCalls,
-    FourByteTraces,
+    FourByteCounts,
     GethCalls,
     GethCodeDiffs,
     GethBalanceDiffs,
