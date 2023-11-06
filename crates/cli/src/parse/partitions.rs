@@ -8,6 +8,7 @@ use cryo_freeze::{
     SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
 use ethers::prelude::*;
+use rand::{seq::SliceRandom, thread_rng};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 type ChunkLabels = Vec<Option<String>>;
@@ -92,10 +93,26 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
             }
         }
     };
-    let partitions = chunk
+    let mut partitions = chunk
         .partition_with_labels(labels, partition_by.clone())
-        .map_err(|e| ParseError::ParseError(format!("could not partition labels ({})", e)));
-    Ok((partitions?, partition_by, time_dimension))
+        .map_err(|e| ParseError::ParseError(format!("could not partition labels ({})", e)))?;
+
+    match args.chunk_order.as_deref() {
+        None => {}
+        Some("normal") => {}
+        Some("reverse") => partitions.reverse(),
+        Some("random") => {
+            let mut rng = thread_rng();
+            partitions.shuffle(&mut rng);
+        }
+        _ => {
+            return Err(ParseError::ParseError(
+                "invalid --chunk-order, use normal, reverse, or random".to_string(),
+            ))
+        }
+    };
+
+    Ok((partitions, partition_by, time_dimension))
 }
 
 fn parse_time_dimension(partition: &Partition) -> TimeDimension {
