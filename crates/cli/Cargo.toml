@@ -29,6 +29,7 @@ eyre = { workspace = true }
 governor = { workspace = true }
 hex = { workspace = true }
 polars = { workspace = true }
+rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }

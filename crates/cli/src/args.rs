@@ -110,6 +110,9 @@ pub struct Args {
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     pub max_concurrent_chunks: Option<u64>,
 
+    /// Chunk collection order (normal, reverse, or random)
+    pub chunk_order: Option<String>,
+
     /// Dry run, collect no data
     #[arg(short, long, help_heading = "Acquisition Options")]
     pub dry: bool,
