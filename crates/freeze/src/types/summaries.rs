@@ -5,8 +5,9 @@ use colored::Colorize;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, CollectError, ColumnType, Datatype,
-    Dim, ExecutionEnv, FileOutput, MultiDatatype, Partition, Query, Source, Table,
+    chunks::chunk_ops::ValueToString, err, ChunkData, ChunkStats, CollectError, ColumnType,
+    Datatype, Dim, ExecutionEnv, FileOutput, MetaDatatype, MultiDatatype, Partition, Query, Source,
+    Table,
 };
 use std::path::PathBuf;
 
@@ -157,10 +158,11 @@ pub(crate) fn print_cryo_intro(
     sink: &FileOutput,
     env: &ExecutionEnv,
     n_chunks_remaining: u64,
-) {
+) -> Result<(), CollectError> {
     print_header("cryo parameters");
     print_bullet("version", super::reports::CRYO_VERSION);
-    let datatype_strs: Vec<_> = query.schemas.keys().map(|d| d.name()).collect();
+    let datatype_strs: Vec<_> =
+        query.datatypes.iter().flat_map(|d| d.datatypes()).map(|d| d.name()).collect();
     print_bullet("data", "");
     print_bullet_indent("datatypes", datatype_strs.join(", "), 4);
 
@@ -264,7 +266,7 @@ pub(crate) fn print_cryo_intro(
     };
 
     // print schemas
-    print_schemas(&query.schemas);
+    print_schemas(&query.datatypes, &query.schemas)?;
 
     if env.dry {
         println!("\n\n[dry run, exiting]");
@@ -273,6 +275,8 @@ pub(crate) fn print_cryo_intro(
         println!();
         print_header("collecting data");
     }
+
+    Ok(())
 }
 
 fn print_chunks(chunks: &[Partition], align: Option<bool>, reorg_buffer: Option<u64>) {
@@ -345,12 +349,22 @@ fn print_chunk<T: Ord + ValueToString>(
     }
 }
 
-fn print_schemas(schemas: &HashMap<Datatype, Table>) {
-    schemas.iter().for_each(|(name, schema)| {
-        println!();
-        println!();
-        print_schema(name, &schema.clone())
-    })
+fn print_schemas(
+    datatypes: &[MetaDatatype],
+    schemas: &HashMap<Datatype, Table>,
+) -> Result<(), CollectError> {
+    for meta_datatype in datatypes.iter() {
+        for datatype in meta_datatype.datatypes().iter() {
+            if let Some(schema) = schemas.get(datatype) {
+                println!();
+                println!();
+                print_schema(datatype, &schema.clone())
+            } else {
+                return Err(err("missing schema for datatype"))
+            }
+        }
+    }
+    Ok(())
 }
 
 fn print_schema(name: &Datatype, schema: &Table) {

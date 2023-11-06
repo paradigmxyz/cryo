@@ -37,7 +37,7 @@ pub async fn freeze(
 
     // print summary
     if env.verbose >= 1 {
-        summaries::print_cryo_intro(query, source, sink, env, payloads.len() as u64);
+        summaries::print_cryo_intro(query, source, sink, env, payloads.len() as u64)?;
     }
 
     // check dry run
