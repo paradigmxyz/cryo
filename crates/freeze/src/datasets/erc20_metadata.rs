@@ -49,15 +49,19 @@ impl CollectByBlock for Erc20Metadata {
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
         let name = match source.fetcher.call2(address, call_data, block_number).await {
-            Ok(output) => String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s)),
+            Ok(output) => {
+                String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
+            }
             Err(_) => None,
         };
 
         // symbol
         let call_data = FUNCTION_ERC20_SYMBOL.clone();
         let symbol = match source.fetcher.call2(address, call_data, block_number).await {
-           Ok(output) => String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s)),
-           Err(_) => None,
+            Ok(output) => {
+                String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
+            }
+            Err(_) => None,
         };
 
         // decimals
