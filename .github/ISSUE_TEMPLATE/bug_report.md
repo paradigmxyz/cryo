@@ -7,7 +7,7 @@ assignees: ""
 ---
 
 **Version**
-List the versions of all `flood` packages you are using.
+List the versions of all `cryo` packages you are using.
 
 
 **Platform**

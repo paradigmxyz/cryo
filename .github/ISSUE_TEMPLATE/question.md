@@ -6,4 +6,4 @@ labels: ""
 assignees: ""
 ---
 
-Please post your question as a discussion in Telegram: https://t.me/paradigm_flood
+Please post your question as a discussion in Telegram: https://t.me/paradigm_data
