@@ -48,18 +48,24 @@ impl CollectByBlock for Erc20Metadata {
 
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
-        let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let name = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
+        let name = match source.fetcher.call2(address, call_data, block_number).await {
+            Ok(output) => String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s)),
+            Err(_) => None,
+        };
 
         // symbol
         let call_data = FUNCTION_ERC20_SYMBOL.clone();
-        let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let symbol = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
+        let symbol = match source.fetcher.call2(address, call_data, block_number).await {
+           Ok(output) => String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s)),
+           Err(_) => None,
+        };
 
         // decimals
         let call_data = FUNCTION_ERC20_DECIMALS.clone();
-        let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let decimals = bytes_to_u32(output).ok();
+        let decimals = match source.fetcher.call2(address, call_data, block_number).await {
+            Ok(output) => bytes_to_u32(output).ok(),
+            Err(_) => None,
+        };
 
         Ok((request.block_number()? as u32, request.address()?, name, symbol, decimals))
     }
