@@ -23,12 +23,35 @@ pub struct Transactions {
     max_fee_per_gas: Vec<Option<u64>>,
     success: Vec<bool>,
     chain_id: Vec<u64>,
+    timestamp: Vec<u32>,
+    block_hash: Vec<Vec<u8>>,
 }
 
 #[async_trait::async_trait]
 impl Dataset for Transactions {
     fn aliases() -> Vec<&'static str> {
         vec!["txs"]
+    }
+
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec![
+            "block_number",
+            "transaction_index",
+            "transaction_hash",
+            "nonce",
+            "from_address",
+            "to_address",
+            "value",
+            "input",
+            "gas_limit",
+            "gas_used",
+            "gas_price",
+            "transaction_type",
+            "max_priority_fee_per_gas",
+            "max_fee_per_gas",
+            "success",
+            "chain_id",
+        ])
     }
 }
 
@@ -54,6 +77,7 @@ impl CollectByBlock for Transactions {
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let (block, receipts, exclude_failed) = response;
+        let timestamp = block.timestamp.as_u32();
         match receipts {
             Some(receipts) => {
                 for (tx, receipt) in block.transactions.into_iter().zip(receipts) {
@@ -63,12 +87,13 @@ impl CollectByBlock for Transactions {
                         columns,
                         schema,
                         exclude_failed,
+                        timestamp,
                     )?;
                 }
             }
             None => {
                 for tx in block.transactions.into_iter() {
-                    process_transaction(tx, None, columns, schema, exclude_failed)?;
+                    process_transaction(tx, None, columns, schema, exclude_failed, timestamp)?;
                 }
             }
         }
@@ -78,7 +103,7 @@ impl CollectByBlock for Transactions {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
-    type Response = (Transaction, Option<TransactionReceipt>, bool);
+    type Response = (Transaction, Option<TransactionReceipt>, bool, u32);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
@@ -93,13 +118,26 @@ impl CollectByTransaction for Transactions {
         } else {
             None
         };
-        Ok((transaction, gas_used, query.exclude_failed))
+
+        let block_number = transaction
+            .block_number
+            .ok_or(CollectError::CollectError("no block number for tx".to_string()))?;
+
+        let block = source
+            .fetcher
+            .get_block(block_number.as_u64())
+            .await?
+            .ok_or(CollectError::CollectError("block not found".to_string()))?;
+
+        let timestamp = block.timestamp.as_u32();
+
+        Ok((transaction, gas_used, query.exclude_failed, timestamp))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let (transaction, receipt, exclude_failed) = response;
-        process_transaction(transaction, receipt, columns, schema, exclude_failed)?;
+        let (transaction, receipt, exclude_failed, timestamp) = response;
+        process_transaction(transaction, receipt, columns, schema, exclude_failed, timestamp)?;
         Ok(())
     }
 }
@@ -110,11 +148,12 @@ pub(crate) fn process_transaction(
     columns: &mut Transactions,
     schema: &Table,
     exclude_failed: bool,
+    timestamp: u32,
 ) -> R<()> {
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
         if exclude_failed & !success {
-            return Ok(())
+            return Ok(());
         }
         success
     } else {
@@ -142,6 +181,8 @@ pub(crate) fn process_transaction(
         max_priority_fee_per_gas,
         tx.max_priority_fee_per_gas.map(|value| value.as_u64())
     );
+    store!(schema, columns, timestamp, timestamp);
+    store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
 
     Ok(())
 }
@@ -155,9 +196,9 @@ fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool>
         if let Some(gas_used) = receipt.as_ref().and_then(|x| x.gas_used.map(|x| x.as_u64())) {
             Ok(gas_used == 0)
         } else {
-            return Err(err("could not determine status of transaction"))
+            return Err(err("could not determine status of transaction"));
         }
     } else {
-        return Err(err("could not determine status of transaction"))
+        return Err(err("could not determine status of transaction"));
     }
 }
