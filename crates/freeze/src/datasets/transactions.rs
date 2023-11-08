@@ -53,11 +53,15 @@ impl Dataset for Transactions {
             "chain_id",
         ])
     }
+
+    fn optional_parameters() -> Vec<Dim> {
+        vec![Dim::FromAddress, Dim::ToAddress]
+    }
 }
 
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type Response = (Block<Transaction>, Option<Vec<TransactionReceipt>>, bool);
+    type Response = (Block<Transaction>, Vec<(Transaction, Option<TransactionReceipt>)>, bool, u32);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block = source
@@ -66,36 +70,40 @@ impl CollectByBlock for Transactions {
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let receipt = if schema.has_column("gas_used") | schema.has_column("success") {
-            Some(source.get_tx_receipts_in_block(&block).await?)
+        let receipts: Vec<Option<_>> = if schema.has_column("gas_used") | schema.has_column("success") {
+            let receipts =source.get_tx_receipts_in_block(&block).await?;
+            receipts.into_iter().map(Some).collect()
         } else {
-            None
+            let mut receipts = Vec::new();
+            receipts.resize(block.transactions.len(), None);
+            receipts
         };
-        Ok((block, receipt, query.exclude_failed))
+        let timestamp = block.timestamp.as_u32();
+        let transactions_with_receips = block.transactions.iter().zip(receipts).filter_map(|(tx, receipt)| {
+            // from address filter
+            if let Some(from_address) = &request.from_address {
+                if tx.from.as_bytes() != from_address {
+                    return None
+                }
+            }
+            // to address filter
+            if let Some(to_address) = &request.to_address {
+                if let Some(to) = tx.to {
+                    if to.as_bytes() != to_address {
+                        return None
+                    }
+                }
+            }
+            Some((tx.to_owned(), receipt))
+        }).collect();
+        Ok((block, transactions_with_receips, query.exclude_failed, timestamp))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let (block, receipts, exclude_failed) = response;
-        let timestamp = block.timestamp.as_u32();
-        match receipts {
-            Some(receipts) => {
-                for (tx, receipt) in block.transactions.into_iter().zip(receipts) {
-                    process_transaction(
-                        tx,
-                        Some(receipt.clone()),
-                        columns,
-                        schema,
-                        exclude_failed,
-                        timestamp,
-                    )?;
-                }
-            }
-            None => {
-                for tx in block.transactions.into_iter() {
-                    process_transaction(tx, None, columns, schema, exclude_failed, timestamp)?;
-                }
-            }
+        let (_, transactions_with_receipts, exclude_failed, timestamp) = response;
+        for (tx, receipt) in transactions_with_receipts.into_iter() {
+            process_transaction(tx, receipt, columns, schema, exclude_failed, timestamp)?;
         }
         Ok(())
     }

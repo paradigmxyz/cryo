@@ -30,7 +30,7 @@ impl CollectByBlock for BlocksAndTransactions {
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
-        let (block, _, _) = response.clone();
+        let (block, _, _, _) = response.clone();
         let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
         <Transactions as CollectByBlock>::transform(response, transactions, query)?;
