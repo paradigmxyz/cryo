@@ -16,6 +16,8 @@ pub enum Dim {
     Address,
     /// Contract dimension
     Contract,
+    /// FromAddress dimension
+    FromAddress,
     /// ToAddress dimension
     ToAddress,
     /// Slot dimension
@@ -32,6 +34,8 @@ pub enum Dim {
 
 impl Dim {
     /// list of all dimensions
+    // NOTE: this function is not exhaustive
+    // maybe generating iterator using macro (such as strum) would be better
     pub fn all_dims() -> Vec<Dim> {
         vec![
             Dim::BlockNumber,
@@ -39,6 +43,7 @@ impl Dim {
             Dim::CallData,
             Dim::Address,
             Dim::Contract,
+            Dim::FromAddress,
             Dim::ToAddress,
             Dim::Slot,
             Dim::Topic0,
@@ -56,6 +61,7 @@ impl Dim {
             Dim::CallData => "call_datas",
             Dim::Address => "addresses",
             Dim::Contract => "contracts",
+            Dim::FromAddress => "from_addresses",
             Dim::ToAddress => "to_addresses",
             Dim::Slot => "slots",
             Dim::Topic0 => "topic0s",
@@ -70,6 +76,8 @@ impl std::str::FromStr for Dim {
     type Err = crate::ParseError;
 
     /// convert str to Dim
+    // NOTE: this function is not exhaustive
+    // maybe generating FromStr trait using macro (such as strum) would be better
     fn from_str(name: &str) -> Result<Dim, Self::Err> {
         let dim = match name {
             "block" => Dim::BlockNumber,
@@ -77,6 +85,7 @@ impl std::str::FromStr for Dim {
             "call_data" => Dim::CallData,
             "address" => Dim::Address,
             "contract" => Dim::Contract,
+            "from_address" => Dim::FromAddress,
             "to_address" => Dim::ToAddress,
             "slot" => Dim::Slot,
             "topic0" => Dim::Topic0,
@@ -97,6 +106,7 @@ impl std::fmt::Display for Dim {
             Dim::CallData => "call_data",
             Dim::Address => "address",
             Dim::Contract => "contract",
+            Dim::FromAddress => "from_address",
             Dim::ToAddress => "to_address",
             Dim::Slot => "slot",
             Dim::Topic0 => "topic0",
@@ -123,6 +133,8 @@ pub struct Partition {
     pub addresses: Option<Vec<AddressChunk>>,
     /// contracts
     pub contracts: Option<Vec<AddressChunk>>,
+    /// from addresses
+    pub from_addresses: Option<Vec<AddressChunk>>,
     /// to addresses
     pub to_addresses: Option<Vec<AddressChunk>>,
     /// slots
@@ -255,6 +267,7 @@ impl Partition {
                     Dim::CallData => chunks_to_name(&self.call_datas)?,
                     Dim::Address => chunks_to_name(&self.addresses)?,
                     Dim::Contract => chunks_to_name(&self.contracts)?,
+                    Dim::FromAddress => chunks_to_name(&self.from_addresses)?,
                     Dim::ToAddress => chunks_to_name(&self.to_addresses)?,
                     Dim::Slot => chunks_to_name(&self.slots)?,
                     Dim::Topic0 => chunks_to_name(&self.topic0s)?,
@@ -282,6 +295,7 @@ impl Partition {
                 Dim::TransactionHash => partition!(outputs, transactions)?,
                 Dim::Address => partition!(outputs, addresses)?,
                 Dim::Contract => partition!(outputs, contracts)?,
+                Dim::FromAddress => partition!(outputs, from_addresses)?,
                 Dim::ToAddress => partition!(outputs, to_addresses)?,
                 Dim::CallData => partition!(outputs, call_datas)?,
                 Dim::Slot => partition!(outputs, slots)?,
@@ -309,6 +323,7 @@ impl Partition {
                 Dim::TransactionHash => label_partition!(outputs, dim_labels, transactions)?,
                 Dim::Address => label_partition!(outputs, dim_labels, addresses)?,
                 Dim::Contract => label_partition!(outputs, dim_labels, contracts)?,
+                Dim::FromAddress => label_partition!(outputs, dim_labels, from_addresses)?,
                 Dim::ToAddress => label_partition!(outputs, dim_labels, to_addresses)?,
                 Dim::CallData => label_partition!(outputs, dim_labels, call_datas)?,
                 Dim::Slot => label_partition!(outputs, dim_labels, slots)?,
@@ -342,6 +357,7 @@ impl Partition {
                 }
                 Dim::Address => parametrize!(outputs, new, self.addresses, address),
                 Dim::Contract => parametrize!(outputs, new, self.contracts, contract),
+                Dim::FromAddress => parametrize!(outputs, new, self.from_addresses, from_address),
                 Dim::ToAddress => parametrize!(outputs, new, self.to_addresses, to_address),
                 Dim::CallData => parametrize!(outputs, new, self.call_datas, call_data),
                 Dim::Slot => parametrize!(outputs, new, self.slots, slot),
@@ -433,6 +449,7 @@ impl Partition {
             Dim::TransactionHash => self.transactions.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::Address => self.addresses.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::Contract => self.contracts.as_ref().map(|x| x.len()).unwrap_or(0),
+            Dim::FromAddress => self.from_addresses.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::ToAddress => self.to_addresses.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::CallData => self.call_datas.as_ref().map(|x| x.len()).unwrap_or(0),
             Dim::Slot => self.slots.as_ref().map(|x| x.len()).unwrap_or(0),
@@ -539,6 +556,8 @@ pub struct PartitionLabels {
     pub address_labels: Option<Vec<Option<String>>>,
     /// contract labels
     pub contract_labels: Option<Vec<Option<String>>>,
+    /// from address labels
+    pub from_address_labels: Option<Vec<Option<String>>>,
     /// to address labels
     pub to_address_labels: Option<Vec<Option<String>>>,
     /// slot labels
@@ -561,6 +580,7 @@ impl PartitionLabels {
             Dim::CallData => self.call_data_labels.clone(),
             Dim::Address => self.address_labels.clone(),
             Dim::Contract => self.contract_labels.clone(),
+            Dim::FromAddress => self.from_address_labels.clone(),
             Dim::ToAddress => self.to_address_labels.clone(),
             Dim::Slot => self.slot_labels.clone(),
             Dim::Topic0 => self.topic0_labels.clone(),

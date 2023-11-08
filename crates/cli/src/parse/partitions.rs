@@ -19,6 +19,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     schemas: &HashMap<Datatype, Table>,
 ) -> Result<(Vec<Partition>, Vec<Dim>, TimeDimension), ParseError> {
     // TODO: if wanting to chunk these non-block dimensions, do it in parse_binary_arg()
+    // TODO: map from args to dim is not exhaustive
 
     // parse chunk data
     let (block_number_labels, block_numbers) = blocks::parse_blocks(args, fetcher.clone()).await?;
@@ -28,6 +29,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
     let call_data_labels = None;
     let (address_labels, addresses) = parse_address_chunks(&args.address, "address")?;
     let (contract_labels, contracts) = parse_address_chunks(&args.contract, "contract_address")?;
+    let (from_address_labels, from_addresses) = parse_address_chunks(&args.from_address, "from_address")?;
     let (to_address_labels, to_addresses) = parse_address_chunks(&args.to_address, "to_address")?;
     let (slot_labels, slots) = parse_slot_chunks(&args.slot, "slot")?;
     let (topic0_labels, topic0s) = parse_topic(&args.topic0, "topic0")?;
@@ -49,6 +51,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
         transactions,
         addresses,
         contracts,
+        from_addresses,
         to_addresses,
         slots,
         call_datas,
@@ -63,6 +66,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
         call_data_labels,
         address_labels,
         contract_labels,
+        from_address_labels,
         to_address_labels,
         slot_labels,
         topic0_labels,
