@@ -477,6 +477,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
                 GethTrace::Known(GethTraceFrame::FourByteTracer(FourByteFrame(frame))) => {
                     calls.push(frame)
                 }
+                GethTrace::Known(GethTraceFrame::NoopTracer(_)) => {}
                 _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
             }
         }
