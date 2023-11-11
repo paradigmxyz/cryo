@@ -74,12 +74,10 @@ impl CollectByBlock for Transactions {
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let receipts: Vec<Option<_>> = if schema.has_column("gas_used") | schema.has_column("success") {
-            let receipts =source.get_tx_receipts_in_block(&block).await?;
+            let receipts = source.get_tx_receipts_in_block(&block).await?;
             receipts.into_iter().map(Some).collect()
         } else {
-            let mut receipts = Vec::new();
-            receipts.resize(block.transactions.len(), None);
-            receipts
+            vec![None; block.transactions.len()]
         };
         let timestamp = block.timestamp.as_u32();
         let transactions = block.transactions.clone();
