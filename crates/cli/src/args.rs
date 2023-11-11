@@ -151,9 +151,9 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options", verbatim_doc_comment, num_args(1..))]
     pub subdirs: Vec<String>,
 
-    /// Suffix to attach to end of each filename
-    #[arg(long, help_heading = "Output Options", hide = true)]
-    pub file_suffix: Option<String>,
+    /// Label to add to each filename
+    #[arg(long, help_heading = "Output Options")]
+    pub label: Option<String>,
 
     /// Overwrite existing files instead of skipping
     #[arg(long, help_heading = "Output Options")]

@@ -153,7 +153,7 @@ pub(crate) fn process_transaction(
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
         if exclude_failed & !success {
-            return Ok(());
+            return Ok(())
         }
         success
     } else {
@@ -196,9 +196,9 @@ fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool>
         if let Some(gas_used) = receipt.as_ref().and_then(|x| x.gas_used.map(|x| x.as_u64())) {
             Ok(gas_used == 0)
         } else {
-            return Err(err("could not determine status of transaction"));
+            return Err(err("could not determine status of transaction"))
         }
     } else {
-        return Err(err("could not determine status of transaction"));
+        return Err(err("could not determine status of transaction"))
     }
 }
