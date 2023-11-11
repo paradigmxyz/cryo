@@ -64,7 +64,7 @@ pub type TransactionAndReceipt = (Transaction, Option<TransactionReceipt>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool, u32);
+    type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block = source
@@ -80,7 +80,6 @@ impl CollectByBlock for Transactions {
             } else {
                 vec![None; block.transactions.len()]
             };
-        let timestamp = block.timestamp.as_u32();
         let transactions = block.transactions.clone();
         // filter by from_address
         let from_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> =
@@ -100,14 +99,21 @@ impl CollectByBlock for Transactions {
             };
         let transactions_with_receips =
             transactions.into_iter().zip(receipts).filter(from_filter).filter(to_filter).collect();
-        Ok((block, transactions_with_receips, query.exclude_failed, timestamp))
+        Ok((block, transactions_with_receips, query.exclude_failed))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let (_, transactions_with_receipts, exclude_failed, timestamp) = response;
+        let (block, transactions_with_receipts, exclude_failed) = response;
         for (tx, receipt) in transactions_with_receipts.into_iter() {
-            process_transaction(tx, receipt, columns, schema, exclude_failed, timestamp)?;
+            process_transaction(
+                tx,
+                receipt,
+                columns,
+                schema,
+                exclude_failed,
+                block.timestamp.as_u32(),
+            )?;
         }
         Ok(())
     }
