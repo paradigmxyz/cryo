@@ -73,32 +73,33 @@ impl CollectByBlock for Transactions {
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let receipts: Vec<Option<_>> = if schema.has_column("gas_used") | schema.has_column("success") {
-            let receipts = source.get_tx_receipts_in_block(&block).await?;
-            receipts.into_iter().map(Some).collect()
-        } else {
-            vec![None; block.transactions.len()]
-        };
+        let receipts: Vec<Option<_>> =
+            if schema.has_column("gas_used") | schema.has_column("success") {
+                let receipts = source.get_tx_receipts_in_block(&block).await?;
+                receipts.into_iter().map(Some).collect()
+            } else {
+                vec![None; block.transactions.len()]
+            };
         let timestamp = block.timestamp.as_u32();
         let transactions = block.transactions.clone();
         // filter by from_address
-        let from_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> = if let Some(from_address) = request.from_address {
-            Box::new(move |(tx, _): &TransactionAndReceipt| tx.from.as_bytes() == from_address)
-        } else {
-            Box::new(|_| true)
-        };
+        let from_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> =
+            if let Some(from_address) = request.from_address {
+                Box::new(move |(tx, _): &TransactionAndReceipt| tx.from.as_bytes() == from_address)
+            } else {
+                Box::new(|_| true)
+            };
         // filter by to_address
-        let to_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> = if let Some(to_address) = request.to_address {
-            Box::new(move |(tx, _): &TransactionAndReceipt| tx.to.as_ref().map_or(false, |x| x.as_bytes() == to_address))
-        } else {
-            Box::new(|_| true)
-        };
-        let transactions_with_receips = transactions
-            .into_iter()
-            .zip(receipts)
-            .filter(from_filter)
-            .filter(to_filter)
-            .collect();
+        let to_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> =
+            if let Some(to_address) = request.to_address {
+                Box::new(move |(tx, _): &TransactionAndReceipt| {
+                    tx.to.as_ref().map_or(false, |x| x.as_bytes() == to_address)
+                })
+            } else {
+                Box::new(|_| true)
+            };
+        let transactions_with_receips =
+            transactions.into_iter().zip(receipts).filter(from_filter).filter(to_filter).collect();
         Ok((block, transactions_with_receips, query.exclude_failed, timestamp))
     }
 
