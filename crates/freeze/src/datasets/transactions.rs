@@ -59,9 +59,12 @@ impl Dataset for Transactions {
     }
 }
 
+/// tuple representing transaction and optional receipt
+pub type TransactionAndReceipt = (Transaction, Option<TransactionReceipt>);
+
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type Response = (Block<Transaction>, Vec<(Transaction, Option<TransactionReceipt>)>, bool, u32);
+    type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool, u32);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block = source
@@ -79,23 +82,25 @@ impl CollectByBlock for Transactions {
             receipts
         };
         let timestamp = block.timestamp.as_u32();
-        let transactions_with_receips = block.transactions.iter().zip(receipts).filter_map(|(tx, receipt)| {
-            // from address filter
-            if let Some(from_address) = &request.from_address {
-                if tx.from.as_bytes() != from_address {
-                    return None
-                }
-            }
-            // to address filter
-            if let Some(to_address) = &request.to_address {
-                if let Some(to) = tx.to {
-                    if to.as_bytes() != to_address {
-                        return None
-                    }
-                }
-            }
-            Some((tx.to_owned(), receipt))
-        }).collect();
+        let transactions = block.transactions.clone();
+        // filter by from_address
+        let from_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> = if let Some(from_address) = request.from_address {
+            Box::new(move |(tx, _): &TransactionAndReceipt| tx.from.as_bytes() == from_address)
+        } else {
+            Box::new(|_| true)
+        };
+        // filter by to_address
+        let to_filter: Box<dyn Fn(&TransactionAndReceipt) -> bool> = if let Some(to_address) = request.to_address {
+            Box::new(move |(tx, _): &TransactionAndReceipt| tx.to.as_ref().map_or(false, |x| x.as_bytes() == to_address))
+        } else {
+            Box::new(|_| true)
+        };
+        let transactions_with_receips = transactions
+            .into_iter()
+            .zip(receipts)
+            .filter(from_filter)
+            .filter(to_filter)
+            .collect();
         Ok((block, transactions_with_receips, query.exclude_failed, timestamp))
     }
 
@@ -111,7 +116,7 @@ impl CollectByBlock for Transactions {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
-    type Response = (Transaction, Option<TransactionReceipt>, bool, u32);
+    type Response = (TransactionAndReceipt, bool, u32);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
@@ -121,7 +126,7 @@ impl CollectByTransaction for Transactions {
             .get_transaction(tx_hash)
             .await?
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
-        let gas_used = if schema.has_column("gas_used") {
+        let receipt = if schema.has_column("gas_used") {
             source.fetcher.get_transaction_receipt(tx_hash).await?
         } else {
             None
@@ -139,12 +144,12 @@ impl CollectByTransaction for Transactions {
 
         let timestamp = block.timestamp.as_u32();
 
-        Ok((transaction, gas_used, query.exclude_failed, timestamp))
+        Ok(((transaction, receipt), query.exclude_failed, timestamp))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let (transaction, receipt, exclude_failed, timestamp) = response;
+        let ((transaction, receipt), exclude_failed, timestamp) = response;
         process_transaction(transaction, receipt, columns, schema, exclude_failed, timestamp)?;
         Ok(())
     }

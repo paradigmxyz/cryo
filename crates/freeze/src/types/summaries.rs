@@ -287,11 +287,13 @@ fn print_chunks(chunks: &[Partition], align: Option<bool>, reorg_buffer: Option<
         }
     }
 
+    // NOTE: this branch is not exhaustive
     for (dim, dim_stats) in vec![
         (Dim::TransactionHash, stats.transactions),
         (Dim::CallData, stats.call_datas),
         (Dim::Address, stats.addresses),
         (Dim::Contract, stats.contracts),
+        (Dim::FromAddress, stats.from_addresses),
         (Dim::ToAddress, stats.to_addresses),
         (Dim::Slot, stats.slots),
         (Dim::Topic0, stats.topic0s),

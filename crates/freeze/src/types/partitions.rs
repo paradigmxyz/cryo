@@ -404,6 +404,7 @@ impl Partition {
     }
 
     /// return Vec of dimensions defined in partitions
+    // NOTE: this function is not exhaustive
     pub fn dims(&self) -> Vec<Dim> {
         let mut dims = Vec::new();
         if self.block_numbers.is_some() {
@@ -417,6 +418,9 @@ impl Partition {
         };
         if self.contracts.is_some() {
             dims.push(Dim::Contract)
+        };
+        if self.from_addresses.is_some() {
+            dims.push(Dim::FromAddress)
         };
         if self.to_addresses.is_some() {
             dims.push(Dim::ToAddress)
@@ -461,6 +465,7 @@ impl Partition {
     }
 
     /// get statistics for partition
+    // NOTE: this function is not exhaustive
     pub fn stats(&self) -> PartitionStats {
         let chunk = self.clone();
         PartitionStats {
@@ -469,6 +474,7 @@ impl Partition {
             call_datas: chunk.call_datas.map(|c| c.stats()),
             addresses: chunk.addresses.map(|c| c.stats()),
             contracts: chunk.contracts.map(|c| c.stats()),
+            from_addresses: chunk.from_addresses.map(|c| c.stats()),
             to_addresses: chunk.to_addresses.map(|c| c.stats()),
             slots: chunk.slots.map(|c| c.stats()),
             topic0s: chunk.topic0s.map(|c| c.stats()),
@@ -500,6 +506,8 @@ pub struct PartitionStats {
     pub addresses: Option<ChunkStats<Vec<u8>>>,
     /// contracts stats
     pub contracts: Option<ChunkStats<Vec<u8>>>,
+    /// from_addresses stats
+    pub from_addresses: Option<ChunkStats<Vec<u8>>>,
     /// to_addresses stats
     pub to_addresses: Option<ChunkStats<Vec<u8>>>,
     /// slots stats
@@ -534,6 +542,7 @@ impl PartitionStats {
             call_datas: fold(self.call_datas, other.call_datas),
             addresses: fold(self.addresses, other.addresses),
             contracts: fold(self.contracts, other.contracts),
+            from_addresses: fold(self.from_addresses, other.from_addresses),
             to_addresses: fold(self.to_addresses, other.to_addresses),
             slots: fold(self.slots, other.slots),
             topic0s: fold(self.topic0s, other.topic0s),
