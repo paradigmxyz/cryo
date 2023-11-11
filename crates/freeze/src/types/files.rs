@@ -8,7 +8,7 @@ pub struct FileOutput {
     pub output_dir: std::path::PathBuf,
     /// Prefix of file name
     pub prefix: String,
-    /// Suffix to use at the end of file names
+    /// Suffix to use at the end datatype names
     pub suffix: Option<String>,
     /// subdirectories to use
     pub subdirs: Vec<SubDir>,
@@ -64,15 +64,25 @@ impl FileOutput {
         partition: &Partition,
         datatype: Datatype,
     ) -> Result<PathBuf, CollectError> {
-        let filename = format!(
-            "{}__{}__{}.{}",
-            self.prefix.clone(),
-            datatype.name(),
-            partition.label(&query.partitioned_by)?,
-            self.format.as_str(),
-        );
+        let filename = if let Some(suffix) = self.suffix.clone() {
+            format!(
+                "{}__{}__{}__{}.{}",
+                self.prefix.clone(),
+                datatype.name(),
+                suffix,
+                partition.label(&query.partitioned_by)?,
+                self.format.as_str(),
+            )
+        } else {
+            format!(
+                "{}__{}__{}.{}",
+                self.prefix.clone(),
+                datatype.name(),
+                partition.label(&query.partitioned_by)?,
+                self.format.as_str(),
+            )
+        };
         let filename = std::path::Path::new(&filename).to_path_buf();
-
         let mut output_dir = std::path::Path::new(&self.output_dir).to_path_buf();
         for subdir in self.subdirs.iter() {
             let subdir_str: String = match subdir {
