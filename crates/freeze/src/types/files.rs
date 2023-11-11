@@ -8,7 +8,7 @@ pub struct FileOutput {
     pub output_dir: std::path::PathBuf,
     /// Prefix of file name
     pub prefix: String,
-    /// Suffix to use at the end datatype names
+    /// Suffix to use after datatype names
     pub suffix: Option<String>,
     /// subdirectories to use
     pub subdirs: Vec<SubDir>,
