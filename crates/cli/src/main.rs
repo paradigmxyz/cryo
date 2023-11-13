@@ -20,13 +20,13 @@ async fn main() -> Result<()> {
         Ok(Some(_freeze_summary)) => std::process::exit(1),
         Ok(None) => Ok(()),
         Err(e) => {
-            // handle release build
+            // handle debug build
             #[cfg(debug_assertions)]
             {
                 return Err(eyre::Report::from(e))
             }
 
-            // handle debug build
+            // handle release build
             #[cfg(not(debug_assertions))]
             {
                 println!("{}", e);
