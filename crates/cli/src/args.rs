@@ -35,6 +35,10 @@ pub struct Args {
     )]
     pub txs: Option<Vec<String>>,
 
+    /// Timestamp in unix
+    #[arg(long, help_heading = "Content Options", num_args(0..))]
+    pub timestamp: Option<u32>,
+
     /// Align chunk boundaries to regular intervals,
     /// e.g. (1000 2000 3000), not (1106 2106 3106)
     #[arg(short, long, help_heading = "Content Options", verbatim_doc_comment)]
