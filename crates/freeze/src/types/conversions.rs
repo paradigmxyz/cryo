@@ -29,6 +29,18 @@ impl ToVecU8 for U256 {
     }
 }
 
+impl ToVecU8 for I256 {
+    fn to_vec_u8(&self) -> Vec<u8> {
+        self.into_raw().to_vec_u8()
+    }
+}
+
+impl ToVecU8 for Vec<I256> {
+    fn to_vec_u8(&self) -> Vec<u8> {
+        self.iter().map(|x| x.into_raw()).collect::<Vec<_>>().to_vec_u8()
+    }
+}
+
 impl ToVecU8 for Vec<U256> {
     fn to_vec_u8(&self) -> Vec<u8> {
         let mut vec = Vec::new();

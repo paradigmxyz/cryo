@@ -1,6 +1,8 @@
 use std::collections::{HashMap, HashSet};
 
-use cryo_freeze::{ColumnEncoding, Datatype, FileFormat, MultiDatatype, ParseError, Table};
+use cryo_freeze::{
+    ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiDatatype, ParseError, Table,
+};
 
 use super::file_output;
 use crate::args::Args;
@@ -37,6 +39,14 @@ pub(crate) fn parse_schemas(
         false => ColumnEncoding::Binary,
     };
 
+    let log_decoder = match args.event_signature {
+        Some(ref sig) => match LogDecoder::new(sig.clone()) {
+            Ok(res) => Some(res),
+            Err(_) => return Err(ParseError::ParseError("invalid event signature".to_string())),
+        },
+        None => None,
+    };
+
     // create schemas
     let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
@@ -49,7 +59,7 @@ pub(crate) fn parse_schemas(
                     &args.exclude_columns,
                     &args.columns,
                     sort[datatype].clone(),
-                    None,
+                    log_decoder.clone(),
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|e| {
