@@ -87,7 +87,10 @@ impl FileOutput {
         for subdir in self.subdirs.iter() {
             let subdir_str: String = match subdir {
                 SubDir::Network => self.prefix.clone(),
-                SubDir::Datatype => datatype.name(),
+                SubDir::Datatype => match &self.suffix {
+                    Some(suffix) => datatype.name() + "__" + suffix.as_str(),
+                    None => datatype.name(),
+                },
                 SubDir::Custom(subdir_str) => subdir_str.to_string(),
             };
             output_dir = output_dir.join(std::path::Path::new(&subdir_str));
