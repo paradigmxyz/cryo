@@ -55,6 +55,49 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let has_event_cols = !field_names_and_types
+        .iter()
+        .filter(|(name, _)| name == "event_cols")
+        .collect::<Vec<_>>()
+        .is_empty();
+    let event_code = if has_event_cols {
+        // Generate the tokens for the event processing code
+        quote! {
+            let decoder = schema.log_decoder.clone();
+            let u256_types: Vec<_> = schema.u256_types.clone().into_iter().collect();
+            if let Some(decoder) = decoder {
+                // Write columns even if there are no values decoded - indicates empty dataframe
+                let chunk_len = self.n_rows;
+                if self.event_cols.is_empty() {
+                    for name in decoder.field_names().iter() {
+                        cols.push(Series::new(name.as_str(), vec![None::<u64>; chunk_len as usize]));
+                    }
+                } else {
+                    for (name, data) in self.event_cols {
+                        let series_vec = decoder.make_series(
+                            name.clone(),
+                            data,
+                            chunk_len as usize,
+                            &u256_types,
+                            &schema.binary_type,
+                        );
+                        match series_vec {
+                            Ok(s) => {
+                                cols.extend(s);
+                            }
+                            Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best
+                                                                                 * to
+                                                                                 * bubble up error */
+                        }
+                    }
+                }
+            }
+        }
+    } else {
+        // Generate an empty set of tokens if has_event_cols is false
+        quote! {}
+    };
+
     fn map_type_to_column_type(ty: &syn::Type) -> Option<proc_macro2::TokenStream> {
         match quote!(#ty).to_string().as_str() {
             "Vec < bool >" => Some(quote! { ColumnType::Boolean }),
@@ -123,6 +166,8 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 } else {
                     with_series!(cols, "chain_id", self.chain_id, schema);
                 }
+
+                #event_code
 
                 let df = DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)?;
                 let mut output = std::collections::HashMap::new();
