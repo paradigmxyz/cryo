@@ -73,10 +73,10 @@ impl LogDecoder {
         let mut str_ints: Vec<String> = vec![];
         let mut u256s: Vec<U256> = vec![];
         let mut i256s: Vec<I256> = vec![];
-        let mut bytes: Vec<String> = vec![];
+        let mut bytes: Vec<Vec<u8>> = vec![];
+        let mut hexes: Vec<String> = vec![];
         let mut bools: Vec<bool> = vec![];
         let mut strings: Vec<String> = vec![];
-        let mut addresses: Vec<String> = vec![];
         // TODO: support array & tuple types
 
         let param = self
@@ -90,9 +90,18 @@ impl LogDecoder {
 
         for token in data {
             match token {
-                Token::Address(a) => addresses.push(format!("{:?}", a)),
-                Token::FixedBytes(b) => bytes.push(b.encode_hex()),
-                Token::Bytes(b) => bytes.push(b.encode_hex()),
+                Token::Address(a) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(a.to_fixed_bytes().into()),
+                    ColumnEncoding::Hex => hexes.push(format!("{:?}", a)),
+                },
+                Token::FixedBytes(b) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(b),
+                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
+                },
+                Token::Bytes(b) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(b),
+                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
+                },
                 Token::Uint(i) => match param {
                     Some(param) => match param.kind.clone() {
                         ParamType::Uint(size) => {
@@ -170,6 +179,11 @@ impl LogDecoder {
                 return Err(err(mixed_length_err))
             }
             Ok(vec![Series::new(name.as_str(), bytes)])
+        } else if !hexes.is_empty() {
+            if hexes.len() != chunk_len {
+                return Err(err(mixed_length_err))
+            }
+            Ok(vec![Series::new(name.as_str(), hexes)])
         } else if !bools.is_empty() {
             if bools.len() != chunk_len {
                 return Err(err(mixed_length_err))
@@ -180,11 +194,6 @@ impl LogDecoder {
                 return Err(err(mixed_length_err))
             }
             Ok(vec![Series::new(name.as_str(), strings)])
-        } else if !addresses.is_empty() {
-            if addresses.len() != chunk_len {
-                return Err(err(mixed_length_err))
-            }
-            Ok(vec![Series::new(name.as_str(), addresses)])
         } else {
             // case where no data was passed
             Ok(vec![Series::new(name.as_str(), vec![None::<u64>; chunk_len])])
