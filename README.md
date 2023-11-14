@@ -36,6 +36,8 @@ use as `cryo <dataset> [OPTIONS]`
 | Dry run to view output schemas or expected work | `cryo storage_diffs --dry` |
 | Extract all USDC events | `cryo logs --contract 0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48` |
 
+For a more complex example, see the [Uniswap Example](./examples/uniswap.sh).
+
 `cryo` uses `ETH_RPC_URL` env var as the data source unless `--rpc <url>` is given
 
 ## Installation
