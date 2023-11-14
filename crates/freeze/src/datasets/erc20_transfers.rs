@@ -21,7 +21,7 @@ pub struct Erc20Transfers {
 #[async_trait::async_trait]
 impl Dataset for Erc20Transfers {
     fn optional_parameters() -> Vec<Dim> {
-        vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2]
+        vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::FromAddress, Dim::ToAddress]
     }
 
     fn use_block_ranges() -> bool {
@@ -37,7 +37,28 @@ impl CollectByBlock for Erc20Transfers {
         let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
-        Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
+
+        // filter by from_address
+        let from_filter: Box<dyn Fn(&Log) -> bool + Send> =
+            if let Some(from_address) = &request.from_address {
+                Box::new(move |log| log.topics[1].as_bytes()[12..] == from_address[..])
+            } else {
+                Box::new(|_| true)
+            };
+        // filter by to_address
+        let to_filter: Box<dyn Fn(&Log) -> bool + Send> =
+            if let Some(to_address) = &request.to_address {
+                Box::new(move |log| log.topics[2].as_bytes()[12..] == to_address[..])
+            } else {
+                Box::new(|_| true)
+            };
+
+        Ok(logs
+            .into_iter()
+            .filter(|x| x.topics.len() == 3 && x.data.len() == 32)
+            .filter(from_filter)
+            .filter(to_filter)
+            .collect())
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
