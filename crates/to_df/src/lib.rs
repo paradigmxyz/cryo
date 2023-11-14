@@ -67,13 +67,27 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             let u256_types: Vec<_> = schema.u256_types.clone().into_iter().collect();
             if let Some(decoder) = decoder {
 
-                fn create_empty_u256_columns(cols: &mut Vec<Series>, name: &str, u256_types: &[U256Type]) {
+                fn create_empty_u256_columns(
+                    cols: &mut Vec<Series>,
+                    name: &str,
+                    u256_types: &[U256Type],
+                    column_encoding: &ColumnEncoding
+                ) {
                     for u256_type in u256_types.iter() {
                         let full_name = name.to_string() + u256_type.suffix().as_str();
                         let full_name = full_name.as_str();
 
                         match u256_type {
-                            U256Type::Binary => cols.push(Series::new(full_name, Vec::<Vec<u8>>::new())),
+                            U256Type::Binary => {
+                                match column_encoding {
+                                    ColumnEncoding::Binary => {
+                                        cols.push(Series::new(full_name, Vec::<Vec<u8>>::new()))
+                                    },
+                                    ColumnEncoding::Hex => {
+                                        cols.push(Series::new(full_name, Vec::<String>::new()))
+                                    },
+                                }
+                            },
                             U256Type::String => cols.push(Series::new(full_name, Vec::<String>::new())),
                             U256Type::F32 => cols.push(Series::new(full_name, Vec::<f32>::new())),
                             U256Type::F64 => cols.push(Series::new(full_name, Vec::<f64>::new())),
@@ -92,20 +106,30 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                     for param in decoder.event.inputs.iter() {
                         let name = param.name.as_str();
                         match param.kind {
-                            ParamType::Address => create_empty_u256_columns(&mut cols, name, &u256_types),
-                            ParamType::Bytes => create_empty_u256_columns(&mut cols, name, &u256_types),
+                            ParamType::Address => {
+                                match schema.binary_type {
+                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
+                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
+                                }
+                            },
+                            ParamType::Bytes => {
+                                match schema.binary_type {
+                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
+                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
+                                }
+                            },
                             ParamType::Int(bits) => {
                                 if bits <= 64 {
                                     cols.push(Series::new(name, Vec::<i64>::new()))
                                 } else {
-                                    create_empty_u256_columns(&mut cols, name, &u256_types)
+                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
                                 }
                             },
                             ParamType::Uint(bits) => {
                                 if bits <= 64 {
                                     cols.push(Series::new(name, Vec::<u64>::new()))
                                 } else {
-                                    create_empty_u256_columns(&mut cols, name, &u256_types)
+                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
                                 }
                             },
                             ParamType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
