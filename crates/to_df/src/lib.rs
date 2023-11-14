@@ -66,11 +66,56 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             let decoder = schema.log_decoder.clone();
             let u256_types: Vec<_> = schema.u256_types.clone().into_iter().collect();
             if let Some(decoder) = decoder {
+
+                fn create_empty_u256_columns(cols: &mut Vec<Series>, name: &str, u256_types: &[U256Type]) {
+                    for u256_type in u256_types.iter() {
+                        let full_name = name.to_string() + u256_type.suffix().as_str();
+                        let full_name = full_name.as_str();
+
+                        match u256_type {
+                            U256Type::Binary => cols.push(Series::new(full_name, Vec::<Vec<u8>>::new())),
+                            U256Type::String => cols.push(Series::new(full_name, Vec::<String>::new())),
+                            U256Type::F32 => cols.push(Series::new(full_name, Vec::<f32>::new())),
+                            U256Type::F64 => cols.push(Series::new(full_name, Vec::<f64>::new())),
+                            U256Type::U32 => cols.push(Series::new(full_name, Vec::<u32>::new())),
+                            U256Type::U64 => cols.push(Series::new(full_name, Vec::<u64>::new())),
+                            U256Type::Decimal128 => cols.push(Series::new(full_name, Vec::<Vec<u8>>::new())),
+                        }
+                    }
+                }
+
+                use ethers_core::abi::ParamType;
+
                 // Write columns even if there are no values decoded - indicates empty dataframe
                 let chunk_len = self.n_rows;
                 if self.event_cols.is_empty() {
-                    for name in decoder.field_names().iter() {
-                        cols.push(Series::new(name.as_str(), vec![None::<u64>; chunk_len as usize]));
+                    for param in decoder.event.inputs.iter() {
+                        let name = param.name.as_str();
+                        match param.kind {
+                            ParamType::Address => create_empty_u256_columns(&mut cols, name, &u256_types),
+                            ParamType::Bytes => create_empty_u256_columns(&mut cols, name, &u256_types),
+                            ParamType::Int(bits) => {
+                                if bits <= 64 {
+                                    cols.push(Series::new(name, Vec::<i64>::new()))
+                                } else {
+                                    create_empty_u256_columns(&mut cols, name, &u256_types)
+                                }
+                            },
+                            ParamType::Uint(bits) => {
+                                if bits <= 64 {
+                                    cols.push(Series::new(name, Vec::<u64>::new()))
+                                } else {
+                                    create_empty_u256_columns(&mut cols, name, &u256_types)
+                                }
+                            },
+                            ParamType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
+                            ParamType::String => cols.push(Series::new(name, Vec::<String>::new())),
+                            ParamType::Array(_) => return Err(err("could not generate Array column")),
+                            ParamType::FixedBytes(_) => return Err(err("could not generate FixedBytes column")),
+                            ParamType::FixedArray(_, _) => return Err(err("could not generate FixedArray column")),
+                            ParamType::Tuple(_) => return Err(err("could not generate Tuple column")),
+                            _ => (),
+                        }
                     }
                 } else {
                     for (name, data) in self.event_cols {
