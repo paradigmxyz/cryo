@@ -240,8 +240,8 @@ fn compute_used_columns(
 mod tests {
     use super::*;
 
-    fn get_u256_types() -> HashSet<U256Type> {
-        HashSet::from_iter(vec![U256Type::Binary, U256Type::String, U256Type::F64])
+    fn get_u256_types() -> Vec<U256Type> {
+        vec![U256Type::Binary, U256Type::String, U256Type::F64]
     }
 
     #[test]
