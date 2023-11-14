@@ -2,7 +2,7 @@ use crate::{err, CollectError, ColumnEncoding, ToU256Series, U256Type};
 use ethers::prelude::*;
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
 use polars::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// container for log decoding context
 #[derive(Clone, Debug, PartialEq)]
@@ -37,8 +37,8 @@ impl LogDecoder {
     /// converts from a log type to an abi token type
     /// this function assumes all logs are of the same type and skips fields if they don't match the
     /// passed event definition
-    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> HashMap<String, Vec<Token>> {
-        let mut map: HashMap<String, Vec<Token>> = HashMap::new();
+    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> indexmap::IndexMap<String, Vec<Token>> {
+        let mut map: indexmap::IndexMap<String, Vec<Token>> = indexmap::IndexMap::new();
         let known_keys =
             self.event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
 
