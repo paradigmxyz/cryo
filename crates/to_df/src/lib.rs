@@ -161,6 +161,9 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                         }
                     }
                 }
+
+                let drop_names = vec!["topic1".to_string(), "topic2".to_string(), "topic3".to_string(), "data".to_string()];
+                cols.retain(|c| !drop_names.contains(&c.name().to_string()));
             }
         }
     } else {
