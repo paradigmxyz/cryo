@@ -148,6 +148,7 @@ impl LogDecoder {
 
         // check each vector, see if it contains any values, if it does, check if it's the same
         // length as the input data and map to a series
+        let name = format!("event__{}", name);
         if !ints.is_empty() {
             Ok(vec![Series::new(name.as_str(), ints)])
         } else if !i256s.is_empty() {

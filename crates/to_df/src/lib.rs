@@ -104,7 +104,8 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 let chunk_len = self.n_rows;
                 if self.event_cols.is_empty() {
                     for param in decoder.event.inputs.iter() {
-                        let name = param.name.as_str();
+                        let name = "event__".to_string() + param.name.as_str();
+                        let name = name.as_str();
                         match param.kind {
                             ParamType::Address => {
                                 match schema.binary_type {
@@ -144,7 +145,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 } else {
                     for (name, data) in self.event_cols {
                         let series_vec = decoder.make_series(
-                            name.clone(),
+                            name,
                             data,
                             chunk_len as usize,
                             &u256_types,
