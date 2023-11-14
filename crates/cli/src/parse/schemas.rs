@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use cryo_freeze::{
     ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiDatatype, ParseError, Table,
@@ -84,9 +84,9 @@ pub(crate) fn parse_schemas(
     Ok((datatypes, schemas?))
 }
 
-fn parse_u256_types(args: &Args) -> Result<HashSet<U256Type>, ParseError> {
+fn parse_u256_types(args: &Args) -> Result<Vec<U256Type>, ParseError> {
     if let Some(raw_u256_types) = args.u256_types.clone() {
-        let mut u256_types: HashSet<U256Type> = HashSet::new();
+        let mut u256_types: Vec<U256Type> = Vec::new();
         for raw in raw_u256_types.iter() {
             let u256_type = match raw.to_lowercase() {
                 raw if raw == "binary" => U256Type::Binary,
@@ -105,11 +105,11 @@ fn parse_u256_types(args: &Args) -> Result<HashSet<U256Type>, ParseError> {
                 raw if raw == "d128" => U256Type::Decimal128,
                 _ => return Err(ParseError::ParseError("bad u256 type".to_string())),
             };
-            u256_types.insert(u256_type);
+            u256_types.push(u256_type);
         }
         Ok(u256_types)
     } else {
-        Ok(HashSet::from_iter(vec![U256Type::Binary, U256Type::String, U256Type::F64]))
+        Ok(vec![U256Type::Binary, U256Type::String, U256Type::F64])
     }
 }
 
