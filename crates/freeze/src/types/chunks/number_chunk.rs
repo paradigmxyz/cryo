@@ -49,15 +49,6 @@ impl ChunkData for NumberChunk {
 }
 
 impl NumberChunk {
-    /// get list of block numbers in chunk
-    /// TODO: remove in favor of values()
-    pub fn numbers(&self) -> Vec<u64> {
-        match self {
-            NumberChunk::Numbers(numbers) => numbers.to_vec(),
-            NumberChunk::Range(start, end) => (*start..=*end).collect(),
-        }
-    }
-
     /// convert block range to a list of Filters for get_logs()
     pub fn to_log_filter_options(&self, log_request_size: &u64) -> Vec<FilterBlockOption> {
         match self {
