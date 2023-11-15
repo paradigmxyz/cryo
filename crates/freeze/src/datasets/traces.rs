@@ -81,7 +81,7 @@ pub(crate) fn filter_traces_by_from_to_addresses(
                 Action::Call(action) => action.from,
                 Action::Create(action) => action.from,
                 Action::Suicide(action) => action.address,
-                Action::Reward(action) => action.author,
+                _ => return false,
             };
             from.as_bytes() == from_address
         })
@@ -94,6 +94,7 @@ pub(crate) fn filter_traces_by_from_to_addresses(
             let to = match &trace.action {
                 Action::Call(action) => action.to,
                 Action::Suicide(action) => action.refund_address,
+                Action::Reward(action) => action.author,
                 _ => return false,
             };
             to.as_bytes() == to_address
