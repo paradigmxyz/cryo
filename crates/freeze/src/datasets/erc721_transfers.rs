@@ -34,7 +34,8 @@ impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let mut topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
+        let mut topics =
+            [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
         if let Some(from_address) = &request.from_address {
             let mut v = vec![0u8; 12];
             v.append(&mut from_address.to_owned());
@@ -48,10 +49,7 @@ impl CollectByBlock for Erc721Transfers {
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
 
-        Ok(logs
-            .into_iter()
-            .filter(|x| x.topics.len() == 4 && x.data.len() == 0)
-            .collect())
+        Ok(logs.into_iter().filter(|x| x.topics.len() == 4 && x.data.len() == 0).collect())
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
