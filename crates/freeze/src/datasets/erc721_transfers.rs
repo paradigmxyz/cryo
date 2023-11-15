@@ -21,7 +21,7 @@ pub struct Erc721Transfers {
 #[async_trait::async_trait]
 impl Dataset for Erc721Transfers {
     fn optional_parameters() -> Vec<Dim> {
-        vec![Dim::Contract]
+        vec![Dim::Contract, Dim::FromAddress, Dim::ToAddress]
     }
 
     fn use_block_ranges() -> bool {
@@ -34,9 +34,21 @@ impl CollectByBlock for Erc721Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
+        let mut topics =
+            [Some(ValueOrArray::Value(Some(*EVENT_ERC721_TRANSFER))), None, None, None];
+        if let Some(from_address) = &request.from_address {
+            let mut v = vec![0u8; 12];
+            v.append(&mut from_address.to_owned());
+            topics[1] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+        }
+        if let Some(to_address) = &request.to_address {
+            let mut v = vec![0u8; 12];
+            v.append(&mut to_address.to_owned());
+            topics[2] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+        }
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
+
         Ok(logs.into_iter().filter(|x| x.topics.len() == 4 && x.data.len() == 0).collect())
     }
 

@@ -18,14 +18,19 @@ pub struct NativeTransfers {
 }
 
 #[async_trait::async_trait]
-impl Dataset for NativeTransfers {}
+impl Dataset for NativeTransfers {
+    fn optional_parameters() -> Vec<Dim> {
+        vec![Dim::FromAddress, Dim::ToAddress]
+    }
+}
 
 #[async_trait::async_trait]
 impl CollectByBlock for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_block(request.block_number()?.into()).await
+        let traces = source.fetcher.trace_block(request.block_number()?.into()).await?;
+        Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -40,7 +45,8 @@ impl CollectByTransaction for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
+        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await?;
+        Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

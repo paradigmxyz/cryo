@@ -31,14 +31,19 @@ pub struct Traces {
 }
 
 #[async_trait::async_trait]
-impl Dataset for Traces {}
+impl Dataset for Traces {
+    fn optional_parameters() -> Vec<Dim> {
+        vec![Dim::FromAddress, Dim::ToAddress]
+    }
+}
 
 #[async_trait::async_trait]
 impl CollectByBlock for Traces {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_block(request.block_number()?.into()).await
+        let traces = source.fetcher.trace_block(request.block_number()?.into()).await?;
+        Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -53,7 +58,8 @@ impl CollectByTransaction for Traces {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
+        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await?;
+        Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -62,6 +68,43 @@ impl CollectByTransaction for Traces {
         process_traces(&traces, columns, &query.schemas)
     }
 }
+
+pub(crate) fn filter_traces_by_from_to_addresses(
+    traces: Vec<Trace>,
+    from_address: &Option<Vec<u8>>,
+    to_address: &Option<Vec<u8>>,
+) -> Vec<Trace> {
+    // filter by from_address
+    let from_filter: Box<dyn Fn(&Trace) -> bool + Send> = if let Some(from_address) = from_address {
+        Box::new(move |trace| {
+            let from = match &trace.action {
+                Action::Call(action) => action.from,
+                Action::Create(action) => action.from,
+                Action::Suicide(action) => action.address,
+                _ => return false,
+            };
+            from.as_bytes() == from_address
+        })
+    } else {
+        Box::new(|_| true)
+    };
+    // filter by to_address
+    let to_filter: Box<dyn Fn(&Trace) -> bool + Send> = if let Some(to_address) = to_address {
+        Box::new(move |trace| {
+            let to = match &trace.action {
+                Action::Call(action) => action.to,
+                Action::Suicide(action) => action.refund_address,
+                Action::Reward(action) => action.author,
+                _ => return false,
+            };
+            to.as_bytes() == to_address
+        })
+    } else {
+        Box::new(|_| true)
+    };
+    traces.into_iter().filter(from_filter).filter(to_filter).collect()
+}
+
 /// process block into columns
 pub(crate) fn process_traces(traces: &[Trace], columns: &mut Traces, schemas: &Schemas) -> R<()> {
     let schema = schemas.get(&Datatype::Traces).ok_or(err("schema not provided"))?;
