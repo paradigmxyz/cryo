@@ -34,30 +34,23 @@ impl CollectByBlock for Erc20Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
+        let mut topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
+        if let Some(from_address) = &request.from_address {
+            let mut v = vec![0u8; 12];
+            v.append(&mut from_address.to_owned());
+            topics[1] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+        }
+        if let Some(to_address) = &request.to_address {
+            let mut v = vec![0u8; 12];
+            v.append(&mut to_address.to_owned());
+            topics[2] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+        }
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.fetcher.get_logs(&filter).await?;
-
-        // filter by from_address
-        let from_filter: Box<dyn Fn(&Log) -> bool + Send> =
-            if let Some(from_address) = &request.from_address {
-                Box::new(move |log| log.topics[1].as_bytes()[12..] == from_address[..])
-            } else {
-                Box::new(|_| true)
-            };
-        // filter by to_address
-        let to_filter: Box<dyn Fn(&Log) -> bool + Send> =
-            if let Some(to_address) = &request.to_address {
-                Box::new(move |log| log.topics[2].as_bytes()[12..] == to_address[..])
-            } else {
-                Box::new(|_| true)
-            };
 
         Ok(logs
             .into_iter()
             .filter(|x| x.topics.len() == 3 && x.data.len() == 32)
-            .filter(from_filter)
-            .filter(to_filter)
             .collect())
     }
 
