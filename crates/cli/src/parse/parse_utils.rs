@@ -52,7 +52,11 @@ pub(crate) fn parse_binary_arg(
 
     // separate into files vs explicit
     let (files, hex_strings): (Vec<&String>, Vec<&String>) =
-        inputs.iter().partition(|tx| std::path::Path::new(tx).exists());
+    inputs.iter().partition(|tx| {
+      // strip off column name if present
+      let reference = parse_file_column_reference(tx, default_column).unwrap();
+      std::path::Path::new(&reference.path).exists()
+    });
 
     // files columns
     for path in files {
