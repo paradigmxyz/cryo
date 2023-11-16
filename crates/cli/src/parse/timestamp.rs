@@ -163,6 +163,14 @@ async fn parse_timestamp_token_to_block_numbers<P: JsonRpcClient>(
                 parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
             block_range_to_block_chunk(start_block, end_block, as_range, None, n_keep)
         }
+        [first_ref, second_ref, third_ref] => {
+            let (start_block, end_block) =
+            parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
+            let range_size = third_ref
+                .parse::<u32>()
+                .map_err(|_e| ParseError::ParseError("start_block parse error".to_string()))?;
+            block_range_to_block_chunk(start_block, end_block, false, Some(range_size), None)
+        }
         _ => Err(ParseError::ParseError(
             "blocks must be in format block_number or start_block:end_block".to_string(),
         )),
