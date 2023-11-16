@@ -14,12 +14,12 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
         Some(blocks) => blocks.iter().partition(|tx| std::path::Path::new(tx).exists()),
         None => return Ok((None, None)),
     };
-    
+
     let (file_labels, file_chunks) = if !files.is_empty() {
         let mut file_labels = Vec::new();
         let mut file_chunks = Vec::new();
         for path in files {
-                        let column = if path.contains(':') {
+            let column = if path.contains(':') {
                 path.split(':')
                     .last()
                     .ok_or(ParseError::ParseError("could not parse txs path column".to_string()))?
@@ -28,7 +28,7 @@ pub(crate) async fn parse_blocks<P: JsonRpcClient>(
             };
             let integers = read_integer_column(path, column)
                 .map_err(|_e| ParseError::ParseError("could not read input".to_string()))?;
-                        let chunk = BlockChunk::Numbers(integers);
+            let chunk = BlockChunk::Numbers(integers);
             let chunk_label = path
                 .split("__")
                 .last()
