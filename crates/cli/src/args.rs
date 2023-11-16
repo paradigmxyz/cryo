@@ -35,7 +35,7 @@ pub struct Args {
     )]
     pub txs: Option<Vec<String>>,
 
-    /// Timestamp in unix
+    /// Timestamp in unix, see syntax below
     #[arg(long, allow_negative_numbers = true, help_heading = "Content Options", num_args(0..))]
     pub timestamp: Option<Vec<String>>,
 

@@ -243,6 +243,19 @@ Block specification syntax
 - can use every nth value            2000:5000:1000 == 2000 3000 4000
 - can use n values total             100:200/5 == 100 124 149 174 199
 
+Timestamp specification syntax
+- can use numbers                    --timestamp 5000 6000 7000
+- can use ranges                     --timestamp 12M:13M 15M:16M
+- can use a parquet file             --timestamp ./path/to/file.parquet[:COLUMN_NAME]
+- can use multiple parquet files     --timestamp ./path/to/files/*.parquet[:COLUMN_NAME]
+- numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
+- omitting range end means latest    15.5M: == 15.5M:latest
+- omitting range start means 0       :700 == 0:700
+- minus on start means minus end     -1000:7000 == 6000:7000
+- plus sign on end means plus start  15M:+1000 == 15M:15.001K
+- can use every nth value            2000:5000:1000 == 2000 3000
+- can use n values total             100:200/5 == 100 124 149 174 199
+
 Transaction specification syntax
 - can use transaction hashes         --txs TX_HASH1 TX_HASH2 TX_HASH3
 - can use a parquet file             --txs ./path/to/file.parquet[:COLUMN_NAME]
