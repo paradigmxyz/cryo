@@ -17,7 +17,7 @@ pub struct Logs {
     topic2: Vec<Option<Vec<u8>>>,
     topic3: Vec<Option<Vec<u8>>>,
     data: Vec<Vec<u8>>,
-    event_cols: std::collections::HashMap<String, Vec<ethers_core::abi::Token>>,
+    event_cols: indexmap::IndexMap<String, Vec<ethers_core::abi::Token>>,
     chain_id: Vec<u64>,
 }
 

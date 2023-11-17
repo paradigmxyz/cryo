@@ -1,9 +1,6 @@
-use polars::prelude::*;
-use pyo3::{exceptions::PyTypeError, prelude::*};
-use pyo3_polars::PyDataFrame;
+use pyo3::{exceptions::PyTypeError, prelude::*, types::IntoPyDict};
 
-use cryo_cli::{parse_args, Args};
-use cryo_freeze::collect;
+use cryo_cli::{run, Args};
 
 #[pyfunction(
     signature = (
@@ -36,7 +33,7 @@ use cryo_freeze::collect;
         partition_by = None,
         output_dir = ".".to_string(),
         subdirs = vec![],
-        file_suffix = None,
+        label = None,
         overwrite = false,
         csv = false,
         json = false,
@@ -66,9 +63,9 @@ use cryo_freeze::collect;
     )
 )]
 #[allow(clippy::too_many_arguments)]
-pub fn _collect(
+pub fn _freeze(
     py: Python<'_>,
-    datatype: Option<String>,
+    datatype: Option<Vec<String>>,
     blocks: Option<Vec<String>>,
     remember: bool,
     command: Option<String>,
@@ -96,7 +93,7 @@ pub fn _collect(
     partition_by: Option<Vec<String>>,
     output_dir: String,
     subdirs: Vec<String>,
-    file_suffix: Option<String>,
+    label: Option<String>,
     overwrite: bool,
     csv: bool,
     json: bool,
@@ -125,15 +122,10 @@ pub fn _collect(
     event_signature: Option<String>,
 ) -> PyResult<&PyAny> {
     if let Some(command) = command {
-        pyo3_asyncio::tokio::future_into_py(py, async move {
-            match run_execute(command).await {
-                Ok(df) => Ok(PyDataFrame(df)),
-                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
-            }
-        })
+        freeze_command(py, command)
     } else if let Some(datatype) = datatype {
         let args = Args {
-            datatype: vec![datatype],
+            datatype,
             blocks,
             remember,
             txs,
@@ -160,7 +152,7 @@ pub fn _collect(
             partition_by,
             output_dir,
             subdirs,
-            file_suffix,
+            label,
             overwrite,
             csv,
             json,
@@ -188,33 +180,60 @@ pub fn _collect(
             no_verbose,
             event_signature,
         };
+
         pyo3_asyncio::tokio::future_into_py(py, async move {
-            match run_collect(args).await {
-                // Ok(df) => Ok(Python::with_gil(|py| py.None())),
-                Ok(df) => Ok(PyDataFrame(df)),
-                Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
+            match run(args).await {
+                Ok(Some(result)) => Python::with_gil(|py| {
+                    // let paths = PyDict::new(py);
+                    // for (key, values) in &result.paths {
+                    //     let key = key.dataset().name();
+                    //     let values: Vec<&str> = values.iter().filter_map(|p|
+                    // p.to_str()).collect();     paths.set_item(key,
+                    // values).unwrap(); }
+                    // let paths = paths.to_object(py);
+
+                    let dict = [
+                        ("n_completed".to_string(), result.completed.len().into_py(py)),
+                        ("n_skipped".to_string(), result.skipped.len().into_py(py)),
+                        ("n_errored".to_string(), result.errored.len().into_py(py)),
+                        // ("paths".to_string(), paths),
+                    ]
+                    .into_py_dict(py);
+                    Ok(dict.to_object(py))
+                }),
+                Ok(None) => Ok(Python::with_gil(|py| py.None())),
+                _ => Err(PyErr::new::<PyTypeError, _>("failed")),
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
+        return Err(PyErr::new::<PyTypeError, _>("must specify datatypes or command"))
     }
 }
 
-async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
-    let (query, source, _sink, _env) = match parse_args(&args).await {
-        Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
-    };
-    match collect(query.into(), source.into()).await {
-        Ok(df) => Ok(df),
-        Err(e) => panic!("error collecting {:?}", e),
-    }
-}
+fn freeze_command(py: Python<'_>, command: String) -> PyResult<&PyAny> {
+    pyo3_asyncio::tokio::future_into_py(py, async move {
+        let args = cryo_cli::parse_str(command.as_str()).await.expect("could not parse inputs");
+        match run(args).await {
+            Ok(Some(result)) => Python::with_gil(|py| {
+                // let paths = PyDict::new(py);
+                // for (key, values) in &result.paths {
+                //     let key = key.dataset().name();
+                //     let values: Vec<&str> = values.iter().filter_map(|p| p.to_str()).collect();
+                //     paths.set_item(key, values).unwrap();
+                // }
+                // let paths = paths.to_object(py);
 
-async fn run_execute(command: String) -> PolarsResult<DataFrame> {
-    let args = match cryo_cli::parse_str(command.as_str()).await {
-        Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
-    };
-    run_collect(args).await
+                let dict = [
+                    ("n_completed".to_string(), result.completed.len().into_py(py)),
+                    ("n_skipped".to_string(), result.skipped.len().into_py(py)),
+                    ("n_errored".to_string(), result.errored.len().into_py(py)),
+                    // ("paths".to_string(), paths),
+                ]
+                .into_py_dict(py);
+                Ok(dict.to_object(py))
+            }),
+            Ok(None) => Ok(Python::with_gil(|py| py.None())),
+            _ => Err(PyErr::new::<PyTypeError, _>("failed")),
+        }
+    })
 }

@@ -1,5 +1,5 @@
 /// types and functions related to schemas
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 
 use crate::{err, CollectError, ColumnEncoding, Datatype, LogDecoder};
 use indexmap::{IndexMap, IndexSet};
@@ -32,7 +32,7 @@ pub struct Table {
     pub sort_columns: Option<Vec<String>>,
 
     /// representations to use for u256 columns
-    pub u256_types: HashSet<U256Type>,
+    pub u256_types: Vec<U256Type>,
 
     /// representation to use for binary columns
     pub binary_type: ColumnEncoding,
@@ -167,7 +167,7 @@ impl Datatype {
     #[allow(clippy::too_many_arguments)]
     pub fn table_schema(
         &self,
-        u256_types: &HashSet<U256Type>,
+        u256_types: &[U256Type],
         binary_column_format: &ColumnEncoding,
         include_columns: &Option<Vec<String>>,
         exclude_columns: &Option<Vec<String>>,
@@ -198,7 +198,7 @@ impl Datatype {
             datatype: *self,
             sort_columns: sort,
             columns,
-            u256_types: u256_types.clone(),
+            u256_types: u256_types.to_owned(),
             binary_type: binary_column_format.clone(),
             log_decoder,
         };
@@ -240,8 +240,8 @@ fn compute_used_columns(
 mod tests {
     use super::*;
 
-    fn get_u256_types() -> HashSet<U256Type> {
-        HashSet::from_iter(vec![U256Type::Binary, U256Type::String, U256Type::F64])
+    fn get_u256_types() -> Vec<U256Type> {
+        vec![U256Type::Binary, U256Type::String, U256Type::F64]
     }
 
     #[test]

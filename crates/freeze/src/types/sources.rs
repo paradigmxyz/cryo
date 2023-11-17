@@ -46,9 +46,16 @@ impl Source {
             return Ok(receipts)
         }
 
-        // fallback to `eth_getTransactionReceipt`
+        self.get_tx_receipts(&block.transactions).await
+    }
+
+    /// Returns all receipts for vector of transactions using `eth_getTransactionReceipt`
+    pub async fn get_tx_receipts(
+        &self,
+        transactions: &Vec<Transaction>,
+    ) -> Result<Vec<TransactionReceipt>> {
         let mut tasks = Vec::new();
-        for tx in &block.transactions {
+        for tx in transactions {
             let tx_hash = tx.hash;
             let fetcher = self.fetcher.clone();
             let task = task::spawn(async move {
@@ -477,6 +484,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
                 GethTrace::Known(GethTraceFrame::FourByteTracer(FourByteFrame(frame))) => {
                     calls.push(frame)
                 }
+                GethTrace::Known(GethTraceFrame::NoopTracer(_)) => {}
                 _ => return Err(CollectError::CollectError("invalid trace result".to_string())),
             }
         }

@@ -15,7 +15,7 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
         Err(e) => return Err(ParseError::ParseError(format!("Error creating directory: {}", e))),
     };
 
-    let file_suffix = &args.file_suffix;
+    let label = &args.label;
 
     let parquet_compression = parse_compression(&args.compression)?;
 
@@ -37,7 +37,7 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
         overwrite: args.overwrite,
         prefix: file_prefix,
         format,
-        suffix: file_suffix.clone(),
+        suffix: label.clone(),
         parquet_compression,
         row_group_size,
     };

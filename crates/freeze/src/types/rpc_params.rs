@@ -16,6 +16,8 @@ pub struct Params {
     pub address: Option<Vec<u8>>,
     /// contract
     pub contract: Option<Vec<u8>>,
+    /// from address
+    pub from_address: Option<Vec<u8>>,
     /// to address
     pub to_address: Option<Vec<u8>>,
     /// slot

@@ -1,7 +1,8 @@
+use crate::{err, CollectError, ColumnEncoding, ToU256Series, U256Type};
 use ethers::prelude::*;
 use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
 use polars::prelude::*;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashSet;
 
 /// container for log decoding context
 #[derive(Clone, Debug, PartialEq)]
@@ -28,15 +29,16 @@ impl LogDecoder {
         }
     }
 
-    // fn field_names(&self) -> Vec<String> {
-    //     self.event.inputs.iter().map(|i| i.name.clone()).collect()
-    // }
+    /// get field names of event inputs
+    pub fn field_names(&self) -> Vec<String> {
+        self.event.inputs.iter().map(|i| i.name.clone()).collect()
+    }
 
     /// converts from a log type to an abi token type
     /// this function assumes all logs are of the same type and skips fields if they don't match the
     /// passed event definition
-    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> HashMap<String, Vec<Token>> {
-        let mut map: HashMap<String, Vec<Token>> = HashMap::new();
+    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> indexmap::IndexMap<String, Vec<Token>> {
+        let mut map: indexmap::IndexMap<String, Vec<Token>> = indexmap::IndexMap::new();
         let known_keys =
             self.event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
 
@@ -62,15 +64,19 @@ impl LogDecoder {
         name: String,
         data: Vec<Token>,
         chunk_len: usize,
-    ) -> Result<Series, String> {
+        u256_types: &[U256Type],
+        column_encoding: &ColumnEncoding,
+    ) -> Result<Vec<Series>, CollectError> {
         // This is a smooth brain way of doing this, but I can't think of a better way right now
         let mut ints: Vec<i64> = vec![];
         let mut uints: Vec<u64> = vec![];
         let mut str_ints: Vec<String> = vec![];
-        let mut bytes: Vec<String> = vec![];
+        let mut u256s: Vec<U256> = vec![];
+        let mut i256s: Vec<I256> = vec![];
+        let mut bytes: Vec<Vec<u8>> = vec![];
+        let mut hexes: Vec<String> = vec![];
         let mut bools: Vec<bool> = vec![];
         let mut strings: Vec<String> = vec![];
-        let mut addresses: Vec<String> = vec![];
         // TODO: support array & tuple types
 
         let param = self
@@ -84,50 +90,53 @@ impl LogDecoder {
 
         for token in data {
             match token {
-                Token::Address(a) => addresses.push(format!("{:?}", a)),
-                Token::FixedBytes(b) => bytes.push(b.encode_hex()),
-                Token::Bytes(b) => bytes.push(b.encode_hex()),
+                Token::Address(a) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(a.to_fixed_bytes().into()),
+                    ColumnEncoding::Hex => hexes.push(format!("{:?}", a)),
+                },
+                Token::FixedBytes(b) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(b),
+                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
+                },
+                Token::Bytes(b) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(b),
+                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
+                },
                 Token::Uint(i) => match param {
-                    Some(param) => {
-                        match param.kind.clone() {
-                            ParamType::Uint(size) => {
-                                if size <= 64 {
-                                    uints.push(i.as_u64())
-                                } else {
-                                    // TODO: decode this based on U256Types flag
-                                    str_ints.push(i.to_string())
-                                }
+                    Some(param) => match param.kind.clone() {
+                        ParamType::Uint(size) => {
+                            if size <= 64 {
+                                uints.push(i.as_u64())
+                            } else {
+                                u256s.push(i)
                             }
-                            _ => str_ints.push(i.to_string()),
                         }
-                    }
+                        _ => str_ints.push(i.to_string()),
+                    },
                     None => match i.try_into() {
                         Ok(i) => ints.push(i),
                         Err(_) => str_ints.push(i.to_string()),
                     },
                 },
-                Token::Int(i) => match param {
-                    Some(param) => {
-                        match param.kind.clone() {
+                Token::Int(i) => {
+                    let i = I256::from_raw(i);
+                    match param {
+                        Some(param) => match param.kind.clone() {
                             ParamType::Int(size) => {
                                 if size <= 64 {
-                                    match i.as_u64().try_into() {
-                                        Ok(i) => ints.push(i),
-                                        Err(_) => str_ints.push(i.to_string()),
-                                    }
+                                    ints.push(i.as_i64())
                                 } else {
-                                    // TODO: decode this based on U256Types flag
-                                    str_ints.push(i.to_string())
+                                    i256s.push(i)
                                 }
                             }
                             _ => str_ints.push(i.to_string()),
-                        }
+                        },
+                        None => match i.try_into() {
+                            Ok(i) => ints.push(i),
+                            Err(_) => str_ints.push(i.to_string()),
+                        },
                     }
-                    None => match i.try_into() {
-                        Ok(i) => ints.push(i),
-                        Err(_) => str_ints.push(i.to_string()),
-                    },
-                },
+                }
                 Token::Bool(b) => bools.push(b),
                 Token::String(s) => strings.push(s),
                 Token::Array(_) | Token::FixedArray(_) => {}
@@ -135,38 +144,60 @@ impl LogDecoder {
             }
         }
         let mixed_length_err = format!("could not parse column {}, mixed type", name);
+        let mixed_length_err = mixed_length_err.as_str();
 
         // check each vector, see if it contains any values, if it does, check if it's the same
         // length as the input data and map to a series
+        let name = format!("event__{}", name);
         if !ints.is_empty() {
-            Ok(Series::new(name.as_str(), ints))
+            Ok(vec![Series::new(name.as_str(), ints)])
+        } else if !i256s.is_empty() {
+            let mut series_vec = Vec::new();
+            for u256_type in u256_types.iter() {
+                series_vec.push(i256s.to_u256_series(
+                    name.clone(),
+                    u256_type.clone(),
+                    column_encoding,
+                )?)
+            }
+            Ok(series_vec)
+        } else if !u256s.is_empty() {
+            let mut series_vec: Vec<Series> = Vec::new();
+            for u256_type in u256_types.iter() {
+                series_vec.push(u256s.to_u256_series(
+                    name.clone(),
+                    u256_type.clone(),
+                    column_encoding,
+                )?)
+            }
+            Ok(series_vec)
         } else if !uints.is_empty() {
-            Ok(Series::new(name.as_str(), uints))
+            Ok(vec![Series::new(name.as_str(), uints)])
         } else if !str_ints.is_empty() {
-            Ok(Series::new(name.as_str(), str_ints))
+            Ok(vec![Series::new(name.as_str(), str_ints)])
         } else if !bytes.is_empty() {
             if bytes.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(err(mixed_length_err))
             }
-            Ok(Series::new(name.as_str(), bytes))
+            Ok(vec![Series::new(name.as_str(), bytes)])
+        } else if !hexes.is_empty() {
+            if hexes.len() != chunk_len {
+                return Err(err(mixed_length_err))
+            }
+            Ok(vec![Series::new(name.as_str(), hexes)])
         } else if !bools.is_empty() {
             if bools.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(err(mixed_length_err))
             }
-            Ok(Series::new(name.as_str(), bools))
+            Ok(vec![Series::new(name.as_str(), bools)])
         } else if !strings.is_empty() {
             if strings.len() != chunk_len {
-                return Err(mixed_length_err)
+                return Err(err(mixed_length_err))
             }
-            Ok(Series::new(name.as_str(), strings))
-        } else if !addresses.is_empty() {
-            if addresses.len() != chunk_len {
-                return Err(mixed_length_err)
-            }
-            Ok(Series::new(name.as_str(), addresses))
+            Ok(vec![Series::new(name.as_str(), strings)])
         } else {
             // case where no data was passed
-            Ok(Series::new(name.as_str(), vec![None::<u64>; chunk_len]))
+            Ok(vec![Series::new(name.as_str(), vec![None::<u64>; chunk_len])])
         }
     }
 }

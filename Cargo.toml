@@ -15,27 +15,27 @@ repository = "https://github.com/paradigmxyz/cryo"
 exclude = [".github/"]
 
 [workspace.dependencies]
-anstyle = "1.0.1"
-async-trait = "0.1.68"
-chrono = { version = "0.4.26", features = ["serde"] }
+anstyle = "1.0.4"
+async-trait = "0.1.74"
+chrono = { version = "0.4.31", features = ["serde"] }
 clap_cryo = { version = "4.3.21-cryo", features = [
     "derive",
     "color",
     "unstable-styles",
 ] }
-colored = "2.0.0"
-color-print = "0.3.4"
-ethers = { version = "2.0.8", features = ["rustls", "ws", "ipc"] }
-ethers-core = "2.0.8"
+colored = "2.0.4"
+color-print = "0.3.5"
+ethers = { version = "2.0.10", features = ["rustls", "ws", "ipc"] }
+ethers-core = "2.0.10"
 eyre = "0.6.8"
-futures = "0.3.28"
-governor = "0.5.1"
+futures = "0.3.29"
+governor = "0.6.0"
 hex = "0.4.3"
 heck = "0.4.1"
-indexmap = "2.0.0"
-indicatif = "0.17.5"
+indexmap = "2.1.0"
+indicatif = "0.17.7"
 lazy_static = "1.4.0"
-polars = { version = "0.32.1", features = [
+polars = { version = "0.33", features = [
     "parquet",
     "string_encoding",
     "polars-lazy",
@@ -44,18 +44,18 @@ polars = { version = "0.32.1", features = [
     "json",
     "dtype-struct",
 ] }
-prefix-hex = "0.7.0"
-pyo3 = { version = "0.19.2", features = ["extension-module"] }
+prefix-hex = "0.7.1"
+pyo3 = { version = "0.19.0", features = ["extension-module"] }
 pyo3-build-config = "0.19.0"
 pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
-pyo3-polars = "0.6.0"
+pyo3-polars = "0.7.0"
 rand = "0.8.5"
-regex = "1.10.0"
-serde = { version = "1.0.183", features = ["derive"] }
-serde_json = "1.0.104"
-thiserror = "1.0.40"
+regex = "1.10.2"
+serde = { version = "1.0.191", features = ["derive"] }
+serde_json = "1.0.108"
+thiserror = "1.0.50"
 thousands = "0.2.0"
-tokio = { version = "1.29.0", features = ["macros", "rt-multi-thread", "sync"] }
+tokio = { version = "1.33.0", features = ["macros", "rt-multi-thread", "sync"] }
 
 [profile.dev]
 incremental = true

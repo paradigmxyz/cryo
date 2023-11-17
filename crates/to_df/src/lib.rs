@@ -55,6 +55,122 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
         })
         .collect();
 
+    let has_event_cols = !field_names_and_types
+        .iter()
+        .filter(|(name, _)| name == "event_cols")
+        .collect::<Vec<_>>()
+        .is_empty();
+    let event_code = if has_event_cols {
+        // Generate the tokens for the event processing code
+        quote! {
+            let decoder = schema.log_decoder.clone();
+            let u256_types: Vec<_> = schema.u256_types.clone().into_iter().collect();
+            if let Some(decoder) = decoder {
+
+                fn create_empty_u256_columns(
+                    cols: &mut Vec<Series>,
+                    name: &str,
+                    u256_types: &[U256Type],
+                    column_encoding: &ColumnEncoding
+                ) {
+                    for u256_type in u256_types.iter() {
+                        let full_name = name.to_string() + u256_type.suffix().as_str();
+                        let full_name = full_name.as_str();
+
+                        match u256_type {
+                            U256Type::Binary => {
+                                match column_encoding {
+                                    ColumnEncoding::Binary => {
+                                        cols.push(Series::new(full_name, Vec::<Vec<u8>>::new()))
+                                    },
+                                    ColumnEncoding::Hex => {
+                                        cols.push(Series::new(full_name, Vec::<String>::new()))
+                                    },
+                                }
+                            },
+                            U256Type::String => cols.push(Series::new(full_name, Vec::<String>::new())),
+                            U256Type::F32 => cols.push(Series::new(full_name, Vec::<f32>::new())),
+                            U256Type::F64 => cols.push(Series::new(full_name, Vec::<f64>::new())),
+                            U256Type::U32 => cols.push(Series::new(full_name, Vec::<u32>::new())),
+                            U256Type::U64 => cols.push(Series::new(full_name, Vec::<u64>::new())),
+                            U256Type::Decimal128 => cols.push(Series::new(full_name, Vec::<Vec<u8>>::new())),
+                        }
+                    }
+                }
+
+                use ethers_core::abi::ParamType;
+
+                // Write columns even if there are no values decoded - indicates empty dataframe
+                let chunk_len = self.n_rows;
+                if self.event_cols.is_empty() {
+                    for param in decoder.event.inputs.iter() {
+                        let name = "event__".to_string() + param.name.as_str();
+                        let name = name.as_str();
+                        match param.kind {
+                            ParamType::Address => {
+                                match schema.binary_type {
+                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
+                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
+                                }
+                            },
+                            ParamType::Bytes => {
+                                match schema.binary_type {
+                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
+                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
+                                }
+                            },
+                            ParamType::Int(bits) => {
+                                if bits <= 64 {
+                                    cols.push(Series::new(name, Vec::<i64>::new()))
+                                } else {
+                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
+                                }
+                            },
+                            ParamType::Uint(bits) => {
+                                if bits <= 64 {
+                                    cols.push(Series::new(name, Vec::<u64>::new()))
+                                } else {
+                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
+                                }
+                            },
+                            ParamType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
+                            ParamType::String => cols.push(Series::new(name, Vec::<String>::new())),
+                            ParamType::Array(_) => return Err(err("could not generate Array column")),
+                            ParamType::FixedBytes(_) => return Err(err("could not generate FixedBytes column")),
+                            ParamType::FixedArray(_, _) => return Err(err("could not generate FixedArray column")),
+                            ParamType::Tuple(_) => return Err(err("could not generate Tuple column")),
+                            _ => (),
+                        }
+                    }
+                } else {
+                    for (name, data) in self.event_cols {
+                        let series_vec = decoder.make_series(
+                            name,
+                            data,
+                            chunk_len as usize,
+                            &u256_types,
+                            &schema.binary_type,
+                        );
+                        match series_vec {
+                            Ok(s) => {
+                                cols.extend(s);
+                            }
+                            Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best
+                                                                                 * to
+                                                                                 * bubble up error */
+                        }
+                    }
+                }
+
+                let drop_names = vec!["topic1".to_string(), "topic2".to_string(), "topic3".to_string(), "data".to_string()];
+                cols.retain(|c| !drop_names.contains(&c.name().to_string()));
+            }
+        }
+    } else {
+        // Generate an empty set of tokens if has_event_cols is false
+        quote! {}
+    };
+
     fn map_type_to_column_type(ty: &syn::Type) -> Option<proc_macro2::TokenStream> {
         match quote!(#ty).to_string().as_str() {
             "Vec < bool >" => Some(quote! { ColumnType::Boolean }),
@@ -123,6 +239,8 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 } else {
                     with_series!(cols, "chain_id", self.chain_id, schema);
                 }
+
+                #event_code
 
                 let df = DataFrame::new(cols).map_err(CollectError::PolarsError).sort_by_schema(schema)?;
                 let mut output = std::collections::HashMap::new();

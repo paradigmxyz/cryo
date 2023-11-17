@@ -46,7 +46,7 @@ fn to_single_chunk(chunks: &Vec<BlockChunk>) -> BlockChunk {
     match (chunks.len(), chunks.get(0)) {
         (1, Some(chunk)) => chunk.clone(),
         _ => {
-            let numbers = chunks.iter().flat_map(|x| x.numbers()).collect();
+            let numbers = chunks.iter().flat_map(|x| x.values()).collect();
             BlockChunk::Numbers(numbers)
         }
     }
