@@ -276,7 +276,7 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
     // If the exact timestamp is not found, we return the closest block number.
     let mut l = 0;
     let mut r = latest_block_number;
-    let mut mid = l + (r - 1) / 2;
+    let mut mid = (l + r) / 2;
     let mut block = fetcher
         .get_block(mid)
         .await
@@ -284,7 +284,7 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
         .unwrap();
 
     while l <= r {
-        mid = l + (r - 1) / 2;
+        mid = (l + r) / 2;
         block = fetcher
             .get_block(mid)
             .await
