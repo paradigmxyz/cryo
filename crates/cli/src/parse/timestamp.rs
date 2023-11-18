@@ -116,9 +116,7 @@ async fn parse_timestamp_inputs<P: JsonRpcClient>(
             let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
-            parse_timestamp_token(first_input, true, fetcher)
-                .await
-                .map(|x| vec![x])
+            parse_timestamp_token(first_input, true, fetcher).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
@@ -145,7 +143,9 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
         [block_ref] => {
-            let block = parse_timestamp_number_to_block_number(block_ref, RangePosition::None, fetcher).await?;
+            let block =
+                parse_timestamp_number_to_block_number(block_ref, RangePosition::None, fetcher)
+                    .await?;
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
@@ -165,7 +165,7 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
         }
         [first_ref, second_ref, third_ref] => {
             let (start_block, end_block) =
-            parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
+                parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
             let range_size = third_ref
                 .parse::<u32>()
                 .map_err(|_e| ParseError::ParseError("start_block parse error".to_string()))?;
@@ -187,28 +187,34 @@ where
 {
     let (start_block, end_block) = match (first_ref, second_ref) {
         _ if first_ref.starts_with('-') => {
-            let end_block = parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher).await?;
-            let start_block =
-                end_block
-                    .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
-                        ParseError::ParseError("start_timestamp parse error".to_string())
-                    })?)
-                    .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
+            let end_block =
+                parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher)
+                    .await?;
+            let start_block = end_block
+                .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
+                    ParseError::ParseError("start_timestamp parse error".to_string())
+                })?)
+                .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
             (start_block, end_block)
         }
         _ if second_ref.starts_with('+') => {
-            let start_block = parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher).await?;
-            let end_block =
-                start_block
-                    .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
-                        ParseError::ParseError("start_timestamp parse error".to_string())
-                    })?)
-                    .ok_or_else(|| ParseError::ParseError("end_timestamp underflow".to_string()))?;
+            let start_block =
+                parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher)
+                    .await?;
+            let end_block = start_block
+                .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
+                    ParseError::ParseError("start_timestamp parse error".to_string())
+                })?)
+                .ok_or_else(|| ParseError::ParseError("end_timestamp underflow".to_string()))?;
             (start_block, end_block)
         }
         _ => {
-            let start_block = parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher).await?;
-            let end_block = parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher).await?;
+            let start_block =
+                parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher)
+                    .await?;
+            let end_block =
+                parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher)
+                    .await?;
             (start_block, end_block)
         }
     };
