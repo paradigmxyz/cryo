@@ -335,10 +335,11 @@ mod tests {
         let initial_backoff = 500;
         let max_concurrent_requests = 100;
         let provider =
-        Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
-            .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string())).unwrap();
+            Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
+                .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
+                .unwrap();
         let rate_limiter = None;
-    
+
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
         let fetcher = Fetcher { provider, semaphore: Some(semaphore), rate_limiter };
@@ -346,5 +347,4 @@ mod tests {
         // Genesis block
         assert!(timestamp_to_block_number(1438269973, &fetcher).await.unwrap() == 0);
     }
-
 }
