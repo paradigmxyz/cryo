@@ -116,14 +116,14 @@ async fn parse_timestamp_inputs<P: JsonRpcClient>(
             let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
-            parse_timestamp_token_to_block_numbers(first_input, true, fetcher)
+            parse_timestamp_token(first_input, true, fetcher)
                 .await
                 .map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
             for part in parts {
-                chunks.push(parse_timestamp_token_to_block_numbers(part, false, fetcher).await?);
+                chunks.push(parse_timestamp_token(part, false, fetcher).await?);
             }
             Ok(chunks)
         }
@@ -135,7 +135,7 @@ enum RangePosition {
     None,
 }
 
-async fn parse_timestamp_token_to_block_numbers<P: JsonRpcClient>(
+async fn parse_timestamp_token<P: JsonRpcClient>(
     s: &str,
     as_range: bool,
     fetcher: &Fetcher<P>,
@@ -145,14 +145,14 @@ async fn parse_timestamp_token_to_block_numbers<P: JsonRpcClient>(
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
         [block_ref] => {
-            let block = parse_timestamp_number(block_ref, RangePosition::None, fetcher).await?;
+            let block = parse_timestamp_number_to_block_number(block_ref, RangePosition::None, fetcher).await?;
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
             let parts: Vec<_> = second_ref.split('/').collect();
             let (second_ref, n_keep) = if parts.len() == 2 {
                 let n_keep = parts[1].parse::<u32>().map_err(|_| {
-                    ParseError::ParseError("cannot parse block interval size".to_string())
+                    ParseError::ParseError("cannot parse timestamp interval size".to_string())
                 })?;
                 (parts[0], Some(n_keep))
             } else {
@@ -172,7 +172,7 @@ async fn parse_timestamp_token_to_block_numbers<P: JsonRpcClient>(
             block_range_to_block_chunk(start_block, end_block, false, Some(range_size), None)
         }
         _ => Err(ParseError::ParseError(
-            "blocks must be in format block_number or start_block:end_block".to_string(),
+            "timestamps must be in format timestamp or start_timestamp:end_timestamp".to_string(),
         )),
     }
 }
@@ -185,11 +185,48 @@ async fn parse_timestamp_range_to_block_number_range<P>(
 where
     P: JsonRpcClient,
 {
-    todo!()
+    let (start_block, end_block) = match (first_ref, second_ref) {
+        _ if first_ref.starts_with('-') => {
+            let end_block = parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher).await?;
+            let start_block =
+                end_block
+                    .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_timestamp parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
+            (start_block, end_block)
+        }
+        _ if second_ref.starts_with('+') => {
+            let start_block = parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher).await?;
+            let end_block =
+                start_block
+                    .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
+                        ParseError::ParseError("start_timestamp parse error".to_string())
+                    })?)
+                    .ok_or_else(|| ParseError::ParseError("end_timestamp underflow".to_string()))?;
+            (start_block, end_block)
+        }
+        _ => {
+            let start_block = parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher).await?;
+            let end_block = parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher).await?;
+            (start_block, end_block)
+        }
+    };
+
+    let end_block =
+        if second_ref != "latest" && !second_ref.is_empty() && !first_ref.starts_with('-') {
+            end_block - 1
+        } else {
+            end_block
+        };
+
+    let start_block = if first_ref.starts_with('-') { start_block + 1 } else { start_block };
+
+    Ok((start_block, end_block))
 }
 
 // parse timestamp numbers into block_numbers
-async fn parse_timestamp_number<P: JsonRpcClient>(
+async fn parse_timestamp_number_to_block_number<P: JsonRpcClient>(
     timestamp_ref: &str,
     range_position: RangePosition,
     fetcher: &Fetcher<P>,
