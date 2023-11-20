@@ -146,12 +146,14 @@ A future version of `cryo` will be able to bypass JSON-RPC and query node data d
 ```
 cryo extracts blockchain data to parquet, csv, or json
 
-Usage: cryo [OPTIONS] <DATATYPE>...
+Usage: cryo [OPTIONS] [DATATYPE]...
 
 Arguments:
-  <DATATYPE>...  datatype(s) to collect, use cryo datasets to see all available
+  [DATATYPE]...  datatype(s) to collect, use cryo datasets to see all available
 
 Options:
+      --remember    Remember current command for future use
+  -v, --verbose     Extra verbosity
       --no-verbose  Run quietly without printing information to stdout
   -h, --help        Print help
   -V, --version     Print version
@@ -172,6 +174,7 @@ Content Options:
                                      [default: binary, string, f64]
       --hex                          Use hex string encoding for binary columns
   -s, --sort [<SORT>...]             Columns(s) to sort by, `none` for unordered
+      --exclude-failed               Exclude items from failed transactions
 
 Source Options:
   -r, --rpc <RPC>                    RPC url [default: ETH_RPC_URL env var]
@@ -183,6 +186,7 @@ Acquisition Options:
       --initial-backoff <B>          Initial retry backoff time (ms) [default: 500]
       --max-concurrent-requests <M>  Global number of concurrent requests
       --max-concurrent-chunks <M>    Number of chunks processed concurrently
+      --chunk-order <CHUNK_ORDER>    Chunk collection order (normal, reverse, or random)
   -d, --dry                          Dry run, collect no data
 
 Output Options:
@@ -192,7 +196,7 @@ Output Options:
   -o, --output-dir <OUTPUT_DIR>      Directory for output files [default: .]
       --subdirs <SUBDIRS>...         Subdirectories for output files
                                      can be `datatype`, `network`, or custom string
-      --file-suffix <FILE_SUFFIX>    Suffix to attach to end of each filename
+      --label <LABEL>                Label to add to each filename
       --overwrite                    Overwrite existing files instead of skipping
       --csv                          Save as csv instead of parquet
       --json                         Save as json instead of parquet
@@ -219,6 +223,7 @@ Dataset-specific Options:
       --topic3 <TOPIC3>...           Topic3(s)
       --event-signature <SIG>...     Event signature for log decoding
       --inner-request-size <BLOCKS>  Blocks per request (eth_getLogs) [default: 1]
+      --js-tracer <tracer>           Event signature for log decoding
 
 Optional Subcommands:
       cryo help                      display help message
@@ -261,9 +266,11 @@ cryo datasets
 ─────────────
 - address_appearances
 - balance_diffs
+- balance_reads
 - balances
 - blocks
 - code_diffs
+- code_reads
 - codes
 - contracts
 - erc20_balances
@@ -273,21 +280,26 @@ cryo datasets
 - erc721_metadata
 - erc721_transfers
 - eth_calls
+- four_byte_counts (alias = 4byte_counts)
+- geth_calls
 - geth_code_diffs
 - geth_balance_diffs
 - geth_storage_diffs
 - geth_nonce_diffs
-- geth_traces
-- logs
+- geth_opcodes
+- javascript_traces (alias = js_traces)
+- logs (alias = events)
 - native_transfers
 - nonce_diffs
+- nonce_reads
 - nonces
-- slots
-- storage_diffs
+- slots (alias = storages)
+- storage_diffs (alias = slot_diffs)
+- storage_reads (alias = slot_reads)
 - traces
 - trace_calls
-- transactions
-- vm_traces
+- transactions (alias = txs)
+- vm_traces (alias = opcode_traces)
 
 dataset group names
 ───────────────────
@@ -295,6 +307,7 @@ dataset group names
 - call_trace_derivatives: contracts, native_transfers, traces
 - geth_state_diffs: geth_balance_diffs, geth_code_diffs, geth_nonce_diffs, geth_storage_diffs
 - state_diffs: balance_diffs, code_diffs, nonce_diffs, storage_diffs
+- state_reads: balance_reads, code_reads, nonce_reads, storage_reads
 
 use cryo help <DATASET> to print info about a specific dataset
 ```
