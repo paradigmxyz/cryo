@@ -315,8 +315,8 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
             .unwrap()
             .timestamp;
 
-        if ethers::types::U256::from(timestamp) - block_minus_one_timestamp
-            == block.timestamp - ethers::types::U256::from(timestamp)
+        if ethers::types::U256::from(timestamp) - block_minus_one_timestamp ==
+            block.timestamp - ethers::types::U256::from(timestamp)
         {
             return Ok(mid - 1);
         }
@@ -367,13 +367,16 @@ mod tests {
         assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
         assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
 
-        // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Lower block is returned
+        // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Lower
+        // block is returned
         assert!(timestamp_to_block_number(1438272176, &fetcher).await.unwrap() == 1019);
 
-        // Timestamp 1438272187 is 1 seconds after block 1024 and 1 second before block 1025. Lower block is returned
+        // Timestamp 1438272187 is 1 seconds after block 1024 and 1 second before block 1025. Lower
+        // block is returned
         assert!(timestamp_to_block_number(1438272187, &fetcher).await.unwrap() == 1024);
 
-        // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower block is returned
+        // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower
+        // block is returned
         assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
     }
 }
