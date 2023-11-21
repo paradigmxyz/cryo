@@ -306,6 +306,22 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
         }
     }
 
+    // Edge case: If timestamp is equally between two different blocks, return the lower block.
+    if mid > 0 && block.timestamp > ethers::types::U256::from(timestamp) {
+        let block_minus_one_timestamp = fetcher
+            .get_block(mid - 1)
+            .await
+            .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
+            .unwrap()
+            .timestamp;
+
+        if ethers::types::U256::from(timestamp) - block_minus_one_timestamp
+            == block.timestamp - ethers::types::U256::from(timestamp)
+        {
+            return Ok(mid - 1);
+        }
+    }
+
     return Ok(mid);
 }
 
@@ -351,13 +367,13 @@ mod tests {
         assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
         assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
 
-        // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Higher block is returned
-        assert!(timestamp_to_block_number(1438272176, &fetcher).await.unwrap() == 1020);
-        
-        // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Higher block is returned
-        assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1017);
+        // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Lower block is returned
+        assert!(timestamp_to_block_number(1438272176, &fetcher).await.unwrap() == 1019);
 
         // Timestamp 1438272187 is 1 seconds after block 1024 and 1 second before block 1025. Lower block is returned
         assert!(timestamp_to_block_number(1438272187, &fetcher).await.unwrap() == 1024);
+
+        // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower block is returned
+        assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
     }
 }
