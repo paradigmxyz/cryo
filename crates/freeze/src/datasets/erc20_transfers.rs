@@ -21,11 +21,15 @@ pub struct Erc20Transfers {
 #[async_trait::async_trait]
 impl Dataset for Erc20Transfers {
     fn optional_parameters() -> Vec<Dim> {
-        vec![Dim::Contract, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::FromAddress, Dim::ToAddress]
+        vec![Dim::Address, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::FromAddress, Dim::ToAddress]
     }
 
     fn use_block_ranges() -> bool {
         true
+    }
+
+    fn arg_aliases() -> Option<std::collections::HashMap<Dim, Dim>> {
+        Some([(Dim::Contract, Dim::Address)].into_iter().collect())
     }
 }
 

@@ -43,7 +43,7 @@ impl Subchunk for Vec<BlockChunk> {
 }
 
 fn to_single_chunk(chunks: &Vec<BlockChunk>) -> BlockChunk {
-    match (chunks.len(), chunks.get(0)) {
+    match (chunks.len(), chunks.first()) {
         (1, Some(chunk)) => chunk.clone(),
         _ => {
             let numbers = chunks.iter().flat_map(|x| x.values()).collect();

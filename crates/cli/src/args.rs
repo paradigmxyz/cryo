@@ -262,10 +262,10 @@ impl Args {
     pub(crate) fn merge_with_precedence(self, other: Args) -> Self {
         let default_struct = Args::default();
 
-        let mut s1_value: Value = serde_json::to_value(&self).expect("Failed to serialize to JSON");
-        let s2_value: Value = serde_json::to_value(&other).expect("Failed to serialize to JSON");
+        let mut s1_value: Value = serde_json::to_value(self).expect("Failed to serialize to JSON");
+        let s2_value: Value = serde_json::to_value(other).expect("Failed to serialize to JSON");
         let default_value: Value =
-            serde_json::to_value(&default_struct).expect("Failed to serialize to JSON");
+            serde_json::to_value(default_struct).expect("Failed to serialize to JSON");
 
         if let (Value::Object(s1_map), Value::Object(s2_map), Value::Object(default_map)) =
             (&mut s1_value, &s2_value, &default_value)

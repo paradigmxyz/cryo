@@ -38,13 +38,21 @@ impl CollectByBlock for Erc721Metadata {
 
         // name
         let call_data = FUNCTION_ERC20_NAME.clone();
-        let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let name = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
+        let name = match source.fetcher.call2(address, call_data, block_number).await {
+            Ok(output) => {
+                String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
+            }
+            Err(_) => None,
+        };
 
         // symbol
         let call_data = FUNCTION_ERC20_SYMBOL.clone();
-        let output = source.fetcher.call2(address, call_data, block_number).await?;
-        let symbol = String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s));
+        let symbol = match source.fetcher.call2(address, call_data, block_number).await {
+            Ok(output) => {
+                String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
+            }
+            Err(_) => None,
+        };
 
         Ok((request.block_number()? as u32, request.address()?, name, symbol))
     }
