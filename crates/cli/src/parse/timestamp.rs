@@ -346,5 +346,18 @@ mod tests {
 
         // Genesis block
         assert!(timestamp_to_block_number(1438269973, &fetcher).await.unwrap() == 0);
+
+        // Block 1000, and the timestamp surrounding block 1020
+        assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
+        assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
+
+        // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Higher block is returned
+        assert!(timestamp_to_block_number(1438272176, &fetcher).await.unwrap() == 1020);
+        
+        // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Higher block is returned
+        assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1017);
+
+        // Timestamp 1438272187 is 1 seconds after block 1024 and 1 second before block 1025. Lower block is returned
+        assert!(timestamp_to_block_number(1438272187, &fetcher).await.unwrap() == 1024);
     }
 }
