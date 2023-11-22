@@ -70,10 +70,38 @@ impl CollectByTransaction for Logs {
 
 /// process block into columns
 fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
+    let decode_keys = match &schema.log_decoder {
+        None => None,
+        Some(decoder) => {
+            let keys = decoder
+                .event
+                .inputs
+                .clone()
+                .into_iter()
+                .map(|i| i.name)
+                .collect::<std::collections::HashSet<String>>();
+            Some(keys)
+        }
+    };
+
     for log in logs.iter() {
         if let (Some(bn), Some(tx), Some(ti), Some(li)) =
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
         {
+            // decode event
+            if let (Some(decoder), Some(decode_keys)) = (&schema.log_decoder, &decode_keys) {
+                match decoder.event.parse_log(log.clone().into()) {
+                    Ok(log) => {
+                        for param in log.params {
+                            if decode_keys.contains(param.name.as_str()) {
+                                columns.event_cols.entry(param.name).or_default().push(param.value);
+                            }
+                        }
+                    }
+                    Err(_) => continue,
+                }
+            };
+
             columns.n_rows += 1;
             store!(schema, columns, block_number, bn.as_u32());
             store!(schema, columns, transaction_index, ti.as_u32());
@@ -98,14 +126,6 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
                 }
             }
         }
-    }
-
-    // add decoded event logs
-    let decoder = schema.log_decoder.clone();
-    if let Some(decoder) = decoder {
-        decoder.parse_log_from_event(logs).into_iter().for_each(|(k, v)| {
-            columns.event_cols.entry(k).or_default().extend(v);
-        });
     }
 
     Ok(())
