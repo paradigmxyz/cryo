@@ -356,7 +356,7 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_timestamp_to_block_number() {
+    async fn test_extrema_timestamp_to_block_number() {
         let fetcher = setup_fetcher().await;
 
         // Genesis block
@@ -365,11 +365,32 @@ mod tests {
         // Before genesis block
         assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
 
+        // Smallest timestamp
+        assert!(timestamp_to_block_number(0, &fetcher).await.unwrap() == 0);
+
         // Greater than latest block
         assert!(
             timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
                 get_latest_block_number(&fetcher).await.unwrap()
         );
+    }
+
+    #[tokio::test]
+    async fn test_latest_timestamp_to_block_number() {
+        let fetcher = setup_fetcher().await;
+        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
+        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
+        let latest_timestamp = latest_block.timestamp.as_u64();
+
+        assert_eq!(
+            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
+            latest_block_number
+        );
+    }
+
+    #[tokio::test]
+    async fn test_timestamp_between_blocks() {
+        let fetcher = setup_fetcher().await;
 
         // Block 1000, and the timestamp surrounding block 1020
         assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
@@ -386,18 +407,5 @@ mod tests {
         // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower
         // block is returned
         assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
-    }
-
-    #[tokio::test]
-    async fn test_latest_timestamp_to_block_number() {
-        let fetcher = setup_fetcher().await;
-        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
-        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
-        let latest_timestamp = latest_block.timestamp.as_u64();
-
-        assert_eq!(
-            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
-            latest_block_number
-        );
     }
 }
