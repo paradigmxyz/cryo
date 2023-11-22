@@ -339,7 +339,7 @@ async fn get_latest_block_number<P: JsonRpcClient>(
 mod tests {
     use std::num::NonZeroU32;
 
-    use governor::{RateLimiter, Quota};
+    use governor::{Quota, RateLimiter};
 
     use super::*;
 
@@ -352,8 +352,9 @@ mod tests {
             Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
                 .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
                 .unwrap();
-        
-        let quota = Quota::per_second(NonZeroU32::new(10).unwrap()).allow_burst(NonZeroU32::new(1).unwrap());
+
+        let quota = Quota::per_second(NonZeroU32::new(10).unwrap())
+            .allow_burst(NonZeroU32::new(1).unwrap());
         let rate_limiter = Some(RateLimiter::direct(quota));
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
