@@ -337,6 +337,10 @@ async fn get_latest_block_number<P: JsonRpcClient>(
 
 #[cfg(test)]
 mod tests {
+    use std::num::NonZeroU32;
+
+    use governor::{RateLimiter, Quota};
+
     use super::*;
 
     async fn setup_fetcher() -> Fetcher<RetryClient<Http>> {
@@ -348,8 +352,9 @@ mod tests {
             Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
                 .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
                 .unwrap();
-        let rate_limiter = None;
-
+        
+        let quota = Quota::per_second(NonZeroU32::new(10).unwrap()).allow_burst(NonZeroU32::new(1).unwrap());
+        let rate_limiter = Some(RateLimiter::direct(quota));
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
         Fetcher { provider, semaphore: Some(semaphore), rate_limiter }
@@ -372,6 +377,15 @@ mod tests {
         assert!(
             timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
                 get_latest_block_number(&fetcher).await.unwrap()
+        );
+
+        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
+        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
+        let latest_timestamp = latest_block.timestamp.as_u64();
+
+        assert_eq!(
+            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
+            latest_block_number
         );
     }
 
