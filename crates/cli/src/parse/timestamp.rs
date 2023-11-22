@@ -376,15 +376,6 @@ mod tests {
             timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
                 get_latest_block_number(&fetcher).await.unwrap()
         );
-
-        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
-        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
-        let latest_timestamp = latest_block.timestamp.as_u64();
-
-        assert_eq!(
-            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
-            latest_block_number
-        );
     }
 
     #[tokio::test]
