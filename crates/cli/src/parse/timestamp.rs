@@ -337,10 +337,6 @@ async fn get_latest_block_number<P: JsonRpcClient>(
 
 #[cfg(test)]
 mod tests {
-    use std::num::NonZeroU32;
-
-    use governor::{Quota, RateLimiter};
-
     use super::*;
 
     #[tokio::test]
@@ -363,6 +359,12 @@ mod tests {
         // Genesis block
         assert!(timestamp_to_block_number(1438269973, &fetcher).await.unwrap() == 0);
 
+        // Before genesis block
+        assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
+
+        // Greater than latest block
+        assert!(timestamp_to_block_number(32503698000, &fetcher).await.unwrap() == get_latest_block_number(&fetcher).await.unwrap());
+        
         // Block 1000, and the timestamp surrounding block 1020
         assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
         assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
