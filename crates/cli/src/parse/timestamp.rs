@@ -353,7 +353,7 @@ mod tests {
                 .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
                 .unwrap();
 
-        let quota = Quota::per_second(NonZeroU32::new(10).unwrap())
+        let quota = Quota::per_second(NonZeroU32::new(15).unwrap())
             .allow_burst(NonZeroU32::new(1).unwrap());
         let rate_limiter = Some(RateLimiter::direct(quota));
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
@@ -373,7 +373,7 @@ mod tests {
 
         // Greater than latest block
         assert!(
-            timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
+            timestamp_to_block_number(1893474000, &fetcher).await.unwrap() ==
                 get_latest_block_number(&fetcher).await.unwrap()
         );
     }
