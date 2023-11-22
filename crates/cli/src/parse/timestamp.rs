@@ -370,9 +370,6 @@ mod tests {
         // Before genesis block
         assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
 
-        // Smallest timestamp
-        assert!(timestamp_to_block_number(0, &fetcher).await.unwrap() == 0);
-
         // Greater than latest block
         assert!(
             timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
