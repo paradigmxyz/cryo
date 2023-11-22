@@ -272,14 +272,13 @@ async fn timestamp_str_with_metric_unit_to_block_number<P: JsonRpcClient>(
     return timestamp_to_block_number(timestamp, fetcher).await;
 }
 
+// perform binary search to determine the closest block number smaller than or equal to a given timestamp
 async fn timestamp_to_block_number<P: JsonRpcClient>(
     timestamp: u64,
     fetcher: &Fetcher<P>,
 ) -> Result<u64, ParseError> {
     let latest_block_number = get_latest_block_number(fetcher).await?;
 
-    // perform binary search to determine the block number for a given timestamp.
-    // If the exact timestamp is not found, we return the closest block number.
     let mut l = 0;
     let mut r = latest_block_number;
     let mut mid = (l + r) / 2;
