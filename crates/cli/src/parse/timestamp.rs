@@ -272,7 +272,8 @@ async fn timestamp_str_with_metric_unit_to_block_number<P: JsonRpcClient>(
     return timestamp_to_block_number(timestamp, fetcher).await;
 }
 
-// perform binary search to determine the closest block number smaller than or equal to a given timestamp
+// perform binary search to determine the closest block number smaller than or equal to a given
+// timestamp
 async fn timestamp_to_block_number<P: JsonRpcClient>(
     timestamp: u64,
     fetcher: &Fetcher<P>,
@@ -338,9 +339,7 @@ async fn get_latest_block_number<P: JsonRpcClient>(
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_timestamp_to_block_number() {
-        // Setup
+    async fn setup_fetcher() -> Fetcher<RetryClient<Http>> {
         let rpc_url = String::from("https://eth.llamarpc.com");
         let max_retry = 5;
         let initial_backoff = 500;
@@ -353,7 +352,12 @@ mod tests {
 
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
-        let fetcher = Fetcher { provider, semaphore: Some(semaphore), rate_limiter };
+        Fetcher { provider, semaphore: Some(semaphore), rate_limiter }
+    }
+
+    #[tokio::test]
+    async fn test_timestamp_to_block_number() {
+        let fetcher = setup_fetcher().await;
 
         // Genesis block
         assert!(timestamp_to_block_number(1438269973, &fetcher).await.unwrap() == 0);
@@ -362,8 +366,11 @@ mod tests {
         assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
 
         // Greater than latest block
-        assert!(timestamp_to_block_number(32503698000, &fetcher).await.unwrap() == get_latest_block_number(&fetcher).await.unwrap());
-        
+        assert!(
+            timestamp_to_block_number(32503698000, &fetcher).await.unwrap() ==
+                get_latest_block_number(&fetcher).await.unwrap()
+        );
+
         // Block 1000, and the timestamp surrounding block 1020
         assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
         assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
@@ -379,5 +386,18 @@ mod tests {
         // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower
         // block is returned
         assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
+    }
+
+    #[tokio::test]
+    async fn test_latest_timestamp_to_block_number() {
+        let fetcher = setup_fetcher().await;
+        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
+        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
+        let latest_timestamp = latest_block.timestamp.as_u64();
+
+        assert_eq!(
+            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
+            latest_block_number
+        );
     }
 }
