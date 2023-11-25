@@ -35,7 +35,7 @@ heck = "0.4.1"
 indexmap = "2.1.0"
 indicatif = "0.17.7"
 lazy_static = "1.4.0"
-polars = { version = "0.33", features = [
+polars = { version = "0.35.0", features = [
     "parquet",
     "string_encoding",
     "polars-lazy",
@@ -45,10 +45,10 @@ polars = { version = "0.33", features = [
     "dtype-struct",
 ] }
 prefix-hex = "0.7.1"
-pyo3 = { version = "0.19.0", features = ["extension-module"] }
-pyo3-build-config = "0.19.0"
-pyo3-asyncio = { version = "0.19.0", features = ["tokio-runtime"] }
-pyo3-polars = "0.7.0"
+pyo3 = { version = "0.20.0", features = ["extension-module"] }
+pyo3-build-config = "0.20.0"
+pyo3-asyncio = { version = "0.20.0", features = ["tokio-runtime"] }
+pyo3-polars = "0.9.0"
 rand = "0.8.5"
 regex = "1.10.2"
 serde = { version = "1.0.191", features = ["derive"] }
