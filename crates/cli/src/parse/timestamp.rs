@@ -190,22 +190,40 @@ where
             let end_block =
                 parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher)
                     .await?;
-            let start_block = end_block
+            let start_timestamp = second_ref
+                .parse::<u64>()
+                .map_err(|_e| ParseError::ParseError("end_timestamp parse error".to_string()))?
                 .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
-                    ParseError::ParseError("start_timestamp parse error".to_string())
+                    ParseError::ParseError("timestamp subtraction parse error".to_string())
                 })?)
-                .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
+                .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?
+                .to_string();
+            let start_block = parse_timestamp_number_to_block_number(
+                &start_timestamp,
+                RangePosition::First,
+                fetcher,
+            )
+            .await?;
             (start_block, end_block)
         }
         _ if second_ref.starts_with('+') => {
             let start_block =
                 parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher)
                     .await?;
-            let end_block = start_block
+            let end_timestamp = first_ref
+                .parse::<u64>()
+                .map_err(|_e| ParseError::ParseError("start_timestamp parse error".to_string()))?
                 .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
-                    ParseError::ParseError("start_timestamp parse error".to_string())
+                    ParseError::ParseError("timestamp addition parse error".to_string())
                 })?)
-                .ok_or_else(|| ParseError::ParseError("end_timestamp underflow".to_string()))?;
+                .ok_or_else(|| ParseError::ParseError("end_timestamp overflow".to_string()))?
+                .to_string();
+            let end_block = parse_timestamp_number_to_block_number(
+                &end_timestamp,
+                RangePosition::Last,
+                fetcher,
+            )
+            .await?;
             (start_block, end_block)
         }
         _ => {
@@ -250,9 +268,9 @@ async fn parse_timestamp_number_to_block_number<P: JsonRpcClient>(
         }
         _ => {
             let timestamp = timestamp_ref
-            .parse::<f64>()
-            .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
-            .map(|x| x as u64)?;
+                .parse::<f64>()
+                .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
+                .map(|x| x as u64)?;
 
             return timestamp_to_block_number(timestamp, fetcher).await;
         }
@@ -418,36 +436,71 @@ mod tests {
         let fetcher = setup_fetcher().await;
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("latest", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("latest", RangePosition::None, &fetcher)
+                .await
+                .unwrap(),
             get_latest_block_number(&fetcher).await.unwrap()
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("", RangePosition::First, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("", RangePosition::First, &fetcher)
+                .await
+                .unwrap(),
             0
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("", RangePosition::Last, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("", RangePosition::Last, &fetcher)
+                .await
+                .unwrap(),
             get_latest_block_number(&fetcher).await.unwrap()
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("1700000000", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("1700000000", RangePosition::None, &fetcher)
+                .await
+                .unwrap(),
             18573050
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("1700M", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("1700M", RangePosition::None, &fetcher)
+                .await
+                .unwrap(),
             18573050
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("1700000K", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number_to_block_number("1700000K", RangePosition::None, &fetcher)
+                .await
+                .unwrap(),
             18573050
         );
-
-
     }
 
+    #[tokio::test]
+    async fn test_parse_timestamp_range_to_block_number_range() {
+        let fetcher = setup_fetcher().await;
+
+        assert_eq!(
+            parse_timestamp_range_to_block_number_range("1700000000", "1700000015", &fetcher)
+                .await
+                .unwrap(),
+            (18573050, 18573051)
+        );
+
+        assert_eq!(
+            parse_timestamp_range_to_block_number_range("-15", "1700000015", &fetcher)
+                .await
+                .unwrap(),
+            (18573052, 18573052)
+        );
+
+        assert_eq!(
+            parse_timestamp_range_to_block_number_range("1700000000", "+15", &fetcher)
+                .await
+                .unwrap(),
+            (18573050, 18573051)
+        );
+    }
 }
