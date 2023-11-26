@@ -105,7 +105,7 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
     }
 }
 
-/// parse block numbers to freeze
+/// parse timestamp numbers to freeze
 async fn parse_timestamp_inputs<P: JsonRpcClient>(
     inputs: &str,
     fetcher: &Fetcher<P>,
@@ -242,19 +242,20 @@ async fn parse_timestamp_number_to_block_number<P: JsonRpcClient>(
         ("", RangePosition::First) => Ok(0),
         ("", RangePosition::Last) => get_latest_block_number(fetcher).await,
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
-        _ if timestamp_ref.ends_with('B') | timestamp_ref.ends_with('b') => {
-            timestamp_str_with_metric_unit_to_block_number(timestamp_ref, 1e9, fetcher).await
-        }
         _ if timestamp_ref.ends_with('M') | timestamp_ref.ends_with('m') => {
             timestamp_str_with_metric_unit_to_block_number(timestamp_ref, 1e6, fetcher).await
         }
         _ if timestamp_ref.ends_with('K') | timestamp_ref.ends_with('k') => {
             timestamp_str_with_metric_unit_to_block_number(timestamp_ref, 1e3, fetcher).await
         }
-        _ => timestamp_ref
+        _ => {
+            let timestamp = timestamp_ref
             .parse::<f64>()
             .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
-            .map(|x| x as u64),
+            .map(|x| x as u64)?;
+
+            return timestamp_to_block_number(timestamp, fetcher).await;
+        }
     }
 }
 
@@ -411,4 +412,42 @@ mod tests {
         // block is returned
         assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
     }
+
+    #[tokio::test]
+    async fn test_parse_timestamp_number_to_block_number() {
+        let fetcher = setup_fetcher().await;
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("latest", RangePosition::None, &fetcher).await.unwrap(),
+            get_latest_block_number(&fetcher).await.unwrap()
+        );
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("", RangePosition::First, &fetcher).await.unwrap(),
+            0
+        );
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("", RangePosition::Last, &fetcher).await.unwrap(),
+            get_latest_block_number(&fetcher).await.unwrap()
+        );
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("1700000000", RangePosition::None, &fetcher).await.unwrap(),
+            18573050
+        );
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("1700M", RangePosition::None, &fetcher).await.unwrap(),
+            18573050
+        );
+
+        assert_eq!(
+            parse_timestamp_number_to_block_number("1700000K", RangePosition::None, &fetcher).await.unwrap(),
+            18573050
+        );
+
+
+    }
+
 }

@@ -248,7 +248,7 @@ Timestamp specification syntax
 - can use ranges                     --timestamp 12M:13M 15M:16M
 - can use a parquet file             --timestamp ./path/to/file.parquet[:COLUMN_NAME]
 - can use multiple parquet files     --timestamp ./path/to/files/*.parquet[:COLUMN_NAME]
-- numbers can contain { _ . K M B }  5_000 5K 15M 15.5M
+- numbers can contain { _ . K M }    5_000 5K 15M 15.5M
 - omitting range end means latest    15.5M: == 15.5M:latest
 - omitting range start means 0       :700 == 0:700
 - minus on start means minus end     -1000:7000 == 6000:7000
