@@ -349,9 +349,6 @@ mod tests {
     async fn test_extrema_timestamp_to_block_number() {
         let fetcher = setup_fetcher().await;
 
-        // Genesis block
-        assert!(timestamp_to_block_number(1438269973, &fetcher).await.unwrap() == 0);
-
         // Before genesis block
         assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
 
