@@ -9,7 +9,7 @@ use crate::{
 
 use super::blocks::get_latest_block_number;
 
-pub(crate) async fn parse_timestamp<P: JsonRpcClient>(
+pub(crate) async fn parse_timestamps<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
 ) -> Result<(Option<Vec<Option<String>>>, Option<Vec<BlockChunk>>), ParseError> {

@@ -7,7 +7,7 @@ mod partitions;
 mod query;
 pub(crate) mod schemas;
 mod source;
-mod timestamp;
+mod timestamps;
 
 pub use args::*;
 use schemas::*;
