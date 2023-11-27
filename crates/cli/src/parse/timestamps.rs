@@ -13,7 +13,7 @@ pub(crate) async fn parse_timestamps<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
 ) -> Result<(Option<Vec<Option<String>>>, Option<Vec<BlockChunk>>), ParseError> {
-    let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.timestamp {
+    let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.timestamps {
         Some(timestamp) => timestamp.iter().partition(|tx| std::path::Path::new(tx).exists()),
         None => return Ok((None, None)),
     };

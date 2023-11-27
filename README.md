@@ -156,6 +156,7 @@ Options:
 
 Content Options:
   -b, --blocks <BLOCKS>...           Block numbers, see syntax below
+      --timestamps <TIMESTAMPS>...   Timestamp numbers in unix, overriden by blocks
   -t, --txs <TXS>...                 Transaction hashes, see syntax below
   -a, --align                        Align chunk boundaries to regular intervals,
                                      e.g. (1000 2000 3000), not (1106 2106 3106)
