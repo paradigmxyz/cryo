@@ -354,7 +354,7 @@ mod tests {
 
         // Greater than latest block
         assert!(
-            timestamp_to_block_number(1893474000, &fetcher).await.unwrap() ==
+            timestamp_to_block_number(get_latest_timestamp(&fetcher).await.unwrap(), &fetcher).await.unwrap() ==
                 get_latest_block_number(&fetcher).await.unwrap()
         );
     }
