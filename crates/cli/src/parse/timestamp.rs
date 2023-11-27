@@ -142,10 +142,11 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
 
     let parts: Vec<&str> = s.split(':').collect();
     match parts.as_slice() {
-        [block_ref] => {
-            let block =
-                parse_timestamp_number_to_block_number(block_ref, RangePosition::None, fetcher)
-                    .await?;
+        [timestamp_ref] => {
+            let timestamp =
+                parse_timestamp_number(timestamp_ref, RangePosition::None, fetcher).await?;
+            let block = timestamp_to_block_number(timestamp, fetcher).await?;
+
             Ok(BlockChunk::Numbers(vec![block]))
         }
         [first_ref, second_ref] => {
@@ -159,17 +160,13 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
                 (*second_ref, None)
             };
 
-            let (start_block, end_block) =
-                parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
+            let (start_timestamp, end_timestamp) =
+                parse_timestamp_range(first_ref, second_ref, fetcher).await?;
+            let (start_block, end_block) = (
+                timestamp_to_block_number(start_timestamp, fetcher).await?,
+                timestamp_to_block_number(end_timestamp, fetcher).await?,
+            );
             block_range_to_block_chunk(start_block, end_block, as_range, None, n_keep)
-        }
-        [first_ref, second_ref, third_ref] => {
-            let (start_block, end_block) =
-                parse_timestamp_range_to_block_number_range(first_ref, second_ref, fetcher).await?;
-            let range_size = third_ref
-                .parse::<u32>()
-                .map_err(|_e| ParseError::ParseError("start_block parse error".to_string()))?;
-            block_range_to_block_chunk(start_block, end_block, false, Some(range_size), None)
         }
         _ => Err(ParseError::ParseError(
             "timestamps must be in format timestamp or start_timestamp:end_timestamp".to_string(),
@@ -177,7 +174,7 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
     }
 }
 
-async fn parse_timestamp_range_to_block_number_range<P>(
+async fn parse_timestamp_range<P>(
     first_ref: &str,
     second_ref: &str,
     fetcher: &Fetcher<P>,
@@ -185,110 +182,86 @@ async fn parse_timestamp_range_to_block_number_range<P>(
 where
     P: JsonRpcClient,
 {
-    let (start_block, end_block) = match (first_ref, second_ref) {
+    let (start_timestamp, end_timestamp) = match (first_ref, second_ref) {
         _ if first_ref.starts_with('-') => {
-            let end_block =
-                parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher)
-                    .await?;
-            let start_timestamp = second_ref
-                .parse::<u64>()
-                .map_err(|_e| ParseError::ParseError("end_timestamp parse error".to_string()))?
-                .checked_sub(first_ref[1..].parse::<u64>().map_err(|_e| {
-                    ParseError::ParseError("timestamp subtraction parse error".to_string())
-                })?)
-                .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?
-                .to_string();
-            let start_block = parse_timestamp_number_to_block_number(
-                &start_timestamp,
-                RangePosition::First,
-                fetcher,
-            )
-            .await?;
-            (start_block, end_block)
+            let end_timestamp =
+                parse_timestamp_number(second_ref, RangePosition::Last, fetcher).await?;
+
+            let start_timestamp = end_timestamp
+                .checked_sub(
+                    parse_timestamp_number(&first_ref[1..], RangePosition::None, fetcher).await?,
+                )
+                .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
+
+            (start_timestamp, end_timestamp)
         }
         _ if second_ref.starts_with('+') => {
-            let start_block =
-                parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher)
-                    .await?;
-            let end_timestamp = first_ref
-                .parse::<u64>()
-                .map_err(|_e| ParseError::ParseError("start_timestamp parse error".to_string()))?
-                .checked_add(second_ref[1..].parse::<u64>().map_err(|_e| {
-                    ParseError::ParseError("timestamp addition parse error".to_string())
-                })?)
-                .ok_or_else(|| ParseError::ParseError("end_timestamp overflow".to_string()))?
-                .to_string();
-            let end_block = parse_timestamp_number_to_block_number(
-                &end_timestamp,
-                RangePosition::Last,
-                fetcher,
-            )
-            .await?;
-            (start_block, end_block)
+            let start_timestamp =
+                parse_timestamp_number(first_ref, RangePosition::First, fetcher).await?;
+
+            let end_timestamp = start_timestamp
+                .checked_add(
+                    parse_timestamp_number(&second_ref[1..], RangePosition::None, fetcher).await?,
+                )
+                .ok_or_else(|| ParseError::ParseError("end_timestamp overflow".to_string()))?;
+
+            (start_timestamp, end_timestamp)
         }
         _ => {
-            let start_block =
-                parse_timestamp_number_to_block_number(first_ref, RangePosition::First, fetcher)
-                    .await?;
-            let end_block =
-                parse_timestamp_number_to_block_number(second_ref, RangePosition::Last, fetcher)
-                    .await?;
-            (start_block, end_block)
+            let start_timestamp =
+                parse_timestamp_number(first_ref, RangePosition::First, fetcher).await?;
+
+            let end_timestamp =
+                parse_timestamp_number(second_ref, RangePosition::Last, fetcher).await?;
+
+            (start_timestamp, end_timestamp)
         }
     };
 
-    let end_block =
+    let end_timestamp =
         if second_ref != "latest" && !second_ref.is_empty() && !first_ref.starts_with('-') {
-            end_block - 1
+            end_timestamp - 1
         } else {
-            end_block
+            end_timestamp
         };
 
-    let start_block = if first_ref.starts_with('-') { start_block + 1 } else { start_block };
-
-    Ok((start_block, end_block))
+    Ok((start_timestamp, end_timestamp))
 }
 
-// parse timestamp numbers into block_numbers
-async fn parse_timestamp_number_to_block_number<P: JsonRpcClient>(
+async fn parse_timestamp_number<P: JsonRpcClient>(
     timestamp_ref: &str,
     range_position: RangePosition,
     fetcher: &Fetcher<P>,
 ) -> Result<u64, ParseError> {
     match (timestamp_ref, range_position) {
-        ("latest", _) => get_latest_block_number(fetcher).await,
+        ("latest", _) => get_latest_timestamp(fetcher).await,
         ("", RangePosition::First) => Ok(0),
-        ("", RangePosition::Last) => get_latest_block_number(fetcher).await,
+        ("", RangePosition::Last) => get_latest_timestamp(fetcher).await,
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
         _ if timestamp_ref.ends_with('M') | timestamp_ref.ends_with('m') => {
-            timestamp_str_with_metric_unit_to_block_number(timestamp_ref, 1e6, fetcher).await
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 1e6)
         }
         _ if timestamp_ref.ends_with('K') | timestamp_ref.ends_with('k') => {
-            timestamp_str_with_metric_unit_to_block_number(timestamp_ref, 1e3, fetcher).await
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 1e3)
         }
-        _ => {
-            let timestamp = timestamp_ref
-                .parse::<f64>()
-                .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
-                .map(|x| x as u64)?;
-
-            return timestamp_to_block_number(timestamp, fetcher).await;
-        }
+        _ => timestamp_ref
+            .parse::<f64>()
+            .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
+            .map(|x| x as u64),
     }
 }
 
-async fn timestamp_str_with_metric_unit_to_block_number<P: JsonRpcClient>(
+fn scale_timestamp_str_by_metric_unit(
     timestamp_ref: &str,
     metric_scale: f64,
-    fetcher: &Fetcher<P>,
 ) -> Result<u64, ParseError> {
     let s = &timestamp_ref[..timestamp_ref.len() - 1];
     let timestamp = s
         .parse::<f64>()
         .map(|n| (metric_scale * n) as u64)
-        .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))?;
+        .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()));
 
-    return timestamp_to_block_number(timestamp, fetcher).await;
+    return timestamp;
 }
 
 // perform binary search to determine the closest block number smaller than or equal to a given
@@ -325,23 +298,12 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
         }
     }
 
-    // Edge case: If timestamp is equally between two different blocks, return the lower block.
+    // If timestamp is between two different blocks, return the lower block.
     if mid > 0 && block.timestamp > ethers::types::U256::from(timestamp) {
-        let block_minus_one_timestamp = fetcher
-            .get_block(mid - 1)
-            .await
-            .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
-            .unwrap()
-            .timestamp;
-
-        if ethers::types::U256::from(timestamp) - block_minus_one_timestamp ==
-            block.timestamp - ethers::types::U256::from(timestamp)
-        {
-            return Ok(mid - 1);
-        }
+        return Ok(mid - 1);
+    } else {
+        return Ok(mid);
     }
-
-    return Ok(mid);
 }
 
 async fn get_latest_block_number<P: JsonRpcClient>(
@@ -352,6 +314,17 @@ async fn get_latest_block_number<P: JsonRpcClient>(
         .await
         .map(|n| n.as_u64())
         .map_err(|_e| ParseError::ParseError("Error retrieving latest block number".to_string()));
+}
+
+async fn get_latest_timestamp<P: JsonRpcClient>(fetcher: &Fetcher<P>) -> Result<u64, ParseError> {
+    let latest_block_number = get_latest_block_number(fetcher).await?;
+    let latest_block = fetcher
+        .get_block(latest_block_number)
+        .await
+        .map_err(|_e| ParseError::ParseError("Error fetching latest block".to_string()))?
+        .unwrap();
+
+    return Ok(latest_block.timestamp.as_u64());
 }
 
 #[cfg(test)]
@@ -432,49 +405,35 @@ mod tests {
     }
 
     #[tokio::test]
-    async fn test_parse_timestamp_number_to_block_number() {
+    async fn test_parse_timestamp_number() {
         let fetcher = setup_fetcher().await;
+        let latest_timestamp =
+            parse_timestamp_number("latest", RangePosition::None, &fetcher).await.unwrap();
+        assert_eq!(
+            latest_timestamp,
+            get_latest_timestamp(&fetcher).await.unwrap()
+        );
+
+        assert_eq!(parse_timestamp_number("", RangePosition::First, &fetcher).await.unwrap(), 0);
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("latest", RangePosition::None, &fetcher)
-                .await
-                .unwrap(),
-            get_latest_block_number(&fetcher).await.unwrap()
+            parse_timestamp_number("", RangePosition::Last, &fetcher).await.unwrap(),
+            get_latest_timestamp(&fetcher).await.unwrap()
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("", RangePosition::First, &fetcher)
-                .await
-                .unwrap(),
-            0
+            parse_timestamp_number("1700000000", RangePosition::None, &fetcher).await.unwrap(),
+            1700000000
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("", RangePosition::Last, &fetcher)
-                .await
-                .unwrap(),
-            get_latest_block_number(&fetcher).await.unwrap()
+            parse_timestamp_number("1700M", RangePosition::None, &fetcher).await.unwrap(),
+            1700000000
         );
 
         assert_eq!(
-            parse_timestamp_number_to_block_number("1700000000", RangePosition::None, &fetcher)
-                .await
-                .unwrap(),
-            18573050
-        );
-
-        assert_eq!(
-            parse_timestamp_number_to_block_number("1700M", RangePosition::None, &fetcher)
-                .await
-                .unwrap(),
-            18573050
-        );
-
-        assert_eq!(
-            parse_timestamp_number_to_block_number("1700000K", RangePosition::None, &fetcher)
-                .await
-                .unwrap(),
-            18573050
+            parse_timestamp_number("1700000K", RangePosition::None, &fetcher).await.unwrap(),
+            1700000000
         );
     }
 
@@ -482,24 +441,33 @@ mod tests {
     async fn test_parse_timestamp_range_to_block_number_range() {
         let fetcher = setup_fetcher().await;
 
+        let (start_timestamp, end_timestamp) =
+            parse_timestamp_range("1700000000", "1700000015", &fetcher).await.unwrap();
         assert_eq!(
-            parse_timestamp_range_to_block_number_range("1700000000", "1700000015", &fetcher)
-                .await
-                .unwrap(),
+            (
+                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+            ),
             (18573050, 18573051)
         );
 
+        let (start_timestamp, end_timestamp) =
+            parse_timestamp_range("-15", "1700000015", &fetcher).await.unwrap();
         assert_eq!(
-            parse_timestamp_range_to_block_number_range("-15", "1700000015", &fetcher)
-                .await
-                .unwrap(),
-            (18573052, 18573052)
+            (
+                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+            ),
+            (18573050, 18573052)
         );
 
+        let (start_timestamp, end_timestamp) =
+            parse_timestamp_range("1700000000", "+15", &fetcher).await.unwrap();
         assert_eq!(
-            parse_timestamp_range_to_block_number_range("1700000000", "+15", &fetcher)
-                .await
-                .unwrap(),
+            (
+                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+            ),
             (18573050, 18573051)
         );
     }

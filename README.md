@@ -253,7 +253,6 @@ Timestamp specification syntax
 - omitting range start means 0       :700 == 0:700
 - minus on start means minus end     -1000:7000 == 6000:7000
 - plus sign on end means plus start  15M:+1000 == 15M:15.001K
-- can use every nth value            2000:5000:1000 == 2000 3000
 - can use n values total             100:200/5 == 100 124 149 174 199
 
 Transaction specification syntax
