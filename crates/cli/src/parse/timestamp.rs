@@ -409,10 +409,7 @@ mod tests {
         let fetcher = setup_fetcher().await;
         let latest_timestamp =
             parse_timestamp_number("latest", RangePosition::None, &fetcher).await.unwrap();
-        assert_eq!(
-            latest_timestamp,
-            get_latest_timestamp(&fetcher).await.unwrap()
-        );
+        assert_eq!(latest_timestamp, get_latest_timestamp(&fetcher).await.unwrap());
 
         assert_eq!(parse_timestamp_number("", RangePosition::First, &fetcher).await.unwrap(), 0);
 
