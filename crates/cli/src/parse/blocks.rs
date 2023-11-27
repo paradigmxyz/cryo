@@ -389,6 +389,16 @@ async fn apply_reorg_buffer<P: JsonRpcClient>(
     }
 }
 
+pub(crate) async fn get_latest_block_number<P: JsonRpcClient>(
+    fetcher: &Fetcher<P>,
+) -> Result<u64, ParseError> {
+    return fetcher
+        .get_block_number()
+        .await
+        .map(|n| n.as_u64())
+        .map_err(|_e| ParseError::ParseError("Error retrieving latest block number".to_string()));
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

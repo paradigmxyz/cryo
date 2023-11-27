@@ -7,6 +7,8 @@ use crate::{
     Args,
 };
 
+use super::blocks::get_latest_block_number;
+
 pub(crate) async fn parse_timestamp<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
@@ -304,16 +306,6 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
     } else {
         return Ok(mid);
     }
-}
-
-async fn get_latest_block_number<P: JsonRpcClient>(
-    fetcher: &Fetcher<P>,
-) -> Result<u64, ParseError> {
-    return fetcher
-        .get_block_number()
-        .await
-        .map(|n| n.as_u64())
-        .map_err(|_e| ParseError::ParseError("Error retrieving latest block number".to_string()));
 }
 
 async fn get_latest_timestamp<P: JsonRpcClient>(fetcher: &Fetcher<P>) -> Result<u64, ParseError> {
