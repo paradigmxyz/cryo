@@ -86,7 +86,6 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
         .unique()
         .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?;
 
-    println!("{:?}", series);
     match series.u32() {
         Ok(ca) => ca
             .into_iter()
