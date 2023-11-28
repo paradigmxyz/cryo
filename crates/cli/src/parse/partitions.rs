@@ -1,6 +1,7 @@
 use super::{
     blocks,
     parse_utils::{hex_string_to_binary, hex_strings_to_binary, parse_binary_arg},
+    timestamps,
 };
 use crate::args::Args;
 use cryo_freeze::{
@@ -23,6 +24,11 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
 
     // parse chunk data
     let (block_number_labels, block_numbers) = blocks::parse_blocks(args, fetcher.clone()).await?;
+    let (block_number_labels, block_numbers) = if block_numbers.is_none() {
+        timestamps::parse_timestamps(args, fetcher.clone()).await?
+    } else {
+        (block_number_labels, block_numbers)
+    };
     let (transaction_hash_labels, transactions) =
         parse_transaction_chunks(&args.txs, "transaction_hash")?;
     let call_datas = parse_call_datas(&args.call_data, &args.function, &args.inputs)?;

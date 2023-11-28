@@ -26,6 +26,10 @@ pub struct Args {
     #[arg(short, long, allow_negative_numbers = true, help_heading = "Content Options", num_args(1..))]
     pub blocks: Option<Vec<String>>,
 
+    /// Timestamps in unix, see syntax below
+    #[arg(long, allow_negative_numbers = true, help_heading = "Content Options", num_args(0..))]
+    pub timestamps: Option<Vec<String>>,
+
     /// Transaction hashes, see syntax below
     #[arg(
         short,

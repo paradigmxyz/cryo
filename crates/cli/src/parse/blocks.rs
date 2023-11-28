@@ -83,7 +83,6 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
         .unique()
         .map_err(|_e| ParseError::ParseError("could not get column".to_string()))?;
 
-    println!("{:?}", series);
     match series.u32() {
         Ok(ca) => ca
             .into_iter()
@@ -106,7 +105,7 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
     }
 }
 
-async fn postprocess_block_chunks<P: JsonRpcClient>(
+pub(crate) async fn postprocess_block_chunks<P: JsonRpcClient>(
     block_chunks: Vec<BlockChunk>,
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
@@ -218,7 +217,7 @@ async fn parse_block_token<P: JsonRpcClient>(
     }
 }
 
-fn block_range_to_block_chunk(
+pub(crate) fn block_range_to_block_chunk(
     start_block: u64,
     end_block: u64,
     as_range: bool,
@@ -387,6 +386,16 @@ async fn apply_reorg_buffer<P: JsonRpcClient>(
                 .collect())
         }
     }
+}
+
+pub(crate) async fn get_latest_block_number<P: JsonRpcClient>(
+    fetcher: &Fetcher<P>,
+) -> Result<u64, ParseError> {
+    return fetcher
+        .get_block_number()
+        .await
+        .map(|n| n.as_u64())
+        .map_err(|_e| ParseError::ParseError("Error retrieving latest block number".to_string()));
 }
 
 #[cfg(test)]
