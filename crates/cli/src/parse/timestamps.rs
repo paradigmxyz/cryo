@@ -239,9 +239,7 @@ async fn parse_timestamp_number<P: JsonRpcClient>(
         ("", RangePosition::First) => Ok(0),
         ("", RangePosition::Last) => get_latest_timestamp(fetcher).await,
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
-        _ if timestamp_ref.ends_with('m') => {
-            scale_timestamp_str_by_metric_unit(timestamp_ref, 60)
-        }
+        _ if timestamp_ref.ends_with('m') => scale_timestamp_str_by_metric_unit(timestamp_ref, 60),
         _ if timestamp_ref.ends_with('h') => {
             scale_timestamp_str_by_metric_unit(timestamp_ref, 3600)
         }
@@ -425,14 +423,31 @@ mod tests {
             1700000000
         );
 
+        assert_eq!(parse_timestamp_number("1m", RangePosition::None, &fetcher).await.unwrap(), 60);
+
         assert_eq!(
-            parse_timestamp_number("1700M", RangePosition::None, &fetcher).await.unwrap(),
-            1700000000
+            parse_timestamp_number("8760h", RangePosition::None, &fetcher).await.unwrap(),
+            8760 * 3600
         );
 
         assert_eq!(
-            parse_timestamp_number("1700000K", RangePosition::None, &fetcher).await.unwrap(),
-            1700000000
+            parse_timestamp_number("365d", RangePosition::None, &fetcher).await.unwrap(),
+            365 * 86400
+        );
+
+        assert_eq!(
+            parse_timestamp_number("52w", RangePosition::None, &fetcher).await.unwrap(),
+            52 * 86400 * 7
+        );
+
+        assert_eq!(
+            parse_timestamp_number("12M", RangePosition::None, &fetcher).await.unwrap(),
+            12 * 86400 * 30
+        );
+
+        assert_eq!(
+            parse_timestamp_number("1y", RangePosition::None, &fetcher).await.unwrap(),
+            86400 * 365
         );
     }
 
