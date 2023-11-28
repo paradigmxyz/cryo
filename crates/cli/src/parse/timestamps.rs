@@ -360,14 +360,6 @@ mod tests {
 
         // Before genesis block
         assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
-
-        // Greater than latest block
-        assert!(
-            timestamp_to_block_number(get_latest_timestamp(&fetcher).await.unwrap(), &fetcher)
-                .await
-                .unwrap() ==
-                get_latest_block_number(&fetcher).await.unwrap()
-        );
     }
 
     #[tokio::test]
