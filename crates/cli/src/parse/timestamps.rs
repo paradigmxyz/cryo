@@ -240,11 +240,23 @@ async fn parse_timestamp_number<P: JsonRpcClient>(
         ("", RangePosition::First) => Ok(0),
         ("", RangePosition::Last) => get_latest_timestamp(fetcher).await,
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
-        _ if timestamp_ref.ends_with('M') | timestamp_ref.ends_with('m') => {
-            scale_timestamp_str_by_metric_unit(timestamp_ref, 1e6)
+        _ if timestamp_ref.ends_with('m') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 60)
         }
-        _ if timestamp_ref.ends_with('K') | timestamp_ref.ends_with('k') => {
-            scale_timestamp_str_by_metric_unit(timestamp_ref, 1e3)
+        _ if timestamp_ref.ends_with('h') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 3600)
+        }
+        _ if timestamp_ref.ends_with('d') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 86400)
+        }
+        _ if timestamp_ref.ends_with('w') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 86400 * 7)
+        }
+        _ if timestamp_ref.ends_with('M') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 86400 * 30)
+        }
+        _ if timestamp_ref.ends_with('y') => {
+            scale_timestamp_str_by_metric_unit(timestamp_ref, 86400 * 365)
         }
         _ => timestamp_ref
             .parse::<f64>()
@@ -255,12 +267,12 @@ async fn parse_timestamp_number<P: JsonRpcClient>(
 
 fn scale_timestamp_str_by_metric_unit(
     timestamp_ref: &str,
-    metric_scale: f64,
+    metric_scale: u64,
 ) -> Result<u64, ParseError> {
     let s = &timestamp_ref[..timestamp_ref.len() - 1];
     let timestamp = s
         .parse::<f64>()
-        .map(|n| (metric_scale * n) as u64)
+        .map(|n| (metric_scale as f64 * n) as u64)
         .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()));
 
     return timestamp;
