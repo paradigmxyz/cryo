@@ -11,7 +11,7 @@ repository.workspace = true
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cryo_to_df = { version = "0.2.0", path = "../to_df" }
+cryo_to_df = { version = "0.3.0", path = "../to_df" }
 async-trait = { workspace = true }
 ethers = { workspace = true }
 ethers-core = { workspace = true }

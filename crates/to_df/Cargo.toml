@@ -1,5 +1,6 @@
 [package]
 name = "cryo_to_df"
+description = "cryo_to_df is a procedural macro used for defining datasets"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
@@ -13,6 +14,6 @@ proc-macro = true
 
 [dependencies]
 indexmap = { workspace = true }
-syn = "1.0"
+syn = { version = "1.0", features = ["full"] }
 quote = "1.0"
 proc-macro2 = "1.0"

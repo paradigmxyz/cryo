@@ -267,12 +267,9 @@ fn scale_timestamp_str_by_metric_unit(
     metric_scale: u64,
 ) -> Result<u64, ParseError> {
     let s = &timestamp_ref[..timestamp_ref.len() - 1];
-    let timestamp = s
-        .parse::<f64>()
+    s.parse::<f64>()
         .map(|n| (metric_scale as f64 * n) as u64)
-        .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()));
-
-    return timestamp;
+        .map_err(|_e| ParseError::ParseError("Error parsing timestamp ref".to_string()))
 }
 
 // perform binary search to determine the closest block number smaller than or equal to a given
@@ -300,6 +297,7 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
             .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
             .unwrap();
 
+        #[warn(clippy::comparison_chain)]
         if block.timestamp == timestamp.into() {
             return Ok(mid);
         } else if block.timestamp < timestamp.into() {
@@ -311,9 +309,9 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
 
     // If timestamp is between two different blocks, return the lower block.
     if mid > 0 && block.timestamp > ethers::types::U256::from(timestamp) {
-        return Ok(mid - 1);
+        Ok(mid - 1)
     } else {
-        return Ok(mid);
+        Ok(mid)
     }
 }
 
@@ -325,7 +323,7 @@ async fn get_latest_timestamp<P: JsonRpcClient>(fetcher: &Fetcher<P>) -> Result<
         .map_err(|_e| ParseError::ParseError("Error fetching latest block".to_string()))?
         .unwrap();
 
-    return Ok(latest_block.timestamp.as_u64());
+    Ok(latest_block.timestamp.as_u64())
 }
 
 #[cfg(test)]
