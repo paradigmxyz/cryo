@@ -11,8 +11,8 @@ path = "rust/lib.rs"
 crate-type = ["cdylib"]
 
 [dependencies]
-cryo_cli = { version = "0.2.0", path = "../cli" }
-cryo_freeze = { version = "0.2.0", path = "../freeze" }
+cryo_cli = { version = "0.3.0", path = "../cli" }
+cryo_freeze = { version = "0.3.0", path = "../freeze" }
 
 polars = { workspace = true }
 pyo3 = { workspace = true }
