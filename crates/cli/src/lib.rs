@@ -17,5 +17,5 @@ use eyre as _;
 use tokio as _;
 
 pub use args::Args;
-pub use parse::{parse_args, parse_str};
+pub use parse::{parse_args, parse_query, parse_str};
 pub use run::run;

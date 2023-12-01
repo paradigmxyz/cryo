@@ -10,4 +10,5 @@ mod source;
 mod timestamps;
 
 pub use args::*;
+pub use query::*;
 use schemas::*;

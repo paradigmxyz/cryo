@@ -4,7 +4,8 @@ use cryo_freeze::{Dim, Fetcher, ParseError, Query, QueryLabels, Schemas};
 use ethers::prelude::*;
 use std::sync::Arc;
 
-pub(crate) async fn parse_query<P: JsonRpcClient>(
+/// parse Query struct from cli Args
+pub async fn parse_query<P: JsonRpcClient>(
     args: &Args,
     fetcher: Arc<Fetcher<P>>,
 ) -> Result<Query, ParseError> {
