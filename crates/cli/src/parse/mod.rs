@@ -10,5 +10,6 @@ mod source;
 mod timestamps;
 
 pub use args::*;
+#[allow(unused_imports)]
 pub use query::*;
 use schemas::*;
