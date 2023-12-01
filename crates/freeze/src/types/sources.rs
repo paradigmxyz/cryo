@@ -17,7 +17,7 @@ use crate::CollectError;
 pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClock, NoOpMiddleware>;
 
 /// Options for fetching data from node
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Source {
     /// Shared provider for rpc data
     pub fetcher: Arc<Fetcher<RetryClient<Http>>>,
@@ -43,7 +43,7 @@ impl Source {
         let block_number =
             block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
         if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
-            return Ok(receipts)
+            return Ok(receipts);
         }
 
         self.get_tx_receipts(&block.transactions).await
@@ -80,8 +80,100 @@ impl Source {
     }
 }
 
+const DEFAULT_INNER_REQUEST_SIZE: u64 = 100;
+const DEFAULT_MAX_RETRIES: u32 = 5;
+const DEFAULT_INTIAL_BACKOFF: u64 = 5;
+const DEFAULT_MAX_CONCURRENT_CHUNKS: u64 = 4;
+const DEFAULT_MAX_CONCURRENT_REQUESTS: u64 = 100;
+
+/// builder
+impl Source {
+    /// initialize source
+    pub async fn init(rpc_url: Option<String>) -> Result<Source> {
+        let rpc_url = parse_rpc_url(rpc_url);
+        let provider = Provider::<RetryClient<Http>>::new_client(
+            &rpc_url,
+            DEFAULT_MAX_RETRIES,
+            DEFAULT_INTIAL_BACKOFF,
+        )
+        .map_err(|_| CollectError::RPCError("could not connect to provider".to_string()))?;
+        let chain_id = provider
+            .get_chainid()
+            .await
+            .map_err(|_| CollectError::RPCError("could not get chain_id".to_string()))?
+            .as_u64();
+
+        let rate_limiter = None;
+        let semaphore = None;
+        let fetcher = Fetcher { provider, semaphore, rate_limiter };
+
+        let source = Source {
+            fetcher: Arc::new(fetcher),
+            chain_id,
+            inner_request_size: DEFAULT_INNER_REQUEST_SIZE,
+            max_concurrent_chunks: Some(DEFAULT_MAX_CONCURRENT_CHUNKS),
+            rpc_url,
+            labels: SourceLabels {
+                max_concurrent_requests: Some(DEFAULT_MAX_CONCURRENT_REQUESTS),
+                max_requests_per_second: Some(0),
+                max_retries: Some(DEFAULT_MAX_RETRIES),
+                initial_backoff: Some(DEFAULT_INTIAL_BACKOFF),
+            },
+        };
+
+        Ok(source)
+    }
+
+    // /// set rate limit
+    // pub fn rate_limit(mut self, _requests_per_second: u64) -> Source {
+    //     todo!();
+    // }
+}
+
+fn parse_rpc_url(rpc_url: Option<String>) -> String {
+    let mut url = match rpc_url {
+        Some(url) => url.clone(),
+        _ => match std::env::var("ETH_RPC_URL") {
+            Ok(url) => url,
+            Err(_e) => {
+                println!("must provide --rpc or set ETH_RPC_URL");
+                std::process::exit(0);
+            }
+        },
+    };
+    if !url.starts_with("http") {
+        url = "http://".to_string() + url.as_str();
+    };
+    url
+}
+
+// builder
+
+// struct SourceBuilder {
+//     /// Shared provider for rpc data
+//     pub fetcher: Option<Arc<Fetcher<RetryClient<Http>>>>,
+//     /// chain_id of network
+//     pub chain_id: Option<u64>,
+//     /// number of blocks per log request
+//     pub inner_request_size: Option<u64>,
+//     /// Maximum chunks collected concurrently
+//     pub max_concurrent_chunks: Option<u64>,
+//     /// Rpc Url
+//     pub rpc_url: Option<String>,
+//     /// Labels (these are non-functional)
+//     pub labels: Option<SourceLabels>,
+// }
+
+// impl SourceBuilder {
+//     fn new(mut self) -> SourceBuilder {
+//     }
+
+//     fn build(self) -> Source {
+//     }
+// }
+
 /// source labels (non-functional)
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SourceLabels {
     /// Maximum requests collected concurrently
     pub max_concurrent_requests: Option<u64>,
@@ -94,6 +186,7 @@ pub struct SourceLabels {
 }
 
 /// Wrapper over `Provider<P>` that adds concurrency and rate limiting controls
+#[derive(Debug)]
 pub struct Fetcher<P> {
     /// provider data source
     pub provider: Provider<P>,
@@ -572,7 +665,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
                 }
                 _ => {
                     println!("{:?}", trace);
-                    return Err(CollectError::CollectError("invalid trace result".to_string()))
+                    return Err(CollectError::CollectError("invalid trace result".to_string()));
                 }
             }
         }

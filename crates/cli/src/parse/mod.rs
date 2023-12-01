@@ -9,4 +9,5 @@ pub(crate) mod schemas;
 mod source;
 
 pub use args::*;
+pub use query::*;
 use schemas::*;
