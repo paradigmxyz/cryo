@@ -10,6 +10,7 @@ use polars::prelude::*;
 pub struct Contracts {
     n_rows: u64,
     block_number: Vec<u32>,
+    block_hash: Vec<Vec<u8>>,
     create_index: Vec<u32>,
     transaction_hash: Vec<Option<Vec<u8>>>,
     contract_address: Vec<Vec<u8>>,
@@ -82,6 +83,7 @@ pub(crate) fn process_contracts(
         {
             columns.n_rows += 1;
             store!(schema, columns, block_number, trace.block_number as u32);
+            store!(schema, columns, block_hash, trace.block_hash.as_bytes().to_vec());
             store!(schema, columns, create_index, create_index);
             create_index += 1;
             let tx = trace.transaction_hash;
