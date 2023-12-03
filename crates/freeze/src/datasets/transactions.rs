@@ -25,6 +25,7 @@ pub struct Transactions {
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
     block_hash: Vec<Vec<u8>>,
+    function_cols: indexmap::IndexMap<String, Vec<ethers_core::abi::Token>>,
 }
 
 #[async_trait::async_trait]
@@ -89,8 +90,14 @@ impl CollectByBlock for Transactions {
             } else {
                 Box::new(|_| true)
             };
+        let function_signature_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
+            if let Some(decoder) = &schema.calldata_decoder {
+                Box::new(move |tx| tx.input.starts_with(&decoder.function.short_signature()[..]))
+            } else {
+                Box::new(|_| true)
+            };
         let transactions =
-            block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).collect();
+            block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).filter(function_signature_filter).collect();
 
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
@@ -178,6 +185,26 @@ pub(crate) fn process_transaction(
     exclude_failed: bool,
     timestamp: u32,
 ) -> R<()> {
+    // if calldata_decoder is supplied, transactions should be processed only if
+    // the calldata matches the given function signature
+    let decoded_args = match &schema.calldata_decoder {
+        None => None,
+        Some(decoder) => {
+            if tx.input.len() < 4 {
+                return Ok(())
+            }
+            match decoder.function.decode_input(&tx.input[4..]) {
+                Ok(decoded_input) => {
+                    Some(decoded_input.into_iter().zip(&decoder.args).collect::<Vec<_>>())
+                }
+                Err(_) => {
+                    // if decoder exists and decode fails, return without appending column
+                    return Ok(())
+                },
+            }
+        }
+    };
+
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
         if exclude_failed & !success {
@@ -211,6 +238,15 @@ pub(crate) fn process_transaction(
     );
     store!(schema, columns, timestamp, timestamp);
     store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
+
+    match decoded_args {
+        None => {}
+        Some(decoded_args) => {
+            for (token, arg) in decoded_args {
+                columns.function_cols.entry(arg.clone()).or_default().push(token)
+            }
+        }
+    }
 
     Ok(())
 }

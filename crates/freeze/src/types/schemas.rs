@@ -1,7 +1,7 @@
 /// types and functions related to schemas
 use std::collections::HashMap;
 
-use crate::{err, CollectError, ColumnEncoding, Datatype, LogDecoder};
+use crate::{err, CalldataDecoder, CollectError, ColumnEncoding, Datatype, LogDecoder};
 use indexmap::{IndexMap, IndexSet};
 use thiserror::Error;
 
@@ -39,6 +39,9 @@ pub struct Table {
 
     /// log decoder for table
     pub log_decoder: Option<LogDecoder>,
+
+    /// calldata decoder for table
+    pub calldata_decoder: Option<CalldataDecoder>,
 }
 
 impl Table {
@@ -174,6 +177,7 @@ impl Datatype {
         columns: &Option<Vec<String>>,
         sort: Option<Vec<String>>,
         log_decoder: Option<LogDecoder>,
+        calldata_decoder: Option<CalldataDecoder>,
     ) -> Result<Table, SchemaError> {
         let column_types = self.column_types();
         let all_columns = column_types.keys().map(|k| k.to_string()).collect();
@@ -201,6 +205,7 @@ impl Datatype {
             u256_types: u256_types.to_owned(),
             binary_type: binary_column_format.clone(),
             log_decoder,
+            calldata_decoder,
         };
         Ok(schema)
     }
@@ -248,14 +253,32 @@ mod tests {
     fn test_table_schema_explicit_cols() {
         let cols = Some(vec!["block_number".to_string(), "block_hash".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &None,
+                &None,
+                &cols,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(vec!["block_number", "block_hash"], table.columns());
 
         // "all" marker support
         let cols = Some(vec!["all".to_string()]);
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &None,
+                &None,
+                &cols,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(15, table.columns().len());
         assert!(table.columns().contains(&"block_hash"));
@@ -274,6 +297,7 @@ mod tests {
                 &None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         assert_eq!(9, table.columns().len());
@@ -288,6 +312,7 @@ mod tests {
                 &inc_cols,
                 &None,
                 &None,
+                None,
                 None,
                 None,
             )
@@ -306,6 +331,7 @@ mod tests {
                 &None,
                 None,
                 None,
+                None,
             )
             .unwrap();
         assert_eq!(15, table.columns().len());
@@ -317,7 +343,16 @@ mod tests {
     fn test_table_schema_exclude_cols() {
         // defaults
         let table = Datatype::Blocks
-            .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &None, None, None)
+            .table_schema(
+                &get_u256_types(),
+                &ColumnEncoding::Hex,
+                &None,
+                &None,
+                &None,
+                None,
+                None,
+                None,
+            )
             .unwrap();
         assert_eq!(8, table.columns().len());
         assert!(table.columns().contains(&"author"));
@@ -331,6 +366,7 @@ mod tests {
                 &None,
                 &ex_cols,
                 &None,
+                None,
                 None,
                 None,
             )
@@ -348,6 +384,7 @@ mod tests {
                 &None,
                 &ex_cols,
                 &None,
+                None,
                 None,
                 None,
             )
@@ -368,6 +405,7 @@ mod tests {
                 &inc_cols,
                 &ex_cols,
                 &None,
+                None,
                 None,
                 None,
             )

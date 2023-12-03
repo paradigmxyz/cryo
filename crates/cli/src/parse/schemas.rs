@@ -1,7 +1,8 @@
 use std::collections::HashMap;
 
 use cryo_freeze::{
-    ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiDatatype, ParseError, Table,
+    CalldataDecoder, ColumnEncoding, Datatype, FileFormat, LogDecoder,
+    MultiDatatype, ParseError, Table,
 };
 
 use super::file_output;
@@ -47,6 +48,14 @@ pub(crate) fn parse_schemas(
         None => None,
     };
 
+    let calldata_decoder = match args.function_signature {
+        Some(ref sig) => match CalldataDecoder::new(sig.clone()) {
+            Ok(res) => Some(res),
+            Err(_) => return Err(ParseError::ParseError("invalid function signature".to_string())),
+        },
+        None => None,
+    };
+
     // create schemas
     let schemas: Result<HashMap<Datatype, Table>, ParseError> = datatypes
         .iter()
@@ -60,6 +69,7 @@ pub(crate) fn parse_schemas(
                     &args.columns,
                     sort[datatype].clone(),
                     log_decoder.clone(),
+                    calldata_decoder.clone(),
                 )
                 .map(|schema| (*datatype, schema))
                 .map_err(|e| {
