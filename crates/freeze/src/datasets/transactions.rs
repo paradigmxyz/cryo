@@ -96,8 +96,14 @@ impl CollectByBlock for Transactions {
             } else {
                 Box::new(|_| true)
             };
-        let transactions =
-            block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).filter(function_signature_filter).collect();
+        let transactions = block
+            .transactions
+            .clone()
+            .into_iter()
+            .filter(from_filter)
+            .filter(to_filter)
+            .filter(function_signature_filter)
+            .collect();
 
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
@@ -200,7 +206,7 @@ pub(crate) fn process_transaction(
                 Err(_) => {
                     // if decoder exists and decode fails, return without appending column
                     return Ok(())
-                },
+                }
             }
         }
     };

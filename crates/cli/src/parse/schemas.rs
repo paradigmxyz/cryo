@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 
 use cryo_freeze::{
-    CalldataDecoder, ColumnEncoding, Datatype, FileFormat, LogDecoder,
-    MultiDatatype, ParseError, Table,
+    CalldataDecoder, ColumnEncoding, Datatype, FileFormat, LogDecoder, MultiDatatype, ParseError,
+    Table,
 };
 
 use super::file_output;

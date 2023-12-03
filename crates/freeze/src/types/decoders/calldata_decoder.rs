@@ -1,7 +1,10 @@
-use ethers_core::{abi::{self, HumanReadableParser, Token, Param, ParamType, AbiEncode}, types::{U256, I256}};
-use polars::{series::Series, prelude::NamedFrom};
+use ethers_core::{
+    abi::{self, AbiEncode, HumanReadableParser, Param, ParamType, Token},
+    types::{I256, U256},
+};
+use polars::{prelude::NamedFrom, series::Series};
 
-use crate::{U256Type, ColumnEncoding, CollectError, ToU256Series, err};
+use crate::{err, CollectError, ColumnEncoding, ToU256Series, U256Type};
 
 /// container for calldata decoding context
 #[derive(Clone, Debug, PartialEq)]
@@ -24,16 +27,14 @@ impl CalldataDecoder {
                     .clone()
                     .into_iter()
                     .enumerate()
-                    .map(
-                        |(_i, param)| {
-                            // if param.name.is_empty() {
-                            //     format!("arg_{}", i)
-                            // } else {
-                            //     param.name
-                            // }
-                            param.name
-                        },
-                    )
+                    .map(|(_i, param)| {
+                        // if param.name.is_empty() {
+                        //     format!("arg_{}", i)
+                        // } else {
+                        //     param.name
+                        // }
+                        param.name
+                    })
                     .collect();
                 Ok(Self { function, raw: function_signature.clone(), args })
             }
