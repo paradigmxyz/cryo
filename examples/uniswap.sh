@@ -1,3 +1,5 @@
+#!/usr/bin/env bash
+
 # This script extracts all pools and swaps for Uniswap v2 / v3
 
 # This script is
