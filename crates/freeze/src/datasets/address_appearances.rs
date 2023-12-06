@@ -9,6 +9,7 @@ use std::collections::HashMap;
 pub struct AddressAppearances {
     n_rows: usize,
     block_number: Vec<u32>,
+    block_hash: Vec<Vec<u8>>,
     transaction_hash: Vec<Vec<u8>>,
     address: Vec<Vec<u8>>,
     relationship: Vec<String>,
@@ -17,6 +18,17 @@ pub struct AddressAppearances {
 
 #[async_trait::async_trait]
 impl Dataset for AddressAppearances {
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec![
+            "block_number",
+            // "block_hash",
+            "transaction_hash",
+            "address",
+            "relationship",
+            "chain_id",
+        ])
+    }
+
     fn default_sort() -> Option<Vec<&'static str>> {
         Some(vec!["block_number", "transaction_hash", "address", "relationship"])
     }
@@ -116,7 +128,8 @@ impl AddressAppearances {
         logs_by_tx: &HashMap<H256, Vec<Log>>,
     ) {
         let block_number = trace.block_number as u32;
-        self.process_address(block_author, "miner_fee", block_number, tx_hash, schema);
+        let block_hash = trace.block_hash.as_bytes().to_vec();
+        self.process_address(block_author, "miner_fee", block_number, &block_hash, tx_hash, schema);
 
         if let Some(logs) = logs_by_tx.get(&tx_hash) {
             for log in logs.iter() {
@@ -126,12 +139,26 @@ impl AddressAppearances {
                         from.copy_from_slice(&log.topics[1].to_fixed_bytes()[12..32]);
 
                         let name = &(name.to_string() + "_from");
-                        self.process_address(H160(from), name, block_number, tx_hash, schema);
+                        self.process_address(
+                            H160(from),
+                            name,
+                            block_number,
+                            &block_hash,
+                            tx_hash,
+                            schema,
+                        );
 
                         let mut to: [u8; 20] = [0; 20];
                         to.copy_from_slice(&log.topics[1].to_fixed_bytes()[12..32]);
                         let name = &(name.to_string() + "_to");
-                        self.process_address(H160(to), name, block_number, tx_hash, schema);
+                        self.process_address(
+                            H160(to),
+                            name,
+                            block_number,
+                            &block_hash,
+                            tx_hash,
+                            schema,
+                        );
                     }
                 }
             }
@@ -139,47 +166,119 @@ impl AddressAppearances {
 
         match &trace.action {
             Action::Call(action) => {
-                self.process_address(action.from, "tx_from", block_number, tx_hash, schema);
-                self.process_address(action.to, "tx_to", block_number, tx_hash, schema);
+                self.process_address(
+                    action.from,
+                    "tx_from",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
+                self.process_address(
+                    action.to,
+                    "tx_to",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
             }
             Action::Create(action) => {
-                self.process_address(action.from, "tx_from", block_number, tx_hash, schema);
+                self.process_address(
+                    action.from,
+                    "tx_from",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
             }
             _ => {}
         }
 
         if let Some(Res::Create(result)) = &trace.result {
-            self.process_address(result.address, "tx_to", block_number, tx_hash, schema);
+            self.process_address(
+                result.address,
+                "tx_to",
+                block_number,
+                &block_hash,
+                tx_hash,
+                schema,
+            );
         }
     }
 
     fn process_trace(&mut self, trace: &Trace, schema: &Table, tx_hash: H256) {
         let block_number = trace.block_number as u32;
+        let block_hash = trace.block_hash.as_bytes().to_vec();
         match &trace.action {
             Action::Call(action) => {
-                self.process_address(action.from, "call_from", block_number, tx_hash, schema);
-                self.process_address(action.to, "call_to", block_number, tx_hash, schema);
+                self.process_address(
+                    action.from,
+                    "call_from",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
+                self.process_address(
+                    action.to,
+                    "call_to",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
             }
             Action::Create(action) => {
-                self.process_address(action.from, "factory", block_number, tx_hash, schema);
+                self.process_address(
+                    action.from,
+                    "factory",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
             }
             Action::Suicide(action) => {
-                self.process_address(action.address, "suicide", block_number, tx_hash, schema);
+                self.process_address(
+                    action.address,
+                    "suicide",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
                 self.process_address(
                     action.refund_address,
                     "suicide_refund",
                     block_number,
+                    &block_hash,
                     tx_hash,
                     schema,
                 );
             }
             Action::Reward(action) => {
-                self.process_address(action.author, "author", block_number, tx_hash, schema);
+                self.process_address(
+                    action.author,
+                    "author",
+                    block_number,
+                    &block_hash,
+                    tx_hash,
+                    schema,
+                );
             }
         }
 
         if let Some(Res::Create(result)) = &trace.result {
-            self.process_address(result.address, "create", block_number, tx_hash, schema);
+            self.process_address(
+                result.address,
+                "create",
+                block_number,
+                &block_hash,
+                tx_hash,
+                schema,
+            );
         };
     }
 
@@ -188,6 +287,7 @@ impl AddressAppearances {
         address: H160,
         relationship: &str,
         block_number: u32,
+        block_hash: &[u8],
         transaction_hash: H256,
         schema: &Table,
     ) {
@@ -195,6 +295,7 @@ impl AddressAppearances {
         store!(schema, self, address, address.as_bytes().to_vec());
         store!(schema, self, relationship, relationship.to_string());
         store!(schema, self, block_number, block_number);
+        store!(schema, self, block_hash, block_hash.to_vec());
         store!(schema, self, transaction_hash, transaction_hash.as_bytes().to_vec());
     }
 }
