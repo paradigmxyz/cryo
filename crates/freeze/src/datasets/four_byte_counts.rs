@@ -1,6 +1,7 @@
 use crate::*;
 use polars::prelude::*;
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, error::Error};
+use tiny_keccak::{Hasher, Keccak};
 
 /// columns for transactions
 #[cryo_to_df::to_df(Datatype::FourByteCounts)]
@@ -70,7 +71,7 @@ pub(crate) fn process_storage_reads(
     let (block_number, txs, traces) = response;
     for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {
         for (signature_size, count) in trace.iter() {
-            let (signature, size) = parse_signature_size(signature_size)?;
+            let (signature, size) = parse_signature_size(signature_size).unwrap();
             columns.n_rows += 1;
             store!(schema, columns, block_number, *block_number);
             store!(schema, columns, transaction_index, Some(index as u32));
@@ -83,22 +84,65 @@ pub(crate) fn process_storage_reads(
     Ok(())
 }
 
-fn parse_signature_size(signature_size: &str) -> R<(Vec<u8>, u64)> {
-    let parts: Vec<&str> = signature_size.splitn(2, '-').collect();
-    if parts.len() != 2 {
-        return Err(err("could not parse 4byte-size pair"))
+fn parse_signature_size(signature_size: &str) -> Result<(Vec<u8>, u64), Box<dyn Error>> {
+    // Check if the input is a full function signature and convert it to 4-byte hex if necessary
+    if signature_size.contains('(') {
+        let selector = function_signature_to_selector(signature_size);
+        // Placeholder for size, adjust as needed
+        return Ok((selector.to_vec(), 0))
     }
 
-    // Parse the hexadecimal part (assuming there's no "0x" prefix as in the example given)
+    // Parse the hexadecimal part and the size
+    let parts: Vec<&str> = signature_size.splitn(2, '-').collect();
+    if parts.len() != 2 {
+        return Err("could not parse 4byte-size pair".into())
+    }
+
+    // Parse the hexadecimal part
     let hex_part = parts[0].trim_start_matches("0x");
     let bytes = (0..hex_part.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&hex_part[i..i + 2], 16))
         .collect::<Result<Vec<u8>, _>>()
-        .map_err(|_| err("could not parse signature bytes"))?;
+        .map_err(|_| "could not parse signature bytes")?;
 
     // Parse the number as u64
-    let number = parts[1].parse::<u64>().map_err(|_| err("could not parse call data size"))?;
+    let number = parts[1].parse::<u64>().map_err(|_| "could not parse call data size")?;
 
     Ok((bytes, number))
+}
+
+fn function_signature_to_selector(signature: &str) -> [u8; 4] {
+    let mut hasher = Keccak::v256();
+    let mut output = [0u8; 32]; // Keccak-256 outputs 32 bytes
+    hasher.update(signature.as_bytes());
+    hasher.finalize(&mut output);
+
+    [output[0], output[1], output[2], output[3]] // Return first 4 bytes
+}
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_parse_valid_signature_size() {
+        let signature = "transfer(address,uint256)";
+        let (bytes, size) =
+            parse_signature_size(signature).expect("Failed to parse valid signature");
+        assert_eq!(bytes.len(), 4);
+        assert_eq!(size, 0);
+
+        // Example of a valid 4byte-size pair
+        let signature_size = "a9059cbb-64";
+        let (bytes, size) =
+            parse_signature_size(signature_size).expect("Failed to parse valid 4byte-size pair");
+        assert_eq!(bytes.len(), 4);
+        assert_eq!(size, 64);
+    }
+
+    #[test]
+    fn test_parse_invalid_signature_size() {
+        let invalid_input = "invalid-input";
+        assert!(parse_signature_size(invalid_input).is_err(), "Should fail for invalid input");
+    }
 }
