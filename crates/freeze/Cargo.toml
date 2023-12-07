@@ -31,4 +31,4 @@ tokio = { workspace = true }
 chrono = { workspace = true }
 colored = { workspace = true }
 thousands = { workspace = true }
-tiny-keccak = "2.0.2"
+
