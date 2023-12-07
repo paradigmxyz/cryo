@@ -297,7 +297,7 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
             .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
             .unwrap();
 
-        #[warn(clippy::comparison_chain)]
+        #[allow(clippy::comparison_chain)]
         if block.timestamp == timestamp.into() {
             return Ok(mid);
         } else if block.timestamp < timestamp.into() {

@@ -126,7 +126,7 @@ impl CollectByBlock for Transactions {
 
         let transactions =
             block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).filter(addr_filter).collect();
-            //block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).collect();
+
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
         // in block
