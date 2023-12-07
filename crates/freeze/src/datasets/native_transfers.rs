@@ -8,7 +8,6 @@ use polars::prelude::*;
 pub struct NativeTransfers {
     n_rows: u64,
     block_number: Vec<u32>,
-    block_hash: Vec<Vec<u8>>,
     transaction_index: Vec<Option<u32>>,
     transfer_index: Vec<u32>,
     transaction_hash: Vec<Option<Vec<u8>>>,
@@ -68,7 +67,6 @@ pub(crate) fn process_native_transfers(
         columns.n_rows += 1;
         store!(schema, columns, block_number, trace.block_number as u32);
         store!(schema, columns, transaction_index, trace.transaction_position.map(|x| x as u32));
-        store!(schema, columns, block_hash, trace.block_hash.as_bytes().to_vec());
         store!(schema, columns, transfer_index, transfer_index as u32);
         store!(
             schema,

@@ -8,7 +8,6 @@ use polars::prelude::*;
 pub struct Logs {
     n_rows: u64,
     block_number: Vec<u32>,
-    block_hash: Vec<Option<Vec<u8>>>,
     transaction_index: Vec<u32>,
     log_index: Vec<u32>,
     transaction_hash: Vec<Vec<u8>>,
@@ -26,24 +25,6 @@ pub struct Logs {
 impl Dataset for Logs {
     fn aliases() -> Vec<&'static str> {
         vec!["events"]
-    }
-
-    fn default_columns() -> Option<Vec<&'static str>> {
-        Some(vec![
-            "block_number",
-            // "block_hash",
-            "transaction_index",
-            "log_index",
-            "transaction_hash",
-            "address",
-            "topic0",
-            "topic1",
-            "topic2",
-            "topic3",
-            "data",
-            // "event_cols",
-            "chain_id",
-        ])
     }
 
     fn optional_parameters() -> Vec<Dim> {
@@ -123,7 +104,6 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
 
             columns.n_rows += 1;
             store!(schema, columns, block_number, bn.as_u32());
-            store!(schema, columns, block_hash, log.block_hash.map(|bh| bh.as_bytes().to_vec()));
             store!(schema, columns, transaction_index, ti.as_u32());
             store!(schema, columns, log_index, li.as_u32());
             store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());

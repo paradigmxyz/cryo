@@ -61,6 +61,7 @@ use cryo_cli::{run, Args};
         verbose = false,
         no_verbose = false,
         event_signature = None,
+        write_empty = None,
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -122,6 +123,7 @@ pub fn _freeze(
     verbose: bool,
     no_verbose: bool,
     event_signature: Option<String>,
+    write_empty: Option<bool>
 ) -> PyResult<&PyAny> {
     if let Some(command) = command {
         freeze_command(py, command)
@@ -182,6 +184,7 @@ pub fn _freeze(
             verbose,
             no_verbose,
             event_signature,
+            write_empty,
         };
 
         pyo3_asyncio::tokio::future_into_py(py, async move {
