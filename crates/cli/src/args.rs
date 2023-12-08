@@ -1,6 +1,7 @@
 use clap_cryo::Parser;
 use color_print::cstr;
 use colored::Colorize;
+use ethers_core::utils::keccak256;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use std::{default::Default, path::PathBuf};
@@ -260,9 +261,25 @@ pub struct Args {
     /// Event signature for log decoding
     #[arg(long, value_name = "tracer", help_heading = "Dataset-specific Options")]
     pub js_tracer: Option<String>,
+    /// Keep raw decoded columns like topic0, topic1, etc.
+    #[arg(long, help_heading = "Output Options")]
+    pub keep_raw_decoded: bool,
 }
 
 impl Args {
+    pub fn convert_to_selector_strings(&self) -> Option<Vec<String>> {
+        if let Some(function_signatures) = &self.function {
+            let mut selectors = Vec::new();
+            for signature in function_signatures {
+                let hash = keccak256(signature);
+                let selector_string = hex::encode(&hash[0..4]); // Convert to hex string
+                selectors.push(selector_string);
+            }
+            Some(selectors)
+        } else {
+            None
+        }
+    }
     pub(crate) fn merge_with_precedence(self, other: Args) -> Self {
         let default_struct = Args::default();
 
