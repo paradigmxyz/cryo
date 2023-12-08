@@ -267,6 +267,7 @@ pub struct Args {
 }
 
 impl Args {
+    /// Converts each function signature in `function` to its corresponding Ethereum function selector
     pub fn convert_to_selector_strings(&self) -> Option<Vec<String>> {
         if let Some(function_signatures) = &self.function {
             let mut selectors = Vec::new();
