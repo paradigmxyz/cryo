@@ -171,7 +171,7 @@ fn ensure_excluded_columns(
 
 fn parse_sort_columns(
     raw_sort: &Option<Vec<String>>,
-    datatypes: &Vec<Datatype>,
+    datatypes: &[Datatype],
 ) -> Result<HashMap<Datatype, Option<Vec<String>>>, ParseError> {
     match raw_sort {
         None => Ok(HashMap::from_iter(

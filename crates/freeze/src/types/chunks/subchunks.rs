@@ -42,7 +42,7 @@ impl Subchunk for Vec<BlockChunk> {
     }
 }
 
-fn to_single_chunk(chunks: &Vec<BlockChunk>) -> BlockChunk {
+fn to_single_chunk(chunks: &[BlockChunk]) -> BlockChunk {
     match (chunks.len(), chunks.first()) {
         (1, Some(chunk)) => chunk.clone(),
         _ => {
