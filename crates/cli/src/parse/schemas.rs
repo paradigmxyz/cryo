@@ -85,32 +85,27 @@ pub(crate) fn parse_schemas(
 }
 
 fn parse_u256_types(args: &Args) -> Result<Vec<U256Type>, ParseError> {
-    if let Some(raw_u256_types) = args.u256_types.clone() {
-        let mut u256_types: Vec<U256Type> = Vec::new();
-        for raw in raw_u256_types.iter() {
-            let u256_type = match raw.to_lowercase() {
-                raw if raw == "binary" => U256Type::Binary,
-                raw if raw == "string" => U256Type::String,
-                raw if raw == "str" => U256Type::String,
-                raw if raw == "f32" => U256Type::F32,
-                raw if raw == "float32" => U256Type::F32,
-                raw if raw == "f64" => U256Type::F64,
-                raw if raw == "float64" => U256Type::F64,
-                raw if raw == "float" => U256Type::F64,
-                raw if raw == "u32" => U256Type::U32,
-                raw if raw == "uint32" => U256Type::U32,
-                raw if raw == "u64" => U256Type::U64,
-                raw if raw == "uint64" => U256Type::U64,
-                raw if raw == "decimal128" => U256Type::Decimal128,
-                raw if raw == "d128" => U256Type::Decimal128,
-                _ => return Err(ParseError::ParseError("bad u256 type".to_string())),
-            };
-            u256_types.push(u256_type);
-        }
-        Ok(u256_types)
-    } else {
-        Ok(vec![U256Type::Binary, U256Type::String, U256Type::F64])
-    }
+    args.u256_types.as_ref().map_or(
+        Ok(vec![U256Type::Binary, U256Type::String, U256Type::F64]),
+        |raw_u256_types| {
+            raw_u256_types
+                .iter()
+                .map(|raw| {
+                    let lower_case = raw.to_lowercase();
+                    match lower_case.as_str() {
+                        "binary" => Ok(U256Type::Binary),
+                        "string" | "str" => Ok(U256Type::String),
+                        "f32" | "float32" => Ok(U256Type::F32),
+                        "f64" | "float64" | "float" => Ok(U256Type::F64),
+                        "u32" | "uint32" => Ok(U256Type::U32),
+                        "u64" | "uint64" => Ok(U256Type::U64),
+                        "decimal128" | "d128" => Ok(U256Type::Decimal128),
+                        _ => Err(ParseError::ParseError(format!("invalid u256 type: {}", raw))),
+                    }
+                })
+                .collect()
+        },
+    )
 }
 
 fn ensure_included_columns(
