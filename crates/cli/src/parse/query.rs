@@ -79,20 +79,7 @@ impl DimIsNone for Args {
     }
 
     fn dim_is_none(&self, dim: &Dim) -> bool {
-        match dim {
-            Dim::BlockNumber => self.blocks.is_none(),
-            Dim::TransactionHash => self.txs.is_none(),
-            Dim::Address => self.address.is_none(),
-            Dim::FromAddress => self.from_address.is_none(),
-            Dim::ToAddress => self.to_address.is_none(),
-            Dim::Contract => self.contract.is_none(),
-            Dim::CallData => self.call_data.is_none(),
-            Dim::Slot => self.slot.is_none(),
-            Dim::Topic0 => self.topic0.is_none(),
-            Dim::Topic1 => self.topic1.is_none(),
-            Dim::Topic2 => self.topic2.is_none(),
-            Dim::Topic3 => self.topic3.is_none(),
-        }
+        !self.dim_is_some(dim)
     }
 }
 
