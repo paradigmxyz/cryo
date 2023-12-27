@@ -53,7 +53,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: x86_64
-          args: -i python --release --out dist --sdist --manifest-path crates/cryo_python/Cargo.toml
+          args: -i python --release --out dist --sdist --manifest-path crates/python/Cargo.toml
       - name: Install built wheels - x86_64
         run: |
           pip install cryo_python --no-index --find-links dist --force-reinstall
@@ -61,7 +61,7 @@ jobs:
         if: ${{ matrix.python-version >= '3.8' || contains(fromJson('["3.10", "3.11", "3.12"]'), matrix.python-version) }}
         uses: PyO3/maturin-action@v1
         with:
-          args: -i python --release --target universal2-apple-darwin --out dist --manifest-path crates/cryo_python/Cargo.toml
+          args: -i python --release --target universal2-apple-darwin --out dist --manifest-path crates/python/Cargo.toml
       - name: Install built wheels - universal2
         if: ${{ matrix.python-version >= '3.8' || contains(fromJson('["3.10", "3.11", "3.12"]'), matrix.python-version) }}
         run: |
@@ -109,7 +109,7 @@ jobs:
         uses: PyO3/maturin-action@v1
         with:
           target: ${{ matrix.target }}
-          args: -i python --release --out dist --manifest-path crates/cryo_python/Cargo.toml
+          args: -i python --release --out dist --manifest-path crates/python/Cargo.toml
       - name: Install built wheel
         run: |
           pip install cryo_python --no-index --find-links dist --force-reinstall
@@ -156,7 +156,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         manylinux: auto
-        args: -i ${{ matrix.python-version }} --release --out dist --manifest-path crates/cryo_python/Cargo.toml
+        args: -i ${{ matrix.python-version }} --release --out dist --manifest-path crates/python/Cargo.toml
     - name: Python UnitTest - cryo_python
       if: matrix.target == 'x86_64'
       run: |
@@ -204,7 +204,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         manylinux: auto
-        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/cryo_python/Cargo.toml
+        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/python/Cargo.toml
     - uses: uraimo/run-on-arch-action@v2.3.0
       # skipped cross compiled pypy wheel tests for now
       if: ${{ !startsWith(matrix.python, 'pypy') }}
@@ -262,7 +262,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         manylinux: auto
-        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/cryo_python/Cargo.toml
+        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/python/Cargo.toml
     - name: Python UnitTest - cryo_python
       run: |
         pip install cryo_python --no-index --find-links dist
@@ -301,7 +301,7 @@ jobs:
       with:
         target: ${{ matrix.target }}
         manylinux: auto
-        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/cryo_python/Cargo.toml
+        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/python/Cargo.toml
     - name: Install wheel
       run: |
         pip install cryo_python --no-index --find-links dist
