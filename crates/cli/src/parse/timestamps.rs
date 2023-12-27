@@ -335,7 +335,7 @@ mod tests {
     use super::*;
 
     async fn setup_fetcher() -> Fetcher<RetryClient<Http>> {
-        let rpc_url = String::from("https://eth.merkle.io");
+        let rpc_url = crate::parse::source::parse_rpc_url(&Args::default()).unwrap();
         let max_retry = 5;
         let initial_backoff = 500;
         let max_concurrent_requests = 100;
