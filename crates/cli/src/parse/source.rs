@@ -1,11 +1,11 @@
 use std::env;
 
+use crate::args::Args;
+use cryo_freeze::{Fetcher, ParseError, Source, SourceLabels};
 use ethers::prelude::*;
 use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
-use cryo_freeze::{Fetcher, ParseError, Source, SourceLabels};
-use crate::args::Args;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
