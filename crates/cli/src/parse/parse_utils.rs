@@ -51,8 +51,13 @@ pub(crate) fn parse_binary_arg(
     let mut parsed = HashMap::new();
 
     // separate into files vs explicit
-    let (files, hex_strings): (Vec<&String>, Vec<&String>) =
-        inputs.iter().partition(|tx| std::path::Path::new(tx).exists());
+    let (files, hex_strings): (Vec<&String>, Vec<&String>) = inputs.iter().partition(|tx| {
+        // strip off column name if present
+        match parse_file_column_reference(tx, default_column) {
+            Ok(reference) => std::path::Path::new(&reference.path).exists(),
+            _ => false,
+        }
+    });
 
     // files columns
     for path in files {
