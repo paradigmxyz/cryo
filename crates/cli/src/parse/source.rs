@@ -4,14 +4,12 @@ use ethers::prelude::*;
 use governor::{Quota, RateLimiter};
 use polars::prelude::*;
 use std::num::NonZeroU32;
-
 use cryo_freeze::{Fetcher, ParseError, Source, SourceLabels};
-
 use crate::args::Args;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
-    let rpc_url = parse_rpc_url(args);
+    let rpc_url = parse_rpc_url(args)?;
     let provider =
         Provider::<RetryClient<Http>>::new_client(&rpc_url, args.max_retries, args.initial_backoff)
             .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
@@ -57,7 +55,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     Ok(output)
 }
 
-fn parse_rpc_url(args: &Args) -> String {
+pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
     let mut url = match &args.rpc {
         Some(url) => url.clone(),
         _ => match env::var("ETH_RPC_URL") {
@@ -71,5 +69,5 @@ fn parse_rpc_url(args: &Args) -> String {
     if !url.starts_with("http") {
         url = "http://".to_string() + url.as_str();
     };
-    url
+    Ok(url)
 }
