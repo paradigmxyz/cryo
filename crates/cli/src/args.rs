@@ -1,6 +1,7 @@
 use clap_cryo::Parser;
 use color_print::cstr;
 use colored::Colorize;
+use cryo_freeze::ParseError;
 use ethers_core::utils::keccak256;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
@@ -261,25 +262,30 @@ pub struct Args {
     /// Event signature for log decoding
     #[arg(long, value_name = "tracer", help_heading = "Dataset-specific Options")]
     pub js_tracer: Option<String>,
-    /// Keep raw decoded columns like topic0, topic1, etc.
-    #[arg(long, help_heading = "Output Options")]
-    pub keep_raw_decoded: bool,
 }
 
 impl Args {
-    /// Converts each function signature in `function` to its corresponding Ethereum function selector
-    pub fn convert_to_selector_strings(&self) -> Option<Vec<String>> {
-        if let Some(function_signatures) = &self.function {
-            let mut selectors = Vec::new();
-            for signature in function_signatures {
-                let hash = keccak256(signature);
+    /// pass if it's hex, convert to hex if it's not
+    pub fn convert_to_selector_strings(
+        function_signatures: Vec<String>,
+    ) -> Result<Vec<String>, ParseError> {
+        let mut selectors = Vec::new();
+        for signature in function_signatures {
+            if Args::is_hex_signature(&signature) {
+                // If it's already a hex string, use it directly
+                selectors.push(signature);
+            } else {
+                // Otherwise, hash and convert to hex
+                let hash = keccak256(&signature);
                 let selector_string = hex::encode(&hash[0..4]); // Convert to hex string
                 selectors.push(selector_string);
             }
-            Some(selectors)
-        } else {
-            None
         }
+        Ok(selectors)
+    }
+    // helper to check hex
+    fn is_hex_signature(signature: &str) -> bool {
+        signature.starts_with("0x") && signature.len() == 10 // 0x + 8 hex chars
     }
     pub(crate) fn merge_with_precedence(self, other: Args) -> Self {
         let default_struct = Args::default();
