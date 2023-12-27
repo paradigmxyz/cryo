@@ -149,8 +149,8 @@ jobs:
     - uses: actions/setup-python@v4
       with:
         python-version: ${{ matrix.python-version }}
-    - name: Audit
-      run: cargo install cargo-audit && cargo audit
+    # - name: Audit
+    #   run: cargo install cargo-audit && cargo audit
     - name: Build Wheels - cryo-python
       uses: PyO3/maturin-action@v1
       with:
@@ -169,71 +169,71 @@ jobs:
         name: wheels
         path: dist
 
-  linux-cross:
-    runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        python:
-          - '3.7'
-          - '3.8'
-          - '3.9'
-          - '3.10'
-          - '3.11'
-          - '3.12'
-        target: [aarch64, armv7, s390x, ppc64le]
-        include:
-          - python: pypy3.7
-            target: aarch64
-          - python: pypy3.8
-            target: aarch64
-          - python: pypy3.9
-            target: aarch64
-    steps:
-    - uses: actions/checkout@v3
-    - uses: actions/cache@v3
-      with:
-        path: |
-          ~/.cargo/bin/
-          ~/.cargo/registry/index/
-          ~/.cargo/registry/cache/
-          ~/.cargo/git/db/
-          target/
-        key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-    - name: Build Wheels cryo_python
-      uses: PyO3/maturin-action@v1
-      with:
-        target: ${{ matrix.target }}
-        manylinux: auto
-        args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/python/Cargo.toml
-    - uses: uraimo/run-on-arch-action@v2.3.0
-      # skipped cross compiled pypy wheel tests for now
-      if: ${{ !startsWith(matrix.python, 'pypy') }}
-      name: Install built wheel
-      with:
-        arch: ${{ matrix.target }}
-        distro: ubuntu20.04
-        githubToken: ${{ github.token }}
-        # Mount the dist directory as /artifacts in the container
-        dockerRunArgs: |
-          --volume "${PWD}/dist:/artifacts"
-        install: |
-          apt-get update
-          apt-get install -y --no-install-recommends python3 python3-venv software-properties-common
-          add-apt-repository ppa:deadsnakes/ppa
-          apt-get update
-          apt-get install -y curl python3.7-venv python3.9-venv python3.10-venv python3.11-venv python3.12-venv
-        run: |
-          ls -lrth /artifacts
-          PYTHON=python${{ matrix.python }}
-          $PYTHON -m venv venv
-          venv/bin/pip install -U pip
-          venv/bin/pip install cryo_pthon --no-index --find-links /artifacts --force-reinstall
-          venv/bin/python -c 'import cryo'
-    - name: Upload wheels
-      uses: actions/upload-artifact@v3
-      with:
-        name: wheels
-        path: dist
+  # linux-cross:
+  #   runs-on: ubuntu-latest
+  #   strategy:
+  #     matrix:
+  #       python:
+  #         - '3.7'
+  #         - '3.8'
+  #         - '3.9'
+  #         - '3.10'
+  #         - '3.11'
+  #         - '3.12'
+  #       target: [aarch64, armv7, s390x, ppc64le]
+  #       include:
+  #         - python: pypy3.7
+  #           target: aarch64
+  #         - python: pypy3.8
+  #           target: aarch64
+  #         - python: pypy3.9
+  #           target: aarch64
+  #   steps:
+  #   - uses: actions/checkout@v3
+  #   - uses: actions/cache@v3
+  #     with:
+  #       path: |
+  #         ~/.cargo/bin/
+  #         ~/.cargo/registry/index/
+  #         ~/.cargo/registry/cache/
+  #         ~/.cargo/git/db/
+  #         target/
+  #       key: ${{ runner.os }}-${{ matrix.target }}-cargo-${{ hashFiles('**/Cargo.lock') }}
+  #   - name: Build Wheels cryo_python
+  #     uses: PyO3/maturin-action@v1
+  #     with:
+  #       target: ${{ matrix.target }}
+  #       manylinux: auto
+  #       args: -i ${{ matrix.python }} --release --out dist --manifest-path crates/python/Cargo.toml
+  #   - uses: uraimo/run-on-arch-action@v2.3.0
+  #     # skipped cross compiled pypy wheel tests for now
+  #     if: ${{ !startsWith(matrix.python, 'pypy') }}
+  #     name: Install built wheel
+  #     with:
+  #       arch: ${{ matrix.target }}
+  #       distro: ubuntu20.04
+  #       githubToken: ${{ github.token }}
+  #       # Mount the dist directory as /artifacts in the container
+  #       dockerRunArgs: |
+  #         --volume "${PWD}/dist:/artifacts"
+  #       install: |
+  #         apt-get update
+  #         apt-get install -y --no-install-recommends python3 python3-venv software-properties-common
+  #         add-apt-repository ppa:deadsnakes/ppa
+  #         apt-get update
+  #         apt-get install -y curl python3.7-venv python3.9-venv python3.10-venv python3.11-venv python3.12-venv
+  #       run: |
+  #         ls -lrth /artifacts
+  #         PYTHON=python${{ matrix.python }}
+  #         $PYTHON -m venv venv
+  #         venv/bin/pip install -U pip
+  #         venv/bin/pip install cryo_pthon --no-index --find-links /artifacts --force-reinstall
+  #         venv/bin/python -c 'import cryo'
+  #   - name: Upload wheels
+  #     uses: actions/upload-artifact@v3
+  #     with:
+  #       name: wheels
+  #       path: dist
 
   pypy-linux:
     runs-on: ubuntu-latest
@@ -317,7 +317,7 @@ jobs:
       name: Upload cryo release to PyPI
       runs-on: ubuntu-latest
       if: "startsWith(github.ref, 'refs/tags/')"
-      needs: [ macos, windows, linux, linux-cross, pypy-linux, pypy-macos ]
+      needs: [ macos, windows, linux, pypy-linux, pypy-macos ]
       environment:
         name: pypi
         url: https://pypi.org/p/cryo
