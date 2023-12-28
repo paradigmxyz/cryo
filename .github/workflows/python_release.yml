@@ -155,14 +155,8 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.target }}
-        manylinux: auto
+        manylinux: [2014]
         args: -i ${{ matrix.python-version }} --release --out dist --manifest-path crates/python/Cargo.toml
-    - name: Python UnitTest - cryo_python
-      if: matrix.target == 'x86_64'
-      run: |
-        # pip install pytest numpy hypothesis
-        pip install cryo_python --no-index --find-links dist --force-reinstall
-        # python -m pytest cryo_python -vs
     - name: Upload wheels
       uses: actions/upload-artifact@v3
       with:
