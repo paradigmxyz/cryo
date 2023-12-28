@@ -1,6 +1,5 @@
 [package]
 name = "cryo_python"
-build = "build.rs"
 description = "cryo python is a python library built on top of the rust cryo library"
 version.workspace = true
 edition.workspace = true
@@ -23,6 +22,3 @@ pyo3 = { workspace = true }
 pyo3-asyncio = { workspace = true }
 pyo3-polars = { workspace = true }
 tokio = { workspace = true }
-
-[build-dependencies]
-pyo3-build-config = { workspace = true }
