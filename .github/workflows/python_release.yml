@@ -155,7 +155,7 @@ jobs:
       uses: PyO3/maturin-action@v1
       with:
         target: ${{ matrix.target }}
-        manylinux: [2014]
+        manylinux: 2014
         args: -i ${{ matrix.python-version }} --release --out dist --manifest-path crates/python/Cargo.toml
     - name: Upload wheels
       uses: actions/upload-artifact@v3
