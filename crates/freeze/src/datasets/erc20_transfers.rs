@@ -8,6 +8,7 @@ use polars::prelude::*;
 pub struct Erc20Transfers {
     n_rows: u64,
     block_number: Vec<u32>,
+    block_hash: Vec<Option<Vec<u8>>>,
     transaction_index: Vec<u32>,
     log_index: Vec<u32>,
     transaction_hash: Vec<Vec<u8>>,
@@ -20,6 +21,21 @@ pub struct Erc20Transfers {
 
 #[async_trait::async_trait]
 impl Dataset for Erc20Transfers {
+    fn default_columns() -> Option<Vec<&'static str>> {
+        Some(vec![
+            "block_number",
+            // "block_hash",
+            "transaction_index",
+            "log_index",
+            "transaction_hash",
+            "erc20",
+            "from_address",
+            "to_address",
+            "value",
+            "chain_id",
+        ])
+    }
+
     fn optional_parameters() -> Vec<Dim> {
         vec![Dim::Address, Dim::Topic0, Dim::Topic1, Dim::Topic2, Dim::FromAddress, Dim::ToAddress]
     }
@@ -88,6 +104,7 @@ fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20Transfers, schema:
         {
             columns.n_rows += 1;
             store!(schema, columns, block_number, bn.as_u32());
+            store!(schema, columns, block_hash, log.block_hash.map(|bh| bh.as_bytes().to_vec()));
             store!(schema, columns, transaction_index, ti.as_u32());
             store!(schema, columns, log_index, li.as_u32());
             store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());

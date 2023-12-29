@@ -1,13 +1,7 @@
 use crate::*;
 use ethers::prelude::*;
 use polars::prelude::*;
-use std::collections::HashSet;
-use std::sync::Mutex;
-use lazy_static::lazy_static;
-
-lazy_static! {
-    static ref TRANSACTIONS_SET: Mutex<HashSet<Vec<u8>>> = Mutex::new(HashSet::new());
-}
+use crate::ExecutionEnv;
 
 
 /// columns for transactions
@@ -19,7 +13,6 @@ pub struct Transactions {
     transaction_index: Vec<Option<u64>>,
     transaction_hash: Vec<Vec<u8>>,
     nonce: Vec<u64>,
-    address: Vec<Vec<u8>>,
     from_address: Vec<Vec<u8>>,
     to_address: Vec<Option<Vec<u8>>>,
     value: Vec<U256>,
@@ -65,7 +58,6 @@ impl Dataset for Transactions {
 
     fn optional_parameters() -> Vec<Dim> {
         vec![Dim::Address,Dim::FromAddress, Dim::ToAddress]
-        //vec![Dim::FromAddress, Dim::ToAddress]
     }
 }
 
@@ -75,9 +67,23 @@ pub type TransactionAndReceipt = (Transaction, Option<TransactionReceipt>);
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
     type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool);
-    //println!("impl");
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+
+        fn get_addresses() -> Vec<H160> {
+            let env = ExecutionEnv::default();
+            let cli_command = env.cli_command.unwrap();
+            if let Some(address_index) = cli_command.iter().position(|arg| arg == "--address") {
+                cli_command[address_index+1..]
+                    .to_vec()
+                    .iter()
+                    .take_while(|&arg| !arg.starts_with("--"))
+                    .map(|s| s.parse::<H160>().expect("Invalid H160"))
+                    .collect::<Vec<H160>>()
+            } else {
+                Vec::new()
+            }
+        }
 
         let block = source
             .fetcher
@@ -90,9 +96,7 @@ impl CollectByBlock for Transactions {
         // filter by from_address
         let from_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(from_address) = &request.from_address {            
-                Box::new(move |tx| {
-                    from_address == tx.from.as_bytes()
-                })
+                Box::new(move |tx| {from_address == tx.from.as_bytes()})
             } else {
                 Box::new(|_| true)
             };
@@ -103,27 +107,23 @@ impl CollectByBlock for Transactions {
             } else {
                 Box::new(|_| true)
             };
-
-        // filter by address
+        // filter by addresses (if either the to or from address are in the vector of addresses)
+        let addresses=get_addresses();
         let addr_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
         if let Some(address) = &request.address {
             Box::new(move |tx| {
-                let mut transactions_set = TRANSACTIONS_SET.lock().unwrap();
-                if transactions_set.contains(&tx.hash.as_bytes().to_vec()) {
-                    false
+                let to_address = addresses.contains(&tx.to.unwrap());
+                let from_address = addresses.contains(&tx.from);
+                if !(to_address && from_address){
+                    tx.to.as_ref().map_or(false, |x| x.as_bytes()==address)
                 } else {
-                    let condition = tx.to.as_ref().map_or(false, |x| x.as_bytes() == address) ||
-                                    tx.from.as_bytes() == address;
-                    if condition {
-                        transactions_set.insert(tx.hash.as_bytes().to_vec());
-                    }
-                    condition
-                }
+                    tx.from.as_bytes()==address}
             })
         } else {
             Box::new(|_| true)
         };
 
+        
         let transactions =
             block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).filter(addr_filter).collect();
 
