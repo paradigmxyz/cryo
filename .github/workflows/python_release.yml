@@ -124,7 +124,7 @@ jobs:
     needs: [linux, windows, macos, sdist]
     environment:
       name: pypi
-      url: https://pypi.org/p/cryo
+      url: https://pypi.org/p/cryo-python
     permissions:
       id-token: write
     steps:
