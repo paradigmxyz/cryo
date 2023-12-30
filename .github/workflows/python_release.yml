@@ -5,7 +5,7 @@
 #
 name: python-release
 
-# section adapted from https://github.com/astral-sh/ruff/blob/main/.github/workflows/release.yaml
+# adapted from https://github.com/astral-sh/ruff/blob/main/.github/workflows/release.yaml
 on:
   workflow_dispatch:
     inputs:
@@ -36,6 +36,8 @@ jobs:
         target: [x86_64]
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -61,6 +63,8 @@ jobs:
         target: [x64]
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -86,6 +90,8 @@ jobs:
         target: [x86_64, aarch64]
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
         uses: actions/setup-python@v4
         with:
@@ -106,6 +112,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3
+        with:
+          ref: ${{ inputs.sha }}
       - name: Build sdist
         uses: PyO3/maturin-action@v1
         with:
@@ -117,11 +125,49 @@ jobs:
           name: wheels
           path: dist
 
+  # adapted from https://github.com/astral-sh/ruff/blob/main/.github/workflows/release.yaml
+  validate-tag:
+    name: Validate tag
+    runs-on: ubuntu-latest
+    # If you don't set an input tag, it's a dry run (no uploads).
+    if: ${{ inputs.tag }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: main # We checkout the main branch to check for the commit
+      - name: Check main branch
+        if: ${{ inputs.sha }}
+        run: |
+          # Fetch the main branch since a shallow checkout is used by default
+          git fetch origin main --unshallow
+          if ! git branch --contains ${{ inputs.sha }} | grep -E '(^|\s)main$'; then
+            echo "The specified sha is not on the main branch" >&2
+            exit 1
+          fi
+      - name: Check tag consistency
+        run: |
+          # Switch to the commit we want to release
+          git checkout ${{ inputs.sha }}
+          version=$(grep "version = " pyproject.toml | sed -e 's/version = "\(.*\)"/\1/g')
+          if [ "${{ inputs.tag }}" != "${version}" ]; then
+            echo "The input tag does not match the version from pyproject.toml:" >&2
+            echo "${{ inputs.tag }}" >&2
+            echo "${version}" >&2
+            exit 1
+          else
+            echo "Releasing ${version}"
+          fi
+
   release:
     name: Release
     runs-on: ubuntu-latest
     if: "startsWith(github.ref, 'refs/tags/')"
-    needs: [linux, windows, macos, sdist]
+    needs:
+      - linux
+      - windows
+      - macos
+      - sdist
+      - validate-tag
     environment:
       name: pypi
       url: https://pypi.org/p/cryo-python
