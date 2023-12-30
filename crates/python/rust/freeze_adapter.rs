@@ -61,7 +61,7 @@ use cryo_cli::{run, Args};
         verbose = false,
         no_verbose = false,
         event_signature = None,
-        skip_empty = Some(False),
+        skip_empty = Some(false),
     )
 )]
 #[allow(clippy::too_many_arguments)]
