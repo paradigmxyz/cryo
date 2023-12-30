@@ -9,13 +9,14 @@ name: python-release
 on:
   workflow_dispatch:
     inputs:
-      tag:
-        description: "The version to tag, without the leading 'v'. If omitted, will initiate a dry run (no uploads)."
-        type: string
       sha:
         description: "The full sha of the commit to be released. If omitted, the latest commit on the default branch will be used."
         default: ""
         type: string
+      release:
+        description: 'Set to true to run the release on pypi, dry run otherwise'
+        required: true
+        default: 'false'
   pull_request:
     paths:
       # When we change pyproject.toml, we want to ensure that the maturin builds still work
@@ -125,49 +126,15 @@ jobs:
           name: wheels
           path: dist
 
-  # adapted from https://github.com/astral-sh/ruff/blob/main/.github/workflows/release.yaml
-  validate-tag:
-    name: Validate tag
-    runs-on: ubuntu-latest
-    # If you don't set an input tag, it's a dry run (no uploads).
-    if: ${{ inputs.tag }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          ref: main # We checkout the main branch to check for the commit
-      - name: Check main branch
-        if: ${{ inputs.sha }}
-        run: |
-          # Fetch the main branch since a shallow checkout is used by default
-          git fetch origin main --unshallow
-          if ! git branch --contains ${{ inputs.sha }} | grep -E '(^|\s)main$'; then
-            echo "The specified sha is not on the main branch" >&2
-            exit 1
-          fi
-      - name: Check tag consistency
-        run: |
-          # Switch to the commit we want to release
-          git checkout ${{ inputs.sha }}
-          version=$(grep "version = " pyproject.toml | sed -e 's/version = "\(.*\)"/\1/g')
-          if [ "${{ inputs.tag }}" != "${version}" ]; then
-            echo "The input tag does not match the version from pyproject.toml:" >&2
-            echo "${{ inputs.tag }}" >&2
-            echo "${version}" >&2
-            exit 1
-          else
-            echo "Releasing ${version}"
-          fi
-
   release:
     name: Release
     runs-on: ubuntu-latest
-    if: "startsWith(github.ref, 'refs/tags/')"
+    if: "github.event.inputs.release == 'true'"
     needs:
       - linux
       - windows
       - macos
       - sdist
-      - validate-tag
     environment:
       name: pypi
       url: https://pypi.org/p/cryo-python
