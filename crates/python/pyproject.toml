@@ -5,7 +5,7 @@ build-backend = "maturin"
 [project]
 name = "cryo_python"
 requires-python = ">=3.7"
-dependencies = ["polars==*","pyarrow==*"]
+dependencies = ["polars","pyarrow"]
 classifiers = [
     "Programming Language :: Rust",
     "Programming Language :: Python :: Implementation :: CPython",
