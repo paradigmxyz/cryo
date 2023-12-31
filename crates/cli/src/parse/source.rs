@@ -25,6 +25,12 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         })?;
         let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
         (provider.into(), chain_id)
+    } else if rpc_url.ends_with(".ipc") {
+        let provider: Provider<Ipc> = Provider::connect_ipc(&rpc_url).await.map_err(|_| {
+            ParseError::ParseError("could not instantiate HTTP Provider".to_string())
+        })?;
+        let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+        (provider.into(), chain_id)
     } else {
         return Err(ParseError::ParseError(format!("invalid rpc url: {}", rpc_url)));
     };
@@ -81,7 +87,7 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
             }
         },
     };
-    if !url.starts_with("http") & !url.starts_with("ws") {
+    if !url.starts_with("http") & !url.starts_with("ws") & !url.ends_with(".ipc") {
         url = "http://".to_string() + url.as_str();
     };
     Ok(url)
