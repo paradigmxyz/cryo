@@ -37,19 +37,6 @@ pub struct Source {
     pub labels: SourceLabels,
 }
 
-// impl {
-//     fn default() -> Self {
-//         pub struct Source {
-//             pub inner_request_size: DEFAULT_INNER_REQUEST_SIZE,
-//             pub max_concurrent_chunks: DEFAULT_MAX_CONCURRENT_CHUNKS,
-//             pub rpc_url: String,
-//             pub semaphore: Option<Arc<Semaphore>>,
-//             pub rate_limiter: Option<Arc<RateLimiter>>,
-//             pub labels: SourceLabels,
-//         }
-//     }
-// }
-
 /// A non-generic wrapper over different provider types for use as a trait object
 #[derive(Clone, Debug)]
 pub enum ProviderWrapper {
@@ -59,6 +46,14 @@ pub enum ProviderWrapper {
     RetryClientHttp(Arc<Provider<RetryClient<Http>>>),
     /// websocket client
     WsClient(Arc<Provider<Ws>>),
+    /// ipc client
+    IpcClient(Arc<Provider<Ipc>>),
+}
+
+impl From<Provider<MockProvider>> for ProviderWrapper {
+    fn from(value: Provider<MockProvider>) -> ProviderWrapper {
+        ProviderWrapper::MockProvider(Arc::new(value))
+    }
 }
 
 impl From<Provider<RetryClient<Http>>> for ProviderWrapper {
@@ -73,9 +68,9 @@ impl From<Provider<Ws>> for ProviderWrapper {
     }
 }
 
-impl From<Provider<MockProvider>> for ProviderWrapper {
-    fn from(value: Provider<MockProvider>) -> ProviderWrapper {
-        ProviderWrapper::MockProvider(Arc::new(value))
+impl From<Provider<Ipc>> for ProviderWrapper {
+    fn from(value: Provider<Ipc>) -> ProviderWrapper {
+        ProviderWrapper::IpcClient(Arc::new(value))
     }
 }
 
@@ -87,33 +82,10 @@ macro_rules! source_provider {
             ProviderWrapper::MockProvider(provider) => provider.$method($($arg),*),
             ProviderWrapper::RetryClientHttp(provider) => provider.$method($($arg),*),
             ProviderWrapper::WsClient(provider) => provider.$method($($arg),*),
+            ProviderWrapper::IpcClient(provider) => provider.$method($($arg),*),
         }
     };
 }
-
-// impl Source {
-//     // pub async fn get_block(&self, block_num: u64) -> Result<Option<Block<TxHash>>> {
-//     //     let _permit = self.permit_request().await;
-//     //     Self::map_err(source_provider!(self, get_block(block_num)).await)
-//     // }
-
-//     async fn permit_request(
-//         &self,
-//     ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {
-//         let permit = match &self.semaphore {
-//             Some(semaphore) => Some(semaphore.acquire().await),
-//             _ => None,
-//         };
-//         if let Some(limiter) = &self.rate_limiter {
-//             limiter.until_ready().await;
-//         }
-//         permit
-//     }
-
-//     fn map_err<T>(res: ::core::result::Result<T, ProviderError>) -> Result<T> {
-//         res.map_err(CollectError::ProviderError)
-//     }
-// }
 
 impl Source {
     /// Returns all receipts for a block.
