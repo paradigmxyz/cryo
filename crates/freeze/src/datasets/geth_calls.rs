@@ -34,7 +34,7 @@ impl CollectByBlock for GethCalls {
         let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
         let include_transaction = schema.has_column("block_number");
         let block_number = request.block_number()? as u32;
-        source.fetcher.geth_debug_trace_block_calls(block_number, include_transaction).await
+        source.geth_debug_trace_block_calls(block_number, include_transaction).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -50,7 +50,6 @@ impl CollectByTransaction for GethCalls {
         let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
         let include_block_number = schema.has_column("block_number");
         source
-            .fetcher
             .geth_debug_trace_transaction_calls(request.transaction_hash()?, include_block_number)
             .await
     }

@@ -42,7 +42,7 @@ impl CollectByBlock for Erc20Supplies {
         call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;
         let contract = request.ethers_address()?;
-        let output = source.fetcher.call2(contract, call_data, block_number).await.ok();
+        let output = source.call2(contract, call_data, block_number).await.ok();
         let output = output.map(|x| x.to_vec().as_slice().into());
         Ok((request.block_number()? as u32, request.address()?, output))
     }

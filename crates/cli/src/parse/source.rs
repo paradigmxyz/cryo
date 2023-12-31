@@ -1,7 +1,7 @@
 use std::env;
 
 use crate::args::Args;
-use cryo_freeze::{Fetcher, ParseError, Source, SourceLabels};
+use cryo_freeze::{ParseError, Source, SourceLabels};
 use ethers::prelude::*;
 use governor::{Quota, RateLimiter};
 use polars::prelude::*;
@@ -35,15 +35,16 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     };
 
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
-    let semaphore = Some(semaphore);
+    let semaphore = Arc::new(Some(semaphore));
 
-    let fetcher = Fetcher { provider, semaphore, rate_limiter };
     let output = Source {
-        fetcher: Arc::new(fetcher),
         chain_id,
         inner_request_size: args.inner_request_size,
         max_concurrent_chunks,
+        semaphore,
+        rate_limiter: rate_limiter.into(),
         rpc_url,
+        provider: provider.into(),
         labels: SourceLabels {
             max_concurrent_requests: args.requests_per_second.map(|x| x as u64),
             max_requests_per_second: args.requests_per_second.map(|x| x as u64),

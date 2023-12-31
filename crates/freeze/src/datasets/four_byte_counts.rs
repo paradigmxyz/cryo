@@ -34,7 +34,6 @@ impl CollectByBlock for FourByteCounts {
             query.schemas.get(&Datatype::FourByteCounts).ok_or(err("schema not provided"))?;
         let include_txs = schema.has_column("transaction_hash");
         source
-            .fetcher
             .geth_debug_trace_block_4byte_traces(request.block_number()? as u32, include_txs)
             .await
     }
@@ -53,7 +52,7 @@ impl CollectByTransaction for FourByteCounts {
             query.schemas.get(&Datatype::FourByteCounts).ok_or(err("schema not provided"))?;
         let include_block_number = schema.has_column("block_number");
         let tx = request.transaction_hash()?;
-        source.fetcher.geth_debug_trace_transaction_4byte_traces(tx, include_block_number).await
+        source.geth_debug_trace_transaction_4byte_traces(tx, include_block_number).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

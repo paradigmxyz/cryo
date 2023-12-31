@@ -49,10 +49,7 @@ impl CollectByBlock for GethOpcodes {
         };
         let include_transaction = schema.has_column("block_number");
         let block_number = request.block_number()? as u32;
-        source
-            .fetcher
-            .geth_debug_trace_block_opcodes(block_number, include_transaction, options)
-            .await
+        source.geth_debug_trace_block_opcodes(block_number, include_transaction, options).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -75,7 +72,6 @@ impl CollectByTransaction for GethOpcodes {
         };
         let include_block_number = schema.has_column("block_number");
         source
-            .fetcher
             .geth_debug_trace_transaction_opcodes(
                 request.transaction_hash()?,
                 include_block_number,

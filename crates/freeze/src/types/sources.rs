@@ -19,8 +19,8 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 /// Options for fetching data from node
 #[derive(Clone, Debug)]
 pub struct Source {
-    /// Shared provider for rpc data
-    pub fetcher: Arc<Fetcher<RetryClient<Http>>>,
+    /// provider
+    pub provider: ProviderWrapper,
     /// chain_id of network
     pub chain_id: u64,
     /// number of blocks per log request
@@ -29,9 +29,91 @@ pub struct Source {
     pub max_concurrent_chunks: Option<u64>,
     /// Rpc Url
     pub rpc_url: String,
+    /// semaphore for controlling concurrency
+    pub semaphore: Arc<Option<Semaphore>>,
+    /// rate limiter for controlling request rate
+    pub rate_limiter: Arc<Option<RateLimiter>>,
     /// Labels (these are non-functional)
     pub labels: SourceLabels,
 }
+
+// impl {
+//     fn default() -> Self {
+//         pub struct Source {
+//             pub inner_request_size: DEFAULT_INNER_REQUEST_SIZE,
+//             pub max_concurrent_chunks: DEFAULT_MAX_CONCURRENT_CHUNKS,
+//             pub rpc_url: String,
+//             pub semaphore: Option<Arc<Semaphore>>,
+//             pub rate_limiter: Option<Arc<RateLimiter>>,
+//             pub labels: SourceLabels,
+//         }
+//     }
+// }
+
+/// A non-generic wrapper over different provider types for use as a trait object
+#[derive(Clone, Debug)]
+pub enum ProviderWrapper {
+    /// mock provider
+    MockProvider(Arc<Provider<MockProvider>>),
+    /// http client
+    RetryClientHttp(Arc<Provider<RetryClient<Http>>>),
+    /// websocket client
+    WsClient(Arc<Provider<Ws>>),
+}
+
+impl From<Provider<RetryClient<Http>>> for ProviderWrapper {
+    fn from(value: Provider<RetryClient<Http>>) -> ProviderWrapper {
+        ProviderWrapper::RetryClientHttp(Arc::new(value))
+    }
+}
+
+impl From<Provider<Ws>> for ProviderWrapper {
+    fn from(value: Provider<Ws>) -> ProviderWrapper {
+        ProviderWrapper::WsClient(Arc::new(value))
+    }
+}
+
+impl From<Provider<MockProvider>> for ProviderWrapper {
+    fn from(value: Provider<MockProvider>) -> ProviderWrapper {
+        ProviderWrapper::MockProvider(Arc::new(value))
+    }
+}
+
+/// extract the provider from a source and run specified method
+#[macro_export]
+macro_rules! source_provider {
+    ($source:expr, $method:ident($($arg:expr),*)) => {
+        match &$source.provider {
+            ProviderWrapper::MockProvider(provider) => provider.$method($($arg),*),
+            ProviderWrapper::RetryClientHttp(provider) => provider.$method($($arg),*),
+            ProviderWrapper::WsClient(provider) => provider.$method($($arg),*),
+        }
+    };
+}
+
+// impl Source {
+//     // pub async fn get_block(&self, block_num: u64) -> Result<Option<Block<TxHash>>> {
+//     //     let _permit = self.permit_request().await;
+//     //     Self::map_err(source_provider!(self, get_block(block_num)).await)
+//     // }
+
+//     async fn permit_request(
+//         &self,
+//     ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {
+//         let permit = match &self.semaphore {
+//             Some(semaphore) => Some(semaphore.acquire().await),
+//             _ => None,
+//         };
+//         if let Some(limiter) = &self.rate_limiter {
+//             limiter.until_ready().await;
+//         }
+//         permit
+//     }
+
+//     fn map_err<T>(res: ::core::result::Result<T, ProviderError>) -> Result<T> {
+//         res.map_err(CollectError::ProviderError)
+//     }
+// }
 
 impl Source {
     /// Returns all receipts for a block.
@@ -42,7 +124,7 @@ impl Source {
     ) -> Result<Vec<TransactionReceipt>> {
         let block_number =
             block.number.ok_or(CollectError::CollectError("no block number".to_string()))?.as_u64();
-        if let Ok(receipts) = self.fetcher.get_block_receipts(block_number).await {
+        if let Ok(receipts) = self.get_block_receipts(block_number).await {
             return Ok(receipts);
         }
 
@@ -57,9 +139,9 @@ impl Source {
         let mut tasks = Vec::new();
         for tx in transactions {
             let tx_hash = tx.hash;
-            let fetcher = self.fetcher.clone();
+            let source = self.clone();
             let task = task::spawn(async move {
-                match fetcher.get_transaction_receipt(tx_hash).await? {
+                match source.get_transaction_receipt(tx_hash).await? {
                     Some(receipt) => Ok(receipt),
                     None => {
                         Err(CollectError::CollectError("could not find tx receipt".to_string()))
@@ -105,10 +187,16 @@ impl Source {
 
         let rate_limiter = None;
         let semaphore = None;
-        let fetcher = Fetcher { provider, semaphore, rate_limiter };
+
+        let provider = Provider::<RetryClient<Http>>::new_client(
+            &rpc_url,
+            DEFAULT_MAX_RETRIES,
+            DEFAULT_INTIAL_BACKOFF,
+        )
+        .map_err(|_| CollectError::RPCError("could not connect to provider".to_string()))?;
 
         let source = Source {
-            fetcher: Arc::new(fetcher),
+            provider: ProviderWrapper::RetryClientHttp(Arc::new(provider)),
             chain_id,
             inner_request_size: DEFAULT_INNER_REQUEST_SIZE,
             max_concurrent_chunks: Some(DEFAULT_MAX_CONCURRENT_CHUNKS),
@@ -119,6 +207,8 @@ impl Source {
                 max_retries: Some(DEFAULT_MAX_RETRIES),
                 initial_backoff: Some(DEFAULT_INTIAL_BACKOFF),
             },
+            rate_limiter: rate_limiter.into(),
+            semaphore: semaphore.into(),
         };
 
         Ok(source)
@@ -173,7 +263,7 @@ fn parse_rpc_url(rpc_url: Option<String>) -> String {
 // }
 
 /// source labels (non-functional)
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct SourceLabels {
     /// Maximum requests collected concurrently
     pub max_concurrent_requests: Option<u64>,
@@ -198,11 +288,12 @@ pub struct Fetcher<P> {
 
 type Result<T> = ::core::result::Result<T, CollectError>;
 
-impl<P: JsonRpcClient> Fetcher<P> {
+// impl<P: JsonRpcClient> Fetcher<P> {
+impl Source {
     /// Returns an array (possibly empty) of logs that match the filter
     pub async fn get_logs(&self, filter: &Filter) -> Result<Vec<Log>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_logs(filter).await)
+        Self::map_err(source_provider!(self, get_logs(filter)).await)
     }
 
     /// Replays all transactions in a block returning the requested traces for each transaction
@@ -212,7 +303,9 @@ impl<P: JsonRpcClient> Fetcher<P> {
         trace_types: Vec<TraceType>,
     ) -> Result<Vec<BlockTrace>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_block_transactions(block, trace_types).await)
+        Self::map_err(
+            source_provider!(self, trace_replay_block_transactions(block, trace_types)).await,
+        )
     }
 
     /// Get state diff traces of block
@@ -263,7 +356,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
         trace_types: Vec<TraceType>,
     ) -> Result<BlockTrace> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_transaction(tx_hash, trace_types).await)
+        Self::map_err(source_provider!(self, trace_replay_transaction(tx_hash, trace_types)).await)
     }
 
     /// Get state diff traces of transaction
@@ -297,7 +390,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// Gets the transaction with transaction_hash
     pub async fn get_transaction(&self, tx_hash: TxHash) -> Result<Option<Transaction>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_transaction(tx_hash).await)
+        Self::map_err(source_provider!(self, get_transaction(tx_hash)).await)
     }
 
     /// Gets the transaction receipt with transaction_hash
@@ -306,25 +399,25 @@ impl<P: JsonRpcClient> Fetcher<P> {
         tx_hash: TxHash,
     ) -> Result<Option<TransactionReceipt>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_transaction_receipt(tx_hash).await)
+        Self::map_err(source_provider!(self, get_transaction_receipt(tx_hash)).await)
     }
 
     /// Gets the block at `block_num` (transaction hashes only)
     pub async fn get_block(&self, block_num: u64) -> Result<Option<Block<TxHash>>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block(block_num).await)
+        Self::map_err(source_provider!(self, get_block(block_num)).await)
     }
 
     /// Gets the block at `block_num` (transaction hashes only)
     pub async fn get_block_by_hash(&self, block_hash: H256) -> Result<Option<Block<TxHash>>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block(BlockId::Hash(block_hash)).await)
+        Self::map_err(source_provider!(self, get_block(BlockId::Hash(block_hash))).await)
     }
 
     /// Gets the block at `block_num` (full transactions included)
     pub async fn get_block_with_txs(&self, block_num: u64) -> Result<Option<Block<Transaction>>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block_with_txs(block_num).await)
+        Self::map_err(source_provider!(self, get_block_with_txs(block_num)).await)
     }
 
     /// Returns all receipts for a block.
@@ -333,19 +426,21 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// `eth_getTransactionReceipt` if `eth_getBlockReceipts` is not supported.
     pub async fn get_block_receipts(&self, block_num: u64) -> Result<Vec<TransactionReceipt>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block_receipts(block_num).await)
+        Self::map_err(source_provider!(self, get_block_receipts(block_num)).await)
     }
 
     /// Returns traces created at given block
     pub async fn trace_block(&self, block_num: BlockNumber) -> Result<Vec<Trace>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_block(block_num).await)
+        Self::map_err(source_provider!(self, trace_block(block_num)).await)
     }
 
     /// Returns all traces of a given transaction
     pub async fn trace_transaction(&self, tx_hash: TxHash) -> Result<Vec<Trace>> {
         let _permit = self.permit_request().await;
-        self.provider.trace_transaction(tx_hash).await.map_err(CollectError::ProviderError)
+        source_provider!(self, trace_transaction(tx_hash))
+            .await
+            .map_err(CollectError::ProviderError)
     }
 
     /// Deprecated
@@ -355,8 +450,8 @@ impl<P: JsonRpcClient> Fetcher<P> {
         block_number: BlockNumber,
     ) -> Result<Bytes> {
         let _permit = self.permit_request().await;
-        self.provider
-            .call(&transaction.into(), Some(block_number.into()))
+        let tx: ethers::core::types::transaction::eip2718::TypedTransaction = transaction.into();
+        source_provider!(self, call(&tx, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -369,8 +464,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
         block_number: Option<BlockNumber>,
     ) -> Result<BlockTrace> {
         let _permit = self.permit_request().await;
-        self.provider
-            .trace_call(transaction, trace_type, block_number)
+        source_provider!(self, trace_call(transaction, trace_type, block_number))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -382,8 +476,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
         block_number: BlockNumber,
     ) -> Result<U256> {
         let _permit = self.permit_request().await;
-        self.provider
-            .get_transaction_count(address, Some(block_number.into()))
+        source_provider!(self, get_transaction_count(address, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -391,8 +484,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// Get code at address
     pub async fn get_balance(&self, address: H160, block_number: BlockNumber) -> Result<U256> {
         let _permit = self.permit_request().await;
-        self.provider
-            .get_balance(address, Some(block_number.into()))
+        source_provider!(self, get_balance(address, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -400,8 +492,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
     /// Get code at address
     pub async fn get_code(&self, address: H160, block_number: BlockNumber) -> Result<Bytes> {
         let _permit = self.permit_request().await;
-        self.provider
-            .get_code(address, Some(block_number.into()))
+        source_provider!(self, get_code(address, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -414,15 +505,14 @@ impl<P: JsonRpcClient> Fetcher<P> {
         block_number: BlockNumber,
     ) -> Result<H256> {
         let _permit = self.permit_request().await;
-        self.provider
-            .get_storage_at(address, slot, Some(block_number.into()))
+        source_provider!(self, get_storage_at(address, slot, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
 
     /// Get the block number
     pub async fn get_block_number(&self) -> Result<U64> {
-        Self::map_err(self.provider.get_block_number().await)
+        Self::map_err(source_provider!(self, get_block_number()).await)
     }
 
     // extra helpers below
@@ -459,8 +549,8 @@ impl<P: JsonRpcClient> Fetcher<P> {
             ..Default::default()
         };
         let _permit = self.permit_request().await;
-        self.provider
-            .call(&transaction.into(), Some(block_number.into()))
+        let tx: ethers::core::types::transaction::eip2718::TypedTransaction = transaction.into();
+        source_provider!(self, call(&tx, Some(block_number.into())))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -479,8 +569,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
             ..Default::default()
         };
         let _permit = self.permit_request().await;
-        self.provider
-            .trace_call(transaction, trace_type, block_number)
+        source_provider!(self, trace_call(transaction, trace_type, block_number))
             .await
             .map_err(CollectError::ProviderError)
     }
@@ -494,8 +583,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
     ) -> Result<(Option<u32>, Vec<Option<Vec<u8>>>, Vec<GethTrace>)> {
         let traces = {
             let _permit = self.permit_request().await;
-            self.provider
-                .debug_trace_block_by_number(Some(block_number.into()), options)
+            source_provider!(self, debug_trace_block_by_number(Some(block_number.into()), options))
                 .await
                 .map_err(CollectError::ProviderError)?
         };
@@ -683,8 +771,7 @@ impl<P: JsonRpcClient> Fetcher<P> {
 
         let trace = {
             let _permit = self.permit_request().await;
-            self.provider
-                .debug_trace_transaction(ethers_tx, options)
+            source_provider!(self, debug_trace_transaction(ethers_tx, options))
                 .await
                 .map_err(CollectError::ProviderError)?
         };
@@ -861,11 +948,11 @@ impl<P: JsonRpcClient> Fetcher<P> {
     async fn permit_request(
         &self,
     ) -> Option<::core::result::Result<SemaphorePermit<'_>, AcquireError>> {
-        let permit = match &self.semaphore {
+        let permit = match &*self.semaphore {
             Some(semaphore) => Some(semaphore.acquire().await),
             _ => None,
         };
-        if let Some(limiter) = &self.rate_limiter {
+        if let Some(limiter) = &*self.rate_limiter {
             limiter.until_ready().await;
         }
         permit
@@ -882,7 +969,6 @@ use std::collections::BTreeMap;
 fn parse_geth_diff_object(
     map: ethers::utils::__serde_json::Map<String, ethers::utils::__serde_json::Value>,
 ) -> Result<DiffMode> {
-    println!("HERE {:?}", map);
     let pre: BTreeMap<H160, AccountState> = serde_json::from_value(map["pre"].clone())
         .map_err(|_| err("cannot deserialize pre diff"))?;
     let post: BTreeMap<H160, AccountState> = serde_json::from_value(map["post"].clone())

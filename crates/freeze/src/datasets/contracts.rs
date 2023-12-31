@@ -35,7 +35,7 @@ impl CollectByBlock for Contracts {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_block(request.ethers_block_number()?).await
+        source.trace_block(request.ethers_block_number()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -50,7 +50,7 @@ impl CollectByTransaction for Contracts {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
+        source.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

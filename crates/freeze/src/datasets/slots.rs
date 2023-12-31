@@ -48,7 +48,6 @@ impl CollectByBlock for Slots {
         let block_number = request.block_number()? as u32;
         let slot = request.slot()?;
         let output = source
-            .fetcher
             .get_storage_at(
                 H160::from_slice(&address),
                 H256::from_slice(&slot),

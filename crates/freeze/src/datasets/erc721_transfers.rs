@@ -67,7 +67,7 @@ impl CollectByBlock for Erc721Transfers {
             topics[2] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
         }
         let filter = Filter { topics, ..request.ethers_log_filter()? };
-        let logs = source.fetcher.get_logs(&filter).await?;
+        let logs = source.get_logs(&filter).await?;
 
         Ok(logs.into_iter().filter(|x| x.topics.len() == 4 && x.data.len() == 0).collect())
     }
@@ -83,7 +83,7 @@ impl CollectByTransaction for Erc721Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
+        let logs = source.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc721_transfer).collect())
     }
 

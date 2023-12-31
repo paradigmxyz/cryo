@@ -50,7 +50,6 @@ impl CollectByTransaction for BlocksAndTransactions {
             <Transactions as CollectByTransaction>::extract(request, source.clone(), query).await?;
         let block_number = tx.block_number.ok_or(err("no block number for tx"))?.as_u64();
         let block = source
-            .fetcher
             .get_block(block_number)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;

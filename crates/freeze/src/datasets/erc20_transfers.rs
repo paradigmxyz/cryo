@@ -66,7 +66,7 @@ impl CollectByBlock for Erc20Transfers {
             topics[2] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
         }
         let filter = Filter { topics, ..request.ethers_log_filter()? };
-        let logs = source.fetcher.get_logs(&filter).await?;
+        let logs = source.get_logs(&filter).await?;
 
         Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
     }
@@ -82,7 +82,7 @@ impl CollectByTransaction for Erc20Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let logs = source.fetcher.get_transaction_logs(request.transaction_hash()?).await?;
+        let logs = source.get_transaction_logs(request.transaction_hash()?).await?;
         Ok(logs.into_iter().filter(is_erc20_transfer).collect())
     }
 

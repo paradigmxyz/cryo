@@ -1,14 +1,10 @@
 use super::{parse_schemas, partitions};
 use crate::args::Args;
-use cryo_freeze::{Dim, Fetcher, ParseError, Query, QueryLabels, Schemas};
-use ethers::prelude::*;
+use cryo_freeze::{Dim, ParseError, Query, QueryLabels, Schemas, Source};
 use std::sync::Arc;
 
 /// parse Query struct from cli Args
-pub async fn parse_query<P: JsonRpcClient>(
-    args: &Args,
-    fetcher: Arc<Fetcher<P>>,
-) -> Result<Query, ParseError> {
+pub async fn parse_query(args: &Args, source: Arc<Source>) -> Result<Query, ParseError> {
     let (datatypes, schemas) = parse_schemas(args)?;
 
     let arg_aliases = find_arg_aliases(args, &schemas);
@@ -17,7 +13,7 @@ pub async fn parse_query<P: JsonRpcClient>(
     let args = new_args.as_ref().unwrap_or(args);
 
     let (partitions, partitioned_by, time_dimension) =
-        partitions::parse_partitions(args, fetcher, &schemas).await?;
+        partitions::parse_partitions(args, source, &schemas).await?;
     let datatypes = cryo_freeze::cluster_datatypes(datatypes);
     let labels = QueryLabels { align: args.align, reorg_buffer: args.reorg_buffer };
     Ok(Query {

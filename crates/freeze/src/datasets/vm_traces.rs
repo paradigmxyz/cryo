@@ -42,7 +42,7 @@ impl CollectByBlock for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_block_vm_traces(request.block_number()? as u32).await
+        source.trace_block_vm_traces(request.block_number()? as u32).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -55,7 +55,7 @@ impl CollectByTransaction for VmTraces {
     type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction_vm_traces(request.transaction_hash()?).await
+        source.trace_transaction_vm_traces(request.transaction_hash()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
