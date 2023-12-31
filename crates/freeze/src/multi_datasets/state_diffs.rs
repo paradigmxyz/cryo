@@ -35,7 +35,7 @@ impl CollectByBlock for StateDiffs {
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let include_txs = query.schemas.values().any(|x| x.has_column("transaction_hash"));
-        source.fetcher.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
+        source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -48,7 +48,7 @@ impl CollectByTransaction for StateDiffs {
     type Response = BlockTxsTraces;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction_state_diffs(request.transaction_hash()?).await
+        source.trace_transaction_state_diffs(request.transaction_hash()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

@@ -85,7 +85,7 @@ fn get_payloads(
     let semaphore = source
         .max_concurrent_chunks
         .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
-    let source = Arc::new(source.clone());
+    let source: Arc<Source> = Arc::new(source.clone());
     let arc_query = Arc::new(query.clone());
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();

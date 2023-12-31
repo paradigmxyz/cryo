@@ -1,5 +1,4 @@
-use cryo_freeze::{BlockChunk, Fetcher, ParseError};
-use ethers::prelude::*;
+use cryo_freeze::{BlockChunk, ParseError, Source};
 use polars::prelude::*;
 
 use crate::{
@@ -9,9 +8,9 @@ use crate::{
 
 use super::blocks::get_latest_block_number;
 
-pub(crate) async fn parse_timestamps<P: JsonRpcClient>(
+pub(crate) async fn parse_timestamps(
     args: &Args,
-    fetcher: Arc<Fetcher<P>>,
+    source: Arc<Source>,
 ) -> Result<(Option<Vec<Option<String>>>, Option<Vec<BlockChunk>>), ParseError> {
     let (files, explicit_numbers): (Vec<&String>, Vec<&String>) = match &args.timestamps {
         Some(timestamp) => timestamp.iter().partition(|tx| std::path::Path::new(tx).exists()),
@@ -48,10 +47,10 @@ pub(crate) async fn parse_timestamps<P: JsonRpcClient>(
         // parse inputs into BlockChunks
         let mut block_chunks = Vec::new();
         for explicit_number in explicit_numbers {
-            let outputs = parse_timestamp_inputs(explicit_number, &fetcher).await?;
+            let outputs = parse_timestamp_inputs(explicit_number, source.clone()).await?;
             block_chunks.extend(outputs);
         }
-        postprocess_block_chunks(block_chunks, args, fetcher).await?
+        postprocess_block_chunks(block_chunks, args, source).await?
     } else {
         Vec::new()
     };
@@ -107,9 +106,9 @@ fn read_integer_column(path: &str, column: &str) -> Result<Vec<u64>, ParseError>
 }
 
 /// parse timestamp numbers to freeze
-async fn parse_timestamp_inputs<P: JsonRpcClient>(
+async fn parse_timestamp_inputs(
     inputs: &str,
-    fetcher: &Fetcher<P>,
+    source: Arc<Source>,
 ) -> Result<Vec<BlockChunk>, ParseError> {
     let parts: Vec<&str> = inputs.split(' ').collect();
     match parts.len() {
@@ -117,12 +116,12 @@ async fn parse_timestamp_inputs<P: JsonRpcClient>(
             let first_input = parts.first().ok_or_else(|| {
                 ParseError::ParseError("Failed to get the first input".to_string())
             })?;
-            parse_timestamp_token(first_input, true, fetcher).await.map(|x| vec![x])
+            parse_timestamp_token(first_input, true, source).await.map(|x| vec![x])
         }
         _ => {
             let mut chunks = Vec::new();
             for part in parts {
-                chunks.push(parse_timestamp_token(part, false, fetcher).await?);
+                chunks.push(parse_timestamp_token(part, false, source.clone()).await?);
             }
             Ok(chunks)
         }
@@ -134,10 +133,10 @@ enum RangePosition {
     None,
 }
 
-async fn parse_timestamp_token<P: JsonRpcClient>(
+async fn parse_timestamp_token(
     s: &str,
     as_range: bool,
-    fetcher: &Fetcher<P>,
+    source: Arc<Source>,
 ) -> Result<BlockChunk, ParseError> {
     let s = s.replace('_', "");
 
@@ -145,8 +144,8 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
     match parts.as_slice() {
         [timestamp_ref] => {
             let timestamp =
-                parse_timestamp_number(timestamp_ref, RangePosition::None, fetcher).await?;
-            let block = timestamp_to_block_number(timestamp, fetcher).await?;
+                parse_timestamp_number(timestamp_ref, RangePosition::None, source.clone()).await?;
+            let block = timestamp_to_block_number(timestamp, source).await?;
 
             Ok(BlockChunk::Numbers(vec![block]))
         }
@@ -162,10 +161,10 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
             };
 
             let (start_timestamp, end_timestamp) =
-                parse_timestamp_range(first_ref, second_ref, fetcher).await?;
+                parse_timestamp_range(first_ref, second_ref, source.clone()).await?;
             let (start_block, end_block) = (
-                timestamp_to_block_number(start_timestamp, fetcher).await?,
-                timestamp_to_block_number(end_timestamp, fetcher).await?,
+                timestamp_to_block_number(start_timestamp, source.clone()).await?,
+                timestamp_to_block_number(end_timestamp, source).await?,
             );
             block_range_to_block_chunk(start_block, end_block, as_range, None, n_keep)
         }
@@ -175,22 +174,19 @@ async fn parse_timestamp_token<P: JsonRpcClient>(
     }
 }
 
-async fn parse_timestamp_range<P>(
+async fn parse_timestamp_range(
     first_ref: &str,
     second_ref: &str,
-    fetcher: &Fetcher<P>,
-) -> Result<(u64, u64), ParseError>
-where
-    P: JsonRpcClient,
-{
+    source: Arc<Source>,
+) -> Result<(u64, u64), ParseError> {
     let (start_timestamp, end_timestamp) = match (first_ref, second_ref) {
         _ if first_ref.starts_with('-') => {
             let end_timestamp =
-                parse_timestamp_number(second_ref, RangePosition::Last, fetcher).await?;
+                parse_timestamp_number(second_ref, RangePosition::Last, source.clone()).await?;
 
             let start_timestamp = end_timestamp
                 .checked_sub(
-                    parse_timestamp_number(&first_ref[1..], RangePosition::None, fetcher).await?,
+                    parse_timestamp_number(&first_ref[1..], RangePosition::None, source).await?,
                 )
                 .ok_or_else(|| ParseError::ParseError("start_timestamp underflow".to_string()))?;
 
@@ -198,11 +194,11 @@ where
         }
         _ if second_ref.starts_with('+') => {
             let start_timestamp =
-                parse_timestamp_number(first_ref, RangePosition::First, fetcher).await?;
+                parse_timestamp_number(first_ref, RangePosition::First, source.clone()).await?;
 
             let end_timestamp = start_timestamp
                 .checked_add(
-                    parse_timestamp_number(&second_ref[1..], RangePosition::None, fetcher).await?,
+                    parse_timestamp_number(&second_ref[1..], RangePosition::None, source).await?,
                 )
                 .ok_or_else(|| ParseError::ParseError("end_timestamp overflow".to_string()))?;
 
@@ -210,10 +206,10 @@ where
         }
         _ => {
             let start_timestamp =
-                parse_timestamp_number(first_ref, RangePosition::First, fetcher).await?;
+                parse_timestamp_number(first_ref, RangePosition::First, source.clone()).await?;
 
             let end_timestamp =
-                parse_timestamp_number(second_ref, RangePosition::Last, fetcher).await?;
+                parse_timestamp_number(second_ref, RangePosition::Last, source).await?;
 
             (start_timestamp, end_timestamp)
         }
@@ -229,15 +225,15 @@ where
     Ok((start_timestamp, end_timestamp))
 }
 
-async fn parse_timestamp_number<P: JsonRpcClient>(
+async fn parse_timestamp_number(
     timestamp_ref: &str,
     range_position: RangePosition,
-    fetcher: &Fetcher<P>,
+    source: Arc<Source>,
 ) -> Result<u64, ParseError> {
     match (timestamp_ref, range_position) {
-        ("latest", _) => get_latest_timestamp(fetcher).await,
+        ("latest", _) => get_latest_timestamp(source).await,
         ("", RangePosition::First) => Ok(0),
-        ("", RangePosition::Last) => get_latest_timestamp(fetcher).await,
+        ("", RangePosition::Last) => get_latest_timestamp(source).await,
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
         _ if timestamp_ref.ends_with('m') => scale_timestamp_str_by_metric_unit(timestamp_ref, 60),
         _ if timestamp_ref.ends_with('h') => {
@@ -274,16 +270,13 @@ fn scale_timestamp_str_by_metric_unit(
 
 // perform binary search to determine the closest block number smaller than or equal to a given
 // timestamp
-async fn timestamp_to_block_number<P: JsonRpcClient>(
-    timestamp: u64,
-    fetcher: &Fetcher<P>,
-) -> Result<u64, ParseError> {
-    let latest_block_number = get_latest_block_number(fetcher).await?;
+async fn timestamp_to_block_number(timestamp: u64, source: Arc<Source>) -> Result<u64, ParseError> {
+    let latest_block_number = get_latest_block_number(source.clone()).await?;
 
     let mut l = 0;
     let mut r = latest_block_number;
     let mut mid = (l + r) / 2;
-    let mut block = fetcher
+    let mut block = source
         .get_block(mid)
         .await
         .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
@@ -291,7 +284,7 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
 
     while l <= r {
         mid = (l + r) / 2;
-        block = fetcher
+        block = source
             .get_block(mid)
             .await
             .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
@@ -315,9 +308,9 @@ async fn timestamp_to_block_number<P: JsonRpcClient>(
     }
 }
 
-async fn get_latest_timestamp<P: JsonRpcClient>(fetcher: &Fetcher<P>) -> Result<u64, ParseError> {
-    let latest_block_number = get_latest_block_number(fetcher).await?;
-    let latest_block = fetcher
+async fn get_latest_timestamp(source: Arc<Source>) -> Result<u64, ParseError> {
+    let latest_block_number = get_latest_block_number(source.clone()).await?;
+    let latest_block = source
         .get_block(latest_block_number)
         .await
         .map_err(|_e| ParseError::ParseError("Error fetching latest block".to_string()))?
@@ -333,8 +326,10 @@ mod tests {
     use governor::{Quota, RateLimiter};
 
     use super::*;
+    use cryo_freeze::SourceLabels;
+    use ethers::prelude::*;
 
-    async fn setup_fetcher() -> Fetcher<RetryClient<Http>> {
+    async fn setup_source() -> Source {
         let rpc_url = crate::parse::source::parse_rpc_url(&Args::default()).unwrap();
         let max_retry = 5;
         let initial_backoff = 500;
@@ -349,128 +344,150 @@ mod tests {
         let rate_limiter = Some(RateLimiter::direct(quota));
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
-        Fetcher { provider, semaphore: Some(semaphore), rate_limiter }
+        Source {
+            provider: provider.into(),
+            semaphore: Arc::new(Some(semaphore)),
+            rate_limiter: Arc::new(rate_limiter),
+            chain_id: 1,
+            inner_request_size: 1,
+            max_concurrent_chunks: None,
+            rpc_url: "".to_string(),
+            labels: SourceLabels::default(),
+        }
     }
 
     #[tokio::test]
     async fn test_extrema_timestamp_to_block_number() {
-        let fetcher = setup_fetcher().await;
+        let source = setup_source().await;
+        let source = Arc::new(source);
 
         // Before genesis block
-        assert!(timestamp_to_block_number(1438260000, &fetcher).await.unwrap() == 0);
+        assert!(timestamp_to_block_number(1438260000, source).await.unwrap() == 0);
     }
 
     #[tokio::test]
     async fn test_latest_timestamp_to_block_number() {
-        let fetcher = setup_fetcher().await;
-        let latest_block_number = get_latest_block_number(&fetcher).await.unwrap();
-        let latest_block = fetcher.get_block(latest_block_number).await.unwrap().unwrap();
+        let source = setup_source().await;
+        let source = Arc::new(source);
+        let latest_block_number = get_latest_block_number(source.clone()).await.unwrap();
+        let latest_block = source.get_block(latest_block_number).await.unwrap().unwrap();
         let latest_timestamp = latest_block.timestamp.as_u64();
 
         assert_eq!(
-            timestamp_to_block_number(latest_timestamp, &fetcher).await.unwrap(),
+            timestamp_to_block_number(latest_timestamp, source).await.unwrap(),
             latest_block_number
         );
     }
 
     #[tokio::test]
     async fn test_timestamp_between_blocks() {
-        let fetcher = setup_fetcher().await;
+        let source = setup_source().await;
+        let source = Arc::new(source);
 
         // Block 1000, and the timestamp surrounding block 1020
-        assert!(timestamp_to_block_number(1438272177, &fetcher).await.unwrap() == 1020);
-        assert!(timestamp_to_block_number(1438272178, &fetcher).await.unwrap() == 1020);
+        assert!(timestamp_to_block_number(1438272177, source.clone()).await.unwrap() == 1020);
+        assert!(timestamp_to_block_number(1438272178, source.clone()).await.unwrap() == 1020);
 
         // Timestamp 1438272176 is 1 seconds after block 1019 and 1 second before block 1020. Lower
         // block is returned
-        assert!(timestamp_to_block_number(1438272176, &fetcher).await.unwrap() == 1019);
+        assert!(timestamp_to_block_number(1438272176, source.clone()).await.unwrap() == 1019);
 
         // Timestamp 1438272187 is 1 seconds after block 1024 and 1 second before block 1025. Lower
         // block is returned
-        assert!(timestamp_to_block_number(1438272187, &fetcher).await.unwrap() == 1024);
+        assert!(timestamp_to_block_number(1438272187, source.clone()).await.unwrap() == 1024);
 
         // Timestamp 1438272169 is 4 seconds after block 1016 and 4 seconds before block 1017. Lower
         // block is returned
-        assert!(timestamp_to_block_number(1438272169, &fetcher).await.unwrap() == 1016);
+        assert!(timestamp_to_block_number(1438272169, source.clone()).await.unwrap() == 1016);
     }
 
     #[tokio::test]
     async fn test_parse_timestamp_number() {
-        let fetcher = setup_fetcher().await;
+        let source = setup_source().await;
+        let source = Arc::new(source);
         let latest_timestamp =
-            parse_timestamp_number("latest", RangePosition::None, &fetcher).await.unwrap();
-        assert_eq!(latest_timestamp, get_latest_timestamp(&fetcher).await.unwrap());
-
-        assert_eq!(parse_timestamp_number("", RangePosition::First, &fetcher).await.unwrap(), 0);
+            parse_timestamp_number("latest", RangePosition::None, source.clone()).await.unwrap();
+        assert_eq!(latest_timestamp, get_latest_timestamp(source.clone()).await.unwrap());
 
         assert_eq!(
-            parse_timestamp_number("", RangePosition::Last, &fetcher).await.unwrap(),
-            get_latest_timestamp(&fetcher).await.unwrap()
+            parse_timestamp_number("", RangePosition::First, source.clone()).await.unwrap(),
+            0
         );
 
         assert_eq!(
-            parse_timestamp_number("1700000000", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("", RangePosition::Last, source.clone()).await.unwrap(),
+            get_latest_timestamp(source.clone()).await.unwrap()
+        );
+
+        assert_eq!(
+            parse_timestamp_number("1700000000", RangePosition::None, source.clone())
+                .await
+                .unwrap(),
             1700000000
         );
 
-        assert_eq!(parse_timestamp_number("1m", RangePosition::None, &fetcher).await.unwrap(), 60);
+        assert_eq!(
+            parse_timestamp_number("1m", RangePosition::None, source.clone()).await.unwrap(),
+            60
+        );
 
         assert_eq!(
-            parse_timestamp_number("8760h", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("8760h", RangePosition::None, source.clone()).await.unwrap(),
             8760 * 3600
         );
 
         assert_eq!(
-            parse_timestamp_number("365d", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("365d", RangePosition::None, source.clone()).await.unwrap(),
             365 * 86400
         );
 
         assert_eq!(
-            parse_timestamp_number("52w", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("52w", RangePosition::None, source.clone()).await.unwrap(),
             52 * 86400 * 7
         );
 
         assert_eq!(
-            parse_timestamp_number("12M", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("12M", RangePosition::None, source.clone()).await.unwrap(),
             12 * 86400 * 30
         );
 
         assert_eq!(
-            parse_timestamp_number("1y", RangePosition::None, &fetcher).await.unwrap(),
+            parse_timestamp_number("1y", RangePosition::None, source.clone()).await.unwrap(),
             86400 * 365
         );
     }
 
     #[tokio::test]
     async fn test_parse_timestamp_range_to_block_number_range() {
-        let fetcher = setup_fetcher().await;
+        let source = setup_source().await;
+        let source = Arc::new(source);
 
         let (start_timestamp, end_timestamp) =
-            parse_timestamp_range("1700000000", "1700000015", &fetcher).await.unwrap();
+            parse_timestamp_range("1700000000", "1700000015", source.clone()).await.unwrap();
         assert_eq!(
             (
-                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
-                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+                timestamp_to_block_number(start_timestamp, source.clone()).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, source.clone()).await.unwrap()
             ),
             (18573050, 18573051)
         );
 
         let (start_timestamp, end_timestamp) =
-            parse_timestamp_range("-15", "1700000015", &fetcher).await.unwrap();
+            parse_timestamp_range("-15", "1700000015", source.clone()).await.unwrap();
         assert_eq!(
             (
-                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
-                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+                timestamp_to_block_number(start_timestamp, source.clone()).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, source.clone()).await.unwrap()
             ),
             (18573050, 18573052)
         );
 
         let (start_timestamp, end_timestamp) =
-            parse_timestamp_range("1700000000", "+15", &fetcher).await.unwrap();
+            parse_timestamp_range("1700000000", "+15", source.clone()).await.unwrap();
         assert_eq!(
             (
-                timestamp_to_block_number(start_timestamp, &fetcher).await.unwrap(),
-                timestamp_to_block_number(end_timestamp, &fetcher).await.unwrap()
+                timestamp_to_block_number(start_timestamp, source.clone()).await.unwrap(),
+                timestamp_to_block_number(end_timestamp, source.clone()).await.unwrap()
             ),
             (18573050, 18573051)
         );

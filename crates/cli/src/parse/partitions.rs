@@ -5,8 +5,8 @@ use super::{
 };
 use crate::args::Args;
 use cryo_freeze::{
-    AddressChunk, CallDataChunk, Datatype, Dim, Fetcher, ParseError, Partition, PartitionLabels,
-    SlotChunk, Table, TimeDimension, TopicChunk, TransactionChunk,
+    AddressChunk, CallDataChunk, Datatype, Dim, ParseError, Partition, PartitionLabels, SlotChunk,
+    Source, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
 use ethers::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
@@ -14,18 +14,18 @@ use std::{collections::HashMap, str::FromStr, sync::Arc};
 
 type ChunkLabels = Vec<Option<String>>;
 
-pub(crate) async fn parse_partitions<P: JsonRpcClient>(
+pub(crate) async fn parse_partitions(
     args: &Args,
-    fetcher: Arc<Fetcher<P>>,
+    source: Arc<Source>,
     schemas: &HashMap<Datatype, Table>,
 ) -> Result<(Vec<Partition>, Vec<Dim>, TimeDimension), ParseError> {
     // TODO: if wanting to chunk these non-block dimensions, do it in parse_binary_arg()
     // TODO: map from args to dim is not exhaustive
 
     // parse chunk data
-    let (block_number_labels, block_numbers) = blocks::parse_blocks(args, fetcher.clone()).await?;
+    let (block_number_labels, block_numbers) = blocks::parse_blocks(args, source.clone()).await?;
     let (block_number_labels, block_numbers) = if block_numbers.is_none() {
-        timestamps::parse_timestamps(args, fetcher.clone()).await?
+        timestamps::parse_timestamps(args, source.clone()).await?
     } else {
         (block_number_labels, block_numbers)
     };
@@ -46,7 +46,7 @@ pub(crate) async fn parse_partitions<P: JsonRpcClient>(
 
     // set default blocks
     let block_numbers = if block_numbers.is_none() && transactions.is_none() {
-        Some(blocks::get_default_block_chunks(args, fetcher, schemas).await?)
+        Some(blocks::get_default_block_chunks(args, source, schemas).await?)
     } else {
         block_numbers
     };

@@ -30,7 +30,7 @@ impl CollectByBlock for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let traces = source.fetcher.trace_block(request.block_number()?.into()).await?;
+        let traces = source.trace_block(request.block_number()?.into()).await?;
         Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
@@ -46,7 +46,7 @@ impl CollectByTransaction for NativeTransfers {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await?;
+        let traces = source.trace_transaction(request.ethers_transaction_hash()?).await?;
         Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
