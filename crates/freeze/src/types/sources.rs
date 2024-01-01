@@ -10,6 +10,7 @@ use tokio::{
     sync::{AcquireError, Semaphore, SemaphorePermit},
     task,
 };
+use futures::TryFutureExt;
 
 use crate::CollectError;
 
@@ -48,6 +49,8 @@ pub enum ProviderWrapper {
     WsClient(Arc<Provider<Ws>>),
     /// ipc client
     IpcClient(Arc<Provider<Ipc>>),
+    /// reth client
+    RethClient(Arc<ethers_reth::RethMiddleware<Provider<RetryClient<Http>>>>),
 }
 
 impl From<Provider<MockProvider>> for ProviderWrapper {
@@ -74,6 +77,13 @@ impl From<Provider<Ipc>> for ProviderWrapper {
     }
 }
 
+impl From<ethers_reth::RethMiddleware<Provider<RetryClient<Http>>>> for ProviderWrapper {
+    fn from(value: ethers_reth::RethMiddleware<Provider<RetryClient<Http>>>) -> ProviderWrapper {
+        ProviderWrapper::RethClient(Arc::new(value))
+    }
+}
+
+
 /// extract the provider from a source and run specified method
 #[macro_export]
 macro_rules! source_provider {
@@ -83,6 +93,9 @@ macro_rules! source_provider {
             ProviderWrapper::RetryClientHttp(provider) => provider.$method($($arg),*),
             ProviderWrapper::WsClient(provider) => provider.$method($($arg),*),
             ProviderWrapper::IpcClient(provider) => provider.$method($($arg),*),
+            ProviderWrapper::RethClient(provider) => Box::pin(provider.$method($($arg),*).map_err(|e| {
+                ProviderError::CustomError(format!("{:?}", e))
+            })),
         }
     };
 }

@@ -10,7 +10,25 @@ use std::num::NonZeroU32;
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args)?;
-    let (provider, chain_id): (ProviderWrapper, u64) = if rpc_url.starts_with("http") {
+    let (provider, chain_id): (ProviderWrapper, u64) = if let Some(path) = &args.reth_db {
+        let provider = Provider::<RetryClient<Http>>::new_client(
+            &rpc_url,
+            args.max_retries,
+            args.initial_backoff,
+        )
+        .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))?;
+        let chain_id = provider.get_chainid().await.map_err(ParseError::ProviderError)?.as_u64();
+        let reth_middleware = provider.wrap_into(|s| {
+            ethers_reth::RethMiddleware::<Provider<RetryClient<Http>>>::new(
+                s,
+                path,
+                tokio::runtime::Handle::current(),
+                chain_id,
+            )
+            .unwrap()
+        });
+        (reth_middleware.into(), chain_id)
+    } else if rpc_url.starts_with("http") {
         let provider = Provider::<RetryClient<Http>>::new_client(
             &rpc_url,
             args.max_retries,

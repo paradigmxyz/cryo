@@ -90,6 +90,10 @@ pub struct Args {
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,
 
+    /// Path to reth db directory
+    #[arg(long, help_heading = "Source Options")]
+    pub reth_db: Option<String>,
+
     /// Network name [default: name of eth_getChainId]
     #[arg(long, help_heading = "Source Options")]
     pub network_name: Option<String>,

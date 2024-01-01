@@ -19,12 +19,12 @@ path = "src/main.rs"
 
 [dependencies]
 cryo_freeze = { version = "0.3.0", path = "../freeze" }
-
 anstyle = { workspace = true }
 clap_cryo = { workspace = true }
 color-print = { workspace = true }
 colored = { workspace = true }
 ethers = { workspace = true }
+ethers-reth = { workspace = true }
 eyre = { workspace = true }
 governor = { workspace = true }
 hex = { workspace = true }

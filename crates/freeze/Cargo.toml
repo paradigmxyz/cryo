@@ -15,6 +15,7 @@ cryo_to_df = { version = "0.3.0", path = "../to_df" }
 async-trait = { workspace = true }
 ethers = { workspace = true }
 ethers-core = { workspace = true }
+ethers-reth = { workspace = true }
 futures = { workspace = true }
 governor = { workspace = true }
 heck = { workspace = true }
