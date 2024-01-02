@@ -85,7 +85,7 @@ impl Default for ExecutionEnvBuilder {
             t_start: SystemTime::now(),
             t_end: None,
             report_dir: None,
-            skip_empty: Some(false)
+            skip_empty: Some(false),
         }
     }
 }

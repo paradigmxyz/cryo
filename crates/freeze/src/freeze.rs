@@ -178,7 +178,7 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
 
     // write dataframes to disk
     for (datatype, mut df) in dfs {
-        if env.skip_empty==Some(true){
+        if env.skip_empty == Some(true) {
             if df.shape().0 == 0 {
                 continue;
             };

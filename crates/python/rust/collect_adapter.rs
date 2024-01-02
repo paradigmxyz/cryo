@@ -64,7 +64,7 @@ use cryo_freeze::collect;
         verbose = false,
         no_verbose = false,
         event_signature = None,
-        skip_empty = Some(false)
+        skip_empty = Some(false),
     )
 )]
 #[allow(clippy::too_many_arguments)]
@@ -126,7 +126,7 @@ pub fn _collect(
     verbose: bool,
     no_verbose: bool,
     event_signature: Option<String>,
-    skip_empty: Option<bool>
+    skip_empty: Option<bool>,
 ) -> PyResult<&PyAny> {
     if let Some(command) = command {
         pyo3_asyncio::tokio::future_into_py(py, async move {

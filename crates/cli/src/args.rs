@@ -195,7 +195,7 @@ pub struct Args {
     /// Avoid saving a summary report
     #[arg(long, help_heading = "Output Options")]
     pub no_report: bool,
-    
+
     /// Skip writing to dataframe if the df is empty
     #[arg(long, help_heading = "Acquisition Options")]
     pub skip_empty: Option<bool>,

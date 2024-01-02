@@ -123,7 +123,7 @@ pub fn _freeze(
     verbose: bool,
     no_verbose: bool,
     event_signature: Option<String>,
-    skip_empty: Option<bool>
+    skip_empty: Option<bool>,
 ) -> PyResult<&PyAny> {
     if let Some(command) = command {
         freeze_command(py, command)
