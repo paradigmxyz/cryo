@@ -21,19 +21,20 @@ impl CalldataDecoder {
     /// create a new CalldataDecoder from function signature
     pub fn new(function_signature: String) -> Result<Self, String> {
         match HumanReadableParser::parse_function(function_signature.as_str()) {
-            Ok(function) => {
+            Ok(mut function) => {
                 let args = function
                     .inputs
                     .clone()
                     .into_iter()
                     .enumerate()
-                    .map(|(_i, param)| {
-                        // if param.name.is_empty() {
-                        //     format!("arg_{}", i)
-                        // } else {
-                        //     param.name
-                        // }
-                        param.name
+                    .map(|(i, param)| {
+                        if param.name.is_empty() {
+                            let name = format!("arg_{}", i);
+                            function.inputs[i].name = name.clone();
+                            name
+                        } else {
+                            param.name
+                        }
                     })
                     .collect();
                 Ok(Self { function, raw: function_signature.clone(), args })
