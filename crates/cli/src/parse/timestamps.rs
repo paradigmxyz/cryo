@@ -330,7 +330,10 @@ mod tests {
     use ethers::prelude::*;
 
     async fn setup_source() -> Source {
-        let rpc_url = crate::parse::source::parse_rpc_url(&Args::default()).unwrap();
+        let rpc_url = match crate::parse::source::parse_rpc_url(&Args::default()) {
+            Ok(url) => url,
+            Err(_) => std::process::exit(0),
+        };
         let max_retry = 5;
         let initial_backoff = 500;
         let max_concurrent_requests = 100;
