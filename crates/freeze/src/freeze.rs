@@ -180,10 +180,10 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
     let mut n_rows = 0;
     for (datatype, mut df) in dfs {
         let df_height = df.height() as u64;
-        n_rows += df_height;
         if env.skip_empty == Some(true) && df_height == 0 {
             continue;
         };
+        n_rows += df_height;
         let path = paths.get(&datatype).ok_or_else(|| {
             CollectError::CollectError("could not get path for datatype".to_string())
         })?;
