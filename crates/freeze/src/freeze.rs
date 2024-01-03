@@ -177,11 +177,12 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
     let dfs = collect_partition(datatype, partition, query, source).await?;
 
     // write dataframes to disk
+    let mut n_rows = 0;
     for (datatype, mut df) in dfs {
-        if env.skip_empty == Some(true) {
-            if df.shape().0 == 0 {
-                continue;
-            };
+        let df_height = df.height() as u64;
+        n_rows += df_height;
+        if env.skip_empty == Some(true) && df_height == 0 {
+            continue;
         };
         let path = paths.get(&datatype).ok_or_else(|| {
             CollectError::CollectError("could not get path for datatype".to_string())

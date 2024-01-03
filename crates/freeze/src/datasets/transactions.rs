@@ -108,12 +108,16 @@ impl CollectByBlock for Transactions {
         let addr_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(address) = &request.address {
                 Box::new(move |tx| {
-                    let to_address = addresses.contains(&tx.to.unwrap());
-                    let from_address = addresses.contains(&tx.from);
-                    if !(to_address && from_address) {
-                        tx.to.as_ref().map_or(false, |x| x.as_bytes() == address)
+                    let to_address_is_in = addresses.contains(&tx.to.unwrap());
+                    let from_address_is_in = addresses.contains(&tx.from);
+                    if addresses.len() == 1 {
+                        to_address_is_in || from_address_is_in
                     } else {
-                        tx.from.as_bytes() == address
+                        if !(to_address_is_in && from_address_is_in) {
+                            tx.to.as_ref().map_or(false, |x| x.as_bytes() == address)
+                        } else {
+                            tx.from.as_bytes() == address
+                        }
                     }
                 })
             } else {
