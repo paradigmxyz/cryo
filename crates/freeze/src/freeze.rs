@@ -155,7 +155,7 @@ async fn freeze_partitions(
             Ok((partition, Ok(chunk_n_rows))) => {
                 n_rows += chunk_n_rows;
                 completed.push(partition)
-            },
+            }
             Ok((partition, Err(e))) => errored.push((Some(partition), e)),
             Err(_e) => errored.push((None, err("error joining chunks"))),
         }
