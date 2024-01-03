@@ -77,18 +77,33 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
 }
 
 pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
-    let mut url = match &args.rpc {
-        Some(url) => url.clone(),
-        _ => match env::var("ETH_RPC_URL") {
-            Ok(url) => url,
-            Err(_e) => {
-                println!("must provide --rpc or set ETH_RPC_URL");
-                std::process::exit(0);
-            }
-        },
+    // get MESC url
+    let mesc_url = if mesc::is_mesc_enabled() {
+        let endpoint = match &args.rpc {
+            Some(url) => mesc::get_endpoint_by_query(url, Some("cryo"))?,
+            None => mesc::get_default_endpoint(Some("cryo"))?,
+        };
+        endpoint.map(|endpoint| endpoint.url)
+    } else {
+        None
     };
+
+    // use ETH_RPC_URL if no MESC url found
+    let url = if let Some(url) = mesc_url {
+        url
+    } else if let Some(url) = &args.rpc {
+        url.clone()
+    } else if let Ok(url) = env::var("ETH_RPC_URL") {
+        url
+    } else {
+        let message = "must provide --rpc or setup MESC or set ETH_RPC_URL";
+        return Err(ParseError::ParseError(message.to_string()))
+    };
+
+    // prepend http or https if need be
     if !url.starts_with("http") & !url.starts_with("ws") & !url.ends_with(".ipc") {
-        url = "http://".to_string() + url.as_str();
-    };
-    Ok(url)
+        Ok("http://".to_string() + url.as_str())
+    } else {
+        Ok(url)
+    }
 }

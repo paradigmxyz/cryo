@@ -101,6 +101,16 @@ pub enum ParseError {
     /// Parse int error
     #[error("Parsing error")]
     ParseIntError(#[from] std::num::ParseIntError),
+
+    /// MESC error
+    #[error("MESC error: {:?}", .0)]
+    MescError(mesc::MescError),
+}
+
+impl From<mesc::MescError> for ParseError {
+    fn from(err: mesc::MescError) -> Self {
+        ParseError::MescError(err)
+    }
 }
 
 /// Error performing a chunk operation

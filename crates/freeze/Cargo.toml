@@ -21,6 +21,7 @@ heck = { workspace = true }
 indexmap = { workspace = true }
 indicatif = { workspace = true }
 lazy_static = { workspace = true }
+mesc = { workspace = true }
 polars = { workspace = true }
 prefix-hex = { workspace = true }
 regex = { workspace = true }
