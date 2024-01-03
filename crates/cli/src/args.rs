@@ -86,7 +86,7 @@ pub struct Args {
     #[arg(long, help_heading = "Content Options")]
     pub exclude_failed: bool,
 
-    /// RPC url [default: ETH_RPC_URL env var]
+    /// RPC url [default: 1. MESC 2. ETH_RPC_URL]
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,
 
@@ -114,7 +114,7 @@ pub struct Args {
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     pub max_concurrent_chunks: Option<u64>,
 
-    /// Chunk collection order (normal, reverse, or random)
+    /// Chunk collection order (normal, reverse, random)
     #[arg(long, help_heading = "Acquisition Options")]
     pub chunk_order: Option<String>,
 

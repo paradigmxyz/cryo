@@ -836,6 +836,7 @@ dependencies = [
  "eyre",
  "governor",
  "hex",
+ "mesc",
  "polars",
  "rand",
  "serde",
@@ -859,6 +860,7 @@ dependencies = [
  "indexmap 2.1.0",
  "indicatif",
  "lazy_static",
+ "mesc",
  "polars",
  "prefix-hex",
  "regex",
@@ -2381,6 +2383,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "5a634b1c61a95585bd15607c6ab0c4e5b226e695ff2800ba0cdccddf208c406c"
 dependencies = [
  "autocfg",
+]
+
+[[package]]
+name = "mesc"
+version = "0.1.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "fc216c0f54636dcc09d9f6ec664f24927f423976f1c9a2f28b34df8bc71d14be"
+dependencies = [
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
