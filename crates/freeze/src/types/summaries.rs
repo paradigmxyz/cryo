@@ -27,6 +27,8 @@ pub struct FreezeSummary {
     pub skipped: Vec<Partition>,
     /// partitions errored
     pub errored: Vec<(Option<Partition>, CollectError)>,
+    /// rows written
+    pub n_rows: u64,
 }
 
 /// print all datasets
@@ -498,6 +500,7 @@ pub(crate) fn print_cryo_conclusion(
         total_time,
         query.datatypes.len() as u64,
     );
+    print_bullet_indent("rows written", freeze_summary.n_rows.separate_with_commas(), 0);
 }
 
 macro_rules! print_dim_speed {

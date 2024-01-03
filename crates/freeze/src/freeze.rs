@@ -149,9 +149,13 @@ async fn freeze_partitions(
     // aggregate results
     let mut completed = Vec::new();
     let mut errored = Vec::new();
+    let mut n_rows = 0;
     while let Some(result) = futures.next().await {
         match result {
-            Ok((partition, Ok(()))) => completed.push(partition),
+            Ok((partition, Ok(chunk_n_rows))) => {
+                n_rows += chunk_n_rows;
+                completed.push(partition)
+            }
             Ok((partition, Err(e))) => errored.push((Some(partition), e)),
             Err(_e) => errored.push((None, err("error joining chunks"))),
         }
@@ -161,10 +165,10 @@ async fn freeze_partitions(
         bar.finish_and_clear();
     }
 
-    FreezeSummary { completed, errored, skipped }
+    FreezeSummary { completed, errored, skipped, n_rows }
 }
 
-async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError> {
+async fn freeze_partition(payload: PartitionPayload) -> Result<u64, CollectError> {
     let (partition, datatype, paths, query, source, sink, env, semaphore) = payload;
 
     // acquire chunk semaphore
@@ -177,7 +181,9 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
     let dfs = collect_partition(datatype, partition, query, source).await?;
 
     // write dataframes to disk
+    let mut n_rows = 0;
     for (datatype, mut df) in dfs {
+        n_rows += df.height() as u64;
         let path = paths.get(&datatype).ok_or_else(|| {
             CollectError::CollectError("could not get path for datatype".to_string())
         })?;
@@ -190,5 +196,5 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
         bar.inc(1);
     }
 
-    Ok(())
+    Ok(n_rows)
 }
