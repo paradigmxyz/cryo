@@ -1,7 +1,7 @@
 
 ## Installation
 
-There are two main options for installing `cryo_python`.
+There are two main options for installing `cryo`.
 
 Installing from pip is faster and does not require rust to be installed.
 
@@ -10,7 +10,7 @@ Installing from source allows using the latest unreleased version of cryo.
 #### Option 1: Install from pip
 
 ```
-pip install cryo_python
+pip install cryo
 ```
 
 #### Option 2: Install from source
