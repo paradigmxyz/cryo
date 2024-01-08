@@ -1,14 +1,10 @@
 use super::{parse_schemas, partitions};
 use crate::args::Args;
-use cryo_freeze::{Dim, Fetcher, ParseError, Query, QueryLabels, Schemas};
-use ethers::prelude::*;
+use cryo_freeze::{Dim, ParseError, Query, QueryLabels, Schemas, Source};
 use std::sync::Arc;
 
 /// parse Query struct from cli Args
-pub async fn parse_query<P: JsonRpcClient>(
-    args: &Args,
-    fetcher: Arc<Fetcher<P>>,
-) -> Result<Query, ParseError> {
+pub async fn parse_query(args: &Args, source: Arc<Source>) -> Result<Query, ParseError> {
     let (datatypes, schemas) = parse_schemas(args)?;
 
     let arg_aliases = find_arg_aliases(args, &schemas);
@@ -17,7 +13,7 @@ pub async fn parse_query<P: JsonRpcClient>(
     let args = new_args.as_ref().unwrap_or(args);
 
     let (partitions, partitioned_by, time_dimension) =
-        partitions::parse_partitions(args, fetcher, &schemas).await?;
+        partitions::parse_partitions(args, source, &schemas).await?;
     let datatypes = cryo_freeze::cluster_datatypes(datatypes);
     let labels = QueryLabels { align: args.align, reorg_buffer: args.reorg_buffer };
     Ok(Query {
@@ -79,20 +75,7 @@ impl DimIsNone for Args {
     }
 
     fn dim_is_none(&self, dim: &Dim) -> bool {
-        match dim {
-            Dim::BlockNumber => self.blocks.is_none(),
-            Dim::TransactionHash => self.txs.is_none(),
-            Dim::Address => self.address.is_none(),
-            Dim::FromAddress => self.from_address.is_none(),
-            Dim::ToAddress => self.to_address.is_none(),
-            Dim::Contract => self.contract.is_none(),
-            Dim::CallData => self.call_data.is_none(),
-            Dim::Slot => self.slot.is_none(),
-            Dim::Topic0 => self.topic0.is_none(),
-            Dim::Topic1 => self.topic1.is_none(),
-            Dim::Topic2 => self.topic2.is_none(),
-            Dim::Topic3 => self.topic3.is_none(),
-        }
+        !self.dim_is_some(dim)
     }
 }
 

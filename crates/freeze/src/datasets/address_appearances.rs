@@ -42,7 +42,7 @@ impl CollectByBlock for AddressAppearances {
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let block_number = request.ethers_block_number()?;
-        let block = source.fetcher.get_block(request.block_number()?).await?;
+        let block = source.get_block(request.block_number()?).await?;
         let block = block.ok_or(CollectError::CollectError("block not found".to_string()))?;
         let filter = Filter {
             block_option: FilterBlockOption::Range {
@@ -51,8 +51,8 @@ impl CollectByBlock for AddressAppearances {
             },
             ..Default::default()
         };
-        let logs = source.fetcher.get_logs(&filter).await?;
-        let traces = source.fetcher.trace_block(request.block_number()?.into()).await?;
+        let logs = source.get_logs(&filter).await?;
+        let traces = source.trace_block(request.block_number()?.into()).await?;
         Ok((block, logs, traces))
     }
 
@@ -69,7 +69,7 @@ impl CollectByTransaction for AddressAppearances {
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
 
-        let tx_data = source.fetcher.get_transaction(tx_hash).await?.ok_or_else(|| {
+        let tx_data = source.get_transaction(tx_hash).await?.ok_or_else(|| {
             CollectError::CollectError("could not find transaction data".to_string())
         })?;
 
@@ -78,21 +78,19 @@ impl CollectByTransaction for AddressAppearances {
             .ok_or_else(|| CollectError::CollectError("block not found".to_string()))?
             .as_u64();
         let block = source
-            .fetcher
             .get_block(block_number)
             .await?
             .ok_or(CollectError::CollectError("could not get block".to_string()))?;
 
         // logs
         let logs = source
-            .fetcher
             .get_transaction_receipt(tx_hash)
             .await?
             .ok_or(CollectError::CollectError("could not get tx receipt".to_string()))?
             .logs;
 
         // traces
-        let traces = source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await?;
+        let traces = source.trace_transaction(request.ethers_transaction_hash()?).await?;
 
         Ok((block, logs, traces))
     }

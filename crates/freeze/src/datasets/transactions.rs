@@ -82,7 +82,6 @@ impl CollectByBlock for Transactions {
         }
 
         let block = source
-            .fetcher
             .get_block_with_txs(request.block_number()?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
@@ -180,12 +179,11 @@ impl CollectByTransaction for Transactions {
         let tx_hash = request.ethers_transaction_hash()?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let transaction = source
-            .fetcher
             .get_transaction(tx_hash)
             .await?
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
         let receipt = if schema.has_column("gas_used") {
-            source.fetcher.get_transaction_receipt(tx_hash).await?
+            source.get_transaction_receipt(tx_hash).await?
         } else {
             None
         };
@@ -195,7 +193,6 @@ impl CollectByTransaction for Transactions {
             .ok_or(CollectError::CollectError("no block number for tx".to_string()))?;
 
         let block = source
-            .fetcher
             .get_block(block_number.as_u64())
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;

@@ -85,7 +85,7 @@ fn get_payloads(
     let semaphore = source
         .max_concurrent_chunks
         .map(|x| std::sync::Arc::new(tokio::sync::Semaphore::new(x as usize)));
-    let source = Arc::new(source.clone());
+    let source: Arc<Source> = Arc::new(source.clone());
     let arc_query = Arc::new(query.clone());
     let mut payloads = Vec::new();
     let mut skipping = Vec::new();
@@ -149,9 +149,13 @@ async fn freeze_partitions(
     // aggregate results
     let mut completed = Vec::new();
     let mut errored = Vec::new();
+    let mut n_rows = 0;
     while let Some(result) = futures.next().await {
         match result {
-            Ok((partition, Ok(()))) => completed.push(partition),
+            Ok((partition, Ok(chunk_n_rows))) => {
+                n_rows += chunk_n_rows;
+                completed.push(partition)
+            }
             Ok((partition, Err(e))) => errored.push((Some(partition), e)),
             Err(_e) => errored.push((None, err("error joining chunks"))),
         }
@@ -161,10 +165,10 @@ async fn freeze_partitions(
         bar.finish_and_clear();
     }
 
-    FreezeSummary { completed, errored, skipped }
+    FreezeSummary { completed, errored, skipped, n_rows }
 }
 
-async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError> {
+async fn freeze_partition(payload: PartitionPayload) -> Result<u64, CollectError> {
     let (partition, datatype, paths, query, source, sink, env, semaphore) = payload;
 
     // acquire chunk semaphore
@@ -196,5 +200,5 @@ async fn freeze_partition(payload: PartitionPayload) -> Result<(), CollectError>
         bar.inc(1);
     }
 
-    Ok(())
+    Ok(n_rows)
 }

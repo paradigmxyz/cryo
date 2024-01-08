@@ -33,7 +33,6 @@ impl CollectByBlock for JavascriptTraces {
         let block = request.block_number()? as u32;
         if let Some(js_tracer) = &query.js_tracer {
             source
-                .fetcher
                 .geth_debug_trace_block_javascript_traces(js_tracer.clone(), block, include_txs)
                 .await
         } else {
@@ -57,7 +56,6 @@ impl CollectByTransaction for JavascriptTraces {
         let tx = request.transaction_hash()?;
         if let Some(js_tracer) = &query.js_tracer {
             source
-                .fetcher
                 .geth_debug_trace_transaction_javascript_traces(
                     js_tracer.clone(),
                     tx,

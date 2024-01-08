@@ -35,7 +35,8 @@ heck = "0.4.1"
 indexmap = "2.1.0"
 indicatif = "0.17.7"
 lazy_static = "1.4.0"
-polars = { version = "0.35.0", features = [
+mesc = "0.1.0"
+polars = { version = "0.35.4", features = [
     "parquet",
     "string_encoding",
     "polars-lazy",

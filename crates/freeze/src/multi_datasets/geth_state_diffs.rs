@@ -55,7 +55,7 @@ impl CollectByBlock for GethStateDiffs {
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block_number = request.block_number()? as u32;
         let include_txs = query.schemas.values().any(|x| x.has_column("transaction_hash"));
-        source.fetcher.geth_debug_trace_block_diffs(block_number, include_txs).await
+        source.geth_debug_trace_block_diffs(block_number, include_txs).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -79,7 +79,6 @@ impl CollectByTransaction for GethStateDiffs {
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let include_block_number = query.schemas.values().any(|x| x.has_column("transaction_hash"));
         source
-            .fetcher
             .geth_debug_trace_transaction_diffs(request.transaction_hash()?, include_block_number)
             .await
     }

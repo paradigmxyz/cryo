@@ -1,0 +1,14 @@
+[book]
+authors = ["sslivkoff"]
+language = "en"
+multilingual = false
+src = "book"
+title = "cryo"
+description = "field manual for cryo"
+
+[build]
+build-dir = "target/book"
+
+[output.html.fold]
+enable = true
+level = 1

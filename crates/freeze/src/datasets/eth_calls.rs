@@ -52,7 +52,7 @@ impl CollectByBlock for EthCalls {
             ..Default::default()
         };
         let number = request.block_number()?;
-        let output = source.fetcher.call(transaction, number.into()).await?;
+        let output = source.call(transaction, number.into()).await?;
         Ok((number as u32, request.contract()?, request.call_data()?, output.to_vec()))
     }
 

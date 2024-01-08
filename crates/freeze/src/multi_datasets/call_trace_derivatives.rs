@@ -37,7 +37,7 @@ impl CollectByBlock for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_block(request.block_number()?.into()).await
+        source.trace_block(request.block_number()?.into()).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -52,7 +52,7 @@ impl CollectByTransaction for CallTraceDerivatives {
     type Response = Vec<Trace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.trace_transaction(request.ethers_transaction_hash()?).await
+        source.trace_transaction(request.ethers_transaction_hash()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

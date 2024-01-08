@@ -36,7 +36,7 @@ impl CollectByBlock for Erc20Balances {
         call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;
         let contract = request.ethers_contract()?;
-        let balance = source.fetcher.call2(contract, call_data, block_number).await.ok();
+        let balance = source.call2(contract, call_data, block_number).await.ok();
         let balance = balance.map(|x| x.to_vec().as_slice().into());
         Ok((request.block_number()? as u32, request.contract()?, request.address()?, balance))
     }

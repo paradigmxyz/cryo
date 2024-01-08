@@ -64,7 +64,7 @@ impl CollectByBlock for Logs {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.get_logs(&request.ethers_log_filter()?).await
+        source.get_logs(&request.ethers_log_filter()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -78,7 +78,7 @@ impl CollectByTransaction for Logs {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.fetcher.get_transaction_logs(request.transaction_hash()?).await
+        source.get_transaction_logs(request.transaction_hash()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

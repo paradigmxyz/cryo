@@ -51,7 +51,6 @@ impl CollectByBlock for TraceCalls {
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let traces: Vec<TransactionTrace> = source
-            .fetcher
             .trace_call2(
                 request.ethers_contract()?,
                 request.call_data()?,

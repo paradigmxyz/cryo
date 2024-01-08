@@ -42,6 +42,8 @@ For a more complex example, see the [Uniswap Example](./examples/uniswap.sh).
 
 ## Installation
 
+The simplest way to use `cryo` is as a cli tool:
+
 #### Method 1: install from source
 
 ```bash
@@ -62,16 +64,20 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
-#### Installing `cryo_python` from pypi
+### Python Instalation
+
+`cryo` can also be installed as a python package:
+
+#### Installing `cryo` python from pypi
 
 (make sure rust is installed first, see [rustup](https://www.rust-lang.org/tools/install))
 
 ```bash
 pip install maturin
-pip install cryo_python
+pip install cryo
 ```
 
-#### Installing `cryo_python` from source
+#### Installing `cryo` python from source
 
 ```bash
 pip install maturin

@@ -46,7 +46,6 @@ impl CollectByBlock for Blocks {
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let block = source
-            .fetcher
             .get_block(request.block_number()?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
@@ -65,12 +64,10 @@ impl CollectByTransaction for Blocks {
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let transaction = source
-            .fetcher
             .get_transaction(request.ethers_transaction_hash()?)
             .await?
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
         let block = source
-            .fetcher
             .get_block_by_hash(transaction.block_hash.ok_or(err("no block block_hash found"))?)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
