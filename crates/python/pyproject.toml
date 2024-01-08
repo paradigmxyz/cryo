@@ -3,7 +3,7 @@ requires = ["maturin>=1.1,<2.0"]
 build-backend = "maturin"
 
 [project]
-name = "cryo_python"
+name = "cryo"
 description = "cryo is the easiest way to extract blockchain data to parquet, csv, json, or a python dataframe."
 requires-python = ">=3.7"
 classifiers = [
