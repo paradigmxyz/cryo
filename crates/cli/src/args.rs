@@ -248,6 +248,10 @@ pub struct Args {
     #[arg(long, value_name = "SIG", help_heading = "Dataset-specific Options", num_args(1..))]
     pub event_signature: Option<String>,
 
+    /// Function signature for transaction calldata decoding
+    #[arg(long, value_name = "SIG", help_heading = "Dataset-specific Options", num_args(1..))]
+    pub function_signature: Option<String>,
+
     /// Blocks per request (eth_getLogs)
     #[arg(
         long,
