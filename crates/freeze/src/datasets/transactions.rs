@@ -22,9 +22,12 @@ pub struct Transactions {
     max_priority_fee_per_gas: Vec<Option<u64>>,
     max_fee_per_gas: Vec<Option<u64>>,
     success: Vec<bool>,
+    n_input_bytes: Vec<u32>,
+    n_input_zero_bytes: Vec<u32>,
+    n_input_nonzero_bytes: Vec<u32>,
+    block_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
-    block_hash: Vec<Vec<u8>>,
 }
 
 #[async_trait::async_trait]
@@ -50,6 +53,9 @@ impl Dataset for Transactions {
             "max_priority_fee_per_gas",
             "max_fee_per_gas",
             "success",
+            "n_input_bytes",
+            "n_input_zero_bytes",
+            "n_input_nonzero_bytes",
             "chain_id",
         ])
     }
@@ -196,6 +202,16 @@ pub(crate) fn process_transaction(
     store!(schema, columns, input, tx.input.to_vec());
     store!(schema, columns, gas_limit, tx.gas.as_u64());
     store!(schema, columns, success, success);
+    if schema.has_column("n_input_bytes") |
+        schema.has_column("n_input_zero_bytes") |
+        schema.has_column("n_input_nonzero_bytes")
+    {
+        let n_input_bytes = tx.input.len() as u32;
+        let n_input_zero_bytes = tx.input.iter().filter(|&&x| x == 0).count() as u32;
+        store!(schema, columns, n_input_bytes, n_input_bytes);
+        store!(schema, columns, n_input_zero_bytes, n_input_zero_bytes);
+        store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
+    }
     store!(schema, columns, gas_used, receipt.and_then(|r| r.gas_used.map(|x| x.as_u64())));
     store!(schema, columns, gas_price, tx.gas_price.map(|gas_price| gas_price.as_u64()));
     store!(schema, columns, transaction_type, tx.transaction_type.map(|value| value.as_u32()));
