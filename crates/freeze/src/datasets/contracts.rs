@@ -19,6 +19,8 @@ pub struct Contracts {
     init_code: Vec<Vec<u8>>,
     code: Vec<Vec<u8>>,
     init_code_hash: Vec<Vec<u8>>,
+    n_init_code_bytes: Vec<u32>,
+    n_code_bytes: Vec<u32>,
     code_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
 }
@@ -93,8 +95,10 @@ pub(crate) fn process_contracts(
             store!(schema, columns, factory, create.from.as_bytes().into());
             store!(schema, columns, init_code, create.init.to_vec());
             store!(schema, columns, code, result.code.to_vec());
-            store!(schema, columns, code_hash, keccak256(create.init.clone()).into());
             store!(schema, columns, init_code_hash, keccak256(result.code.clone()).into());
+            store!(schema, columns, code_hash, keccak256(create.init.clone()).into());
+            store!(schema, columns, n_init_code_bytes, create.init.len() as u32);
+            store!(schema, columns, n_code_bytes, result.code.len() as u32);
         }
     }
     Ok(())
