@@ -11,8 +11,8 @@ pub struct EthCalls {
     contract_address: Vec<Vec<u8>>,
     call_data: Vec<Vec<u8>>,
     call_data_hash: Vec<Vec<u8>>,
-    output_data: Vec<Vec<u8>>,
-    output_data_hash: Vec<Vec<u8>>,
+    output_data: Vec<Option<Vec<u8>>>,
+    output_data_hash: Vec<Option<Vec<u8>>>,
     chain_id: Vec<u64>,
 }
 
@@ -39,7 +39,7 @@ impl Dataset for EthCalls {
     }
 }
 
-type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Vec<u8>);
+type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Option<Vec<u8>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for EthCalls {
@@ -52,8 +52,8 @@ impl CollectByBlock for EthCalls {
             ..Default::default()
         };
         let number = request.block_number()?;
-        let output = source.call(transaction, number.into()).await?;
-        Ok((number as u32, request.contract()?, request.call_data()?, output.to_vec()))
+        let output = source.call(transaction, number.into()).await.ok().map(|x| x.to_vec());
+        Ok((number as u32, request.contract()?, request.call_data()?, output))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -74,6 +74,11 @@ fn process_eth_call(response: EthCallsResponse, columns: &mut EthCalls, schema: 
     store!(schema, columns, contract_address, contract_address);
     store!(schema, columns, call_data, call_data.clone());
     store!(schema, columns, call_data_hash, ethers_core::utils::keccak256(call_data).into());
-    store!(schema, columns, output_data, output_data.to_vec());
-    store!(schema, columns, output_data_hash, ethers_core::utils::keccak256(output_data).into());
+    store!(schema, columns, output_data, output_data.clone());
+    store!(
+        schema,
+        columns,
+        output_data_hash,
+        output_data.map(|data| ethers_core::utils::keccak256(data).into())
+    );
 }
