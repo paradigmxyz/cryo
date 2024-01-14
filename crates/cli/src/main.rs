@@ -39,7 +39,9 @@ fn handle_error_with_report(e: eyre::Error) -> Result<()> {
 
 /// Handles errors without detailed reporting.
 /// This function is used in release builds where detailed error information is not required.
+/// Ensures that error messages are printed before exiting the application.
 #[cfg(not(debug_assertions))]
-fn handle_error_with_report(_: eyre::Error) -> Result<()> {
+fn handle_error_with_report(e: eyre::Error) -> Result<()> {
+    println!("{}", e);
     std::process::exit(1);
 }
