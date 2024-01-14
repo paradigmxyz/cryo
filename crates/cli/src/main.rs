@@ -19,7 +19,7 @@ async fn main() -> Result<()> {
     match run::run(args).await {
         Ok(Some(freeze_summary)) if freeze_summary.errored.is_empty() => Ok(()),
         Ok(Some(_)) => handle_error(),
-        Err(e) => handle_error_with_report(e),
+        Err(e) => handle_error_with_report(e.into()), // Converting using 'into' method
         Ok(None) => Ok(()),
     }
 }
