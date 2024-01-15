@@ -7,7 +7,7 @@ members = ["crates/cli", "crates/freeze", "crates/to_df", "crates/python"]
 resolver = "2"
 
 [workspace.package]
-version = "0.3.0"
+version = "0.3.2"
 edition = "2021"
 license = "MIT OR Apache-2.0"
 homepage = "https://github.com/paradigmxyz/cryo"
@@ -15,6 +15,10 @@ repository = "https://github.com/paradigmxyz/cryo"
 exclude = [".github/"]
 
 [workspace.dependencies]
+cryo_cli = { version = "0.3.2", path = "./crates/cli" }
+cryo_freeze = { version = "0.3.2", path = "./crates/freeze" }
+cryo_to_df = { version = "0.3.2", path = "./crates/to_df" }
+
 anstyle = "1.0.4"
 async-trait = "0.1.74"
 chrono = { version = "0.4.31", features = ["serde"] }
