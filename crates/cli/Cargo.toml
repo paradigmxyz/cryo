@@ -18,12 +18,11 @@ path = "src/main.rs"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-cryo_freeze = { version = "0.3.0", path = "../freeze" }
-
 anstyle = { workspace = true }
 clap_cryo = { workspace = true }
 color-print = { workspace = true }
 colored = { workspace = true }
+cryo_freeze = { workspace = true }
 ethers = { workspace = true }
 eyre = { workspace = true }
 governor = { workspace = true }
