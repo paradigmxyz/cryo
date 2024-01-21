@@ -18,6 +18,7 @@ pub struct Logs {
     topic2: Vec<Option<Vec<u8>>>,
     topic3: Vec<Option<Vec<u8>>>,
     data: Vec<Vec<u8>>,
+    n_data_bytes: Vec<u32>,
     event_cols: indexmap::IndexMap<String, Vec<ethers_core::abi::Token>>,
     chain_id: Vec<u64>,
 }
@@ -41,6 +42,7 @@ impl Dataset for Logs {
             "topic2",
             "topic3",
             "data",
+            "n_data_bytes",
             // "event_cols",
             "chain_id",
         ])
@@ -129,6 +131,7 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
             store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());
             store!(schema, columns, address, log.address.as_bytes().to_vec());
             store!(schema, columns, data, log.data.to_vec());
+            store!(schema, columns, n_data_bytes, log.data.len() as u32);
 
             // topics
             for i in 0..4 {

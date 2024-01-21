@@ -80,10 +80,16 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
     // get MESC url
     let mesc_url = if mesc::is_mesc_enabled() {
         let endpoint = match &args.rpc {
-            Some(url) => mesc::get_endpoint_by_query(url, Some("cryo"))?,
-            None => mesc::get_default_endpoint(Some("cryo"))?,
+            Some(url) => mesc::get_endpoint_by_query(url, Some("cryo")),
+            None => mesc::get_default_endpoint(Some("cryo")),
         };
-        endpoint.map(|endpoint| endpoint.url)
+        match endpoint {
+            Ok(endpoint) => endpoint.map(|endpoint| endpoint.url),
+            Err(e) => {
+                eprintln!("Could not load MESC data: {}", e);
+                None
+            }
+        }
     } else {
         None
     };
