@@ -49,10 +49,10 @@ impl CollectByBlock for StateReads {
             query.schemas.get(&Datatype::NonceReads),
             query.schemas.get(&Datatype::StorageReads),
         ) {
-            (Some(schema), _, _, _)
-            | (_, Some(schema), _, _)
-            | (_, _, Some(schema), _)
-            | (_, _, _, Some(schema)) => schema.has_column("transaction_hash"),
+            (Some(schema), _, _, _) |
+            (_, Some(schema), _, _) |
+            (_, _, Some(schema), _) |
+            (_, _, _, Some(schema)) => schema.has_column("transaction_hash"),
             _ => false,
         };
         source.geth_debug_trace_block_prestate(request.block_number()? as u32, include_txs).await
@@ -74,10 +74,10 @@ impl CollectByTransaction for StateReads {
             query.schemas.get(&Datatype::NonceReads),
             query.schemas.get(&Datatype::StorageReads),
         ) {
-            (Some(schema), _, _, _)
-            | (_, Some(schema), _, _)
-            | (_, _, Some(schema), _)
-            | (_, _, _, Some(schema)) => schema.has_column("block_number"),
+            (Some(schema), _, _, _) |
+            (_, Some(schema), _, _) |
+            (_, _, Some(schema), _) |
+            (_, _, _, Some(schema)) => schema.has_column("block_number"),
             _ => false,
         };
         let tx = request.transaction_hash()?;
