@@ -92,7 +92,7 @@ async fn handle_help_subcommands(args: args::Args) -> Result<Option<FreezeSummar
             if let Some(schema) = schemas.get(&datatype) {
                 cryo_freeze::print_dataset_info(datatype, schema);
             } else {
-                return Err(err("missing schema for datatype"))
+                return Err(err(format!("missing schema for datatype: {:?}", datatype).as_str()))
             }
         }
     }

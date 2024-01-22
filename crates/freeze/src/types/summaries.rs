@@ -5,7 +5,7 @@ use colored::Colorize;
 use thousands::Separable;
 
 use crate::{
-    chunks::chunk_ops::ValueToString, err, ChunkData, ChunkStats, CollectError, ColumnType,
+    chunks::chunk_ops::ValueToString, ChunkData, ChunkStats, CollectError, ColumnType,
     Datatype, Dim, ExecutionEnv, FileOutput, MetaDatatype, MultiDatatype, Partition, Query, Source,
     Table,
 };
@@ -363,8 +363,6 @@ fn print_schemas(
                 println!();
                 println!();
                 print_schema(datatype, &schema.clone())
-            } else {
-                return Err(err("missing schema for datatype"))
             }
         }
     }
