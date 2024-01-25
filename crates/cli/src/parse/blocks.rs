@@ -335,19 +335,19 @@ async fn parse_block_number(
         _ if block_ref.ends_with('B') | block_ref.ends_with('b') => {
             let s = &block_ref[..block_ref.len() - 1];
             s.parse::<f64>()
-                .map(|n| (1e9 * n) as u64)
+                .map(|n| (1e9 * n).round() as u64)
                 .map_err(|_e| ParseError::ParseError("Error parsing block ref".to_string()))
         }
         _ if block_ref.ends_with('M') | block_ref.ends_with('m') => {
             let s = &block_ref[..block_ref.len() - 1];
             s.parse::<f64>()
-                .map(|n| (1e6 * n) as u64)
+                .map(|n| (1e6 * n).round() as u64)
                 .map_err(|_e| ParseError::ParseError("Error parsing block ref".to_string()))
         }
         _ if block_ref.ends_with('K') | block_ref.ends_with('k') => {
             let s = &block_ref[..block_ref.len() - 1];
             s.parse::<f64>()
-                .map(|n| (1e3 * n) as u64)
+                .map(|n| (1e3 * n).round() as u64)
                 .map_err(|_e| ParseError::ParseError("Error parsing block ref".to_string()))
         }
         _ => block_ref
