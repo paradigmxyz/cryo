@@ -9,18 +9,24 @@ pub struct Blocks {
     n_rows: u64,
     block_hash: Vec<Option<Vec<u8>>>,
     parent_hash: Vec<Vec<u8>>,
+    uncles_hash: Vec<Vec<u8>>,
     author: Vec<Option<Vec<u8>>>,
     state_root: Vec<Vec<u8>>,
     transactions_root: Vec<Vec<u8>>,
     receipts_root: Vec<Vec<u8>>,
     block_number: Vec<Option<u32>>,
     gas_used: Vec<u64>,
+    gas_limit: Vec<u64>,
     extra_data: Vec<Vec<u8>>,
     logs_bloom: Vec<Option<Vec<u8>>>,
     timestamp: Vec<u32>,
+    difficulty: Vec<u64>,
     total_difficulty: Vec<Option<U256>>,
     size: Vec<Option<u32>>,
+    mix_hash: Vec<Option<Vec<u8>>>,
+    nonce: Vec<Option<Vec<u8>>>,
     base_fee_per_gas: Vec<Option<u64>>,
+    withdrawals_root: Vec<Option<Vec<u8>>>,
     chain_id: Vec<u64>,
 }
 
@@ -86,17 +92,23 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
 
     store!(schema, columns, block_hash, block.hash.map(|x| x.0.to_vec()));
     store!(schema, columns, parent_hash, block.parent_hash.0.to_vec());
+    store!(schema, columns, uncles_hash, block.uncles_hash.0.to_vec());
     store!(schema, columns, author, block.author.map(|x| x.0.to_vec()));
     store!(schema, columns, state_root, block.state_root.0.to_vec());
     store!(schema, columns, transactions_root, block.transactions_root.0.to_vec());
     store!(schema, columns, receipts_root, block.receipts_root.0.to_vec());
     store!(schema, columns, block_number, block.number.map(|x| x.as_u32()));
     store!(schema, columns, gas_used, block.gas_used.as_u64());
+    store!(schema, columns, gas_limit, block.gas_limit.as_u64());
     store!(schema, columns, extra_data, block.extra_data.to_vec());
     store!(schema, columns, logs_bloom, block.logs_bloom.map(|x| x.0.to_vec()));
     store!(schema, columns, timestamp, block.timestamp.as_u32());
+    store!(schema, columns, difficulty, block.difficulty.as_u64());
     store!(schema, columns, total_difficulty, block.total_difficulty);
     store!(schema, columns, base_fee_per_gas, block.base_fee_per_gas.map(|x| x.as_u64()));
     store!(schema, columns, size, block.size.map(|x| x.as_u32()));
+    store!(schema, columns, mix_hash, block.mix_hash.map(|x| x.0.to_vec()));
+    store!(schema, columns, nonce, block.nonce.map(|x| x.0.to_vec()));
+    store!(schema, columns, withdrawals_root, block.withdrawals_root.map(|x| x.0.to_vec()));
     Ok(())
 }
