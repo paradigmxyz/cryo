@@ -12,5 +12,5 @@ export WALLETS="0x0a59649758aa4d66e25f08dd01271e891fe52199 0xcee284f754e854890e3
 export BLOCKS="16M:17M/10"
 
 # collect data
-cryo erc20_balances --blocks $BLOCKS --contract $ERC20 --address $WALLET
+cryo erc20_balances --blocks $BLOCKS --contract $ERC20 --address $WALLETS
 
