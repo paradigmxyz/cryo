@@ -37,7 +37,8 @@ def parse_cli_args(
     else:
         raise Exception('unknown file_format')
 
-    kwargs['no_verbose'] = not verbose
-
+    if 'no_verbose' not in kwargs.keys():
+        kwargs['no_verbose'] = not verbose
+        
     return kwargs
 
