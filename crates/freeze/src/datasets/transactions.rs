@@ -1,5 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
+use ethers_core::utils::hex::hex;
 use polars::prelude::*;
 
 /// columns for transactions
@@ -29,6 +30,7 @@ pub struct Transactions {
     block_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
+    raw: Vec<String>,
 }
 
 #[async_trait::async_trait]
@@ -58,6 +60,7 @@ impl Dataset for Transactions {
             "n_input_zero_bytes",
             "n_input_nonzero_bytes",
             "chain_id",
+            "raw",
         ])
     }
 
@@ -185,7 +188,7 @@ pub(crate) fn process_transaction(
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
         if exclude_failed & !success {
-            return Ok(())
+            return Ok(());
         }
         success
     } else {
@@ -203,15 +206,17 @@ pub(crate) fn process_transaction(
     store!(schema, columns, input, tx.input.to_vec());
     store!(schema, columns, gas_limit, tx.gas.as_u64());
     store!(schema, columns, success, success);
-    if schema.has_column("n_input_bytes") |
-        schema.has_column("n_input_zero_bytes") |
-        schema.has_column("n_input_nonzero_bytes")
+    if schema.has_column("n_input_bytes")
+        | schema.has_column("n_input_zero_bytes")
+        | schema.has_column("n_input_nonzero_bytes")
+        | schema.has_column("raw")
     {
         let n_input_bytes = tx.input.len() as u32;
         let n_input_zero_bytes = tx.input.iter().filter(|&&x| x == 0).count() as u32;
         store!(schema, columns, n_input_bytes, n_input_bytes);
         store!(schema, columns, n_input_zero_bytes, n_input_zero_bytes);
         store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
+        store!(schema, columns, raw, hex::encode(&tx.rlp()));
     }
     store!(schema, columns, n_rlp_bytes, tx.rlp().len() as u32);
     store!(schema, columns, gas_used, receipt.and_then(|r| r.gas_used.map(|x| x.as_u64())));
@@ -239,9 +244,9 @@ fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool>
         if let Some(gas_used) = receipt.as_ref().and_then(|x| x.gas_used.map(|x| x.as_u64())) {
             Ok(gas_used == 0)
         } else {
-            return Err(err("could not determine status of transaction"))
+            return Err(err("could not determine status of transaction"));
         }
     } else {
-        return Err(err("could not determine status of transaction"))
+        return Err(err("could not determine status of transaction"));
     }
 }
