@@ -206,17 +206,15 @@ pub(crate) fn process_transaction(
     store!(schema, columns, input, tx.input.to_vec());
     store!(schema, columns, gas_limit, tx.gas.as_u64());
     store!(schema, columns, success, success);
-    if schema.has_column("n_input_bytes")
-        | schema.has_column("n_input_zero_bytes")
-        | schema.has_column("n_input_nonzero_bytes")
-        | schema.has_column("raw")
+    if schema.has_column("n_input_bytes") |
+        schema.has_column("n_input_zero_bytes") |
+        schema.has_column("n_input_nonzero_bytes")
     {
         let n_input_bytes = tx.input.len() as u32;
         let n_input_zero_bytes = tx.input.iter().filter(|&&x| x == 0).count() as u32;
         store!(schema, columns, n_input_bytes, n_input_bytes);
         store!(schema, columns, n_input_zero_bytes, n_input_zero_bytes);
         store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
-        store!(schema, columns, raw, hex::encode(&tx.rlp()));
     }
     store!(schema, columns, n_rlp_bytes, tx.rlp().len() as u32);
     store!(schema, columns, gas_used, receipt.and_then(|r| r.gas_used.map(|x| x.as_u64())));
@@ -231,6 +229,7 @@ pub(crate) fn process_transaction(
     );
     store!(schema, columns, timestamp, timestamp);
     store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
+    store!(schema, columns, raw, hex::encode(&tx.rlp()));
 
     Ok(())
 }
