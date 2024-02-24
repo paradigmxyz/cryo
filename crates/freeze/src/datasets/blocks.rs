@@ -28,6 +28,8 @@ pub struct Blocks {
     base_fee_per_gas: Vec<Option<u64>>,
     withdrawals_root: Vec<Option<Vec<u8>>>,
     chain_id: Vec<u64>,
+    blob_gas_used: Vec<Option<u64>>,
+    excess_blob_gas: Vec<Option<u64>>,
 }
 
 #[async_trait::async_trait]
@@ -110,5 +112,7 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
     store!(schema, columns, mix_hash, block.mix_hash.map(|x| x.0.to_vec()));
     store!(schema, columns, nonce, block.nonce.map(|x| x.0.to_vec()));
     store!(schema, columns, withdrawals_root, block.withdrawals_root.map(|x| x.0.to_vec()));
+    store!(schema, columns, blob_gas_used, block.other.get("blob_gas_used").and_then(|x| x.as_u64()));
+    store!(schema, columns, excess_blob_gas, block.other.get("excess_blob_gas").and_then(|x| x.as_u64()));
     Ok(())
 }
