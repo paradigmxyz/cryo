@@ -112,7 +112,7 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
     store!(schema, columns, mix_hash, block.mix_hash.map(|x| x.0.to_vec()));
     store!(schema, columns, nonce, block.nonce.map(|x| x.0.to_vec()));
     store!(schema, columns, withdrawals_root, block.withdrawals_root.map(|x| x.0.to_vec()));
-    store!(schema, columns, blob_gas_used, block.other.get("blob_gas_used").and_then(|x| x.as_u64()));
-    store!(schema, columns, excess_blob_gas, block.other.get("excess_blob_gas").and_then(|x| x.as_u64()));
+    store!(schema, columns, blob_gas_used, block.other.get_with("blobGasUsed", |x| u64::from_str_radix(x.as_str().unwrap().trim_start_matches("0x"), 16).ok()).unwrap_or(None));
+    store!(schema, columns, excess_blob_gas, block.other.get_with("excessBlobGas", |x| u64::from_str_radix(x.as_str().unwrap().trim_start_matches("0x"), 16).ok()).unwrap_or(None));
     Ok(())
 }
