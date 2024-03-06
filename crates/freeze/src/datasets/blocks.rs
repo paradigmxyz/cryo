@@ -119,7 +119,7 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
         block
             .other
             .get_with("blobGasUsed", |x| u64::from_str_radix(
-                x.as_str().unwrap().trim_start_matches("0x"),
+                x.as_str().unwrap_or("0x").trim_start_matches("0x"),
                 16
             )
             .ok())
@@ -132,7 +132,7 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
         block
             .other
             .get_with("excessBlobGas", |x| u64::from_str_radix(
-                x.as_str().unwrap().trim_start_matches("0x"),
+                x.as_str().unwrap_or("0x").trim_start_matches("0x"),
                 16
             )
             .ok())
