@@ -16,6 +16,8 @@ pub mod code_reads;
 pub mod codes;
 /// contracts
 pub mod contracts;
+/// erc20 approval
+pub mod erc20_approvals;
 /// erc20 balances
 pub mod erc20_balances;
 /// erc20 metadata
@@ -80,6 +82,7 @@ pub use code_diffs::*;
 pub use code_reads::*;
 pub use codes::*;
 pub use contracts::*;
+pub use erc20_approvals::*;
 pub use erc20_balances::*;
 pub use erc20_metadata::*;
 pub use erc20_supplies::*;

@@ -296,6 +296,7 @@ cryo datasets
 - erc20_metadata
 - erc20_supplies
 - erc20_transfers
+- erc20_approvals
 - erc721_metadata
 - erc721_transfers
 - eth_calls
