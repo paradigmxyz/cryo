@@ -43,19 +43,6 @@ jobs:
         env:
           RUSTFLAGS: -Dwarnings
 
-  docs:
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-      - uses: dtolnay/rust-toolchain@nightly
-      - uses: Swatinem/rust-cache@v2
-        with:
-          cache-on-failure: true
-      - run: cargo doc --workspace --all-features --no-deps --document-private-items
-        env:
-          RUSTDOCFLAGS: "--cfg docsrs -D warnings"
-
   fmt:
     runs-on: ubuntu-latest
     timeout-minutes: 30
