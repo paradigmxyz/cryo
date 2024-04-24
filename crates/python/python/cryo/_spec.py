@@ -54,4 +54,14 @@ if typing.TYPE_CHECKING:
         topic3: str | bytes | None
         inner_request_size: int | None
         no_verbose: bool
+        address: typing.Sequence[str] | None
+        to_address: typing.Sequence[str] | None
+        from_address: typing.Sequence[str] | None
+        call_data: typing.Sequence[str] | None
+        function: typing.Sequence[str] | None
+        inputs: typing.Sequence[str] | None
+        slot: typing.Sequence[str] | None
+        event_signature: str | bytes | None
+        inner_request_size: int | None
+        js_tracer: str | bytes | None
 

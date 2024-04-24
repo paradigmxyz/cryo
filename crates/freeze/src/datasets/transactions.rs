@@ -62,7 +62,7 @@ impl Dataset for Transactions {
     }
 
     fn optional_parameters() -> Vec<Dim> {
-        vec![Dim::FromAddress, Dim::ToAddress]
+        vec![Dim::Address, Dim::FromAddress, Dim::ToAddress]
     }
 }
 
@@ -72,8 +72,22 @@ pub type TransactionAndReceipt = (Transaction, Option<TransactionReceipt>);
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
     type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool);
-
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
+        fn get_addresses() -> Vec<H160> {
+            let env = ExecutionEnv::default();
+            let cli_command = env.cli_command.unwrap();
+            if let Some(address_index) = cli_command.iter().position(|arg| arg == "--address") {
+                cli_command[address_index + 1..]
+                    .to_vec()
+                    .iter()
+                    .take_while(|&arg| !arg.starts_with("--"))
+                    .map(|s| s.parse::<H160>().expect("Invalid H160"))
+                    .collect::<Vec<H160>>()
+            } else {
+                Vec::new()
+            }
+        }
+
         let block = source
             .get_block_with_txs(request.block_number()?)
             .await?
@@ -84,7 +98,7 @@ impl CollectByBlock for Transactions {
         // filter by from_address
         let from_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(from_address) = &request.from_address {
-                Box::new(move |tx| tx.from.as_bytes() == from_address)
+                Box::new(move |tx| from_address == tx.from.as_bytes())
             } else {
                 Box::new(|_| true)
             };
@@ -95,8 +109,34 @@ impl CollectByBlock for Transactions {
             } else {
                 Box::new(|_| true)
             };
-        let transactions =
-            block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).collect();
+        // filter by addresses (if either the to or from address are in the vector of addresses)
+        let addresses = get_addresses();
+        let addr_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
+            if let Some(address) = &request.address {
+                Box::new(move |tx| {
+                    let to_address_is_in = addresses.contains(&tx.to.unwrap());
+                    let from_address_is_in = addresses.contains(&tx.from);
+                    if addresses.len() == 1 {
+                        to_address_is_in || from_address_is_in
+                    } else {
+                        if !(to_address_is_in && from_address_is_in) {
+                            tx.to.as_ref().map_or(false, |x| x.as_bytes() == address)
+                        } else {
+                            tx.from.as_bytes() == address
+                        }
+                    }
+                })
+            } else {
+                Box::new(|_| true)
+            };
+        let transactions = block
+            .transactions
+            .clone()
+            .into_iter()
+            .filter(from_filter)
+            .filter(to_filter)
+            .filter(addr_filter)
+            .collect();
 
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
@@ -104,7 +144,10 @@ impl CollectByBlock for Transactions {
         let receipts: Vec<Option<_>> =
             if schema.has_column("gas_used") | schema.has_column("success") {
                 // receipts required
-                let receipts = if request.from_address.is_some() || request.to_address.is_some() {
+                let receipts = if request.from_address.is_some() ||
+                    request.to_address.is_some() ||
+                    request.address.is_some()
+                {
                     source.get_tx_receipts(&transactions).await?
                 } else {
                     source.get_tx_receipts_in_block(&block).await?
@@ -114,8 +157,8 @@ impl CollectByBlock for Transactions {
                 vec![None; block.transactions.len()]
             };
 
-        let transactions_with_receips = transactions.into_iter().zip(receipts).collect();
-        Ok((block, transactions_with_receips, query.exclude_failed))
+        let transactions_with_receipts = transactions.into_iter().zip(receipts).collect();
+        Ok((block, transactions_with_receipts, query.exclude_failed))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

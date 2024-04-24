@@ -196,6 +196,10 @@ pub struct Args {
     #[arg(long, help_heading = "Output Options")]
     pub no_report: bool,
 
+    /// Skip writing to dataframe if the df is empty
+    #[arg(long, help_heading = "Acquisition Options")]
+    pub skip_empty: Option<bool>,
+
     /// Address(es)
     #[arg(long, help_heading = "Dataset-specific Options", num_args(1..))]
     pub address: Option<Vec<String>>,

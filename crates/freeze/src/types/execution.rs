@@ -25,6 +25,8 @@ pub struct ExecutionEnv {
     pub t_end: Option<SystemTime>,
     /// report directory
     pub report_dir: Option<PathBuf>,
+    /// skips writing empty dfs
+    pub skip_empty: Option<bool>,
 }
 
 impl ExecutionEnv {
@@ -67,6 +69,7 @@ pub struct ExecutionEnvBuilder {
     t_start: SystemTime,
     t_end: Option<SystemTime>,
     report_dir: Option<PathBuf>,
+    skip_empty: Option<bool>,
 }
 
 impl Default for ExecutionEnvBuilder {
@@ -82,6 +85,7 @@ impl Default for ExecutionEnvBuilder {
             t_start: SystemTime::now(),
             t_end: None,
             report_dir: None,
+            skip_empty: Some(false),
         }
     }
 }
@@ -134,6 +138,11 @@ impl ExecutionEnvBuilder {
         self
     }
 
+    /// skip_empty
+    pub fn skip_empty(mut self, skip_empty: Option<bool>) -> Self {
+        self.skip_empty = skip_empty;
+        self
+    }
     /// build final output
     pub fn build(self) -> ExecutionEnv {
         ExecutionEnv {
@@ -147,6 +156,7 @@ impl ExecutionEnvBuilder {
             t_start: self.t_start,
             t_end: self.t_end,
             report_dir: self.report_dir,
+            skip_empty: self.skip_empty,
         }
     }
 }
