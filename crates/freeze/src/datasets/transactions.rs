@@ -1,5 +1,6 @@
 use crate::*;
 use ethers::prelude::*;
+use ethers_core::utils::hex::hex;
 use polars::prelude::*;
 
 /// columns for transactions
@@ -29,6 +30,7 @@ pub struct Transactions {
     block_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
+    raw: Vec<String>,
 }
 
 #[async_trait::async_trait]
@@ -58,6 +60,7 @@ impl Dataset for Transactions {
             "n_input_zero_bytes",
             "n_input_nonzero_bytes",
             "chain_id",
+            "raw",
         ])
     }
 
@@ -185,7 +188,7 @@ pub(crate) fn process_transaction(
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
         if exclude_failed & !success {
-            return Ok(())
+            return Ok(());
         }
         success
     } else {
@@ -226,6 +229,7 @@ pub(crate) fn process_transaction(
     );
     store!(schema, columns, timestamp, timestamp);
     store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
+    store!(schema, columns, raw, hex::encode(&tx.rlp()));
 
     Ok(())
 }
@@ -239,9 +243,9 @@ fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool>
         if let Some(gas_used) = receipt.as_ref().and_then(|x| x.gas_used.map(|x| x.as_u64())) {
             Ok(gas_used == 0)
         } else {
-            return Err(err("could not determine status of transaction"))
+            return Err(err("could not determine status of transaction"));
         }
     } else {
-        return Err(err("could not determine status of transaction"))
+        return Err(err("could not determine status of transaction"));
     }
 }
