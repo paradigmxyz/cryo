@@ -51,7 +51,7 @@ impl FileOutput {
         };
         for meta_datatype in meta_datatypes.iter() {
             for datatype in meta_datatype.datatypes().into_iter() {
-                if query.schemas.get(&datatype).is_some() {
+                if query.schemas.contains_key(&datatype) {
                     paths.insert(datatype, self.get_path(query, partition, datatype)?);
                 }
             }
