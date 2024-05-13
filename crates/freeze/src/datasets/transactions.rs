@@ -29,6 +29,9 @@ pub struct Transactions {
     block_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
+    r: Vec<Vec<u8>>,
+    s: Vec<Vec<u8>>,
+    v: Vec<u64>,
 }
 
 #[async_trait::async_trait]
@@ -226,6 +229,10 @@ pub(crate) fn process_transaction(
     );
     store!(schema, columns, timestamp, timestamp);
     store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
+
+    store!(schema, columns, v, tx.v.as_u64());
+    store!(schema, columns, r, tx.r.to_vec_u8());
+    store!(schema, columns, s, tx.s.to_vec_u8());
 
     Ok(())
 }
