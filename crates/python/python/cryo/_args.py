@@ -12,7 +12,6 @@ def parse_cli_args(
     start_block: _spec.BlockReference | None = None,
     end_block: _spec.BlockReference | None = None,
     file_format: _spec.FileFormat = 'parquet',
-    verbose: bool = True,
     **kwargs: Unpack[_spec.CryoCliArgs],
 ) -> _spec.CryoCliArgs:
     """
@@ -37,7 +36,7 @@ def parse_cli_args(
     else:
         raise Exception('unknown file_format')
 
-    kwargs['no_verbose'] = not verbose
+    kwargs['no_verbose'] = not kwargs.get('verbose', True)
 
     return kwargs
 

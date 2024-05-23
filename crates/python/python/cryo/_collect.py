@@ -3,7 +3,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Unpack
-    from typing import Any
+    from typing import Any, Literal, TypeVar
 
     import pandas as pd
     import polars as pl
@@ -11,6 +11,43 @@ if typing.TYPE_CHECKING:
 
     ListOfDicts = list[dict[str, Any]]
     DictOfLists = dict[str, list[Any]]
+    T = TypeVar('T', pl.DataFrame, pd.DataFrame, ListOfDicts, DictOfLists)
+
+
+@typing.overload
+async def async_collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['polars'] = 'polars',
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pl.DataFrame:
+    ...
+
+
+@typing.overload
+async def async_collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['pandas'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pd.DataFrame:
+    ...
+
+
+@typing.overload
+async def async_collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['list'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> ListOfDicts:
+    ...
+
+
+@typing.overload
+async def async_collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['dict'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> DictOfLists:
+    ...
 
 
 async def async_collect(
@@ -45,6 +82,42 @@ async def async_collect(
         raise Exception('unknown output format')
 
 
+@typing.overload
+def collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['polars'] = 'polars',
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pl.DataFrame:
+    ...
+
+
+@typing.overload
+def collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['pandas'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pd.DataFrame:
+    ...
+
+
+@typing.overload
+def collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['list'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> ListOfDicts:
+    ...
+
+
+@typing.overload
+def collect(
+    datatype: _spec.Datatype,
+    output_format: Literal['dict'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> DictOfLists:
+    ...
+
+
 def collect(
     datatype: _spec.Datatype,
     output_format: _spec.PythonOutput = 'polars',
@@ -58,11 +131,14 @@ def collect(
 
     try:
         import concurrent.futures
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         with concurrent.futures.ThreadPoolExecutor() as executor:
             future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
-            return future.result()  # type: ignore
+            result: T = future.result()  # type: ignore
     except RuntimeError:
-        return asyncio.run(coroutine)
+        result = asyncio.run(coroutine)
+
+    return result
 
