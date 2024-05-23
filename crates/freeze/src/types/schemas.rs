@@ -8,7 +8,7 @@ use thiserror::Error;
 /// collection of schemas
 pub type Schemas = HashMap<Datatype, Table>;
 
-/// funcitons for Schemas
+/// functions for Schemas
 pub trait SchemaFunctions {
     /// get schema
     fn get_schema(&self, datatype: &Datatype) -> Result<&Table, CollectError>;
