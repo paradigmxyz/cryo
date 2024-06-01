@@ -656,7 +656,7 @@ mod tests {
         // Ranges
         let tests: Vec<(BlockNumberTest<'_>, bool)> = vec![
             (BlockNumberTest::WithoutMock((r"1", RangePosition::None, 1)), true), // Integer
-            (BlockNumberTest::WithMock((r"latest", RangePosition::None, 12, 12)), true), /* Lastest block */
+            (BlockNumberTest::WithMock((r"latest", RangePosition::None, 12, 12)), true), /* Latest block */
             (BlockNumberTest::WithoutMock((r"", RangePosition::First, 0)), true), // First block
             (BlockNumberTest::WithMock((r"", RangePosition::Last, 12, 12)), true), // Last block
             (BlockNumberTest::WithoutMock((r"1B", RangePosition::None, 1000000000)), true), // B

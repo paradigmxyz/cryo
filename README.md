@@ -64,7 +64,7 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
-### Python Instalation
+### Python Installation
 
 `cryo` can also be installed as a python package:
 
