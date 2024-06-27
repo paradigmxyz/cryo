@@ -47,11 +47,33 @@ if typing.TYPE_CHECKING:
         n_row_groups: int | None
         no_stats: bool
         compression: str | None
-        contract: str | bytes | None
-        topic0: str | bytes | None
-        topic1: str | bytes | None
-        topic2: str | bytes | None
-        topic3: str | bytes | None
+        contract: typing.Sequence[str | bytes | None]
+        topic0: typing.Sequence[str | bytes | None]
+        topic1: typing.Sequence[str | bytes | None]
+        topic2: typing.Sequence[str | bytes | None]
+        topic3: typing.Sequence[str | bytes | None]
         inner_request_size: int | None
         no_verbose: bool
 
+        timestamps: typing.Sequence[str] | None
+        txs: typing.Sequence[str] | None
+        u256_types: typing.Sequence[str] | None
+        exclude_failed: bool
+        chunk_order: str | None
+        max_retries: int
+        initial_backoff: int
+        partition_by: typing.Sequence[str] | None
+        subdirs: typing.Sequence[str]
+        label: str | None
+        report_dir: str | None
+        no_report: bool
+        address: typing.Sequence[str] | None
+        to_address: typing.Sequence[str] | None
+        from_address: typing.Sequence[str] | None
+        call_data: typing.Sequence[str] | None
+        function: typing.Sequence[str] | None
+        inputs: typing.Sequence[str] | None
+        slot: typing.Sequence[str] | None
+        js_tracer: str | None
+        verbose: bool
+        event_signature: str | None
