@@ -1,8 +1,12 @@
 use crate::{err, CollectError, ColumnEncoding, ToU256Series, U256Type};
-use ethers::prelude::*;
-use ethers_core::abi::{AbiEncode, EventParam, HumanReadableParser, ParamType, RawLog, Token};
+use alloy::{
+    dyn_abi::{DynSolValue, EventExt},
+    hex::ToHexExt,
+    json_abi::Event,
+    primitives::{I256, U256},
+    rpc::types::Log,
+};
 use polars::prelude::*;
-use std::collections::HashSet;
 
 /// container for log decoding context
 #[derive(Clone, Debug, PartialEq)]
@@ -11,7 +15,7 @@ pub struct LogDecoder {
     /// uint256 amount)
     pub raw: String,
     /// decoded abi type of event signature string
-    pub event: abi::Event,
+    pub event: Event,
 }
 
 impl LogDecoder {
@@ -19,7 +23,7 @@ impl LogDecoder {
     /// ex: LogDecoder::new("event Transfer(address indexed from, address indexed to, uint256
     /// amount)".to_string())
     pub fn new(event_signature: String) -> Result<Self, String> {
-        match HumanReadableParser::parse_event(event_signature.as_str()) {
+        match Event::parse(&event_signature) {
             Ok(event) => Ok(Self { event, raw: event_signature.clone() }),
             Err(e) => {
                 let err = format!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount) err: {}", event_signature, e);
@@ -37,19 +41,35 @@ impl LogDecoder {
     /// converts from a log type to an abi token type
     /// this function assumes all logs are of the same type and skips fields if they don't match the
     /// passed event definition
-    pub fn parse_log_from_event(&self, logs: Vec<Log>) -> indexmap::IndexMap<String, Vec<Token>> {
-        let mut map: indexmap::IndexMap<String, Vec<Token>> = indexmap::IndexMap::new();
-        let known_keys =
-            self.event.inputs.clone().into_iter().map(|i| i.name).collect::<HashSet<String>>();
+    pub fn parse_log_from_event(
+        &self,
+        logs: Vec<Log>,
+    ) -> indexmap::IndexMap<String, Vec<DynSolValue>> {
+        let mut map: indexmap::IndexMap<String, Vec<DynSolValue>> = indexmap::IndexMap::new();
+        let indexed_keys: Vec<String> = self
+            .event
+            .inputs
+            .clone()
+            .into_iter()
+            .filter_map(|x| if x.indexed { Some(x.name) } else { None })
+            .collect();
+        let body_keys: Vec<String> = self
+            .event
+            .inputs
+            .clone()
+            .into_iter()
+            .filter_map(|x| if x.indexed { None } else { Some(x.name) })
+            .collect();
 
         for log in logs {
-            match self.event.parse_log(RawLog::from(log)) {
-                Ok(log) => {
-                    for param in log.params {
-                        if known_keys.contains(param.name.as_str()) {
-                            let tokens = map.entry(param.name).or_default();
-                            tokens.push(param.value);
-                        }
+            match self.event.decode_log_parts(log.topics().to_vec(), log.data().data.as_ref(), true)
+            {
+                Ok(decoded) => {
+                    for (idx, param) in decoded.indexed.into_iter().enumerate() {
+                        map.entry(indexed_keys[idx].clone()).or_default().push(param);
+                    }
+                    for (idx, param) in decoded.body.into_iter().enumerate() {
+                        map.entry(body_keys[idx].clone()).or_default().push(param);
                     }
                 }
                 Err(e) => eprintln!("error parsing log: {:?}", e),
@@ -62,7 +82,7 @@ impl LogDecoder {
     pub fn make_series(
         &self,
         name: String,
-        data: Vec<Token>,
+        data: Vec<DynSolValue>,
         chunk_len: usize,
         u256_types: &[U256Type],
         column_encoding: &ColumnEncoding,
@@ -70,7 +90,6 @@ impl LogDecoder {
         // This is a smooth brain way of doing this, but I can't think of a better way right now
         let mut ints: Vec<i64> = vec![];
         let mut uints: Vec<u64> = vec![];
-        let mut str_ints: Vec<String> = vec![];
         let mut u256s: Vec<U256> = vec![];
         let mut i256s: Vec<I256> = vec![];
         let mut bytes: Vec<Vec<u8>> = vec![];
@@ -79,68 +98,39 @@ impl LogDecoder {
         let mut strings: Vec<String> = vec![];
         // TODO: support array & tuple types
 
-        let param = self
-            .event
-            .inputs
-            .clone()
-            .into_iter()
-            .filter(|i| i.name == name)
-            .collect::<Vec<EventParam>>();
-        let param = param.first();
-
         for token in data {
             match token {
-                Token::Address(a) => match column_encoding {
-                    ColumnEncoding::Binary => bytes.push(a.to_fixed_bytes().into()),
+                DynSolValue::Address(a) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(a.to_vec()),
                     ColumnEncoding::Hex => hexes.push(format!("{:?}", a)),
                 },
-                Token::FixedBytes(b) => match column_encoding {
+                DynSolValue::FixedBytes(b, _) => match column_encoding {
+                    ColumnEncoding::Binary => bytes.push(b.to_vec()),
+                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
+                },
+                DynSolValue::Bytes(b) => match column_encoding {
                     ColumnEncoding::Binary => bytes.push(b),
                     ColumnEncoding::Hex => hexes.push(b.encode_hex()),
                 },
-                Token::Bytes(b) => match column_encoding {
-                    ColumnEncoding::Binary => bytes.push(b),
-                    ColumnEncoding::Hex => hexes.push(b.encode_hex()),
-                },
-                Token::Uint(i) => match param {
-                    Some(param) => match param.kind.clone() {
-                        ParamType::Uint(size) => {
-                            if size <= 64 {
-                                uints.push(i.as_u64())
-                            } else {
-                                u256s.push(i)
-                            }
-                        }
-                        _ => str_ints.push(i.to_string()),
-                    },
-                    None => match i.try_into() {
-                        Ok(i) => ints.push(i),
-                        Err(_) => str_ints.push(i.to_string()),
-                    },
-                },
-                Token::Int(i) => {
-                    let i = I256::from_raw(i);
-                    match param {
-                        Some(param) => match param.kind.clone() {
-                            ParamType::Int(size) => {
-                                if size <= 64 {
-                                    ints.push(i.as_i64())
-                                } else {
-                                    i256s.push(i)
-                                }
-                            }
-                            _ => str_ints.push(i.to_string()),
-                        },
-                        None => match i.try_into() {
-                            Ok(i) => ints.push(i),
-                            Err(_) => str_ints.push(i.to_string()),
-                        },
+                DynSolValue::Uint(i, size) => {
+                    if size <= 64 {
+                        uints.push(i.wrapping_to::<u64>())
+                    } else {
+                        u256s.push(i)
                     }
                 }
-                Token::Bool(b) => bools.push(b),
-                Token::String(s) => strings.push(s),
-                Token::Array(_) | Token::FixedArray(_) => {}
-                Token::Tuple(_) => {}
+                DynSolValue::Int(i, size) => {
+                    if size <= 64 {
+                        ints.push(i.unchecked_into());
+                    } else {
+                        i256s.push(i);
+                    }
+                }
+                DynSolValue::Bool(b) => bools.push(b),
+                DynSolValue::String(s) => strings.push(s),
+                DynSolValue::Array(_) | DynSolValue::FixedArray(_) => {}
+                DynSolValue::Tuple(_) => {}
+                DynSolValue::Function(_) => {}
             }
         }
         let mixed_length_err = format!("could not parse column {}, mixed type", name);
@@ -173,8 +163,6 @@ impl LogDecoder {
             Ok(series_vec)
         } else if !uints.is_empty() {
             Ok(vec![Series::new(name.as_str(), uints)])
-        } else if !str_ints.is_empty() {
-            Ok(vec![Series::new(name.as_str(), str_ints)])
         } else if !bytes.is_empty() {
             if bytes.len() != chunk_len {
                 return Err(err(mixed_length_err))

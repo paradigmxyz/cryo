@@ -36,6 +36,7 @@ pub use reports::CRYO_VERSION;
 pub mod dataframes;
 
 /// function and event signatures
+#[allow(missing_docs)]
 pub mod signatures;
 
 /// error specifications

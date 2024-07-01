@@ -1,6 +1,6 @@
 use super::traces;
 use crate::*;
-use ethers::prelude::*;
+use alloy::rpc::types::trace::parity::{Action, TraceOutput, TraceType, TransactionTrace};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -58,8 +58,7 @@ impl CollectByBlock for TraceCalls {
                 Some(request.ethers_block_number()?),
             )
             .await?
-            .trace
-            .ok_or(CollectError::CollectError("traces missing".to_string()))?;
+            .trace;
         Ok((request.block_number()? as u32, request.contract()?, request.call_data()?, traces))
     }
 
@@ -85,7 +84,7 @@ fn process_transaction_traces(
 
         process_action(&trace.action, columns, schema);
         process_result(&trace.result, columns, schema);
-        store!(schema, columns, action_type, traces::action_type_to_string(&trace.action_type));
+        store!(schema, columns, action_type, traces::action_type_to_string(&trace.action.kind()));
         store!(
             schema,
             columns,
@@ -104,10 +103,10 @@ fn process_transaction_traces(
 fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
     match action {
         Action::Call(action) => {
-            store!(schema, columns, action_from, Some(action.from.as_bytes().to_vec()));
-            store!(schema, columns, action_to, Some(action.to.as_bytes().to_vec()));
+            store!(schema, columns, action_from, Some(action.from.to_vec()));
+            store!(schema, columns, action_to, Some(action.to.to_vec()));
             store!(schema, columns, action_value, action.value.to_string());
-            store!(schema, columns, action_gas, Some(action.gas.as_u32()));
+            store!(schema, columns, action_gas, Some(action.gas.wrapping_to::<u32>()));
             store!(schema, columns, action_input, Some(action.input.to_vec()));
             store!(
                 schema,
@@ -119,18 +118,18 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
             store!(schema, columns, action_reward_type, None);
         }
         Action::Create(action) => {
-            store!(schema, columns, action_from, Some(action.from.as_bytes().to_vec()));
+            store!(schema, columns, action_from, Some(action.from.to_vec()));
             store!(schema, columns, action_to, None);
             store!(schema, columns, action_value, action.value.to_string());
-            store!(schema, columns, action_gas, Some(action.gas.as_u32()));
+            store!(schema, columns, action_gas, Some(action.gas.wrapping_to::<u32>()));
             store!(schema, columns, action_input, None);
             store!(schema, columns, action_call_type, None);
             store!(schema, columns, action_init, Some(action.init.to_vec()));
             store!(schema, columns, action_reward_type, None);
         }
-        Action::Suicide(action) => {
-            store!(schema, columns, action_from, Some(action.address.as_bytes().to_vec()));
-            store!(schema, columns, action_to, Some(action.refund_address.as_bytes().to_vec()));
+        Action::Selfdestruct(action) => {
+            store!(schema, columns, action_from, Some(action.address.to_vec()));
+            store!(schema, columns, action_to, Some(action.refund_address.to_vec()));
             store!(schema, columns, action_value, action.balance.to_string());
             store!(schema, columns, action_gas, None);
             store!(schema, columns, action_input, None);
@@ -139,7 +138,7 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
             store!(schema, columns, action_reward_type, None);
         }
         Action::Reward(action) => {
-            store!(schema, columns, action_from, Some(action.author.as_bytes().to_vec()));
+            store!(schema, columns, action_from, Some(action.author.to_vec()));
             store!(schema, columns, action_to, None);
             store!(schema, columns, action_value, action.value.to_string());
             store!(schema, columns, action_gas, None);
@@ -156,21 +155,21 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
     }
 }
 
-fn process_result(result: &Option<Res>, columns: &mut TraceCalls, schema: &Table) {
+fn process_result(result: &Option<TraceOutput>, columns: &mut TraceCalls, schema: &Table) {
     match result {
-        Some(Res::Call(result)) => {
-            store!(schema, columns, result_gas_used, Some(result.gas_used.as_u32()));
+        Some(TraceOutput::Call(result)) => {
+            store!(schema, columns, result_gas_used, Some(result.gas_used.wrapping_to::<u32>()));
             store!(schema, columns, result_output, Some(result.output.to_vec()));
             store!(schema, columns, result_code, None);
             store!(schema, columns, result_address, None);
         }
-        Some(Res::Create(result)) => {
-            store!(schema, columns, result_gas_used, Some(result.gas_used.as_u32()));
+        Some(TraceOutput::Create(result)) => {
+            store!(schema, columns, result_gas_used, Some(result.gas_used.wrapping_to::<u32>()));
             store!(schema, columns, result_output, None);
             store!(schema, columns, result_code, Some(result.code.to_vec()));
-            store!(schema, columns, result_address, Some(result.address.as_bytes().to_vec()));
+            store!(schema, columns, result_address, Some(result.address.to_vec()));
         }
-        Some(Res::None) | None => {
+        None => {
             store!(schema, columns, result_gas_used, None);
             store!(schema, columns, result_output, None);
             store!(schema, columns, result_code, None);

@@ -1,37 +1,26 @@
-use ethers::prelude::*;
+use alloy::sol;
 
-lazy_static::lazy_static! {
+sol! {
+    contract ERC20 {
+        function name() external pure returns (string memory);
+        function symbol() external pure returns (string memory);
+        function decimals() external pure returns (uint8);
+        function totalSupply() external view returns (uint);
+        function balanceOf(address owner) external view returns (uint);
+        function allowance(address owner, address spender) external view returns (uint);
 
-    /// function signature of FUNCTION_ERC20_NAME
-    pub static ref FUNCTION_ERC20_NAME: Vec<u8> = prefix_hex::decode("0x06fdde03").expect("Decoding failed");
+        event Approval(address indexed owner, address indexed spender, uint value);
+        event Transfer(address indexed from, address indexed to, uint value);
+    }
+}
 
-    /// function signature of FUNCTION_ERC20_SYMBOL
-    pub static ref FUNCTION_ERC20_SYMBOL: Vec<u8> = prefix_hex::decode("0x95d89b41").expect("Decoding failed");
-
-    /// function signature of FUNCTION_ERC20_DECIMALS
-    pub static ref FUNCTION_ERC20_DECIMALS: Vec<u8> = prefix_hex::decode("0x313ce567").expect("Decoding failed");
-
-    /// function signature of FUNCTION_ERC20_BALANCE_OF
-    pub static ref FUNCTION_ERC20_BALANCE_OF: Vec<u8> = prefix_hex::decode("0x70a08231").expect("Decoding failed");
-
-    /// function signature of FUNCTION_ERC20_TOTAL_SUPPLY
-    pub static ref FUNCTION_ERC20_TOTAL_SUPPLY: Vec<u8> = prefix_hex::decode("0x18160ddd").expect("Decoding failed");
-
-    /// event hash of EVENT_ERC20_TRANSFER
-    pub static ref EVENT_ERC20_TRANSFER: H256 = H256(
-        prefix_hex::decode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-            .expect("Decoding failed"),
-    );
-
-    /// event hash of EVENT_ERC20_APPROVAL
-    pub static ref EVENT_ERC20_APPROVAL: H256 = H256(
-        prefix_hex::decode("0x8c5be1e5ebec7d5bd14f71427d1e84f3dd0314c0f7b2291e5b200ac8c7c3b925")
-            .expect("Decoding failed"),
-    );
-
-    /// event hash of EVENT_ERC721_TRANSFER
-    pub static ref EVENT_ERC721_TRANSFER: H256 = H256(
-        prefix_hex::decode("0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef")
-            .expect("Decoding failed"),
-    );
+sol! {
+    contract ERC721 {
+        event Transfer(address indexed from, address indexed to, uint256 indexed tokenId);
+        event Approval(address indexed owner, address indexed approved, uint256 indexed tokenId);
+        event ApprovalForAll(address indexed owner, address indexed operator, bool approved);
+        function name() external view returns (string memory);
+        function symbol() external view returns (string memory);
+        function tokenURI(uint256 tokenId) external view returns (string memory);
+    }
 }

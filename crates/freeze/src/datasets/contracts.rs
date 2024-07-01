@@ -1,7 +1,9 @@
 use super::traces;
 use crate::*;
-use ethers::prelude::*;
-use ethers_core::utils::keccak256;
+use alloy::{
+    primitives::{keccak256, Address},
+    rpc::types::trace::parity::{Action, LocalizedTransactionTrace, TraceOutput},
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -34,7 +36,7 @@ impl Dataset for Contracts {
 
 #[async_trait::async_trait]
 impl CollectByBlock for Contracts {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.trace_block(request.ethers_block_number()?).await
@@ -49,7 +51,7 @@ impl CollectByBlock for Contracts {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Contracts {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.trace_transaction(request.ethers_transaction_hash()?).await
@@ -64,39 +66,40 @@ impl CollectByTransaction for Contracts {
 
 /// process block into columns
 pub(crate) fn process_contracts(
-    traces: &[Trace],
+    traces: &[LocalizedTransactionTrace],
     columns: &mut Contracts,
     schemas: &Schemas,
 ) -> R<()> {
     let schema = schemas.get(&Datatype::Contracts).ok_or(err("schema not provided"))?;
-    let mut deployer = H160([0; 20]);
+    let mut deployer = Address::ZERO;
     let mut create_index = 0;
     for trace in traces.iter() {
-        if trace.trace_address.is_empty() {
-            deployer = match &trace.action {
+        if trace.trace.trace_address.is_empty() {
+            deployer = match &trace.trace.action {
                 Action::Call(call) => call.from,
                 Action::Create(create) => create.from,
-                Action::Suicide(suicide) => suicide.refund_address,
+                Action::Selfdestruct(suicide) => suicide.refund_address,
                 Action::Reward(reward) => reward.author,
             };
         };
 
-        if let (Action::Create(create), Some(Res::Create(result))) = (&trace.action, &trace.result)
+        if let (Action::Create(create), Some(TraceOutput::Create(result))) =
+            (&trace.trace.action, &trace.trace.result)
         {
             columns.n_rows += 1;
-            store!(schema, columns, block_number, trace.block_number as u32);
-            store!(schema, columns, block_hash, trace.block_hash.as_bytes().to_vec());
+            store!(schema, columns, block_number, trace.block_number.unwrap() as u32);
+            store!(schema, columns, block_hash, trace.block_hash.unwrap().to_vec());
             store!(schema, columns, create_index, create_index);
             create_index += 1;
             let tx = trace.transaction_hash;
-            store!(schema, columns, transaction_hash, tx.map(|x| x.as_bytes().to_vec()));
-            store!(schema, columns, contract_address, result.address.as_bytes().into());
-            store!(schema, columns, deployer, deployer.as_bytes().into());
-            store!(schema, columns, factory, create.from.as_bytes().into());
+            store!(schema, columns, transaction_hash, tx.map(|x| x.to_vec()));
+            store!(schema, columns, contract_address, result.address.to_vec());
+            store!(schema, columns, deployer, deployer.to_vec());
+            store!(schema, columns, factory, create.from.to_vec());
             store!(schema, columns, init_code, create.init.to_vec());
             store!(schema, columns, code, result.code.to_vec());
-            store!(schema, columns, init_code_hash, keccak256(result.code.clone()).into());
-            store!(schema, columns, code_hash, keccak256(create.init.clone()).into());
+            store!(schema, columns, init_code_hash, keccak256(result.code.clone()).to_vec());
+            store!(schema, columns, code_hash, keccak256(create.init.clone()).to_vec());
             store!(schema, columns, n_init_code_bytes, create.init.len() as u32);
             store!(schema, columns, n_code_bytes, result.code.len() as u32);
         }
