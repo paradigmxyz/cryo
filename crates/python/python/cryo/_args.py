@@ -19,12 +19,7 @@ def parse_cli_args(
     TODO: write this part in rust
     """
 
-    if start_block is not None and end_block is not None:
-        kwargs['blocks'] = [str(start_block) + ':' + str(end_block)]
-    elif start_block is not None:
-        kwargs['blocks'] = [str(start_block) + ':']
-    elif end_block is not None:
-        kwargs['blocks'] = [':' + str(end_block)]
+    kwargs['blocks'] = [get_blocks_str(start_block, end_block)]
 
     if file_format == 'parquet':
         pass
@@ -32,8 +27,6 @@ def parse_cli_args(
         kwargs['json'] = True
     elif file_format == 'csv':
         kwargs['csv'] = True
-    # elif file_format == 'avro':
-    #     kwargs['avro'] = True
     else:
         raise Exception('unknown file_format')
 
@@ -41,3 +34,21 @@ def parse_cli_args(
 
     return kwargs
 
+
+def get_blocks_str(
+    start_block: int | str | None,
+    end_block: int | str | None,
+) -> str:
+    if start_block is not None and end_block is not None:
+        return str(start_block) + ':' + str(end_block)
+    elif start_block is not None:
+        return str(start_block) + ':'
+    elif end_block is not None:
+        return ':' + str(end_block)
+    else:
+        return ':'
+
+
+def parse_blocks_str(blocks_str: str) -> tuple[int, int]:
+    start_block, end_block = blocks_str.split(':')
+    return int(start_block), int(end_block)

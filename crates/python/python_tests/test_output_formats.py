@@ -55,4 +55,3 @@ def python_output_python_formats(query, format):
     output_format, output_type = format
     df = cryo.collect(output_format=output_format, **query)
     assert isinstance(df, output_type)
-

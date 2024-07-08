@@ -17,7 +17,7 @@ async def async_freeze(
     see cryo.parse_kwargs() for descriptions of arguments
     """
 
-    from . import _cryo_rust  # type: ignore
+    from . import _cryo_rust
     from . import _args
 
     if isinstance(datatype, str):
@@ -47,8 +47,7 @@ def freeze(
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
-            return future.result()  # type: ignore
+            future = executor.submit(loop.run_until_complete, coroutine)
+            return future.result()
     except RuntimeError:
         return asyncio.run(coroutine)
-

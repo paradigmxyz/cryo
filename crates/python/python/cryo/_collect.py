@@ -3,7 +3,7 @@ import typing
 
 if typing.TYPE_CHECKING:
     from typing_extensions import Unpack
-    from typing import Any
+    from typing import Any, Literal, overload
 
     import pandas as pd
     import polars as pl
@@ -13,15 +13,51 @@ if typing.TYPE_CHECKING:
     DictOfLists = dict[str, list[Any]]
 
 
+@overload
 async def async_collect(
-    datatype: _spec.Datatype,
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['polars'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pl.DataFrame: ...
+
+
+@overload
+async def async_collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['pandas'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pd.DataFrame: ...
+
+
+@overload
+async def async_collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['list'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> ListOfDicts: ...
+
+
+@overload
+async def async_collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['dict'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> DictOfLists: ...
+
+
+async def async_collect(
+    datatype: _spec.Datatype | None = None,
     output_format: _spec.PythonOutput = 'polars',
     **kwargs: Unpack[_spec.CryoCliArgs],
 ) -> pl.DataFrame | pd.DataFrame | ListOfDicts | DictOfLists:
     """asynchronously collect data and return as dataframe"""
 
     from . import _args
-    from . import _cryo_rust  # type: ignore
+    from . import _cryo_rust
 
     # parse inputs
     cli_args = _args.parse_cli_args(**kwargs)
@@ -45,8 +81,45 @@ async def async_collect(
         raise Exception('unknown output format')
 
 
+@overload
 def collect(
-    datatype: _spec.Datatype,
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['polars'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pl.DataFrame: ...
+
+
+@overload
+def collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['pandas'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> pd.DataFrame: ...
+
+
+@overload
+def collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['list'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> ListOfDicts: ...
+
+
+@overload
+def collect(
+    datatype: _spec.Datatype | None = None,
+    *,
+    output_format: Literal['dict'],
+    **kwargs: Unpack[_spec.CryoCliArgs],
+) -> DictOfLists: ...
+
+
+def collect(
+    datatype: _spec.Datatype | None = None,
+    *,
     output_format: _spec.PythonOutput = 'polars',
     **kwargs: Unpack[_spec.CryoCliArgs],
 ) -> pl.DataFrame | pd.DataFrame | ListOfDicts | DictOfLists:
@@ -58,11 +131,11 @@ def collect(
 
     try:
         import concurrent.futures
+
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         with concurrent.futures.ThreadPoolExecutor() as executor:
-            future = executor.submit(loop.run_until_complete, coroutine)  # type: ignore
+            future = executor.submit(loop.run_until_complete, coroutine)
             return future.result()  # type: ignore
     except RuntimeError:
-        return asyncio.run(coroutine)
-
+        return asyncio.run(coroutine)  # type: ignore

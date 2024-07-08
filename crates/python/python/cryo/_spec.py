@@ -2,17 +2,21 @@ import typing
 
 if typing.TYPE_CHECKING:
     from typing import Literal
-    from typing import TypedDict
     from typing import Union
+    from typing_extensions import TypedDict
+
+    Source = Literal['memory', 'disk', 'rpc', 'db', 's3']
 
     Datatype = str
+
     BlockReference = Union[int | Literal['latest']]
+
     FileFormat = Union[
         Literal['parquet'],
         Literal['csv'],
         Literal['json'],
-        Literal['avro'],
     ]
+
     PythonOutput = Union[
         Literal['polars'],
         Literal['pandas'],
@@ -54,4 +58,3 @@ if typing.TYPE_CHECKING:
         topic3: str | bytes | None
         inner_request_size: int | None
         no_verbose: bool
-

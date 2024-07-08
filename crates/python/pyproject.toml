@@ -23,5 +23,11 @@ features = ["pyo3/extension-module"]
 [tool.mypy]
 strict = true
 files = ["python/cryo"]
-enable_incomplete_feature = "Unpack"
 
+
+[tool.ruff.format]
+quote-style = "single"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+inline-quotes = "single"
