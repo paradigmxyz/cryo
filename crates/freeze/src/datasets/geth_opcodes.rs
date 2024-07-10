@@ -1,5 +1,7 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::rpc::types::trace::geth::{
+    DefaultFrame, GethDebugTracingOptions, GethDefaultTracingOptions,
+};
 use polars::prelude::*;
 
 /// columns for geth traces
@@ -40,13 +42,21 @@ impl CollectByBlock for GethOpcodes {
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethOpcodes)?;
-        let options = GethDebugTracingOptions {
+        // let options = GethDebugTracingOptions {
+        //     disable_storage: Some(!schema.has_column("storage")),
+        //     disable_stack: Some(!schema.has_column("stack")),
+        //     enable_memory: Some(schema.has_column("memory")),
+        //     enable_return_data: Some(schema.has_column("return_data")),
+        //     ..Default::default()
+        // };
+        let config = GethDefaultTracingOptions {
             disable_storage: Some(!schema.has_column("storage")),
             disable_stack: Some(!schema.has_column("stack")),
             enable_memory: Some(schema.has_column("memory")),
             enable_return_data: Some(schema.has_column("return_data")),
             ..Default::default()
         };
+        let options = GethDebugTracingOptions { config, ..Default::default() };
         let include_transaction = schema.has_column("block_number");
         let block_number = request.block_number()? as u32;
         source.geth_debug_trace_block_opcodes(block_number, include_transaction, options).await
@@ -63,14 +73,15 @@ impl CollectByTransaction for GethOpcodes {
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethOpcodes)?;
-        let options = GethDebugTracingOptions {
+        let include_block_number = schema.has_column("block_number");
+        let config = GethDefaultTracingOptions {
             disable_storage: Some(!schema.has_column("storage")),
             disable_stack: Some(!schema.has_column("stack")),
             enable_memory: Some(schema.has_column("memory")),
             enable_return_data: Some(schema.has_column("return_data")),
             ..Default::default()
         };
-        let include_block_number = schema.has_column("block_number");
+        let options = GethDebugTracingOptions { config, ..Default::default() };
         source
             .geth_debug_trace_transaction_opcodes(
                 request.transaction_hash()?,

@@ -168,6 +168,7 @@ async fn parse_block_inputs(
     }
 }
 
+#[derive(Clone, Debug)]
 enum RangePosition {
     First,
     Last,
@@ -322,15 +323,14 @@ async fn parse_block_number(
     source: Arc<Source>,
 ) -> Result<u64, ParseError> {
     match (block_ref, range_position) {
-        ("latest", _) => source.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
+        ("latest", _) => source.get_block_number().await.map_err(|_e| {
             ParseError::ParseError("Error retrieving latest block number".to_string())
         }),
         ("", RangePosition::First) => Ok(0),
-        ("", RangePosition::Last) => {
-            source.get_block_number().await.map(|n| n.as_u64()).map_err(|_e| {
-                ParseError::ParseError("Error retrieving last block number".to_string())
-            })
-        }
+        ("", RangePosition::Last) => source
+            .get_block_number()
+            .await
+            .map_err(|_e| ParseError::ParseError("Error retrieving last block number".to_string())),
         ("", RangePosition::None) => Err(ParseError::ParseError("invalid input".to_string())),
         _ if block_ref.ends_with('B') | block_ref.ends_with('b') => {
             let s = &block_ref[..block_ref.len() - 1];
@@ -366,7 +366,7 @@ async fn apply_reorg_buffer(
         0 => Ok(block_chunks),
         reorg_filter => {
             let latest_block = match source.get_block_number().await {
-                Ok(result) => result.as_u64(),
+                Ok(result) => result,
                 Err(_e) => {
                     return Err(ParseError::ParseError("reorg buffer parse error".to_string()))
                 }
@@ -387,24 +387,34 @@ pub(crate) async fn get_latest_block_number(source: Arc<Source>) -> Result<u64, 
     source
         .get_block_number()
         .await
-        .map(|n| n.as_u64())
         .map_err(|_e| ParseError::ParseError("Error retrieving latest block number".to_string()))
 }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use ethers::prelude::*;
+    use std::path::PathBuf;
 
+    use alloy::{
+        providers::{IpcConnect, ProviderBuilder},
+        transports::ipc::MockIpcServer,
+    };
+
+    use super::*;
+
+    #[derive(Clone, Debug)]
     enum BlockTokenTest<'a> {
         WithoutMock((&'a str, BlockChunk)),   // Token | Expected
         WithMock((&'a str, BlockChunk, u64)), // Token | Expected | Mock Block Response
     }
 
-    async fn block_token_test_helper(tests: Vec<(BlockTokenTest<'_>, bool)>) {
-        let (provider, mock) = Provider::mocked();
+    async fn block_token_test_helper(
+        tests: Vec<(BlockTokenTest<'_>, bool)>,
+        mock_ipc_path: PathBuf,
+    ) {
+        let ipc = IpcConnect::new(mock_ipc_path);
+        let provider = ProviderBuilder::new().on_ipc(ipc).await.unwrap().boxed();
         let source = Source {
-            provider: provider.into(),
+            provider,
             semaphore: Arc::new(None),
             rate_limiter: Arc::new(None),
             chain_id: 1,
@@ -416,8 +426,7 @@ mod tests {
         let source = Arc::new(source);
         for (test, res) in tests {
             match test {
-                BlockTokenTest::WithMock((token, expected, latest)) => {
-                    mock.push(U64::from(latest)).unwrap();
+                BlockTokenTest::WithMock((token, expected, _latest)) => {
                     assert_eq!(
                         block_token_test_executor(token, expected, source.clone()).await,
                         res
@@ -458,15 +467,20 @@ mod tests {
         }
     }
 
+    #[derive(Clone, Debug)]
     enum BlockInputTest<'a> {
         WithoutMock((&'a String, Vec<BlockChunk>)), // Token | Expected
         WithMock((&'a String, Vec<BlockChunk>, u64)), // Token | Expected | Mock Block Response
     }
 
-    async fn block_input_test_helper(tests: Vec<(BlockInputTest<'_>, bool)>) {
-        let (provider, mock) = Provider::mocked();
+    async fn block_input_test_helper(
+        tests: Vec<(BlockInputTest<'_>, bool)>,
+        mock_ipc_path: PathBuf,
+    ) {
+        let ipc = IpcConnect::new(mock_ipc_path);
+        let provider = ProviderBuilder::new().on_ipc(ipc).await.unwrap().boxed();
         let source = Arc::new(Source {
-            provider: provider.into(),
+            provider,
             chain_id: 1,
             rpc_url: "".to_string(),
             inner_request_size: 1,
@@ -477,8 +491,7 @@ mod tests {
         });
         for (test, res) in tests {
             match test {
-                BlockInputTest::WithMock((inputs, expected, latest)) => {
-                    mock.push(U64::from(latest)).unwrap();
+                BlockInputTest::WithMock((inputs, expected, _latest)) => {
                     assert_eq!(
                         block_input_test_executor(inputs, expected, source.clone()).await,
                         res
@@ -531,15 +544,20 @@ mod tests {
         true
     }
 
+    #[derive(Clone, Debug)]
     enum BlockNumberTest<'a> {
         WithoutMock((&'a str, RangePosition, u64)),
         WithMock((&'a str, RangePosition, u64, u64)),
     }
 
-    async fn block_number_test_helper(tests: Vec<(BlockNumberTest<'_>, bool)>) {
-        let (provider, mock) = Provider::mocked();
+    async fn block_number_test_helper(
+        tests: Vec<(BlockNumberTest<'_>, bool)>,
+        mock_ipc_path: PathBuf,
+    ) {
+        let provider =
+            ProviderBuilder::new().on_ipc(IpcConnect::new(mock_ipc_path)).await.unwrap().boxed();
         let source = Source {
-            provider: provider.into(),
+            provider,
             semaphore: Arc::new(None),
             rate_limiter: Arc::new(None),
             chain_id: 1,
@@ -551,8 +569,7 @@ mod tests {
         let source = Arc::new(source);
         for (test, res) in tests {
             match test {
-                BlockNumberTest::WithMock((block_ref, range_position, expected, latest)) => {
-                    mock.push(U64::from(latest)).unwrap();
+                BlockNumberTest::WithMock((block_ref, range_position, expected, _latest)) => {
                     assert_eq!(
                         block_number_test_executor(
                             block_ref,
@@ -604,7 +621,18 @@ mod tests {
             // Number type
             (BlockTokenTest::WithoutMock((r"1", BlockChunk::Numbers(vec![1]))), true), /* Single block */
         ];
-        block_token_test_helper(tests).await;
+        let mut mock_server = MockIpcServer::new();
+        let mock_ipc_path = mock_server.path().clone();
+        for (test, _) in tests.clone().into_iter() {
+            match test {
+                BlockTokenTest::WithoutMock(_) => {}
+                BlockTokenTest::WithMock((_, _, mock_response)) => {
+                    mock_server.add_reply(mock_response)
+                }
+            }
+        }
+        mock_server.spawn().await;
+        block_token_test_helper(tests, mock_ipc_path).await;
     }
 
     #[tokio::test]
@@ -648,7 +676,16 @@ mod tests {
                 true,
             ), // Multi input complex
         ];
-        block_input_test_helper(tests).await;
+        let mut mock_server = MockIpcServer::new();
+        let mock_ipc_path = mock_server.path().clone();
+        for (test, _) in tests.clone() {
+            match test {
+                BlockInputTest::WithMock((_, _, expected)) => mock_server.add_reply(expected),
+                BlockInputTest::WithoutMock(_) => {}
+            }
+        }
+        mock_server.spawn().await;
+        block_input_test_helper(tests, mock_ipc_path).await;
     }
 
     #[tokio::test]
@@ -666,6 +703,15 @@ mod tests {
             (BlockNumberTest::WithoutMock((r"1m", RangePosition::None, 1000000)), true), // m
             (BlockNumberTest::WithoutMock((r"1k", RangePosition::None, 1000)), true), // k
         ];
-        block_number_test_helper(tests).await;
+        let mut mock_server = MockIpcServer::new();
+        let mock_ipc_path = mock_server.path().clone();
+        for (test, _) in tests.clone() {
+            match test {
+                BlockNumberTest::WithMock((_, _, _, expected)) => mock_server.add_reply(expected),
+                BlockNumberTest::WithoutMock(_) => {}
+            }
+        }
+        mock_server.spawn().await;
+        block_number_test_helper(tests, mock_ipc_path).await;
     }
 }

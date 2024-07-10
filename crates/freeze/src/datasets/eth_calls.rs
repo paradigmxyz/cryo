@@ -1,5 +1,8 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    primitives::{keccak256, TxKind},
+    rpc::types::{TransactionInput, TransactionRequest},
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -47,12 +50,12 @@ impl CollectByBlock for EthCalls {
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let transaction = TransactionRequest {
-            to: Some(request.ethers_contract()?.into()),
-            data: Some(request.call_data()?.into()),
+            to: Some(TxKind::Call(request.ethers_contract()?)),
+            input: TransactionInput::new(request.call_data()?.into()),
             ..Default::default()
         };
         let number = request.block_number()?;
-        let output = source.call(transaction, number.into()).await.ok().map(|x| x.to_vec());
+        let output = source.call(transaction, number).await.ok().map(|x| x.to_vec());
         Ok((number as u32, request.contract()?, request.call_data()?, output))
     }
 
@@ -73,12 +76,7 @@ fn process_eth_call(response: EthCallsResponse, columns: &mut EthCalls, schema: 
     store!(schema, columns, block_number, block_number);
     store!(schema, columns, contract_address, contract_address);
     store!(schema, columns, call_data, call_data.clone());
-    store!(schema, columns, call_data_hash, ethers_core::utils::keccak256(call_data).into());
+    store!(schema, columns, call_data_hash, keccak256(call_data).to_vec());
     store!(schema, columns, output_data, output_data.clone());
-    store!(
-        schema,
-        columns,
-        output_data_hash,
-        output_data.map(|data| ethers_core::utils::keccak256(data).into())
-    );
+    store!(schema, columns, output_data_hash, output_data.map(|data| keccak256(data).to_vec()));
 }

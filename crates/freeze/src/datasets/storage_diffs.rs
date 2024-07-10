@@ -1,5 +1,8 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    primitives::{Address, B256},
+    rpc::types::trace::parity::{ChangedType, Delta, TraceResults},
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -24,7 +27,7 @@ impl Dataset for StorageDiffs {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for StorageDiffs {
@@ -33,7 +36,10 @@ impl CollectByBlock for StorageDiffs {
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::StorageDiffs)?;
         let include_txs = schema.has_column("transaction_hash");
-        source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
+        let (bn, txs, traces) =
+            source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await?;
+        let trace_results: Vec<TraceResults> = traces.into_iter().map(|t| t.full_trace).collect();
+        Ok((bn, txs, trace_results))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -62,7 +68,7 @@ pub(crate) fn process_storage_diffs(
     let schema = schemas.get(&Datatype::StorageDiffs).ok_or(err("schema not provided"))?;
     let (block_number, txs, traces) = response;
     for (index, (trace, tx)) in traces.iter().zip(txs).enumerate() {
-        if let Some(ethers::types::StateDiff(state_diffs)) = &trace.state_diff {
+        if let Some(state_diffs) = &trace.state_diff {
             for (addr, diff) in state_diffs.iter() {
                 process_storage_diff(addr, &diff.storage, block_number, tx, index, columns, schema);
             }
@@ -72,8 +78,8 @@ pub(crate) fn process_storage_diffs(
 }
 
 pub(crate) fn process_storage_diff(
-    addr: &H160,
-    diff: &std::collections::BTreeMap<H256, Diff<H256>>,
+    addr: &Address,
+    diff: &std::collections::BTreeMap<B256, Delta<B256>>,
     block_number: &Option<u32>,
     transaction_hash: &Option<Vec<u8>>,
     transaction_index: usize,
@@ -82,18 +88,18 @@ pub(crate) fn process_storage_diff(
 ) {
     for (s, sub_diff) in diff.iter() {
         let (from, to) = match sub_diff {
-            Diff::Same => continue,
-            Diff::Born(value) => (H256::zero(), *value),
-            Diff::Died(value) => (*value, H256::zero()),
-            Diff::Changed(ChangedType { from, to }) => (*from, *to),
+            Delta::Unchanged => continue,
+            Delta::Added(value) => (B256::ZERO, *value),
+            Delta::Removed(value) => (*value, B256::ZERO),
+            Delta::Changed(ChangedType { from, to }) => (*from, *to),
         };
         columns.n_rows += 1;
         store!(schema, columns, block_number, *block_number);
         store!(schema, columns, transaction_index, Some(transaction_index as u32));
         store!(schema, columns, transaction_hash, transaction_hash.clone());
-        store!(schema, columns, slot, s.as_bytes().to_vec());
-        store!(schema, columns, address, addr.as_bytes().to_vec());
-        store!(schema, columns, from_value, from.as_bytes().to_vec());
-        store!(schema, columns, to_value, to.as_bytes().to_vec());
+        store!(schema, columns, slot, s.to_vec());
+        store!(schema, columns, address, addr.to_vec());
+        store!(schema, columns, from_value, from.to_vec());
+        store!(schema, columns, to_value, to.to_vec());
     }
 }

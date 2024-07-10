@@ -1,5 +1,6 @@
 use super::erc20_metadata::remove_control_characters;
 use crate::*;
+use alloy::sol_types::SolCall;
 use polars::prelude::*;
 
 /// columns for transactions
@@ -37,7 +38,7 @@ impl CollectByBlock for Erc721Metadata {
         let address = request.ethers_address()?;
 
         // name
-        let call_data = FUNCTION_ERC20_NAME.clone();
+        let call_data = ERC721::nameCall::SELECTOR.to_vec();
         let name = match source.call2(address, call_data, block_number).await {
             Ok(output) => {
                 String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
@@ -46,7 +47,7 @@ impl CollectByBlock for Erc721Metadata {
         };
 
         // symbol
-        let call_data = FUNCTION_ERC20_SYMBOL.clone();
+        let call_data = ERC721::symbolCall::SELECTOR.to_vec();
         let symbol = match source.call2(address, call_data, block_number).await {
             Ok(output) => {
                 String::from_utf8(output.to_vec()).ok().map(|s| remove_control_characters(&s))
