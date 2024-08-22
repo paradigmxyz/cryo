@@ -64,7 +64,7 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
-### Python Instalation
+### Python Installation
 
 `cryo` can also be installed as a python package:
 
@@ -166,7 +166,7 @@ Options:
 
 Content Options:
   -b, --blocks <BLOCKS>...           Block numbers, see syntax below
-      --timestamps <TIMESTAMPS>...   Timestamp numbers in unix, overriden by blocks
+      --timestamps <TIMESTAMPS>...   Timestamp numbers in unix, overridden by blocks
   -t, --txs <TXS>...                 Transaction hashes, see syntax below
   -a, --align                        Align chunk boundaries to regular intervals,
                                      e.g. (1000 2000 3000), not (1106 2106 3106)
