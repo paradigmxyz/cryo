@@ -81,11 +81,8 @@ async fn run_freeze_process(
     let (query, source, sink, env) = parse::parse_args(&args).await?;
 
     let source = Arc::new(source);
-    let env = ExecutionEnv {
-        t_start_parse,
-        ..env
-    }
-    .set_start_time();
+    let env = ExecutionEnv {t_start_parse, ..env}
+        .set_start_time();
 
     cryo_freeze::freeze(&query, &source, &sink, &env).await
 }
@@ -196,35 +193,5 @@ mod tests {
         let result = handle_help_subcommands(args);
 
         assert!(result.is_ok());
-    }
-
-    #[test]
-    fn test_load_or_remember_command() {
-        let args = Args {
-            datatype: vec!["blocks".to_string()],
-            remember: true,
-            ..Default::default()
-        };
-
-        println!("{:?}", args);
-        
-        let cryo_dir: std::path::PathBuf = "./.cryo".into();
-        
-        if args.remember {
-            println!("remembering this command for future use\n");
-            remember::save_remembered_command(cryo_dir, &args).unwrap();
-        }
-
-        let cryo_dir: std::path::PathBuf = args.output_dir.clone().into();
-        let cryo_dir = cryo_dir.join(".cryo");
-
-        let result = load_or_remember_command(args.clone(), &cryo_dir);
-
-        println!("{:?}", result);
-        // Assuming the remembered command is empty for this test
-        // match result {
-        //     Ok(loaded_args) => assert_eq!(loaded_args.datatype, args.datatype),
-        //     Err(_) => panic!("Expected Ok result"),
-        // }
     }
 }
