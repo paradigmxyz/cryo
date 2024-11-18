@@ -66,7 +66,7 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         rpc_url,
         provider,
         labels: SourceLabels {
-            max_concurrent_requests: args.max_concurrent_requests(|x| x as u64),
+            max_concurrent_requests: args.max_concurrent_requests,
             max_requests_per_second: args.requests_per_second.map(|x| x as u64),
             max_retries: Some(args.max_retries),
             initial_backoff: Some(args.initial_backoff),
