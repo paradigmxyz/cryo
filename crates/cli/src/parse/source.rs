@@ -113,3 +113,66 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
         Ok(url)
     }
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use thousands::Separable;
+
+    async fn setup_source(max_concurrent_requests: u64) -> Source {
+        let rpc_url = match crate::parse::source::parse_rpc_url(&Args::default()) {
+            Ok(url) => url,
+            Err(_) => std::process::exit(0),
+        };
+        let max_retry = 5;
+        let initial_backoff = 500;
+        let max_concurrent_requests = max_concurrent_requests;
+        let provider =
+            Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
+                .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
+                .unwrap();
+
+        let quota = Quota::per_second(NonZeroU32::new(15).unwrap())
+            .allow_burst(NonZeroU32::new(1).unwrap());
+        let rate_limiter = Some(RateLimiter::direct(quota));
+        let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
+
+        Source {
+            provider: provider.into(),
+            semaphore: Arc::new(Some(semaphore)),
+            rate_limiter: Arc::new(rate_limiter),
+            chain_id: 1,
+            inner_request_size: 1,
+            max_concurrent_chunks: None,
+            rpc_url: "".to_string(),
+            labels: SourceLabels {
+                max_concurrent_requests: Some(max_concurrent_requests),
+                ..SourceLabels::default()
+            },
+        }
+    }
+
+    // modified freeze::types::summaries::print_bullet_indent(), returned as a string and removed formatting dependencies.
+    fn return_bullet_indent_no_formatting<A: AsRef<str>, B: AsRef<str>>(key: A, value: B, indent: usize) -> String {
+        let bullet_str = "- ";
+        let key_str = key.as_ref();
+        let value_str = value.as_ref();
+        let colon_str = ": ";
+        format!("{}{}{}{}{}", " ".repeat(indent), bullet_str, key_str, colon_str, value_str)
+    }
+
+    #[tokio::test]
+    async fn test_max_concurrent_requests_printing_some() {
+        let source: Source = setup_source(1337).await;
+
+        let output = return_bullet_indent_no_formatting(
+            "max concurrent requests",
+            source.labels.max_concurrent_requests.unwrap().separate_with_commas(),
+            4,
+        );
+
+        let expected = format!("    - max concurrent requests: 1,337");
+
+        assert_eq!(output, expected);
+    }
+}
