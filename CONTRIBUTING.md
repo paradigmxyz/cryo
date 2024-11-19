@@ -2,7 +2,7 @@
 
 Thanks for your interest in improving cryo!
 
-There are multiple opportunities to contribute at any level. It doesn't matter if you are just getting started with python or are the most weathered expert, we can use your help.
+There are multiple opportunities to contribute at any level. It doesn't matter if you are just getting started with python or are the most seasoned expert, we can use your help.
 
 **No contribution is too small and all contributions are valued.**
 
