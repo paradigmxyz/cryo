@@ -18,7 +18,7 @@ to discuss cryo, check out [the telegram group](https://t.me/paradigm_data)
 2. [Installation](#installation)
 3. [Data Schema](#data-schemas)
 4. [Code Guide](#code-guide)
-5. [Documenation](#documentation)
+5. [Documentation](#documentation)
     1. [Basics](#cryo-help)
     2. [Syntax](#cryo-syntax)
     3. [Datasets](#cryo-datasets)
@@ -64,7 +64,7 @@ This method requires having rust installed. See [rustup](https://rustup.rs/) for
 
 Make sure that `~/.cargo/bin` is on your `PATH`. One way to do this is by adding the line `export PATH="$HOME/.cargo/bin:$PATH"` to your `~/.bashrc` or `~/.profile`.
 
-### Python Instalation
+### Python Installation
 
 `cryo` can also be installed as a python package:
 
