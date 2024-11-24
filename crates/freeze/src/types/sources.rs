@@ -380,7 +380,7 @@ impl Source {
         Self::map_err(source_provider!(self, get_block(block_num)).await)
     }
 
-    /// Gets the block at `block_num` (transaction hashes only)
+    /// Gets the block with `block_hash` (transaction hashes only)
     pub async fn get_block_by_hash(&self, block_hash: H256) -> Result<Option<Block<TxHash>>> {
         let _permit = self.permit_request().await;
         Self::map_err(source_provider!(self, get_block(BlockId::Hash(block_hash))).await)

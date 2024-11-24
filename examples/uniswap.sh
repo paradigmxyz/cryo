@@ -7,6 +7,7 @@
 # - interruptible: you can interrupt the script whenever you want, the data will be fine
 # - incremental: only missing data is collected. re-running the script does not re-collect data
 
+
 # uniswap v2 pools
 cryo logs \
     --label uniswap_v2_pools \

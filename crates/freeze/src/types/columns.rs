@@ -52,10 +52,7 @@ pub trait ColumnData: Default + crate::Dataset {
 
     /// input arg aliases
     fn base_arg_aliases() -> HashMap<Dim, Dim> {
-        match Self::arg_aliases() {
-            Some(x) => x,
-            None => HashMap::new(),
-        }
+        Self::arg_aliases().unwrap_or_default()
     }
 }
 
