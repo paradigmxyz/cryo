@@ -32,5 +32,4 @@ polars = { workspace = true }
 rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
-thousands = { workspace = true }
 tokio = { workspace = true }
