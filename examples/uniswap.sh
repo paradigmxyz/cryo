@@ -4,7 +4,7 @@
 
 # This script is
 # - idempotent: run the script as many times as you want, the data will be fine
-# - interuptable: you can interrupt the script whenever you want, the data will be fine
+# - interruptible: you can interrupt the script whenever you want, the data will be fine
 # - incremental: only missing data is collected. re-runing the script does not re-collect data
 
 # uniswap v2 pools
