@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::primitives::{Address, U256};
 use polars::prelude::*;
 
 /// columns for balances
@@ -49,12 +49,12 @@ impl CollectByBlock for Slots {
         let slot = request.slot()?;
         let output = source
             .get_storage_at(
-                H160::from_slice(&address),
-                H256::from_slice(&slot),
+                Address::from_slice(&address),
+                U256::from_be_slice(&slot),
                 block_number.into(),
             )
             .await?;
-        Ok((block_number, None, address, slot, output.as_bytes().to_vec()))
+        Ok((block_number, None, address, slot, output.to_vec_u8()))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

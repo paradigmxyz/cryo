@@ -1,6 +1,6 @@
 use super::chunk_ops::ChunkData;
 use crate::ChunkError;
-use ethers::types::FilterBlockOption;
+use alloy::rpc::types::FilterBlockOption;
 
 /// Chunk of blocks
 #[derive(Debug, Clone)]

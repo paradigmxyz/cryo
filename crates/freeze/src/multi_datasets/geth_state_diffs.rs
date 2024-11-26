@@ -1,5 +1,8 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    primitives::{Address, Bytes, B256, U256},
+    rpc::types::trace::geth::{AccountState, DiffMode},
+};
 use polars::prelude::*;
 use std::collections::{BTreeMap, HashMap, HashSet};
 
@@ -46,7 +49,7 @@ impl ToDataFrames for GethStateDiffs {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::DiffMode>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<DiffMode>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethStateDiffs {
@@ -146,34 +149,34 @@ pub(crate) fn process_geth_diffs(
 }
 
 fn add_balances(
-    address: &H160,
+    address: &Address,
     pre: Option<U256>,
     post: Option<U256>,
     columns: &mut GethBalanceDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
 ) -> R<()> {
-    let (from_value, to_value) = parse_pre_post(pre, post, U256::zero);
+    let (from_value, to_value) = parse_pre_post(pre, post, U256::ZERO);
     let (block_number, transaction_index, transaction_hash) = index;
     columns.n_rows += 1;
     store!(schema, columns, block_number, *block_number);
     store!(schema, columns, transaction_index, Some(*transaction_index as u64));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
-    store!(schema, columns, address, address.as_bytes().to_vec());
+    store!(schema, columns, address, address.to_vec());
     store!(schema, columns, from_value, from_value);
     store!(schema, columns, to_value, to_value);
     Ok(())
 }
 
 fn add_codes(
-    address: &H160,
-    pre: &Option<String>,
-    post: &Option<String>,
+    address: &Address,
+    pre: &Option<Bytes>,
+    post: &Option<Bytes>,
     columns: &mut GethCodeDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
 ) -> R<()> {
-    let blank = String::new();
+    let blank = Bytes::new();
     let (from_value, to_value) = match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),
         (Some(pre), None) => (pre, &blank),
@@ -185,57 +188,40 @@ fn add_codes(
     store!(schema, columns, block_number, *block_number);
     store!(schema, columns, transaction_index, Some(*transaction_index as u64));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
-    store!(schema, columns, address, address.as_bytes().to_vec());
-    let from_value = if !from_value.is_empty() {
-        prefix_hex::decode(from_value).map_err(|_| err("could not decode from code contents"))?
-    } else {
-        vec![]
-    };
-    let to_value = if !to_value.is_empty() {
-        prefix_hex::decode(to_value).map_err(|_| err("could not decode to code contents"))?
-    } else {
-        vec![]
-    };
-    store!(schema, columns, from_value, from_value);
-    store!(schema, columns, to_value, to_value);
+    store!(schema, columns, address, address.to_vec());
+    store!(schema, columns, from_value, from_value.to_vec());
+    store!(schema, columns, to_value, to_value.to_vec());
     Ok(())
 }
 
 fn add_nonces(
-    address: &H160,
-    pre: Option<U256>,
-    post: Option<U256>,
+    address: &Address,
+    pre: Option<u64>,
+    post: Option<u64>,
     columns: &mut GethNonceDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
 ) -> R<()> {
-    let (from_value, to_value) = parse_pre_post(pre, post, U256::zero);
+    let (from_value, to_value) = parse_pre_post(pre, post, 0_u64);
     let (block_number, transaction_index, transaction_hash) = index;
     columns.n_rows += 1;
     store!(schema, columns, block_number, *block_number);
     store!(schema, columns, transaction_index, Some(*transaction_index as u64));
     store!(schema, columns, transaction_hash, transaction_hash.clone());
-    store!(schema, columns, address, address.as_bytes().to_vec());
+    store!(schema, columns, address, address.to_vec());
     store!(schema, columns, from_value, from_value);
     store!(schema, columns, to_value, to_value);
     Ok(())
 }
 
 fn add_storages(
-    address: &H160,
-    pre: &Option<BTreeMap<H256, H256>>,
-    post: &Option<BTreeMap<H256, H256>>,
+    address: &Address,
+    pre: &BTreeMap<B256, B256>,
+    post: &BTreeMap<B256, B256>,
     columns: &mut GethStorageDiffs,
     schema: &Table,
     index: &(Option<u32>, u32, Option<Vec<u8>>),
 ) -> R<()> {
-    let blank = BTreeMap::new();
-    let (pre, post) = match (pre, post) {
-        (Some(pre), Some(post)) => (pre, post),
-        (Some(pre), None) => (pre, &blank),
-        (None, Some(post)) => (&blank, post),
-        (None, None) => (&blank, &blank),
-    };
     let (block_number, transaction_index, transaction_hash) = index;
     let slots: Vec<_> = pre
         .clone()
@@ -244,7 +230,7 @@ fn add_storages(
         .collect::<HashSet<_>>()
         .into_iter()
         .collect();
-    let blank = H256::zero();
+    let blank = B256::ZERO;
     for slot in slots.into_iter() {
         let (from, to) = match (pre.get(&slot), post.get(&slot)) {
             (Some(pre), Some(post)) => (pre, post),
@@ -256,19 +242,22 @@ fn add_storages(
         store!(schema, columns, block_number, *block_number);
         store!(schema, columns, transaction_index, Some(*transaction_index as u64));
         store!(schema, columns, transaction_hash, transaction_hash.clone());
-        store!(schema, columns, address, address.as_bytes().to_vec());
-        store!(schema, columns, slot, slot.as_bytes().to_vec());
-        store!(schema, columns, from_value, from.as_bytes().to_vec());
-        store!(schema, columns, to_value, to.as_bytes().to_vec());
+        store!(schema, columns, address, address.to_vec());
+        store!(schema, columns, slot, slot.to_vec());
+        store!(schema, columns, from_value, from.to_vec());
+        store!(schema, columns, to_value, to.to_vec());
     }
     Ok(())
 }
 
-fn parse_pre_post<T>(pre: Option<T>, post: Option<T>, new: fn() -> T) -> (T, T) {
+fn parse_pre_post<T>(pre: Option<T>, post: Option<T>, new: T) -> (T, T)
+where
+    T: Copy + Clone,
+{
     match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),
-        (Some(pre), None) => (pre, new()),
-        (None, Some(post)) => (new(), post),
-        (None, None) => (new(), new()),
+        (Some(pre), None) => (pre, new),
+        (None, Some(post)) => (new, post),
+        (None, None) => (new, new),
     }
 }

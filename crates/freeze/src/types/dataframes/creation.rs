@@ -74,7 +74,7 @@ macro_rules! with_series_u256 {
                 let name = $name.to_string() + U256Type::U32.suffix().as_str();
                 let name = name.as_str();
 
-                let converted: Vec<u32> = $value.iter().map(|v| v.as_u32()).collect();
+                let converted: Vec<u32> = $value.iter().map(|v| v.wrapping_to::<u32>()).collect();
                 $all_series.push(Series::new(name, converted));
             }
 
@@ -83,7 +83,7 @@ macro_rules! with_series_u256 {
                 let name = $name.to_string() + U256Type::U64.suffix().as_str();
                 let name = name.as_str();
 
-                let converted: Vec<u64> = $value.iter().map(|v| v.as_u64()).collect();
+                let converted: Vec<u64> = $value.iter().map(|v| v.wrapping_to::<u64>()).collect();
                 $all_series.push(Series::new(name, converted));
             }
 
@@ -154,7 +154,7 @@ macro_rules! with_series_option_u256 {
                 let name = name.as_str();
 
                 let converted: Vec<Option<u32>> =
-                    $value.iter().map(|v| v.map(|x| x.as_u32())).collect();
+                    $value.iter().map(|v| v.map(|x| x.wrapping_to::<u32>())).collect();
                 $all_series.push(Series::new(name, converted));
             }
 
@@ -164,7 +164,7 @@ macro_rules! with_series_option_u256 {
                 let name = name.as_str();
 
                 let converted: Vec<Option<u64>> =
-                    $value.iter().map(|v| v.map(|x| x.as_u64())).collect();
+                    $value.iter().map(|v| v.map(|x| x.wrapping_to::<u64>())).collect();
                 $all_series.push(Series::new(name, converted));
             }
 
