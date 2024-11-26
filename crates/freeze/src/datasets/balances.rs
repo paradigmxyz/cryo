@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::primitives::{Address, U256};
 use polars::prelude::*;
 
 /// columns for balances
@@ -37,7 +37,8 @@ impl CollectByBlock for Balances {
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let address = request.address()?;
         let block_number = request.block_number()? as u32;
-        let balance = source.get_balance(H160::from_slice(&address), block_number.into()).await?;
+        let balance =
+            source.get_balance(Address::from_slice(&address), block_number.into()).await?;
         Ok((block_number, None, address, balance))
     }
 

@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::primitives::Address;
 use polars::prelude::*;
 
 /// columns for balances
@@ -37,9 +37,10 @@ impl CollectByBlock for Nonces {
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let address = request.address()?;
         let block_number = request.block_number()? as u32;
-        let output =
-            source.get_transaction_count(H160::from_slice(&address), block_number.into()).await?;
-        Ok((block_number, None, address, output.as_u64()))
+        let output = source
+            .get_transaction_count(Address::from_slice(&address), block_number.into())
+            .await?;
+        Ok((block_number, None, address, output))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

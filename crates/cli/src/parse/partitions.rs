@@ -8,7 +8,6 @@ use cryo_freeze::{
     AddressChunk, CallDataChunk, Datatype, Dim, ParseError, Partition, PartitionLabels, SlotChunk,
     Source, Table, TimeDimension, TopicChunk, TransactionChunk,
 };
-use ethers::prelude::*;
 use rand::{seq::SliceRandom, thread_rng};
 use std::{collections::HashMap, str::FromStr, sync::Arc};
 

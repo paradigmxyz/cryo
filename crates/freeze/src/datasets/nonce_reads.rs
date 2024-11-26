@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{primitives::Address, rpc::types::trace::geth::AccountState};
 use polars::prelude::*;
 use std::collections::BTreeMap;
 
@@ -19,7 +19,7 @@ pub struct NonceReads {
 #[async_trait::async_trait]
 impl Dataset for NonceReads {}
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<Address, AccountState>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for NonceReads {
@@ -68,7 +68,7 @@ pub(crate) fn process_nonce_reads(
 }
 
 pub(crate) fn process_nonce_read(
-    addr: &H160,
+    addr: &Address,
     account_state: &AccountState,
     block_number: &Option<u32>,
     transaction_hash: &Option<Vec<u8>>,
@@ -81,7 +81,7 @@ pub(crate) fn process_nonce_read(
         store!(schema, columns, block_number, *block_number);
         store!(schema, columns, transaction_index, Some(transaction_index as u32));
         store!(schema, columns, transaction_hash, transaction_hash.clone());
-        store!(schema, columns, address, addr.as_bytes().to_vec());
-        store!(schema, columns, nonce, nonce.as_u64());
+        store!(schema, columns, address, addr.to_vec());
+        store!(schema, columns, nonce, *nonce);
     }
 }

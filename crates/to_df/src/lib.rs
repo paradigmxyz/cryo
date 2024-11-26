@@ -98,47 +98,47 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                     }
                 }
 
-                use ethers_core::abi::ParamType;
-
                 // Write columns even if there are no values decoded - indicates empty dataframe
                 let chunk_len = self.n_rows;
                 if self.event_cols.is_empty() {
                     for param in decoder.event.inputs.iter() {
                         let name = "event__".to_string() + param.name.as_str();
                         let name = name.as_str();
-                        match param.kind {
-                            ParamType::Address => {
+                        let ty = DynSolType::parse(&param.ty).unwrap();
+                        match ty {
+                            DynSolType::Address => {
                                 match schema.binary_type {
                                     ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
                                     ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
                                 }
                             },
-                            ParamType::Bytes => {
+                            DynSolType::Bytes => {
                                 match schema.binary_type {
                                     ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
                                     ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
                                 }
                             },
-                            ParamType::Int(bits) => {
+                            DynSolType::Int(bits) => {
                                 if bits <= 64 {
                                     cols.push(Series::new(name, Vec::<i64>::new()))
                                 } else {
                                     create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
                                 }
                             },
-                            ParamType::Uint(bits) => {
+                            DynSolType::Uint(bits) => {
                                 if bits <= 64 {
                                     cols.push(Series::new(name, Vec::<u64>::new()))
                                 } else {
                                     create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
                                 }
                             },
-                            ParamType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
-                            ParamType::String => cols.push(Series::new(name, Vec::<String>::new())),
-                            ParamType::Array(_) => return Err(err("could not generate Array column")),
-                            ParamType::FixedBytes(_) => return Err(err("could not generate FixedBytes column")),
-                            ParamType::FixedArray(_, _) => return Err(err("could not generate FixedArray column")),
-                            ParamType::Tuple(_) => return Err(err("could not generate Tuple column")),
+                            DynSolType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
+                            DynSolType::String => cols.push(Series::new(name, Vec::<String>::new())),
+                            DynSolType::Array(_) => return Err(err("could not generate Array column")),
+                            DynSolType::FixedBytes(_) => return Err(err("could not generate FixedBytes column")),
+                            DynSolType::FixedArray(_, _) => return Err(err("could not generate FixedArray column")),
+                            DynSolType::Tuple(_) => return Err(err("could not generate Tuple column")),
+                            DynSolType::Function => return Err(err("could not generate Function column")),
                             _ => (),
                         }
                     }
