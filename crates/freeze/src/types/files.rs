@@ -14,7 +14,7 @@ pub struct FileOutput {
     pub subdirs: Vec<SubDir>,
     /// Whether to overwrite existing files or skip them
     pub overwrite: bool,
-    /// File format to used for output files
+    /// File format to use for output files
     pub format: FileFormat,
     /// Number of rows per parquet row group
     pub row_group_size: Option<usize>,
