@@ -4,7 +4,7 @@ the requirements below.
 
 Bug fixes and new features should include tests.
 
-Contributors guide: https://github.com/paradigmxyz/flood/blob/master/CONTRIBUTING.md
+Contributors guide: https://github.com/paradigmxyz/cryo/blob/master/CONTRIBUTING.md
 
 The contributors guide includes instructions for running ruff and building the
 documentation.
