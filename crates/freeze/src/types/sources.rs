@@ -67,8 +67,7 @@ impl Source {
         &self,
         block: &Block<Transaction>,
     ) -> Result<Vec<TransactionReceipt>> {
-        let block_number =
-            block.header.number.ok_or(CollectError::CollectError("no block number".to_string()))?;
+        let block_number = block.header.number;
         if let Ok(Some(receipts)) = self.get_block_receipts(block_number).await {
             return Ok(receipts);
         }
@@ -83,7 +82,7 @@ impl Source {
     ) -> Result<Vec<TransactionReceipt>> {
         let mut tasks = Vec::new();
         for tx in transactions.as_transactions().unwrap() {
-            let tx_hash = tx.hash;
+            let tx_hash = tx.inner.tx_hash().clone();
             let source = self.clone();
             let task: task::JoinHandle<std::result::Result<TransactionReceipt, CollectError>> =
                 task::spawn(async move {
@@ -239,7 +238,7 @@ impl Source {
         trace_types: Vec<TraceType>,
     ) -> Result<Vec<TraceResultsWithTransactionHash>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_block_transactions(block, &trace_types).await)
+        Self::map_err(self.provider.trace_replay_block_transactions(block.into(), &trace_types).await)
     }
 
     /// Get state diff traces of block
@@ -265,7 +264,7 @@ impl Source {
                 .as_transactions()
                 .unwrap()
                 .iter()
-                .map(|tx| Some(tx.hash.to_vec()))
+                .map(|tx| Some(tx.inner.tx_hash().to_vec()))
                 .collect()
         } else {
             vec![None; result.len()]
@@ -762,7 +761,11 @@ impl Source {
         //     GethDebugBuiltInTracerConfig::PreStateTracer(PreStateConfig { diff_mode: Some(true)
         // }),
         let options = GethDebugTracingOptions::default()
-            .with_prestate_config(PreStateConfig { diff_mode: Some(true) })
+            .with_prestate_config(PreStateConfig {
+                diff_mode: Some(true),
+                disable_code: None,
+                disable_storage: None
+            })
             .with_tracer(tracer);
         let (block, txs, traces) =
             self.geth_debug_trace_block(block_number, options, include_transaction_hashes).await?;
@@ -958,7 +961,11 @@ impl Source {
         // }), );
         let options = GethDebugTracingOptions::default()
             .with_tracer(tracer)
-            .with_prestate_config(PreStateConfig { diff_mode: Some(true) });
+            .with_prestate_config(PreStateConfig {
+                diff_mode: Some(true),
+                disable_code: None,
+                disable_storage: None,
+            });
         let (block, txs, traces) = self
             .geth_debug_trace_transaction(transaction_hash, options, include_transaction_hashes)
             .await?;

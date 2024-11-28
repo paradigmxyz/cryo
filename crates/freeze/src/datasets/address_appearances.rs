@@ -326,10 +326,7 @@ fn process_appearances(
         }
     }
 
-    let (_block_number, block_author) = match (block.header.number, block.header.miner) {
-        (Some(number), author) => (number, author),
-        _ => return Ok(()),
-    };
+    let (_block_number, block_author) = (block.header.number, block.header.beneficiary);
 
     let mut current_tx_hash = TxHash::ZERO;
     for trace in traces.iter() {

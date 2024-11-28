@@ -19,7 +19,7 @@ cryo_cli = { version = "0.3.2", path = "./crates/cli" }
 cryo_freeze = { version = "0.3.2", path = "./crates/freeze" }
 cryo_to_df = { version = "0.3.2", path = "./crates/to_df" }
 
-alloy = { version = "0.1", features = [
+alloy = { version = "0.6.4", features = [
     "full",
     "rpc-types-trace",
     "provider-ws",

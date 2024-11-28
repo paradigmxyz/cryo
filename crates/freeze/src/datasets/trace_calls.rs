@@ -106,7 +106,7 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
             store!(schema, columns, action_from, Some(action.from.to_vec()));
             store!(schema, columns, action_to, Some(action.to.to_vec()));
             store!(schema, columns, action_value, action.value.to_string());
-            store!(schema, columns, action_gas, Some(action.gas.wrapping_to::<u32>()));
+            store!(schema, columns, action_gas, Some(action.gas as u32));
             store!(schema, columns, action_input, Some(action.input.to_vec()));
             store!(
                 schema,
@@ -121,7 +121,7 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
             store!(schema, columns, action_from, Some(action.from.to_vec()));
             store!(schema, columns, action_to, None);
             store!(schema, columns, action_value, action.value.to_string());
-            store!(schema, columns, action_gas, Some(action.gas.wrapping_to::<u32>()));
+            store!(schema, columns, action_gas, Some(action.gas as u32));
             store!(schema, columns, action_input, None);
             store!(schema, columns, action_call_type, None);
             store!(schema, columns, action_init, Some(action.init.to_vec()));
@@ -158,13 +158,13 @@ fn process_action(action: &Action, columns: &mut TraceCalls, schema: &Table) {
 fn process_result(result: &Option<TraceOutput>, columns: &mut TraceCalls, schema: &Table) {
     match result {
         Some(TraceOutput::Call(result)) => {
-            store!(schema, columns, result_gas_used, Some(result.gas_used.wrapping_to::<u32>()));
+            store!(schema, columns, result_gas_used, Some(result.gas_used as u32));
             store!(schema, columns, result_output, Some(result.output.to_vec()));
             store!(schema, columns, result_code, None);
             store!(schema, columns, result_address, None);
         }
         Some(TraceOutput::Create(result)) => {
-            store!(schema, columns, result_gas_used, Some(result.gas_used.wrapping_to::<u32>()));
+            store!(schema, columns, result_gas_used, Some(result.gas_used as u32));
             store!(schema, columns, result_output, None);
             store!(schema, columns, result_code, Some(result.code.to_vec()));
             store!(schema, columns, result_address, Some(result.address.to_vec()));
