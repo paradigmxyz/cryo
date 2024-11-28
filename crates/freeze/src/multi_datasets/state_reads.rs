@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{primitives::Address, rpc::types::trace::geth::AccountState};
 use polars::prelude::*;
 use std::collections::{BTreeMap, HashMap};
 
@@ -12,7 +12,7 @@ pub struct StateReads(
     storage_reads::StorageReads,
 );
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<Address, AccountState>>);
 
 impl ToDataFrames for StateReads {
     fn create_dfs(

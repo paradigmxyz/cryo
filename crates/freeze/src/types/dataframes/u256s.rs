@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::primitives::{I256, U256};
 use polars::prelude::*;
 
 /// Converts a Vec of U256-like data into a polars Series
@@ -46,11 +46,11 @@ impl ToU256Series for Vec<U256> {
                 Ok(Series::new(name, converted))
             }
             U256Type::U32 => {
-                let converted: Vec<u32> = self.iter().map(|v| v.as_u32()).collect();
+                let converted: Vec<u32> = self.iter().map(|v| v.wrapping_to::<u32>()).collect();
                 Ok(Series::new(name, converted))
             }
             U256Type::U64 => {
-                let converted: Vec<u64> = self.iter().map(|v| v.as_u64()).collect();
+                let converted: Vec<u64> = self.iter().map(|v| v.wrapping_to::<u64>()).collect();
                 Ok(Series::new(name, converted))
             }
             U256Type::Decimal128 => {
@@ -100,12 +100,12 @@ impl ToU256Series for Vec<Option<U256>> {
             }
             U256Type::U32 => {
                 let converted: Vec<Option<u32>> =
-                    self.iter().map(|v| v.map(|x| x.as_u32())).collect();
+                    self.iter().map(|v| v.map(|x| x.wrapping_to::<u32>())).collect();
                 Ok(Series::new(name, converted))
             }
             U256Type::U64 => {
                 let converted: Vec<Option<u64>> =
-                    self.iter().map(|v| v.map(|x| x.as_u64())).collect();
+                    self.iter().map(|v| v.map(|x| x.wrapping_to::<u64>())).collect();
                 Ok(Series::new(name, converted))
             }
             U256Type::Decimal128 => {

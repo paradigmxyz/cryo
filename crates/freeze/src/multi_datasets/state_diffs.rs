@@ -1,4 +1,5 @@
 use crate::*;
+use alloy::rpc::types::trace::parity::TraceResults;
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -11,7 +12,7 @@ pub struct StateDiffs(
     storage_diffs::StorageDiffs,
 );
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<ethers::types::BlockTrace>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
 
 impl ToDataFrames for StateDiffs {
     fn create_dfs(
@@ -35,7 +36,10 @@ impl CollectByBlock for StateDiffs {
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let include_txs = query.schemas.values().any(|x| x.has_column("transaction_hash"));
-        source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await
+        let (bn, txs, traces) =
+            source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await?;
+        let trace_results = traces.into_iter().map(|t| t.full_trace).collect();
+        Ok((bn, txs, trace_results))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {

@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::primitives::U256;
 use polars::prelude::*;
 
 /// columns for transactions

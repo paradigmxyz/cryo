@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{primitives::U256, rpc::types::trace::geth::CallFrame};
 use polars::prelude::*;
 
 /// columns for geth traces
@@ -83,8 +83,8 @@ fn process_trace(
 ) -> R<()> {
     columns.n_rows += 1;
     store!(schema, columns, typ, trace.typ);
-    store!(schema, columns, from_address, trace.from.as_bytes().to_vec());
-    store!(schema, columns, to_address, noa_to_vec_u8(trace.to)?);
+    store!(schema, columns, from_address, trace.from.to_vec());
+    store!(schema, columns, to_address, trace.to.map(|x| x.to_vec()));
     store!(schema, columns, value, trace.value);
     store!(schema, columns, gas, trace.gas);
     store!(schema, columns, gas_used, trace.gas_used);
@@ -101,21 +101,11 @@ fn process_trace(
         trace_address.iter().map(|&n| n.to_string()).collect::<Vec<_>>().join(" ")
     );
 
-    if let Some(subcalls) = trace.calls {
-        for (s, subcall) in subcalls.into_iter().enumerate() {
-            let mut sub_trace_address = trace_address.clone();
-            sub_trace_address.push(s as u32);
-            process_trace(subcall, columns, schema, block_number, tx, tx_index, sub_trace_address)?
-        }
+    for (s, subcall) in trace.calls.into_iter().enumerate() {
+        let mut sub_trace_address = trace_address.clone();
+        sub_trace_address.push(s as u32);
+        process_trace(subcall, columns, schema, block_number, tx, tx_index, sub_trace_address)?
     }
 
     Ok(())
-}
-
-fn noa_to_vec_u8(value: Option<NameOrAddress>) -> R<Option<Vec<u8>>> {
-    match value {
-        Some(NameOrAddress::Address(address)) => Ok(Some(address.as_bytes().to_vec())),
-        Some(NameOrAddress::Name(_)) => Err(err("block name string not allowed")),
-        None => Ok(None),
-    }
 }
