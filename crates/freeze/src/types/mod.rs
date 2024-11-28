@@ -1,5 +1,4 @@
 /// type specifications for cryo_freeze crate
-
 /// type specifications for chunk types
 pub mod chunks;
 /// conversion operations

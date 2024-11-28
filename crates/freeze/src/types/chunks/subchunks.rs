@@ -27,7 +27,7 @@ impl Subchunk for BlockChunk {
 
     fn subchunk_by_count(&self, n_chunks: &u64) -> Vec<BlockChunk> {
         let total_blocks = self.size();
-        let chunk_size = (total_blocks + n_chunks - 1) / n_chunks;
+        let chunk_size = total_blocks.div_ceil(*n_chunks);
         self.subchunk_by_size(&chunk_size)
     }
 }

@@ -82,7 +82,7 @@ impl Source {
     ) -> Result<Vec<TransactionReceipt>> {
         let mut tasks = Vec::new();
         for tx in transactions.as_transactions().unwrap() {
-            let tx_hash = tx.inner.tx_hash().clone();
+            let tx_hash = *tx.inner.tx_hash();
             let source = self.clone();
             let task: task::JoinHandle<std::result::Result<TransactionReceipt, CollectError>> =
                 task::spawn(async move {
@@ -238,7 +238,9 @@ impl Source {
         trace_types: Vec<TraceType>,
     ) -> Result<Vec<TraceResultsWithTransactionHash>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_block_transactions(block.into(), &trace_types).await)
+        Self::map_err(
+            self.provider.trace_replay_block_transactions(block.into(), &trace_types).await,
+        )
     }
 
     /// Get state diff traces of block
@@ -764,7 +766,7 @@ impl Source {
             .with_prestate_config(PreStateConfig {
                 diff_mode: Some(true),
                 disable_code: None,
-                disable_storage: None
+                disable_storage: None,
             })
             .with_tracer(tracer);
         let (block, txs, traces) =
@@ -959,13 +961,9 @@ impl Source {
         // let config = GethDebugTracerConfig::BuiltInTracer(
         //     GethDebugBuiltInTracerConfig::PreStateTracer(PreStateConfig { diff_mode: Some(true)
         // }), );
-        let options = GethDebugTracingOptions::default()
-            .with_tracer(tracer)
-            .with_prestate_config(PreStateConfig {
-                diff_mode: Some(true),
-                disable_code: None,
-                disable_storage: None,
-            });
+        let options = GethDebugTracingOptions::default().with_tracer(tracer).with_prestate_config(
+            PreStateConfig { diff_mode: Some(true), disable_code: None, disable_storage: None },
+        );
         let (block, txs, traces) = self
             .geth_debug_trace_transaction(transaction_hash, options, include_transaction_hashes)
             .await?;

@@ -98,21 +98,26 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
 
     store!(schema, columns, block_hash, Some(block.header.hash.to_vec()));
     store!(schema, columns, parent_hash, block.header.parent_hash.0.to_vec());
-    store!(schema, columns, uncles_hash, block.uncles.into_iter().flat_map(|s| s.to_vec()).collect());
+    store!(
+        schema,
+        columns,
+        uncles_hash,
+        block.uncles.into_iter().flat_map(|s| s.to_vec()).collect()
+    );
     store!(schema, columns, author, Some(block.header.beneficiary.to_vec()));
     store!(schema, columns, state_root, block.header.state_root.0.to_vec());
     store!(schema, columns, transactions_root, block.header.transactions_root.0.to_vec());
     store!(schema, columns, receipts_root, block.header.receipts_root.0.to_vec());
     store!(schema, columns, block_number, Some(block.header.number));
-    store!(schema, columns, gas_used, block.header.gas_used as u64);
-    store!(schema, columns, gas_limit, block.header.gas_limit as u64);
+    store!(schema, columns, gas_used, block.header.gas_used);
+    store!(schema, columns, gas_limit, block.header.gas_limit);
     store!(schema, columns, extra_data, block.header.extra_data.to_vec());
     store!(schema, columns, logs_bloom, Some(block.header.logs_bloom.to_vec()));
     store!(schema, columns, timestamp, block.header.timestamp as u32);
     store!(schema, columns, difficulty, block.header.difficulty.wrapping_to::<u64>());
     store!(schema, columns, total_difficulty, block.header.total_difficulty);
-    store!(schema, columns, base_fee_per_gas, block.header.base_fee_per_gas.map(|x| x as u64));
-    store!(schema, columns, size, block.header.size.map_or(None, |v| Some(v.wrapping_to::<u64>())));
+    store!(schema, columns, base_fee_per_gas, block.header.base_fee_per_gas);
+    store!(schema, columns, size, block.header.size.map(|v| v.wrapping_to::<u64>()));
     store!(schema, columns, mix_hash, Some(block.header.mix_hash.to_vec()));
     store!(schema, columns, nonce, Some(block.header.nonce.0.to_vec()));
     store!(schema, columns, withdrawals_root, block.header.withdrawals_root.map(|x| x.0.to_vec()));

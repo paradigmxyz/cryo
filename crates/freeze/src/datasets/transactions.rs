@@ -1,8 +1,10 @@
 use crate::*;
 use alloy::{
-    consensus::Transaction as ConsensusTransaction, primitives::{Address, TxKind, U256}, rpc::types::{
-        Block, BlockTransactions, BlockTransactionsKind, Transaction, TransactionReceipt
-    }
+    consensus::Transaction as ConsensusTransaction,
+    primitives::{Address, TxKind, U256},
+    rpc::types::{
+        Block, BlockTransactions, BlockTransactionsKind, Transaction, TransactionReceipt,
+    },
 };
 use polars::prelude::*;
 
@@ -99,11 +101,9 @@ impl CollectByBlock for Transactions {
         // filter by to_address
         let to_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(to_address) = &request.to_address {
-                Box::new(move |tx| {
-                    match tx.inner.kind() {
-                        TxKind::Create => false,
-                        TxKind::Call(address) => address == Address::from_slice(&to_address)
-                    }
+                Box::new(move |tx| match tx.inner.kind() {
+                    TxKind::Create => false,
+                    TxKind::Call(address) => address == Address::from_slice(to_address),
                 })
             } else {
                 Box::new(|_| true)
@@ -218,14 +218,19 @@ pub(crate) fn process_transaction(
     store!(schema, columns, transaction_index, tx.transaction_index);
     store!(schema, columns, transaction_hash, tx.inner.tx_hash().to_vec());
     store!(schema, columns, from_address, tx.from.to_vec());
-    store!(schema, columns, to_address, match tx.inner.kind() {
-        TxKind::Create => None,
-        TxKind::Call(address) => Some(address.to_vec())
-    });
+    store!(
+        schema,
+        columns,
+        to_address,
+        match tx.inner.kind() {
+            TxKind::Create => None,
+            TxKind::Call(address) => Some(address.to_vec()),
+        }
+    );
     store!(schema, columns, nonce, tx.inner.nonce());
     store!(schema, columns, value, tx.inner.value());
     store!(schema, columns, input, tx.inner.input().to_vec());
-    store!(schema, columns, gas_limit, tx.inner.gas_limit() as u64);
+    store!(schema, columns, gas_limit, tx.inner.gas_limit());
     store!(schema, columns, success, success);
     if schema.has_column("n_input_bytes") |
         schema.has_column("n_input_zero_bytes") |
@@ -262,7 +267,9 @@ pub(crate) fn process_transaction(
 fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool> {
     if let Some(r) = receipt {
         Ok(r.status())
-    } else if let (Some(1), Some(true)) = (tx.inner.chain_id(), tx.block_number.map(|x| x < 4370000)) {
+    } else if let (Some(1), Some(true)) =
+        (tx.inner.chain_id(), tx.block_number.map(|x| x < 4370000))
+    {
         if let Some(r) = receipt {
             Ok(r.gas_used == 0)
         } else {

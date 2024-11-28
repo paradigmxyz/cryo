@@ -77,7 +77,7 @@ impl NumberChunk {
         match self {
             NumberChunk::Numbers(numbers) => Some(NumberChunk::Numbers(numbers)),
             NumberChunk::Range(start, end) => {
-                let start = ((start + chunk_size - 1) / chunk_size) * chunk_size;
+                let start = start.div_ceil(chunk_size);
                 let end = (end / chunk_size) * chunk_size;
                 if end > start {
                     Some(NumberChunk::Range(start, end))
