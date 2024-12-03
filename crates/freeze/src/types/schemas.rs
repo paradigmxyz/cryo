@@ -257,7 +257,7 @@ mod tests {
         let table = Datatype::Blocks
             .table_schema(&get_u256_types(), &ColumnEncoding::Hex, &None, &None, &cols, None, None)
             .unwrap();
-        assert_eq!(21, table.columns().len());
+        assert_eq!(23, table.columns().len());
         assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
@@ -308,7 +308,7 @@ mod tests {
                 None,
             )
             .unwrap();
-        assert_eq!(21, table.columns().len());
+        assert_eq!(23, table.columns().len());
         assert!(table.columns().contains(&"block_hash"));
         assert!(table.columns().contains(&"transactions_root"));
     }
