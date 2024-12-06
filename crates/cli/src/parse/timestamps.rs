@@ -324,7 +324,7 @@ async fn get_latest_timestamp(source: Arc<Source>) -> Result<u64, ParseError> {
 mod tests {
     use std::num::NonZeroU32;
 
-    use alloy::providers::ProviderBuilder;
+    use alloy::{providers::ProviderBuilder, rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient}, transports::{layers::RetryBackoffLayer, BoxTransport}};
     use governor::{Quota, RateLimiter};
 
     use super::*;
@@ -335,10 +335,20 @@ mod tests {
             Ok(url) => url,
             Err(_) => std::process::exit(0),
         };
-        // let max_retry = 5;
-        // let initial_backoff = 500;
+        let max_retry = 5;
+        let initial_backoff = 500;
+        let compute_units_per_second = 50;
         let max_concurrent_requests = 100;
-        let provider = ProviderBuilder::new().on_http(rpc_url.parse().unwrap()).boxed();
+        let retry_layer = RetryBackoffLayer::new(max_retry, initial_backoff, compute_units_per_second);
+        let connect: BuiltInConnectionString = rpc_url.parse().map_err(ParseError::ProviderError).unwrap();
+        let client: RpcClient<BoxTransport> = ClientBuilder::default()
+            .layer(retry_layer)
+            .connect_boxed(connect)
+            .await
+            .map_err(ParseError::ProviderError)
+            .unwrap()
+            .boxed();
+        let provider = ProviderBuilder::default().on_client(client);
         let quota = Quota::per_second(NonZeroU32::new(15).unwrap())
             .allow_burst(NonZeroU32::new(1).unwrap());
         let rate_limiter = Some(RateLimiter::direct(quota));

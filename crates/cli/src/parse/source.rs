@@ -3,7 +3,8 @@ use std::env;
 use crate::args::Args;
 use alloy::{
     providers::{Provider, ProviderBuilder, RootProvider},
-    transports::BoxTransport,
+    rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient},
+    transports::{layers::RetryBackoffLayer, BoxTransport},
 };
 use cryo_freeze::{ParseError, Source, SourceLabels};
 use governor::{Quota, RateLimiter};
@@ -13,8 +14,19 @@ use std::num::NonZeroU32;
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args)?;
-    let provider: RootProvider<BoxTransport> =
-        ProviderBuilder::default().on_builtin(&rpc_url).await.map_err(ParseError::ProviderError)?;
+    let retry_layer = RetryBackoffLayer::new(
+        args.max_retries,
+        args.initial_backoff,
+        args.compute_units_per_second,
+    );
+    let connect: BuiltInConnectionString = rpc_url.parse().map_err(ParseError::ProviderError)?;
+    let client: RpcClient<BoxTransport> = ClientBuilder::default()
+        .layer(retry_layer)
+        .connect_boxed(connect)
+        .await
+        .map_err(ParseError::ProviderError)?
+        .boxed();
+    let provider: RootProvider<BoxTransport> = ProviderBuilder::default().on_client(client);
     let chain_id = provider.get_chain_id().await.map_err(ParseError::ProviderError)?;
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match (NonZeroU32::new(1), NonZeroU32::new(rate_limit)) {
