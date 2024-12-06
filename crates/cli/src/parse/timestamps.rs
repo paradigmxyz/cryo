@@ -324,7 +324,11 @@ async fn get_latest_timestamp(source: Arc<Source>) -> Result<u64, ParseError> {
 mod tests {
     use std::num::NonZeroU32;
 
-    use alloy::{providers::ProviderBuilder, rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient}, transports::{layers::RetryBackoffLayer, BoxTransport}};
+    use alloy::{
+        providers::ProviderBuilder,
+        rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient},
+        transports::{layers::RetryBackoffLayer, BoxTransport},
+    };
     use governor::{Quota, RateLimiter};
 
     use super::*;
@@ -339,8 +343,10 @@ mod tests {
         let initial_backoff = 500;
         let compute_units_per_second = 50;
         let max_concurrent_requests = 100;
-        let retry_layer = RetryBackoffLayer::new(max_retry, initial_backoff, compute_units_per_second);
-        let connect: BuiltInConnectionString = rpc_url.parse().map_err(ParseError::ProviderError).unwrap();
+        let retry_layer =
+            RetryBackoffLayer::new(max_retry, initial_backoff, compute_units_per_second);
+        let connect: BuiltInConnectionString =
+            rpc_url.parse().map_err(ParseError::ProviderError).unwrap();
         let client: RpcClient<BoxTransport> = ClientBuilder::default()
             .layer(retry_layer)
             .connect_boxed(connect)
