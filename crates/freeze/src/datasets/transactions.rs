@@ -31,8 +31,7 @@ pub struct Transactions {
     n_input_bytes: Vec<u32>,
     n_input_zero_bytes: Vec<u32>,
     n_input_nonzero_bytes: Vec<u32>,
-    // not support by alloy
-    // n_rlp_bytes: Vec<u32>,
+    n_rlp_bytes: Vec<u32>,
     block_hash: Vec<Vec<u8>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
@@ -67,6 +66,7 @@ impl Dataset for Transactions {
             "n_input_bytes",
             "n_input_zero_bytes",
             "n_input_nonzero_bytes",
+            "n_rlp_bytes",
             "chain_id",
         ])
     }
@@ -242,8 +242,8 @@ pub(crate) fn process_transaction(
         store!(schema, columns, n_input_zero_bytes, n_input_zero_bytes);
         store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
     }
-    // alloy has not implemented rlp method in transaction
-    // store!(schema, columns, n_rlp_bytes, tx.rlp().len() as u32);
+    // in alloy eip2718_encoded_length is rlp_encoded_length
+    store!(schema, columns, n_rlp_bytes, tx.inner.eip2718_encoded_length() as u32);
     store!(schema, columns, gas_used, receipt.map(|r| r.gas_used as u64));
     store!(schema, columns, gas_price, tx.inner.gas_price().map(|gas_price| gas_price as u64));
     store!(schema, columns, transaction_type, tx.inner.tx_type() as u32);
