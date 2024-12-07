@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::rpc::types::trace::parity::{TraceResults, VmTrace};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -17,7 +17,7 @@ pub struct VmTraces {
     mem_data: Vec<Option<Vec<u8>>>,
     storage_key: Vec<Option<Vec<u8>>>,
     storage_val: Vec<Option<Vec<u8>>>,
-    op: Vec<String>,
+    op: Vec<Option<String>>,
     n_rows: usize,
     chain_id: Vec<u64>,
 }
@@ -39,10 +39,13 @@ impl Dataset for VmTraces {
 
 #[async_trait::async_trait]
 impl CollectByBlock for VmTraces {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.trace_block_vm_traces(request.block_number()? as u32).await
+        let (bn, txs, traces) =
+            source.trace_block_vm_traces(request.block_number()? as u32).await?;
+        let trace_results = traces.into_iter().map(|t| t.full_trace).collect();
+        Ok((bn, txs, trace_results))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -52,7 +55,7 @@ impl CollectByBlock for VmTraces {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for VmTraces {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>);
+    type Response = (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.trace_transaction_vm_traces(request.transaction_hash()?).await
@@ -64,7 +67,7 @@ impl CollectByTransaction for VmTraces {
 }
 
 fn process_vm_traces(
-    response: (Option<u32>, Option<Vec<u8>>, Vec<ethers::types::BlockTrace>),
+    response: (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>),
     columns: &mut VmTraces,
     schemas: &Schemas,
 ) -> R<()> {
@@ -79,7 +82,7 @@ fn process_vm_traces(
 }
 
 fn add_ops(
-    vm_trace: VMTrace,
+    vm_trace: VmTrace,
     schema: &Table,
     columns: &mut VmTraces,
     number: Option<u32>,
@@ -120,12 +123,7 @@ fn add_ops(
             store!(schema, columns, storage_key, None);
             store!(schema, columns, storage_val, None);
         }
-        if schema.has_column("op") {
-            match opcode.op {
-                ExecutedInstruction::Known(op) => store!(schema, columns, op, op.to_string()),
-                ExecutedInstruction::Unknown(op) => store!(schema, columns, op, op),
-            }
-        };
+        store!(schema, columns, op, opcode.op);
 
         if let Some(sub) = opcode.sub {
             add_ops(sub, schema, columns, number, tx_hash.clone(), tx_pos)

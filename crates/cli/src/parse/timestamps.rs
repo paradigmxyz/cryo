@@ -1,3 +1,4 @@
+use alloy::rpc::types::BlockTransactionsKind;
 use cryo_freeze::{BlockChunk, ParseError, Source};
 use polars::prelude::*;
 
@@ -277,7 +278,7 @@ async fn timestamp_to_block_number(timestamp: u64, source: Arc<Source>) -> Resul
     let mut r = latest_block_number;
     let mut mid = (l + r) / 2;
     let mut block = source
-        .get_block(mid)
+        .get_block(mid, BlockTransactionsKind::Hashes)
         .await
         .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
         .unwrap();
@@ -285,15 +286,15 @@ async fn timestamp_to_block_number(timestamp: u64, source: Arc<Source>) -> Resul
     while l <= r {
         mid = (l + r) / 2;
         block = source
-            .get_block(mid)
+            .get_block(mid, BlockTransactionsKind::Hashes)
             .await
             .map_err(|_e| ParseError::ParseError("Error fetching block for timestamp".to_string()))?
             .unwrap();
 
         #[allow(clippy::comparison_chain)]
-        if block.timestamp == timestamp.into() {
+        if block.header.timestamp == timestamp {
             return Ok(mid);
-        } else if block.timestamp < timestamp.into() {
+        } else if block.header.timestamp < timestamp {
             l = mid + 1;
         } else {
             r = mid - 1;
@@ -301,7 +302,7 @@ async fn timestamp_to_block_number(timestamp: u64, source: Arc<Source>) -> Resul
     }
 
     // If timestamp is between two different blocks, return the lower block.
-    if mid > 0 && block.timestamp > ethers::types::U256::from(timestamp) {
+    if mid > 0 && block.header.timestamp > timestamp {
         Ok(mid - 1)
     } else {
         Ok(mid)
@@ -311,23 +312,27 @@ async fn timestamp_to_block_number(timestamp: u64, source: Arc<Source>) -> Resul
 async fn get_latest_timestamp(source: Arc<Source>) -> Result<u64, ParseError> {
     let latest_block_number = get_latest_block_number(source.clone()).await?;
     let latest_block = source
-        .get_block(latest_block_number)
+        .get_block(latest_block_number, BlockTransactionsKind::Hashes)
         .await
         .map_err(|_e| ParseError::ParseError("Error fetching latest block".to_string()))?
         .unwrap();
 
-    Ok(latest_block.timestamp.as_u64())
+    Ok(latest_block.header.timestamp)
 }
 
 #[cfg(test)]
 mod tests {
     use std::num::NonZeroU32;
 
+    use alloy::{
+        providers::ProviderBuilder,
+        rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient},
+        transports::{layers::RetryBackoffLayer, BoxTransport},
+    };
     use governor::{Quota, RateLimiter};
 
     use super::*;
     use cryo_freeze::SourceLabels;
-    use ethers::prelude::*;
 
     async fn setup_source() -> Source {
         let rpc_url = match crate::parse::source::parse_rpc_url(&Args::default()) {
@@ -336,19 +341,27 @@ mod tests {
         };
         let max_retry = 5;
         let initial_backoff = 500;
+        let compute_units_per_second = 50;
         let max_concurrent_requests = 100;
-        let provider =
-            Provider::<RetryClient<Http>>::new_client(&rpc_url, max_retry, initial_backoff)
-                .map_err(|_e| ParseError::ParseError("could not connect to provider".to_string()))
-                .unwrap();
-
+        let retry_layer =
+            RetryBackoffLayer::new(max_retry, initial_backoff, compute_units_per_second);
+        let connect: BuiltInConnectionString =
+            rpc_url.parse().map_err(ParseError::ProviderError).unwrap();
+        let client: RpcClient<BoxTransport> = ClientBuilder::default()
+            .layer(retry_layer)
+            .connect_boxed(connect)
+            .await
+            .map_err(ParseError::ProviderError)
+            .unwrap()
+            .boxed();
+        let provider = ProviderBuilder::default().on_client(client);
         let quota = Quota::per_second(NonZeroU32::new(15).unwrap())
             .allow_burst(NonZeroU32::new(1).unwrap());
         let rate_limiter = Some(RateLimiter::direct(quota));
         let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
 
         Source {
-            provider: provider.into(),
+            provider,
             semaphore: Arc::new(Some(semaphore)),
             rate_limiter: Arc::new(rate_limiter),
             chain_id: 1,
@@ -373,8 +386,12 @@ mod tests {
         let source = setup_source().await;
         let source = Arc::new(source);
         let latest_block_number = get_latest_block_number(source.clone()).await.unwrap();
-        let latest_block = source.get_block(latest_block_number).await.unwrap().unwrap();
-        let latest_timestamp = latest_block.timestamp.as_u64();
+        let latest_block = source
+            .get_block(latest_block_number, BlockTransactionsKind::Hashes)
+            .await
+            .unwrap()
+            .unwrap();
+        let latest_timestamp = latest_block.header.timestamp;
 
         assert_eq!(
             timestamp_to_block_number(latest_timestamp, source).await.unwrap(),

@@ -1,5 +1,4 @@
 use crate::*;
-use ethers::prelude::*;
 use polars::prelude::*;
 
 /// columns for transactions
@@ -11,8 +10,8 @@ pub struct GethNonceDiffs {
     pub(crate) transaction_index: Vec<Option<u64>>,
     pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
     pub(crate) address: Vec<Vec<u8>>,
-    pub(crate) from_value: Vec<U256>,
-    pub(crate) to_value: Vec<U256>,
+    pub(crate) from_value: Vec<u64>,
+    pub(crate) to_value: Vec<u64>,
     pub(crate) chain_id: Vec<u64>,
 }
 

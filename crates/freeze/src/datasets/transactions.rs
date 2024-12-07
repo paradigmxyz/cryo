@@ -1,5 +1,11 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    consensus::Transaction as ConsensusTransaction,
+    primitives::{Address, TxKind, U256},
+    rpc::types::{
+        Block, BlockTransactions, BlockTransactionsKind, Transaction, TransactionReceipt,
+    },
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -18,7 +24,7 @@ pub struct Transactions {
     gas_limit: Vec<u64>,
     gas_used: Vec<Option<u64>>,
     gas_price: Vec<Option<u64>>,
-    transaction_type: Vec<Option<u32>>,
+    transaction_type: Vec<u32>,
     max_priority_fee_per_gas: Vec<Option<u64>>,
     max_fee_per_gas: Vec<Option<u64>>,
     success: Vec<bool>,
@@ -31,7 +37,7 @@ pub struct Transactions {
     timestamp: Vec<u32>,
     r: Vec<Vec<u8>>,
     s: Vec<Vec<u8>>,
-    v: Vec<u64>,
+    v: Vec<bool>,
 }
 
 #[async_trait::async_trait]
@@ -60,6 +66,7 @@ impl Dataset for Transactions {
             "n_input_bytes",
             "n_input_zero_bytes",
             "n_input_nonzero_bytes",
+            "n_rlp_bytes",
             "chain_id",
         ])
     }
@@ -74,11 +81,11 @@ pub type TransactionAndReceipt = (Transaction, Option<TransactionReceipt>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Transactions {
-    type Response = (Block<Transaction>, Vec<TransactionAndReceipt>, bool);
+    type Response = (Block, Vec<TransactionAndReceipt>, bool);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let block = source
-            .get_block_with_txs(request.block_number()?)
+            .get_block(request.block_number()?, BlockTransactionsKind::Full)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
@@ -87,19 +94,30 @@ impl CollectByBlock for Transactions {
         // filter by from_address
         let from_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(from_address) = &request.from_address {
-                Box::new(move |tx| tx.from.as_bytes() == from_address)
+                Box::new(move |tx| tx.from == Address::from_slice(from_address))
             } else {
                 Box::new(|_| true)
             };
         // filter by to_address
         let to_filter: Box<dyn Fn(&Transaction) -> bool + Send> =
             if let Some(to_address) = &request.to_address {
-                Box::new(move |tx| tx.to.as_ref().map_or(false, |x| x.as_bytes() == to_address))
+                Box::new(move |tx| match tx.inner.kind() {
+                    TxKind::Create => false,
+                    TxKind::Call(address) => address == Address::from_slice(to_address),
+                })
             } else {
                 Box::new(|_| true)
             };
-        let transactions =
-            block.transactions.clone().into_iter().filter(from_filter).filter(to_filter).collect();
+        let transactions: Vec<Transaction> = block
+            .transactions
+            .clone()
+            .as_transactions()
+            .unwrap()
+            .iter()
+            .filter(|&x| from_filter(x))
+            .filter(|&x| to_filter(x))
+            .cloned()
+            .collect();
 
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
@@ -108,7 +126,7 @@ impl CollectByBlock for Transactions {
             if schema.has_column("gas_used") | schema.has_column("success") {
                 // receipts required
                 let receipts = if request.from_address.is_some() || request.to_address.is_some() {
-                    source.get_tx_receipts(&transactions).await?
+                    source.get_tx_receipts(BlockTransactions::Full(transactions.clone())).await?
                 } else {
                     source.get_tx_receipts_in_block(&block).await?
                 };
@@ -131,7 +149,7 @@ impl CollectByBlock for Transactions {
                 columns,
                 schema,
                 exclude_failed,
-                block.timestamp.as_u32(),
+                block.header.timestamp as u32,
             )?;
         }
         Ok(())
@@ -146,7 +164,7 @@ impl CollectByTransaction for Transactions {
         let tx_hash = request.ethers_transaction_hash()?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let transaction = source
-            .get_transaction(tx_hash)
+            .get_transaction_by_hash(tx_hash)
             .await?
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
         let receipt = if schema.has_column("gas_used") {
@@ -160,11 +178,11 @@ impl CollectByTransaction for Transactions {
             .ok_or(CollectError::CollectError("no block number for tx".to_string()))?;
 
         let block = source
-            .get_block(block_number.as_u64())
+            .get_block(block_number, BlockTransactionsKind::Hashes)
             .await?
             .ok_or(CollectError::CollectError("block not found".to_string()))?;
 
-        let timestamp = block.timestamp.as_u32();
+        let timestamp = block.header.timestamp as u32;
 
         Ok(((transaction, receipt), query.exclude_failed, timestamp))
     }
@@ -196,55 +214,64 @@ pub(crate) fn process_transaction(
     };
 
     columns.n_rows += 1;
-    store!(schema, columns, block_number, tx.block_number.map(|x| x.as_u32()));
-    store!(schema, columns, transaction_index, tx.transaction_index.map(|x| x.as_u64()));
-    store!(schema, columns, transaction_hash, tx.hash.as_bytes().to_vec());
-    store!(schema, columns, from_address, tx.from.as_bytes().to_vec());
-    store!(schema, columns, to_address, tx.to.map(|x| x.as_bytes().to_vec()));
-    store!(schema, columns, nonce, tx.nonce.as_u64());
-    store!(schema, columns, value, tx.value);
-    store!(schema, columns, input, tx.input.to_vec());
-    store!(schema, columns, gas_limit, tx.gas.as_u64());
+    store!(schema, columns, block_number, tx.block_number.map(|x| x as u32));
+    store!(schema, columns, transaction_index, tx.transaction_index);
+    store!(schema, columns, transaction_hash, tx.inner.tx_hash().to_vec());
+    store!(schema, columns, from_address, tx.from.to_vec());
+    store!(
+        schema,
+        columns,
+        to_address,
+        match tx.inner.kind() {
+            TxKind::Create => None,
+            TxKind::Call(address) => Some(address.to_vec()),
+        }
+    );
+    store!(schema, columns, nonce, tx.inner.nonce());
+    store!(schema, columns, value, tx.inner.value());
+    store!(schema, columns, input, tx.inner.input().to_vec());
+    store!(schema, columns, gas_limit, tx.inner.gas_limit());
     store!(schema, columns, success, success);
     if schema.has_column("n_input_bytes") |
         schema.has_column("n_input_zero_bytes") |
         schema.has_column("n_input_nonzero_bytes")
     {
-        let n_input_bytes = tx.input.len() as u32;
-        let n_input_zero_bytes = tx.input.iter().filter(|&&x| x == 0).count() as u32;
+        let n_input_bytes = tx.inner.input().len() as u32;
+        let n_input_zero_bytes = tx.inner.input().iter().filter(|&&x| x == 0).count() as u32;
         store!(schema, columns, n_input_bytes, n_input_bytes);
         store!(schema, columns, n_input_zero_bytes, n_input_zero_bytes);
         store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
     }
-    store!(schema, columns, n_rlp_bytes, tx.rlp().len() as u32);
-    store!(schema, columns, gas_used, receipt.and_then(|r| r.gas_used.map(|x| x.as_u64())));
-    store!(schema, columns, gas_price, tx.gas_price.map(|gas_price| gas_price.as_u64()));
-    store!(schema, columns, transaction_type, tx.transaction_type.map(|value| value.as_u32()));
-    store!(schema, columns, max_fee_per_gas, tx.max_fee_per_gas.map(|value| value.as_u64()));
+    // in alloy eip2718_encoded_length is rlp_encoded_length
+    store!(schema, columns, n_rlp_bytes, tx.inner.eip2718_encoded_length() as u32);
+    store!(schema, columns, gas_used, receipt.map(|r| r.gas_used as u64));
+    store!(schema, columns, gas_price, tx.inner.gas_price().map(|gas_price| gas_price as u64));
+    store!(schema, columns, transaction_type, tx.inner.tx_type() as u32);
+    store!(schema, columns, max_fee_per_gas, Some(tx.inner.max_fee_per_gas() as u64));
     store!(
         schema,
         columns,
         max_priority_fee_per_gas,
-        tx.max_priority_fee_per_gas.map(|value| value.as_u64())
+        tx.inner.max_priority_fee_per_gas().map(|value| value as u64)
     );
     store!(schema, columns, timestamp, timestamp);
-    store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
+    store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().to_vec());
 
-    store!(schema, columns, v, tx.v.as_u64());
-    store!(schema, columns, r, tx.r.to_vec_u8());
-    store!(schema, columns, s, tx.s.to_vec_u8());
+    store!(schema, columns, v, tx.inner.signature().v());
+    store!(schema, columns, r, tx.inner.signature().r().to_vec_u8());
+    store!(schema, columns, s, tx.inner.signature().s().to_vec_u8());
 
     Ok(())
 }
 
 fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool> {
-    if let Some(status) = receipt.as_ref().and_then(|x| x.status) {
-        Ok(status.as_u64() == 1)
+    if let Some(r) = receipt {
+        Ok(r.status())
     } else if let (Some(1), Some(true)) =
-        (tx.chain_id.map(|x| x.as_u64()), tx.block_number.map(|x| x.as_u64() < 4370000))
+        (tx.inner.chain_id(), tx.block_number.map(|x| x < 4370000))
     {
-        if let Some(gas_used) = receipt.as_ref().and_then(|x| x.gas_used.map(|x| x.as_u64())) {
-            Ok(gas_used == 0)
+        if let Some(r) = receipt {
+            Ok(r.gas_used == 0)
         } else {
             return Err(err("could not determine status of transaction"))
         }

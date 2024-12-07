@@ -1,5 +1,8 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    primitives::U256,
+    rpc::types::trace::parity::{Action, LocalizedTransactionTrace, TraceOutput},
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -27,10 +30,10 @@ impl Dataset for NativeTransfers {
 
 #[async_trait::async_trait]
 impl CollectByBlock for NativeTransfers {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let traces = source.trace_block(request.block_number()?.into()).await?;
+        let traces = source.trace_block(request.block_number()?).await?;
         Ok(filter_traces_by_from_to_addresses(traces, &request.from_address, &request.to_address))
     }
 
@@ -43,7 +46,7 @@ impl CollectByBlock for NativeTransfers {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for NativeTransfers {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let traces = source.trace_transaction(request.ethers_transaction_hash()?).await?;
@@ -59,48 +62,43 @@ impl CollectByTransaction for NativeTransfers {
 
 /// process block into columns
 pub(crate) fn process_native_transfers(
-    traces: &[Trace],
+    traces: &[LocalizedTransactionTrace],
     columns: &mut NativeTransfers,
     schemas: &Schemas,
 ) -> R<()> {
     let schema = schemas.get(&Datatype::NativeTransfers).ok_or(err("schema not provided"))?;
     for (transfer_index, trace) in traces.iter().enumerate() {
         columns.n_rows += 1;
-        store!(schema, columns, block_number, trace.block_number as u32);
+        store!(schema, columns, block_number, trace.block_number.unwrap_or(0) as u32);
         store!(schema, columns, transaction_index, trace.transaction_position.map(|x| x as u32));
-        store!(schema, columns, block_hash, trace.block_hash.as_bytes().to_vec());
+        store!(schema, columns, block_hash, trace.block_hash.unwrap().to_vec());
         store!(schema, columns, transfer_index, transfer_index as u32);
-        store!(
-            schema,
-            columns,
-            transaction_hash,
-            trace.transaction_hash.map(|x| x.as_bytes().to_vec())
-        );
+        store!(schema, columns, transaction_hash, trace.transaction_hash.map(|x| x.to_vec()));
 
-        match &trace.action {
+        match &trace.trace.action {
             Action::Call(action) => {
-                store!(schema, columns, from_address, action.from.as_bytes().to_vec());
-                store!(schema, columns, to_address, action.to.as_bytes().to_vec());
+                store!(schema, columns, from_address, action.from.to_vec());
+                store!(schema, columns, to_address, action.to.to_vec());
                 store!(schema, columns, value, action.value);
             }
             Action::Create(action) => {
-                store!(schema, columns, from_address, action.from.as_bytes().to_vec());
-                match &trace.result.as_ref() {
-                    Some(Res::Create(res)) => {
-                        store!(schema, columns, to_address, res.address.0.into())
+                store!(schema, columns, from_address, action.from.to_vec());
+                match &trace.trace.result.as_ref() {
+                    Some(TraceOutput::Create(res)) => {
+                        store!(schema, columns, to_address, res.address.0.to_vec())
                     }
                     _ => store!(schema, columns, to_address, vec![0; 32]),
                 }
                 store!(schema, columns, value, action.value);
             }
-            Action::Suicide(action) => {
-                store!(schema, columns, from_address, action.address.as_bytes().to_vec());
-                store!(schema, columns, to_address, action.refund_address.as_bytes().to_vec());
+            Action::Selfdestruct(action) => {
+                store!(schema, columns, from_address, action.address.to_vec());
+                store!(schema, columns, to_address, action.refund_address.to_vec());
                 store!(schema, columns, value, action.balance);
             }
             Action::Reward(action) => {
                 store!(schema, columns, from_address, vec![0; 20]);
-                store!(schema, columns, to_address, action.author.as_bytes().to_vec());
+                store!(schema, columns, to_address, action.author.to_vec());
                 store!(schema, columns, value, action.value);
             }
         }
