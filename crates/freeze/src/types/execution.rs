@@ -89,7 +89,7 @@ impl Default for ExecutionEnvBuilder {
 impl ExecutionEnvBuilder {
     /// initialize ExecutionEnvBuilder
     pub fn new() -> Self {
-        ExecutionEnvBuilder { ..Default::default() }
+        Self::default() 
     }
 
     /// dry run
