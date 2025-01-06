@@ -65,7 +65,7 @@ impl CollectByTransaction for BlocksAndTransactions {
             schema,
             exclude_failed,
             timestamp,
-            gas_price
+            gas_price,
         )?;
         Ok(())
     }

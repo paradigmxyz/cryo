@@ -259,13 +259,16 @@ impl Source {
 
         // get transactions
         let txs = if include_transaction_hashes {
-            let transactions = self.get_block(block as u64, BlockTransactionsKind::Hashes)
+            let transactions = self
+                .get_block(block as u64, BlockTransactionsKind::Hashes)
                 .await?
                 .ok_or(CollectError::CollectError("could not find block".to_string()))?
                 .transactions;
             match transactions {
-                BlockTransactions::Hashes(hashes) => hashes.into_iter().map(|tx| Some(tx.to_vec())).collect(),
-                _ => return Err(CollectError::CollectError("wrong transaction format".to_string()))
+                BlockTransactions::Hashes(hashes) => {
+                    hashes.into_iter().map(|tx| Some(tx.to_vec())).collect()
+                }
+                _ => return Err(CollectError::CollectError("wrong transaction format".to_string())),
             }
         } else {
             vec![None; result.len()]

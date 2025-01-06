@@ -150,7 +150,7 @@ impl CollectByBlock for Transactions {
                 schema,
                 exclude_failed,
                 block.header.timestamp as u32,
-                gas_price
+                gas_price,
             )?;
         }
         Ok(())
@@ -199,7 +199,7 @@ impl CollectByTransaction for Transactions {
             schema,
             exclude_failed,
             timestamp,
-            gas_price
+            gas_price,
         )?;
         Ok(())
     }
@@ -287,7 +287,9 @@ fn get_max_fee_per_gas(tx: &Transaction) -> Option<u64> {
 pub(crate) fn get_gas_price(block: &Block, tx: &Transaction) -> Option<u64> {
     match &tx.inner {
         alloy::consensus::TxEnvelope::Legacy(_) => tx.gas_price().map(|gas_price| gas_price as u64),
-        alloy::consensus::TxEnvelope::Eip2930(_) => tx.gas_price().map(|gas_price| gas_price as u64),
+        alloy::consensus::TxEnvelope::Eip2930(_) => {
+            tx.gas_price().map(|gas_price| gas_price as u64)
+        }
         _ => {
             let base_fee_per_gas = block.header.inner.base_fee_per_gas.unwrap();
             let priority_fee = std::cmp::min(
