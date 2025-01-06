@@ -1,0 +1,70 @@
+[build-system]
+requires = ["flit_core >=3.2,<4"]
+build-backend = "flit_core.buildapi"
+
+[project]
+name = "cryo_test"
+readme = "README.md"
+requires-python = ">=3.7"
+dynamic = ["version", "description"]
+license = {text = "MIT OR Apache-2.0"}
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Financial and Insurance Industry",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: Apache Software License",
+    "License :: OSI Approved :: MIT License",
+    "Natural Language :: English",
+    "Operating System :: MacOS",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Programming Language :: Python :: 3.7",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Typing :: Typed",
+]
+dependencies = [
+    "polars >= 1.0",
+    "rich >= 13.3.3",
+    "rich-argparse >= 1.5.2",
+]
+
+[project.urls]
+Documentation = "https://github.com/paradigmxyz/cryo_test"
+Source = "https://github.com/paradigmxyz/cryo_test"
+
+[tool.flit.module]
+name = "cryo_test"
+
+[project.optional-dependencies]
+test = [
+    "typing-extensions >=4.9.0",
+]
+
+[project.dev-dependencies]
+pytest = "^7.0.0"
+pytest-asyncio = "^0.18.3"  # Add this line for pytest-asyncio
+
+[tool.mypy]
+python_version = "3.9"
+strict = true
+implicit_reexport = true
+files = ["cryo_test"]
+
+[tool.pytest.ini_options]
+testpaths = [
+    "tests",
+]
+
+[project.scripts]
+cryo_test = "cryo_test.cli:run_cli"
+
+[tool.ruff]
+line-length = 80
+
+[tool.ruff.format]
+quote-style = "single"

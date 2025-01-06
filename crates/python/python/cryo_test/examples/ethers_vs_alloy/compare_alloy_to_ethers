@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+python3 -m cryo_test \
+    --debug \
+    --executable \
+    cryo_alloy="$ROOT_DIR/bin/cryo_alloy" \
+    cryo_ethers="$ROOT_DIR/bin/cryo_ethers" \
+    "$@"

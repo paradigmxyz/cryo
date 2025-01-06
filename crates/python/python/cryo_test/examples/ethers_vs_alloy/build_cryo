@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+# get directory of script
+ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+# make directories
+mkdir -p "$ROOT_DIR/bin"
+mkdir -p "$ROOT_DIR/build/alloy"
+mkdir -p "$ROOT_DIR/build/ethers"
+
+# parse inputs
+BUILD_ALLOY=false
+BUILD_ETHERS=false
+ANY_FLAG_SET=false
+while getopts "ae-:" opt; do
+   case $opt in
+       a) BUILD_ALLOY=true; ANY_FLAG_SET=true ;;
+       e) BUILD_ETHERS=true; ANY_FLAG_SET=true ;;
+       -)
+           case "${OPTARG}" in
+               alloy) BUILD_ALLOY=true; ANY_FLAG_SET=true ;;
+               ethers) BUILD_ETHERS=true; ANY_FLAG_SET=true ;;
+               *) echo "Invalid option: --${OPTARG}" >&2
+                  echo "Usage: $0 [-a|--alloy] [-e|--ethers]" >&2
+                  exit 1 ;;
+           esac ;;
+       *) echo "Usage: $0 [-a|--alloy] [-e|--ethers]" >&2
+          exit 1 ;;
+   esac
+done
+if [ "$ANY_FLAG_SET" = false ]; then
+   BUILD_ALLOY=true
+   BUILD_ETHERS=true
+fi
+echo "BUILD_ALLOY: $BUILD_ALLOY"
+echo "BUILD_ETHERS: $BUILD_ETHERS"
+
+# build alloy
+if [ "$BUILD_ALLOY" = true ]; then
+    echo "building cryo alloy"
+
+    # go to repo
+    cd ~/repos/cryo
+
+    # check out build
+    git checkout feat/alloy
+
+    # build cryo
+    cargo install \
+        --path crates/cli \
+        --root "$ROOT_DIR/build/alloy"
+
+    # link to built binary
+    ln -s "$ROOT_DIR/build/alloy/bin/cryo" "$ROOT_DIR/bin/cryo_alloy"
+    echo ""
+    echo "built cryo alloy at: $ROOT_DIR/bin/cryo_alloy"
+fi
+
+if [ "$BUILD_ETHERS" = true ]; then
+    echo "building cryo ethers"
+
+    # go to repo
+    cd ~/repos/cryo
+
+    # check out build
+    git checkout main
+
+    # build cryo
+    cargo install \
+        --path crates/cli \
+        --root "$ROOT_DIR/build/ethers"
+
+    # link to built binary
+    ln -s "$ROOT_DIR/build/ethers/bin/cryo" "$ROOT_DIR/bin/cryo_ethers"
+    echo ""
+    echo "built cryo ethers at: $ROOT_DIR/bin/cryo_ethers"
+fi
