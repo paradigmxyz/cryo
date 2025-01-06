@@ -1,5 +1,4 @@
 use crate::{datasets::transactions, types::collection::*, Datatype, *};
-use alloy::rpc::types::BlockTransactionsKind;
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -47,19 +46,15 @@ impl CollectByTransaction for BlocksAndTransactions {
     );
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
-        let ((tx, receipt), exclude_failed, timestamp) =
+        let ((tx, receipt), block, exclude_failed, timestamp) =
             <Transactions as CollectByTransaction>::extract(request, source.clone(), query).await?;
-        let block_number = tx.block_number.ok_or(err("no block number for tx"))?;
-        let block = source
-            .get_block(block_number, BlockTransactionsKind::Hashes)
-            .await?
-            .ok_or(CollectError::CollectError("block not found".to_string()))?;
-        Ok((block, ((tx, receipt), exclude_failed, timestamp)))
+        Ok((block.clone(), ((tx, receipt), block, exclude_failed, timestamp)))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let BlocksAndTransactions(blocks, transactions) = columns;
-        let (block, ((tx, receipt), exclude_failed, timestamp)) = response;
+        let (block, ((tx, receipt), _, exclude_failed, timestamp)) = response;
+        let gas_price = transactions::get_gas_price(&block, &tx);
         let schema = query.schemas.get_schema(&Datatype::Blocks)?;
         blocks::process_block(block, blocks, schema)?;
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
@@ -70,6 +65,7 @@ impl CollectByTransaction for BlocksAndTransactions {
             schema,
             exclude_failed,
             timestamp,
+            gas_price
         )?;
         Ok(())
     }

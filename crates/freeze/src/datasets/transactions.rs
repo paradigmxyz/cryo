@@ -66,7 +66,6 @@ impl Dataset for Transactions {
             "n_input_bytes",
             "n_input_zero_bytes",
             "n_input_nonzero_bytes",
-            "n_rlp_bytes",
             "chain_id",
         ])
     }
@@ -143,6 +142,7 @@ impl CollectByBlock for Transactions {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
         let (block, transactions_with_receipts, exclude_failed) = response;
         for (tx, receipt) in transactions_with_receipts.into_iter() {
+            let gas_price = get_gas_price(&block, &tx);
             process_transaction(
                 tx,
                 receipt,
@@ -150,6 +150,7 @@ impl CollectByBlock for Transactions {
                 schema,
                 exclude_failed,
                 block.header.timestamp as u32,
+                gas_price
             )?;
         }
         Ok(())
@@ -158,7 +159,7 @@ impl CollectByBlock for Transactions {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for Transactions {
-    type Response = (TransactionAndReceipt, bool, u32);
+    type Response = (TransactionAndReceipt, Block, bool, u32);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let tx_hash = request.ethers_transaction_hash()?;
@@ -184,13 +185,22 @@ impl CollectByTransaction for Transactions {
 
         let timestamp = block.header.timestamp as u32;
 
-        Ok(((transaction, receipt), query.exclude_failed, timestamp))
+        Ok(((transaction, receipt), block, query.exclude_failed, timestamp))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
         let schema = query.schemas.get_schema(&Datatype::Transactions)?;
-        let ((transaction, receipt), exclude_failed, timestamp) = response;
-        process_transaction(transaction, receipt, columns, schema, exclude_failed, timestamp)?;
+        let ((transaction, receipt), block, exclude_failed, timestamp) = response;
+        let gas_price = get_gas_price(&block, &transaction);
+        process_transaction(
+            transaction,
+            receipt,
+            columns,
+            schema,
+            exclude_failed,
+            timestamp,
+            gas_price
+        )?;
         Ok(())
     }
 }
@@ -202,6 +212,7 @@ pub(crate) fn process_transaction(
     schema: &Table,
     exclude_failed: bool,
     timestamp: u32,
+    gas_price: Option<u64>,
 ) -> R<()> {
     let success = if exclude_failed | schema.has_column("success") {
         let success = tx_success(&tx, &receipt)?;
@@ -244,10 +255,11 @@ pub(crate) fn process_transaction(
     }
     // in alloy eip2718_encoded_length is rlp_encoded_length
     store!(schema, columns, n_rlp_bytes, tx.inner.eip2718_encoded_length() as u32);
-    store!(schema, columns, gas_used, receipt.map(|r| r.gas_used as u64));
-    store!(schema, columns, gas_price, tx.inner.gas_price().map(|gas_price| gas_price as u64));
+    store!(schema, columns, gas_used, receipt.as_ref().map(|r| r.gas_used as u64));
+    // store!(schema, columns, gas_price, Some(receipt.unwrap().effective_gas_price as u64));
+    store!(schema, columns, gas_price, gas_price);
     store!(schema, columns, transaction_type, tx.inner.tx_type() as u32);
-    store!(schema, columns, max_fee_per_gas, Some(tx.inner.max_fee_per_gas() as u64));
+    store!(schema, columns, max_fee_per_gas, get_max_fee_per_gas(&tx));
     store!(
         schema,
         columns,
@@ -262,6 +274,29 @@ pub(crate) fn process_transaction(
     store!(schema, columns, s, tx.inner.signature().s().to_vec_u8());
 
     Ok(())
+}
+
+fn get_max_fee_per_gas(tx: &Transaction) -> Option<u64> {
+    match &tx.inner {
+        alloy::consensus::TxEnvelope::Legacy(_) => None,
+        alloy::consensus::TxEnvelope::Eip2930(_) => None,
+        _ => Some(tx.inner.max_fee_per_gas() as u64),
+    }
+}
+
+pub(crate) fn get_gas_price(block: &Block, tx: &Transaction) -> Option<u64> {
+    match &tx.inner {
+        alloy::consensus::TxEnvelope::Legacy(_) => tx.gas_price().map(|gas_price| gas_price as u64),
+        alloy::consensus::TxEnvelope::Eip2930(_) => tx.gas_price().map(|gas_price| gas_price as u64),
+        _ => {
+            let base_fee_per_gas = block.header.inner.base_fee_per_gas.unwrap();
+            let priority_fee = std::cmp::min(
+                tx.inner.max_priority_fee_per_gas().unwrap() as u64,
+                tx.inner.max_fee_per_gas() as u64 - base_fee_per_gas,
+            );
+            Some(base_fee_per_gas + priority_fee)
+        }
+    }
 }
 
 fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool> {

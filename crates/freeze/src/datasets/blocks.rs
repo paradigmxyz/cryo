@@ -17,7 +17,7 @@ pub struct Blocks {
     state_root: Vec<Vec<u8>>,
     transactions_root: Vec<Vec<u8>>,
     receipts_root: Vec<Vec<u8>>,
-    block_number: Vec<Option<u64>>,
+    block_number: Vec<Option<u32>>,
     gas_used: Vec<u64>,
     gas_limit: Vec<u64>,
     extra_data: Vec<Vec<u8>>,
@@ -108,7 +108,7 @@ pub(crate) fn process_block<TX>(block: Block<TX>, columns: &mut Blocks, schema: 
     store!(schema, columns, state_root, block.header.state_root.0.to_vec());
     store!(schema, columns, transactions_root, block.header.transactions_root.0.to_vec());
     store!(schema, columns, receipts_root, block.header.receipts_root.0.to_vec());
-    store!(schema, columns, block_number, Some(block.header.number));
+    store!(schema, columns, block_number, Some(block.header.number as u32));
     store!(schema, columns, gas_used, block.header.gas_used);
     store!(schema, columns, gas_limit, block.header.gas_limit);
     store!(schema, columns, extra_data, block.header.extra_data.to_vec());
