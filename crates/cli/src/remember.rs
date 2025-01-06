@@ -46,7 +46,7 @@ pub(crate) fn load_remembered_command(cryo_dir: PathBuf) -> Result<RememberedCom
     let mut file = File::open(path)
         .map_err(|_| ParseError::ParseError("either 1) specify datasets to collect or 2) specify a command to remember with --remember".to_string()))?;
     file.read_to_string(&mut contents)
-        .map_err(|_| ParseError::ParseError("could not read rememebered file".to_string()))?;
+        .map_err(|_| ParseError::ParseError("could not read remembered file".to_string()))?;
     let remembered: RememberedCommand = serde_json::from_str(&contents)
         .map_err(|_| ParseError::ParseError("could not deserialize remembered file".to_string()))?;
     Ok(remembered)
