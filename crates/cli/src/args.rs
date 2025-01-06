@@ -106,6 +106,10 @@ pub struct Args {
     #[arg(long, default_value_t = 500, value_name = "B", help_heading = "Acquisition Options")]
     pub initial_backoff: u64,
 
+    /// The number of compute units per second for this provider
+    #[arg(long, default_value_t = 50, value_name = "U", help_heading = "Acquisition Options")]
+    pub compute_units_per_second: u64,
+
     /// Global number of concurrent requests
     #[arg(long, value_name = "M", help_heading = "Acquisition Options")]
     pub max_concurrent_requests: Option<u64>,

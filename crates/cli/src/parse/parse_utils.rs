@@ -1,7 +1,7 @@
 use cryo_freeze::ParseError;
 use std::collections::HashMap;
 
-pub(crate) fn hex_string_to_binary(hex_string: &String) -> Result<Vec<u8>, ParseError> {
+pub(crate) fn hex_string_to_binary(hex_string: &str) -> Result<Vec<u8>, ParseError> {
     let hex_string = hex_string.strip_prefix("0x").unwrap_or(hex_string);
     hex::decode(hex_string)
         .map_err(|_| ParseError::ParseError("could not parse data as hex".to_string()))

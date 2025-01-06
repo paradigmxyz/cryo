@@ -1,5 +1,9 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{
+    primitives::{B256, U256},
+    rpc::types::{Filter, Log, Topic},
+    sol_types::SolEvent,
+};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -54,21 +58,23 @@ impl CollectByBlock for Erc20Transfers {
     type Response = Vec<Log>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let mut topics = [Some(ValueOrArray::Value(Some(*EVENT_ERC20_TRANSFER))), None, None, None];
+        let mut topics: [Topic; 4] = Default::default();
+        topics[0] = ERC20::Transfer::SIGNATURE_HASH.into();
         if let Some(from_address) = &request.from_address {
-            let mut v = vec![0u8; 12];
-            v.append(&mut from_address.to_owned());
-            topics[1] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+            let v = B256::from_slice(from_address);
+            topics[1] = v.into();
         }
         if let Some(to_address) = &request.to_address {
-            let mut v = vec![0u8; 12];
-            v.append(&mut to_address.to_owned());
-            topics[2] = Some(ValueOrArray::Value(Some(H256::from_slice(&v[..]))));
+            let v = B256::from_slice(to_address);
+            topics[2] = v.into();
         }
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.get_logs(&filter).await?;
 
-        Ok(logs.into_iter().filter(|x| x.topics.len() == 3 && x.data.len() == 32).collect())
+        Ok(logs
+            .into_iter()
+            .filter(|x| x.topics().len() == 3 && x.data().data.len() == 32)
+            .collect())
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -93,7 +99,9 @@ impl CollectByTransaction for Erc20Transfers {
 }
 
 fn is_erc20_transfer(log: &Log) -> bool {
-    log.topics.len() == 3 && log.data.len() == 32 && log.topics[0] == *EVENT_ERC20_TRANSFER
+    log.topics().len() == 3 &&
+        log.data().data.len() == 32 &&
+        log.topics()[0] == ERC20::Approval::SIGNATURE_HASH
 }
 
 /// process block into columns
@@ -103,15 +111,20 @@ fn process_erc20_transfers(logs: Vec<Log>, columns: &mut Erc20Transfers, schema:
             (log.block_number, log.transaction_hash, log.transaction_index, log.log_index)
         {
             columns.n_rows += 1;
-            store!(schema, columns, block_number, bn.as_u32());
-            store!(schema, columns, block_hash, log.block_hash.map(|bh| bh.as_bytes().to_vec()));
-            store!(schema, columns, transaction_index, ti.as_u32());
-            store!(schema, columns, log_index, li.as_u32());
-            store!(schema, columns, transaction_hash, tx.as_bytes().to_vec());
-            store!(schema, columns, erc20, log.address.as_bytes().to_vec());
-            store!(schema, columns, from_address, log.topics[1].as_bytes()[12..].to_vec());
-            store!(schema, columns, to_address, log.topics[2].as_bytes()[12..].to_vec());
-            store!(schema, columns, value, log.data.to_vec().as_slice().into());
+            store!(schema, columns, block_number, bn as u32);
+            store!(schema, columns, block_hash, log.block_hash.map(|bh| bh.to_vec()));
+            store!(schema, columns, transaction_index, ti as u32);
+            store!(schema, columns, log_index, li as u32);
+            store!(schema, columns, transaction_hash, tx.to_vec());
+            store!(schema, columns, erc20, log.address().to_vec());
+            store!(schema, columns, from_address, log.topics()[1][12..].to_vec());
+            store!(schema, columns, to_address, log.topics()[2][12..].to_vec());
+            store!(
+                schema,
+                columns,
+                value,
+                U256::from_be_slice(log.data().data.to_vec().as_slice())
+            );
         }
     }
     Ok(())

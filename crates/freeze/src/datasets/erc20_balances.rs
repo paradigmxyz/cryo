@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{primitives::U256, sol_types::SolCall};
 use polars::prelude::*;
 
 /// columns for transactions
@@ -30,14 +30,14 @@ impl CollectByBlock for Erc20Balances {
     type Response = (u32, Vec<u8>, Vec<u8>, Option<U256>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let signature = FUNCTION_ERC20_BALANCE_OF.clone();
-        let mut call_data = signature.clone();
+        let signature = ERC20::balanceOfCall::SELECTOR;
+        let mut call_data = signature.clone().to_vec();
         call_data.extend(vec![0; 12]);
         call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;
         let contract = request.ethers_contract()?;
         let balance = source.call2(contract, call_data, block_number).await.ok();
-        let balance = balance.map(|x| x.to_vec().as_slice().into());
+        let balance = balance.map(|x| U256::from_be_slice(x.as_ref()));
         Ok((request.block_number()? as u32, request.contract()?, request.address()?, balance))
     }
 

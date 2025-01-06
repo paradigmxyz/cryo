@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::rpc::types::trace::parity::LocalizedTransactionTrace;
 use polars::prelude::*;
 use std::collections::HashMap;
 
@@ -34,10 +34,10 @@ impl ToDataFrames for CallTraceDerivatives {
 
 #[async_trait::async_trait]
 impl CollectByBlock for CallTraceDerivatives {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        source.trace_block(request.block_number()?.into()).await
+        source.trace_block(request.block_number()?).await
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -49,7 +49,7 @@ impl CollectByBlock for CallTraceDerivatives {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for CallTraceDerivatives {
-    type Response = Vec<Trace>;
+    type Response = Vec<LocalizedTransactionTrace>;
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.trace_transaction(request.ethers_transaction_hash()?).await
@@ -63,7 +63,7 @@ impl CollectByTransaction for CallTraceDerivatives {
 }
 
 fn process_call_trace_derivatives(
-    response: Vec<Trace>,
+    response: Vec<LocalizedTransactionTrace>,
     columns: &mut CallTraceDerivatives,
     schemas: &HashMap<Datatype, Table>,
 ) -> R<()> {

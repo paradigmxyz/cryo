@@ -1,6 +1,6 @@
 use crate::CollectError;
 /// conversion operations
-use ethers::prelude::*;
+use alloy::primitives::{Bytes, I256, U256};
 use prefix_hex;
 
 /// convert Bytes to u32
@@ -21,11 +21,7 @@ pub trait ToVecU8 {
 
 impl ToVecU8 for U256 {
     fn to_vec_u8(&self) -> Vec<u8> {
-        let mut vec = Vec::new();
-        for &number in self.0.iter().rev() {
-            vec.extend_from_slice(&number.to_be_bytes());
-        }
-        vec
+        self.to_be_bytes_vec()
     }
 }
 
@@ -45,9 +41,7 @@ impl ToVecU8 for Vec<U256> {
     fn to_vec_u8(&self) -> Vec<u8> {
         let mut vec = Vec::new();
         for value in self {
-            for &number in value.0.iter().rev() {
-                vec.extend_from_slice(&number.to_be_bytes());
-            }
+            vec.extend_from_slice(&value.to_be_bytes_vec())
         }
         vec
     }

@@ -1,5 +1,5 @@
+use alloy::transports::{RpcError, TransportErrorKind};
 /// error specifications
-use ethers::prelude::*;
 use polars::prelude::*;
 use thiserror::Error;
 
@@ -60,7 +60,7 @@ pub enum CollectError {
 
     /// Error related to provider operations
     #[error("Failed to get block: {0}")]
-    ProviderError(#[source] ProviderError),
+    ProviderError(#[source] RpcError<TransportErrorKind>),
 
     /// Error related to tokio task
     #[error("Task failed: {0}")]
@@ -96,7 +96,7 @@ pub enum ParseError {
 
     /// Error related to provider operations
     #[error("Failed to get block: {0}")]
-    ProviderError(#[source] ProviderError),
+    ProviderError(#[source] RpcError<TransportErrorKind>),
 
     /// Parse int error
     #[error("Parsing error")]
@@ -105,6 +105,10 @@ pub enum ParseError {
     /// MESC error
     #[error("MESC error: {:?}", .0)]
     MescError(mesc::MescError),
+
+    /// Parse url error
+    #[error("Parsing url error: {0}")]
+    ParseUrlError(url::ParseError),
 }
 
 impl From<mesc::MescError> for ParseError {

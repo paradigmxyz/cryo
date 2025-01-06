@@ -1,5 +1,5 @@
 use crate::*;
-use ethers::prelude::*;
+use alloy::{primitives::Address, rpc::types::trace::geth::AccountState};
 use polars::prelude::*;
 use std::collections::BTreeMap;
 
@@ -24,7 +24,7 @@ impl Dataset for StorageReads {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<H160, AccountState>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<Address, AccountState>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for StorageReads {
@@ -75,7 +75,7 @@ pub(crate) fn process_storage_reads(
 }
 
 pub(crate) fn process_storage_read(
-    addr: &H160,
+    addr: &Address,
     account_state: &AccountState,
     block_number: &Option<u32>,
     transaction_hash: &Option<Vec<u8>>,
@@ -83,15 +83,13 @@ pub(crate) fn process_storage_read(
     columns: &mut StorageReads,
     schema: &Table,
 ) {
-    if let Some(storage) = &account_state.storage {
-        for (slot, value) in storage.iter() {
-            columns.n_rows += 1;
-            store!(schema, columns, block_number, *block_number);
-            store!(schema, columns, transaction_index, Some(transaction_index as u32));
-            store!(schema, columns, transaction_hash, transaction_hash.clone());
-            store!(schema, columns, contract_address, addr.as_bytes().to_vec());
-            store!(schema, columns, slot, slot.as_bytes().to_vec());
-            store!(schema, columns, value, value.as_bytes().to_vec());
-        }
+    for (slot, value) in account_state.storage.iter() {
+        columns.n_rows += 1;
+        store!(schema, columns, block_number, *block_number);
+        store!(schema, columns, transaction_index, Some(transaction_index as u32));
+        store!(schema, columns, transaction_hash, transaction_hash.clone());
+        store!(schema, columns, contract_address, addr.to_vec());
+        store!(schema, columns, slot, slot.to_vec());
+        store!(schema, columns, value, value.to_vec());
     }
 }

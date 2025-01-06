@@ -1,5 +1,8 @@
 use crate::{err, CollectError};
-use ethers::prelude::*;
+use alloy::{
+    primitives::{Address, BlockNumber, B256},
+    rpc::types::{Filter, FilterBlockOption},
+};
 
 /// represents parameters for a single rpc call
 #[derive(Default, Clone, Debug)]
@@ -74,22 +77,22 @@ impl Params {
 
     /// ethers block number
     pub fn ethers_block_number(&self) -> Result<BlockNumber, CollectError> {
-        Ok(self.block_number()?.into())
+        self.block_number()
     }
 
     /// ethers transaction
-    pub fn ethers_transaction_hash(&self) -> Result<H256, CollectError> {
-        Ok(H256::from_slice(&self.transaction_hash()?))
+    pub fn ethers_transaction_hash(&self) -> Result<B256, CollectError> {
+        Ok(B256::from_slice(&self.transaction_hash()?))
     }
 
     /// ethers address
-    pub fn ethers_address(&self) -> Result<H160, CollectError> {
-        Ok(H160::from_slice(&self.address()?))
+    pub fn ethers_address(&self) -> Result<Address, CollectError> {
+        Ok(Address::from_slice(&self.address()?))
     }
 
     /// ethers contract
-    pub fn ethers_contract(&self) -> Result<H160, CollectError> {
-        Ok(H160::from_slice(&self.contract()?))
+    pub fn ethers_contract(&self) -> Result<Address, CollectError> {
+        Ok(Address::from_slice(&self.contract()?))
     }
 
     /// log filter
@@ -97,16 +100,33 @@ impl Params {
         let (start, end) = self.block_range()?;
         let block_option =
             FilterBlockOption::Range { from_block: Some(start.into()), to_block: Some(end.into()) };
-        let filter = Filter {
-            block_option,
-            address: self.address.clone().map(|x| ValueOrArray::Value(H160::from_slice(&x))),
-            topics: [
-                self.topic0.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
-                self.topic1.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
-                self.topic2.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
-                self.topic3.clone().map(|x| ValueOrArray::Value(Some(H256::from_slice(&x)))),
-            ],
-        };
+        // let filter = Filter {
+        //     block_option,
+        //     address: self.address.clone().map(|x| ValueOrArray::Value(Address::from_slice(&x))),
+        //     topics: [
+        //         self.topic0.clone().map(|x| ValueOrArray::Value(Some(B256::from_slice(&x)))),
+        //         self.topic1.clone().map(|x| ValueOrArray::Value(Some(B256::from_slice(&x)))),
+        //         self.topic2.clone().map(|x| ValueOrArray::Value(Some(B256::from_slice(&x)))),
+        //         self.topic3.clone().map(|x| ValueOrArray::Value(Some(B2::from_slice(&x)))),
+        //     ],
+        // };
+        let mut filter = Filter::new();
+        filter.block_option = block_option;
+        if self.address.is_some() {
+            filter = filter.address(Address::from_slice(&self.address.clone().unwrap()));
+        }
+        if self.topic0.is_some() {
+            filter = filter.event_signature(B256::from_slice(&self.topic0.clone().unwrap()));
+        }
+        if self.topic1.is_some() {
+            filter = filter.topic1(B256::from_slice(&self.topic1.clone().unwrap()));
+        }
+        if self.topic2.is_some() {
+            filter = filter.topic2(B256::from_slice(&self.topic2.clone().unwrap()));
+        }
+        if self.topic3.is_some() {
+            filter = filter.topic3(B256::from_slice(&self.topic3.clone().unwrap()));
+        }
         Ok(filter)
     }
 }

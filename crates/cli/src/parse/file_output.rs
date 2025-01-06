@@ -142,7 +142,7 @@ fn parse_row_group_size(
 ) -> Option<usize> {
     match (row_group_size, n_row_groups, chunk_size) {
         (Some(row_group_size), _, _) => Some(row_group_size),
-        (_, Some(n_row_groups), Some(cs)) => Some((cs + n_row_groups - 1) / n_row_groups),
+        (_, Some(n_row_groups), Some(cs)) => Some(cs.div_ceil(n_row_groups)),
         _ => None,
     }
 }

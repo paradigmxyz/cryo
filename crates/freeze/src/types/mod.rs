@@ -1,5 +1,4 @@
 /// type specifications for cryo_freeze crate
-
 /// type specifications for chunk types
 pub mod chunks;
 /// conversion operations
@@ -36,6 +35,7 @@ pub use reports::CRYO_VERSION;
 pub mod dataframes;
 
 /// function and event signatures
+#[allow(missing_docs)]
 pub mod signatures;
 
 /// error specifications
