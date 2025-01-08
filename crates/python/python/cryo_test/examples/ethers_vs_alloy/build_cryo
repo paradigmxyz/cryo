@@ -53,6 +53,7 @@ if [ "$BUILD_ALLOY" = true ]; then
         --root "$ROOT_DIR/build/alloy"
 
     # link to built binary
+    rm -f "$ROOT_DIR/bin/cryo_alloy"
     ln -s "$ROOT_DIR/build/alloy/bin/cryo" "$ROOT_DIR/bin/cryo_alloy"
     echo ""
     echo "built cryo alloy at: $ROOT_DIR/bin/cryo_alloy"
@@ -73,6 +74,7 @@ if [ "$BUILD_ETHERS" = true ]; then
         --root "$ROOT_DIR/build/ethers"
 
     # link to built binary
+    rm -f "$ROOT_DIR/bin/cryo_ethers"
     ln -s "$ROOT_DIR/build/ethers/bin/cryo" "$ROOT_DIR/bin/cryo_ethers"
     echo ""
     echo "built cryo ethers at: $ROOT_DIR/bin/cryo_ethers"
