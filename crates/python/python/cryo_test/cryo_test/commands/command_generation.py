@@ -16,6 +16,7 @@ python_command_template = """cryo.freeze(
     output_dir={output_dir},
     rpc={rpc},
     subdirs='datatype',
+    include_columns=['all'],
     **{extra_args}
 )"""
 
@@ -120,6 +121,7 @@ def generate_cli_command(
         *datatype,
         defaults.time_dimensions[time_dimension],
         '--subdirs datatype',
+        '--include-columns all',
         '--output-dir '
         + files.get_command_data_dir(
             batch_data_dir=data_root, command_name=name
