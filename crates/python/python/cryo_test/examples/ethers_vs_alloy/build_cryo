@@ -45,7 +45,7 @@ if [ "$BUILD_ALLOY" = true ]; then
     cd ~/repos/cryo
 
     # check out build
-    git checkout feat/alloy
+    git checkout main
 
     # build cryo
     cargo install \
@@ -65,7 +65,7 @@ if [ "$BUILD_ETHERS" = true ]; then
     cd ~/repos/cryo
 
     # check out build
-    git checkout main
+    git checkout eba6192298e40add4d35d1587511d875f6d770e4
 
     # build cryo
     cargo install \
