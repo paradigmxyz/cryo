@@ -34,8 +34,8 @@ impl CollectByBlock for BalanceDiffs {
         let include_txs = schema.has_column("transaction_hash");
         let (bn, txs, traces) =
             source.trace_block_state_diffs(request.block_number()? as u32, include_txs).await?;
-        let trace_resuls = traces.into_iter().map(|t| t.full_trace).collect();
-        Ok((bn, txs, trace_resuls))
+        let trace_results = traces.into_iter().map(|t| t.full_trace).collect();
+        Ok((bn, txs, trace_results))
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
