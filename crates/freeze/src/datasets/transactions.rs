@@ -27,9 +27,9 @@ pub struct Transactions {
     n_input_nonzero_bytes: Vec<u32>,
     n_rlp_bytes: Vec<u32>,
     block_hash: Vec<Vec<u8>>,
+    deploy_address: Vec<Option<Vec<u8>>>,
     chain_id: Vec<u64>,
     timestamp: Vec<u32>,
-    deploy_address: Vec<Option<Vec<u8>>>,
     r: Vec<Vec<u8>>,
     s: Vec<Vec<u8>>,
     v: Vec<u64>,
@@ -105,18 +105,20 @@ impl CollectByBlock for Transactions {
         // 2. collect receipts if necessary
         // if transactions are filtered fetch by set of transaction hashes, else fetch all receipts
         // in block
-        let receipts: Vec<Option<_>> =
-            if schema.has_column("gas_used") | schema.has_column("success") {
-                // receipts required
-                let receipts = if request.from_address.is_some() || request.to_address.is_some() {
-                    source.get_tx_receipts(&transactions).await?
-                } else {
-                    source.get_tx_receipts_in_block(&block).await?
-                };
-                receipts.into_iter().map(Some).collect()
+        let receipts: Vec<Option<_>> = if schema.has_column("gas_used") |
+            schema.has_column("success") |
+            schema.has_column("deploy_address")
+        {
+            // receipts required
+            let receipts = if request.from_address.is_some() || request.to_address.is_some() {
+                source.get_tx_receipts(&transactions).await?
             } else {
-                vec![None; block.transactions.len()]
+                source.get_tx_receipts_in_block(&block).await?
             };
+            receipts.into_iter().map(Some).collect()
+        } else {
+            vec![None; block.transactions.len()]
+        };
 
         let transactions_with_receips = transactions.into_iter().zip(receipts).collect();
         Ok((block, transactions_with_receips, query.exclude_failed))
@@ -150,7 +152,10 @@ impl CollectByTransaction for Transactions {
             .get_transaction(tx_hash)
             .await?
             .ok_or(CollectError::CollectError("transaction not found".to_string()))?;
-        let receipt = if schema.has_column("gas_used") {
+        let receipt = if schema.has_column("gas_used") |
+            schema.has_column("success") |
+            schema.has_column("deploy_address")
+        {
             source.get_transaction_receipt(tx_hash).await?
         } else {
             None
@@ -218,7 +223,12 @@ pub(crate) fn process_transaction(
         store!(schema, columns, n_input_nonzero_bytes, n_input_bytes - n_input_zero_bytes);
     }
     store!(schema, columns, n_rlp_bytes, tx.rlp().len() as u32);
-    store!(schema, columns, gas_used, receipt.as_ref().and_then(|r| r.gas_used.map(|x| x.as_u64())));
+    store!(
+        schema,
+        columns,
+        gas_used,
+        receipt.as_ref().and_then(|r| r.gas_used.map(|x| x.as_u64()))
+    );
     store!(schema, columns, gas_price, tx.gas_price.map(|gas_price| gas_price.as_u64()));
     store!(schema, columns, transaction_type, tx.transaction_type.map(|value| value.as_u32()));
     store!(schema, columns, max_fee_per_gas, tx.max_fee_per_gas.map(|value| value.as_u64()));
@@ -230,7 +240,12 @@ pub(crate) fn process_transaction(
     );
     store!(schema, columns, timestamp, timestamp);
     store!(schema, columns, block_hash, tx.block_hash.unwrap_or_default().as_bytes().to_vec());
-    store!(schema, columns, deploy_address, receipt.and_then(|r| r.contract_address.map(|x| x.as_bytes().to_vec())));
+    store!(
+        schema,
+        columns,
+        deploy_address,
+        receipt.and_then(|r| r.contract_address.map(|x| x.as_bytes().to_vec()))
+    );
 
     store!(schema, columns, v, tx.v.as_u64());
     store!(schema, columns, r, tx.r.to_vec_u8());
