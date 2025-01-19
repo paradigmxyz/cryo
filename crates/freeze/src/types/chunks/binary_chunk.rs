@@ -15,11 +15,11 @@ impl ChunkData for BinaryChunk {
 
     fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
         let hash = prefix_hex::encode(value);
-        let eigth = match hash.char_indices().nth(8) {
+        let eight = match hash.char_indices().nth(8) {
             Some(x) => x,
             None => return Err(ChunkError::ChunkError("could not format chunk".to_string())),
         };
-        let start = &hash[..eigth.0];
+        let start = &hash[..eight.0];
         Ok(start.to_string())
     }
 
