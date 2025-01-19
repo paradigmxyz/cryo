@@ -1,6 +1,10 @@
 use crate::CollectError;
 use indicatif::ProgressBar;
-use std::{path::PathBuf, sync::Arc, time::SystemTime};
+use std::{
+    path::PathBuf,
+    sync::Arc,
+    time::{Duration, SystemTime},
+};
 
 /// configuration of execution environment
 #[derive(Clone)]
@@ -47,11 +51,13 @@ impl Default for ExecutionEnv {
 
 fn new_bar(n: u64) -> Result<Arc<ProgressBar>, CollectError> {
     let bar = Arc::new(ProgressBar::new(n));
-    bar.set_style(
-        indicatif::ProgressStyle::default_bar()
-            .template("{wide_msg} ⏳ = {eta_precise} \n{wide_bar:.green}  {human_pos} / {human_len}  ⌛ = {elapsed_precise} ")
-            .map_err(|_| CollectError::CollectError("error creating progress bar".to_string()))?,
-    );
+    let style = indicatif::ProgressStyle::default_bar()
+        .template("{wide_msg} ⏳ = {eta_precise}\n{wide_bar} \x1b[32m{human_pos}/{human_len}\x1b[0m ⌛ = {elapsed_precise}")
+        .map_err(|_| CollectError::CollectError("error creating progress bar".to_string()))?
+        .progress_chars("█▉▊▋▌▍▎▏  "); // Customize progress characters
+
+    bar.set_style(style);
+    bar.enable_steady_tick(Duration::from_millis(100)); // Tick interval of 100ms
     Ok(bar)
 }
 
