@@ -15,6 +15,7 @@ use eyre::Result;
 #[allow(clippy::needless_return)]
 async fn main() -> Result<()> {
     let args = Args::parse();
+
     match run::run(args).await {
         Ok(Some(freeze_summary)) if freeze_summary.errored.is_empty() => Ok(()),
         Ok(Some(_freeze_summary)) => std::process::exit(1),

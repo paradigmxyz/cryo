@@ -138,10 +138,16 @@ fn parse_call_datas(
     function: &Option<Vec<String>>,
     inputs: &Option<Vec<String>>,
 ) -> Result<Option<Vec<CallDataChunk>>, ParseError> {
-    let call_datas = match (call_datas, function, inputs) {
+    let func = if let Some(function_signatures) = function {
+        let vec = function_signatures.clone();
+        Some(Args::convert_to_selector_strings(vec)?)
+    } else {
+        None
+    };
+    let call_datas = match (call_datas, &func, inputs) {
         (None, None, None) => return Ok(None),
         (Some(call_data), None, None) => hex_strings_to_binary(call_data)?,
-        (None, Some(function), None) => hex_strings_to_binary(function)?,
+        (None, Some(func), None) => hex_strings_to_binary(func)?,
         (None, Some(function), Some(inputs)) => {
             let mut call_datas = Vec::new();
             for f in function.iter() {
