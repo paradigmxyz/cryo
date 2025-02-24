@@ -30,4 +30,4 @@ serde_json = { workspace = true }
 thiserror = { workspace = true }
 thousands = { workspace = true }
 tokio = { workspace = true }
-url = "2.5.2"
+url = { workspace = true }

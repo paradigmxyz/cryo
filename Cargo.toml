@@ -68,6 +68,10 @@ serde_json = "1.0.108"
 thiserror = "1.0.50"
 thousands = "0.2.0"
 tokio = { version = "1.33.0", features = ["macros", "rt-multi-thread", "sync"] }
+proc-macro2 = "1.0"
+quote = "1.0"
+syn = "1.0"
+url = "2.5.2"
 
 [profile.dev]
 incremental = true
