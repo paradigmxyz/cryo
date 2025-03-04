@@ -4,7 +4,7 @@
     - [Installation](./intro/installation.md)
     - [Example Usage](./intro/example_usage.md)
 - [Concepts](./intro/concepts.md)
-    - [Interfaces: CLI, Rust Python](./intro/interfaces.md)
+    - [Interfaces: CLI, Rust ,Python](./intro/interfaces.md)
     - [RPC Data Sources](./intro/data_sources.md)
     - [Speed](./cryo_python/speed.md)
 - [Basic Usage](./basic_usage/basic_usage.md)
