@@ -202,7 +202,7 @@ pub fn _collect(
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
+        Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
     }
 }
 

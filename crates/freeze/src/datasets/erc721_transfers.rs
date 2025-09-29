@@ -71,7 +71,7 @@ impl CollectByBlock for Erc721Transfers {
         let filter = Filter { topics, ..request.ethers_log_filter()? };
         let logs = source.get_logs(&filter).await?;
 
-        Ok(logs.into_iter().filter(|x| x.topics().len() == 4 && x.data().data.len() == 0).collect())
+        Ok(logs.into_iter().filter(|x| x.topics().len() == 4 && x.data().data.is_empty()).collect())
     }
 
     fn transform(response: Self::Response, columns: &mut Self, query: &Arc<Query>) -> R<()> {
@@ -97,7 +97,7 @@ impl CollectByTransaction for Erc721Transfers {
 
 fn is_erc721_transfer(log: &Log) -> bool {
     log.topics().len() == 4 &&
-        log.data().data.len() == 0 &&
+        log.data().data.is_empty() &&
         log.topics()[0] == ERC721::Transfer::SIGNATURE_HASH
 }
 

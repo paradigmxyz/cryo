@@ -512,11 +512,11 @@ impl Source {
             ..Default::default()
         };
         let _permit = self.permit_request().await;
-        if block_number.is_some() {
+        if let Some(block_num) = block_number {
             Self::map_err(
                 self.provider
                     .trace_call(&transaction, &trace_type)
-                    .block_id(block_number.unwrap().into())
+                    .block_id(block_num.into())
                     .await,
             )
         } else {

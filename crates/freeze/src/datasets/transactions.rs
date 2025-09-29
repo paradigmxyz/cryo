@@ -310,9 +310,9 @@ fn tx_success(tx: &Transaction, receipt: &Option<TransactionReceipt>) -> R<bool>
         if let Some(r) = receipt {
             Ok(r.gas_used == 0)
         } else {
-            return Err(err("could not determine status of transaction"))
+            Err(err("could not determine status of transaction"))
         }
     } else {
-        return Err(err("could not determine status of transaction"))
+        Err(err("could not determine status of transaction"))
     }
 }
