@@ -5,6 +5,7 @@ target
 *.csv_tmp
 *.parquet
 *.parquet_tmp
+*.bin
 *.json
 *.json_tmp
 *.env
@@ -14,3 +15,20 @@ graveyard
 .idea
 flamegraph.svg
 test.sh
+.DS_Store
+# Plinko artifacts and scratch space
+local_parquet_output/
+plinko_cache/
+artifacts/
+services/
+todo-app/
+scripts/__pycache__/
+*.state.json
+address-mapping.bin
+database.bin
+hint.bin
+# Local automation / AI helper files
+.claude/
+.claude-backups/
+.claude-collective/
+.taskmaster/
