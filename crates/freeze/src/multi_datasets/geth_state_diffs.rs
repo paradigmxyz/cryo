@@ -179,7 +179,8 @@ fn add_codes(
     let blank = Bytes::new();
     let (from_value, to_value) = match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),
-        (Some(pre), None) => (pre, &blank),
+        // geth only records post if the value changed; no post means code is unchanged
+        (Some(pre), None) => (pre, pre),
         (None, Some(post)) => (&blank, post),
         (None, None) => (&blank, &blank),
     };
@@ -256,7 +257,8 @@ where
 {
     match (pre, post) {
         (Some(pre), Some(post)) => (pre, post),
-        (Some(pre), None) => (pre, new),
+        // geth only records post if the value changed; no post means value is unchanged
+        (Some(pre), None) => (pre, pre),
         (None, Some(post)) => (new, post),
         (None, None) => (new, new),
     }
