@@ -1,7 +1,7 @@
 use polars::prelude::*;
 use std::collections::HashMap;
 
-use cryo_freeze::{BlockChunk, ChunkData, Datatype, ParseError, Source, Subchunk, Table};
+use cryo_freeze::{BlockChunk, Datatype, ParseError, Source, Subchunk, Table};
 
 use crate::args::Args;
 
@@ -374,11 +374,31 @@ async fn apply_reorg_buffer(
             let max_allowed = latest_block - reorg_filter;
             Ok(block_chunks
                 .into_iter()
-                .filter_map(|x| match x.max_value() {
-                    Some(max_block) if max_block <= max_allowed => Some(x),
-                    _ => None,
-                })
+                .filter_map(|x| clamp_chunk_to_max(x, max_allowed))
                 .collect())
+        }
+    }
+}
+
+/// Clamp a [`BlockChunk`] so that no block number exceeds `max_allowed`.
+///
+/// Returns `None` if the entire chunk lies beyond `max_allowed`.
+fn clamp_chunk_to_max(chunk: BlockChunk, max_allowed: u64) -> Option<BlockChunk> {
+    match chunk {
+        BlockChunk::Range(start, end) => {
+            if start > max_allowed {
+                None
+            } else {
+                Some(BlockChunk::Range(start, end.min(max_allowed)))
+            }
+        }
+        BlockChunk::Numbers(numbers) => {
+            let filtered: Vec<u64> = numbers.into_iter().filter(|&n| n <= max_allowed).collect();
+            if filtered.is_empty() {
+                None
+            } else {
+                Some(BlockChunk::Numbers(filtered))
+            }
         }
     }
 }
