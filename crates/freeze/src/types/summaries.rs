@@ -457,39 +457,41 @@ pub(crate) fn print_cryo_conclusion(
     let n_chunks_str = n_chunks.separate_with_commas();
     let width = n_chunks_str.len();
     print_bullet("total chunks", n_chunks_str.clone());
-    print_bullet_indent(
-        "chunks errored",
-        format!(
-            "  {:>width$} / {} ({}%)",
-            freeze_summary.errored.len().separate_with_commas(),
-            &n_chunks_str,
-            format_float((100 * freeze_summary.errored.len() / n_chunks) as f64),
-            width = width
-        ),
-        4,
-    );
-    print_bullet_indent(
-        "chunks skipped",
-        format!(
-            "  {:>width$} / {} ({}%)",
-            freeze_summary.skipped.len().separate_with_commas(),
-            n_chunks_str,
-            format_float((100 * freeze_summary.skipped.len() / n_chunks) as f64),
-            width = width
-        ),
-        4,
-    );
-    print_bullet_indent(
-        "chunks collected",
-        format!(
-            "{:>width$} / {} ({}%)",
-            freeze_summary.completed.len().separate_with_commas(),
-            n_chunks_str,
-            format_float((100 * freeze_summary.completed.len() / n_chunks) as f64),
-            width = width
-        ),
-        4,
-    );
+    if n_chunks > 0 {
+        print_bullet_indent(
+            "chunks errored",
+            format!(
+                "  {:>width$} / {} ({}%)",
+                freeze_summary.errored.len().separate_with_commas(),
+                &n_chunks_str,
+                format_float((100 * freeze_summary.errored.len() / n_chunks) as f64),
+                width = width
+            ),
+            4,
+        );
+        print_bullet_indent(
+            "chunks skipped",
+            format!(
+                "  {:>width$} / {} ({}%)",
+                freeze_summary.skipped.len().separate_with_commas(),
+                n_chunks_str,
+                format_float((100 * freeze_summary.skipped.len() / n_chunks) as f64),
+                width = width
+            ),
+            4,
+        );
+        print_bullet_indent(
+            "chunks collected",
+            format!(
+                "{:>width$} / {} ({}%)",
+                freeze_summary.completed.len().separate_with_commas(),
+                n_chunks_str,
+                format_float((100 * freeze_summary.completed.len() / n_chunks) as f64),
+                width = width
+            ),
+            4,
+        );
+    }
 
     print_chunks_speeds(
         freeze_summary.completed.clone(),
