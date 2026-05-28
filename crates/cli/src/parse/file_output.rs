@@ -40,6 +40,7 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
         suffix: label.clone(),
         parquet_compression,
         row_group_size,
+        block_number_pad_width: args.block_number_pad_width as usize,
     };
 
     Ok(output)

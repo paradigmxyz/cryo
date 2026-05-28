@@ -43,6 +43,7 @@ use cryo_cli::{run, Args};
         n_row_groups = None,
         no_stats = false,
         compression = vec!["lz4".to_string()],
+        block_number_pad_width = 8,
         report_dir = None,
         no_report = false,
         address = None,
@@ -105,6 +106,7 @@ pub fn _freeze(
     n_row_groups: Option<usize>,
     no_stats: bool,
     compression: Vec<String>,
+    block_number_pad_width: u32,
     report_dir: Option<String>,
     no_report: bool,
     address: Option<Vec<String>>,
@@ -166,6 +168,7 @@ pub fn _freeze(
             n_row_groups,
             no_stats,
             compression,
+            block_number_pad_width,
             report_dir: report_dir.map(std::path::PathBuf::from),
             no_report,
             address,
@@ -212,7 +215,7 @@ pub fn _freeze(
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatypes or command"))
+        Err(PyErr::new::<PyTypeError, _>("must specify datatypes or command"))
     }
 }
 

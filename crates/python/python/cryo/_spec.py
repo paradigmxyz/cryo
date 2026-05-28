@@ -47,6 +47,7 @@ if typing.TYPE_CHECKING:
         n_row_groups: int | None
         no_stats: bool
         compression: str | None
+        block_number_pad_width: int | None
         contract: typing.Sequence[str | bytes | None]
         topic0: typing.Sequence[str | bytes | None]
         topic1: typing.Sequence[str | bytes | None]

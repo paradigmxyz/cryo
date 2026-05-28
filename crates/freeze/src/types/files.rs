@@ -22,6 +22,8 @@ pub struct FileOutput {
     pub parquet_statistics: bool,
     /// Parquet compression options
     pub parquet_compression: polars::prelude::ParquetCompression,
+    /// Zero-padding width for block numbers in output filenames
+    pub block_number_pad_width: usize,
 }
 
 /// Possible item to use as subdirectory
@@ -72,7 +74,7 @@ impl FileOutput {
                 self.prefix.clone(),
                 datatype.name(),
                 suffix,
-                partition.label(&query.partitioned_by)?,
+                partition.label(&query.partitioned_by, self.block_number_pad_width)?,
                 self.format.as_str(),
             )
         } else {
@@ -80,7 +82,7 @@ impl FileOutput {
                 "{}__{}__{}.{}",
                 self.prefix.clone(),
                 datatype.name(),
-                partition.label(&query.partitioned_by)?,
+                partition.label(&query.partitioned_by, self.block_number_pad_width)?,
                 self.format.as_str(),
             )
         };
