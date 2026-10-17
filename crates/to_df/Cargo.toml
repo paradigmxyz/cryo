@@ -4,7 +4,6 @@ description = "cryo_to_df is a procedural macro used for defining datasets"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-homepage.workspace = true
 repository.workspace = true
 
 [lib]
