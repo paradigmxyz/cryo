@@ -22,6 +22,7 @@ to discuss cryo, check out [the telegram group](https://t.me/paradigm_data)
     1. [Basics](#cryo-help)
     2. [Syntax](#cryo-syntax)
     3. [Datasets](#cryo-datasets)
+6. [Xatu Dataset](#xatu-dataset)
 
 ## Example Usage
 
@@ -331,3 +332,7 @@ dataset group names
 
 use cryo help <DATASET> to print info about a specific dataset
 ```
+
+## Xatu Dataset
+
+ethPandaOps team has created a public Xatu Execution Layer dataset via `cryo`. You can find more info from their announcement [post](https://ethpandaops.io/posts/xatu-execution-layer/).
