@@ -74,6 +74,11 @@ impl NumberChunk {
 
     /// align boundaries of chunk to clean boundaries
     pub fn align(self, chunk_size: u64) -> Option<NumberChunk> {
+        if chunk_size == 0 {
+            // Cannot align with a chunk_size of 0, return None or self based on desired behavior.
+            // Returning None seems appropriate as alignment isn't possible.
+            return None;
+        }
         match self {
             NumberChunk::Numbers(numbers) => Some(NumberChunk::Numbers(numbers)),
             NumberChunk::Range(start, end) => {
