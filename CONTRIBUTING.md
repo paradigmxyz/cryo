@@ -152,5 +152,5 @@ If a pull request appears to be abandoned or stalled, it is polite to first chec
 [rust-coc]: https://github.com/rust-lang/rust/blob/master/CODE_OF_CONDUCT.md
 [coc-header]: #code-of-conduct
 [mcve]: https://stackoverflow.com/help/mcve
-[hiding-a-comment]: https://help.github.com/articles/managing-disruptive-comments/#hiding-a-comment
+[hiding-a-comment]: https://docs.github.com/articles/managing-disruptive-comments/#hiding-a-comment
 
