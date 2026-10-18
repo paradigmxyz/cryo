@@ -18,6 +18,6 @@ fn get_git_description() -> Result<String, std::io::Error> {
 
         Ok(description)
     } else {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "Git command failed"))
+        Err(std::io::Error::other("Git command failed"))
     }
 }
