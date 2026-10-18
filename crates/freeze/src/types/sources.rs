@@ -1012,3 +1012,21 @@ fn parse_geth_diff_object(map: serde_json::Map<String, serde_json::Value>) -> Re
 
     Ok(DiffMode { pre, post })
 }
+
+#[cfg(test)]
+mod tests {
+    use alloy::rpc::types::trace::parity::{CreateAction, CreationMethod};
+
+    #[test]
+    fn create_action_allows_missing_creation_method() {
+        let action: CreateAction = serde_json::from_value(serde_json::json!({
+            "from": "0x0000000000000000000000000000000000000000",
+            "gas": "0x0",
+            "init": "0x",
+            "value": "0x0"
+        }))
+        .expect("clients may omit the Erigon-specific creationMethod field");
+
+        assert_eq!(action.creation_method, CreationMethod::None);
+    }
+}
