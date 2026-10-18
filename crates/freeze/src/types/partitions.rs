@@ -238,17 +238,24 @@ macro_rules! label_partition {
     }};
 }
 
-fn chunks_to_name<T: ChunkData>(chunks: &Option<Vec<T>>) -> Result<String, CollectError> {
+fn chunks_to_name<T: ChunkData>(
+    chunks: &Option<Vec<T>>,
+    pad_width: usize,
+) -> Result<String, CollectError> {
     chunks
         .as_ref()
         .ok_or(err("partition chunks missing"))?
-        .stub()
+        .stub(pad_width)
         .map_err(|_| CollectError::CollectError("could not determine name of chunk".to_string()))
 }
 
 impl Partition {
     /// get label of partition
-    pub fn label_pieces(&self, partitioned_by: &[Dim]) -> Result<Vec<String>, CollectError> {
+    pub fn label_pieces(
+        &self,
+        partitioned_by: &[Dim],
+        pad_width: usize,
+    ) -> Result<Vec<String>, CollectError> {
         let stored_pieces = self.label.clone().unwrap_or_else(|| vec![None; partitioned_by.len()]);
 
         if stored_pieces.len() != partitioned_by.len() {
@@ -262,18 +269,18 @@ impl Partition {
             let piece = match piece.clone() {
                 Some(x) => x,
                 None => match dim {
-                    Dim::BlockNumber => chunks_to_name(&self.block_numbers)?,
-                    Dim::TransactionHash => chunks_to_name(&self.transactions)?,
-                    Dim::CallData => chunks_to_name(&self.call_datas)?,
-                    Dim::Address => chunks_to_name(&self.addresses)?,
-                    Dim::Contract => chunks_to_name(&self.contracts)?,
-                    Dim::FromAddress => chunks_to_name(&self.from_addresses)?,
-                    Dim::ToAddress => chunks_to_name(&self.to_addresses)?,
-                    Dim::Slot => chunks_to_name(&self.slots)?,
-                    Dim::Topic0 => chunks_to_name(&self.topic0s)?,
-                    Dim::Topic1 => chunks_to_name(&self.topic1s)?,
-                    Dim::Topic2 => chunks_to_name(&self.topic2s)?,
-                    Dim::Topic3 => chunks_to_name(&self.topic3s)?,
+                    Dim::BlockNumber => chunks_to_name(&self.block_numbers, pad_width)?,
+                    Dim::TransactionHash => chunks_to_name(&self.transactions, pad_width)?,
+                    Dim::CallData => chunks_to_name(&self.call_datas, pad_width)?,
+                    Dim::Address => chunks_to_name(&self.addresses, pad_width)?,
+                    Dim::Contract => chunks_to_name(&self.contracts, pad_width)?,
+                    Dim::FromAddress => chunks_to_name(&self.from_addresses, pad_width)?,
+                    Dim::ToAddress => chunks_to_name(&self.to_addresses, pad_width)?,
+                    Dim::Slot => chunks_to_name(&self.slots, pad_width)?,
+                    Dim::Topic0 => chunks_to_name(&self.topic0s, pad_width)?,
+                    Dim::Topic1 => chunks_to_name(&self.topic1s, pad_width)?,
+                    Dim::Topic2 => chunks_to_name(&self.topic2s, pad_width)?,
+                    Dim::Topic3 => chunks_to_name(&self.topic3s, pad_width)?,
                 },
             };
             pieces.push(piece);
@@ -282,8 +289,8 @@ impl Partition {
     }
 
     /// get label of partition
-    pub fn label(&self, partitioned_by: &[Dim]) -> Result<String, CollectError> {
-        Ok(self.label_pieces(partitioned_by)?.join("__"))
+    pub fn label(&self, partitioned_by: &[Dim], pad_width: usize) -> Result<String, CollectError> {
+        Ok(self.label_pieces(partitioned_by, pad_width)?.join("__"))
     }
 
     /// partition Partition along given partition dimensions

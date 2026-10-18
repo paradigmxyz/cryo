@@ -15,8 +15,8 @@ pub enum NumberChunk {
 impl ChunkData for NumberChunk {
     type Inner = u64;
 
-    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
-        Ok(format!("{:0>8}", value))
+    fn format_item(value: Self::Inner, pad_width: usize) -> Result<String, ChunkError> {
+        Ok(format!("{:0>width$}", value, width = pad_width))
     }
 
     fn size(&self) -> u64 {
@@ -103,4 +103,45 @@ pub(crate) fn range_to_chunks(start: &u64, end: &u64, chunk_size: &u64) -> Vec<(
         }
     }
     chunks
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_format_item_pads_to_width() {
+        assert_eq!(NumberChunk::format_item(1000, 8).unwrap(), "00001000");
+        assert_eq!(NumberChunk::format_item(1000, 16).unwrap(), "0000000000001000");
+    }
+
+    #[test]
+    fn test_format_item_no_truncation_on_overflow() {
+        // Rust's {:0>N} never truncates — a 9-digit number with pad_width 8
+        // produces 9 chars. This is the documented BSC overflow behaviour.
+        assert_eq!(NumberChunk::format_item(100_000_000, 8).unwrap(), "100000000");
+        // With pad_width 16 the same number is correctly padded.
+        assert_eq!(NumberChunk::format_item(100_000_000, 16).unwrap(), "0000000100000000");
+    }
+
+    #[test]
+    fn test_stub_default_width() {
+        let chunk = NumberChunk::Range(1_000, 1_999);
+        assert_eq!(chunk.stub(8).unwrap(), "00001000_to_00001999");
+    }
+
+    #[test]
+    fn test_stub_width_16() {
+        let chunk = NumberChunk::Range(1_000, 1_999);
+        assert_eq!(chunk.stub(16).unwrap(), "0000000000001000_to_0000000000001999");
+    }
+
+    #[test]
+    fn test_stub_bsc_overflow_scenario() {
+        let chunk = NumberChunk::Range(100_000_000, 100_004_999);
+        // pad_width 8 overflows (9-char numbers) — documents the existing bug
+        assert_eq!(chunk.stub(8).unwrap(), "100000000_to_100004999");
+        // pad_width 16 handles it correctly
+        assert_eq!(chunk.stub(16).unwrap(), "0000000100000000_to_0000000100004999");
+    }
 }

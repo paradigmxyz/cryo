@@ -191,6 +191,10 @@ pub struct Args {
     #[arg(long, help_heading="Output Options", value_name="NAME [#]", num_args(1..=2), default_value = "lz4")]
     pub compression: Vec<String>,
 
+    /// Zero-padding width for block numbers in output filenames
+    #[arg(long, default_value_t = 8, value_name = "N", help_heading = "Output Options")]
+    pub block_number_pad_width: u32,
+
     /// Directory to save summary report
     /// [default: {output_dir}/.cryo/reports]
     #[arg(long, help_heading = "Output Options", verbatim_doc_comment)]

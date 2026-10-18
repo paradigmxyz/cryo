@@ -13,7 +13,7 @@ pub enum BinaryChunk {
 impl ChunkData for BinaryChunk {
     type Inner = Vec<u8>;
 
-    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
+    fn format_item(value: Self::Inner, _pad_width: usize) -> Result<String, ChunkError> {
         let hash = prefix_hex::encode(value);
         let eigth = match hash.char_indices().nth(8) {
             Some(x) => x,

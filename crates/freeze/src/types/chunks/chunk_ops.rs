@@ -7,7 +7,7 @@ pub trait ChunkData: Sized {
     type Inner: Ord + ValueToString;
 
     /// format a single item in chunk
-    fn format_item(value: Self::Inner) -> Result<String, ChunkError>;
+    fn format_item(value: Self::Inner, pad_width: usize) -> Result<String, ChunkError>;
 
     /// size of chunk
     fn size(&self) -> u64;
@@ -22,11 +22,13 @@ pub trait ChunkData: Sized {
     fn values(&self) -> Vec<Self::Inner>;
 
     /// convert chunk to string representation
-    fn stub(&self) -> Result<String, ChunkError> {
+    fn stub(&self, pad_width: usize) -> Result<String, ChunkError> {
         match (self.min_value(), self.max_value()) {
-            (Some(min), Some(max)) => {
-                Ok(format!("{}_to_{}", Self::format_item(min)?, Self::format_item(max)?,))
-            }
+            (Some(min), Some(max)) => Ok(format!(
+                "{}_to_{}",
+                Self::format_item(min, pad_width)?,
+                Self::format_item(max, pad_width)?,
+            )),
             _ => Err(ChunkError::InvalidChunk),
         }
     }
@@ -41,7 +43,7 @@ pub trait ChunkData: Sized {
         let network_name = file_output.prefix.clone();
         let stub = match chunk_label {
             Some(chunk_label) => chunk_label.clone(),
-            None => self.stub()?,
+            None => self.stub(file_output.block_number_pad_width)?,
         };
         let pieces: Vec<String> = match &file_output.suffix {
             Some(suffix) => {
@@ -121,8 +123,8 @@ impl ValueToString for Vec<u8> {
 impl<T: ChunkData> ChunkData for Vec<T> {
     type Inner = T::Inner;
 
-    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
-        T::format_item(value)
+    fn format_item(value: Self::Inner, pad_width: usize) -> Result<String, ChunkError> {
+        T::format_item(value, pad_width)
     }
 
     fn size(&self) -> u64 {
@@ -155,8 +157,8 @@ impl<T: ChunkData> ChunkData for Vec<T> {
 impl<T: ChunkData> ChunkData for &[T] {
     type Inner = T::Inner;
 
-    fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
-        T::format_item(value)
+    fn format_item(value: Self::Inner, pad_width: usize) -> Result<String, ChunkError> {
+        T::format_item(value, pad_width)
     }
 
     fn size(&self) -> u64 {
