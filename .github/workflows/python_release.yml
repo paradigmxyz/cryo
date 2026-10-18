@@ -31,7 +31,7 @@ jobs:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
@@ -46,7 +46,7 @@ jobs:
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -73,7 +73,7 @@ jobs:
           args: --release --out dist --interpreter python${{ matrix.python-version }} --manifest-path crates/python/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -85,7 +85,7 @@ jobs:
         python-version: ["3.7", "3.8", "3.9", "3.10", "3.11", "3.12"]
         target: [x86_64, aarch64]
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
       - name: Set up Python ${{ matrix.python-version }}
@@ -99,7 +99,7 @@ jobs:
           args: --release --out dist --interpreter python${{ matrix.python-version }} --manifest-path crates/python/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
@@ -107,7 +107,7 @@ jobs:
   sdist:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
         with:
           ref: ${{ inputs.sha }}
       - name: Build sdist
@@ -116,7 +116,7 @@ jobs:
           command: sdist
           args: --out dist --manifest-path crates/python/Cargo.toml
       - name: Upload sdist
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: wheels
           path: dist
