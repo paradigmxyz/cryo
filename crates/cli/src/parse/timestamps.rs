@@ -24,7 +24,7 @@ pub(crate) async fn parse_timestamps(
         for path in files {
             let column = if path.contains(':') {
                 path.split(':')
-                    .last()
+                    .next_back()
                     .ok_or(ParseError::ParseError("could not parse txs path column".to_string()))?
             } else {
                 "timestamp"
