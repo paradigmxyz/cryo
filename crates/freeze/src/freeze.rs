@@ -157,7 +157,7 @@ async fn freeze_partitions(
                 completed.push(partition)
             }
             Ok((partition, Err(e))) => errored.push((Some(partition), e)),
-            Err(e) => errored.push((None, err(format!("error joining chunks: {:?}", e).as_str()))),
+            Err(e) => errored.push((None, err(format!("error joining chunks: {e:?}").as_str()))),
         }
     }
 

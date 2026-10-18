@@ -62,6 +62,6 @@ impl MultiDatatype {
 
     /// name
     pub fn name(&self) -> String {
-        format!("{}", heck::AsSnakeCase(format!("{:?}", self)))
+        format!("{}", heck::AsSnakeCase(format!("{self:?}")))
     }
 }

@@ -52,7 +52,7 @@ pub fn print_all_datasets() {
     println!();
     print_header("dataset group names");
     for datatype in MultiDatatype::variants().iter() {
-        let name = heck::AsSnakeCase(format!("{:?}", datatype)).to_string();
+        let name = heck::AsSnakeCase(format!("{datatype:?}")).to_string();
         let subtypes =
             datatype.datatypes().iter().map(|dt| dt.name()).collect::<Vec<_>>().join(", ");
         print_bullet(name, subtypes)
@@ -74,7 +74,7 @@ pub fn print_dataset_info(datatype: Datatype, schema: &Table) {
     let required_parameters = datatype
         .required_parameters()
         .iter()
-        .map(|x| format!("{}", x))
+        .map(|x| format!("{x}"))
         .collect::<Vec<_>>()
         .join(", ");
     let required_parameters =
@@ -84,7 +84,7 @@ pub fn print_dataset_info(datatype: Datatype, schema: &Table) {
     let optional_parameters = datatype
         .optional_parameters()
         .iter()
-        .map(|x| format!("{}", x))
+        .map(|x| format!("{x}"))
         .collect::<Vec<_>>()
         .join(", ");
     let optional_parameters =
@@ -113,21 +113,21 @@ pub fn print_dataset_info(datatype: Datatype, schema: &Table) {
 pub(crate) fn print_header<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
     let underline = "─".repeat(header_str.len()).truecolor(TITLE_R, TITLE_G, TITLE_B);
-    println!("{}", header_str);
-    println!("{}", underline);
+    println!("{header_str}");
+    println!("{underline}");
 }
 
 pub(crate) fn print_header_error<A: AsRef<str>>(header: A) {
     let header_str = header.as_ref().white().bold();
     let underline = "─".repeat(header_str.len()).truecolor(ERROR_R, ERROR_G, ERROR_B);
-    println!("{}", header_str);
-    println!("{}", underline);
+    println!("{header_str}");
+    println!("{underline}");
 }
 
 fn print_bullet_key<A: AsRef<str>>(key: A) {
     let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
     let key_str = key.as_ref().white().bold();
-    println!("{}{}", bullet_str, key_str);
+    println!("{bullet_str}{key_str}");
 }
 
 fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
@@ -135,14 +135,14 @@ fn print_bullet<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     let key_str = key.as_ref().white().bold();
     let value_str = value.as_ref().truecolor(170, 170, 170);
     let colon_str = ": ".truecolor(TITLE_R, TITLE_G, TITLE_B);
-    println!("{}{}{}{}", bullet_str, key_str, colon_str, value_str);
+    println!("{bullet_str}{key_str}{colon_str}{value_str}");
 }
 
 fn print_bullet_parenthetical<A: AsRef<str>, B: AsRef<str>>(key: A, value: B) {
     let bullet_str = "- ".truecolor(TITLE_R, TITLE_G, TITLE_B);
     let key_str = key.as_ref().white().bold();
     let value_str = value.as_ref().truecolor(170, 170, 170);
-    println!("{}{} ({})", bullet_str, key_str, value_str);
+    println!("{bullet_str}{key_str} ({value_str})");
 }
 
 fn print_bullet_indent<A: AsRef<str>, B: AsRef<str>>(key: A, value: B, indent: usize) {
@@ -318,7 +318,7 @@ fn print_chunk<T: Ord + ValueToString>(
 ) {
     if dim_stats.total_values == 1 {
         print_bullet_indent(
-            format!("{}", dim),
+            format!("{dim}"),
             dim_stats.min_value_to_string().unwrap_or("none".to_string()),
             4,
         );
@@ -333,13 +333,13 @@ fn print_chunk<T: Ord + ValueToString>(
                 );
 
                 match align {
-                    Some(true) => text = format!("{} align=yes", text),
-                    Some(false) => text = format!("{} align=no", text),
+                    Some(true) => text = format!("{text} align=yes"),
+                    Some(false) => text = format!("{text} align=no"),
                     None => {}
                 }
 
                 if let Some(reorg_buffer) = reorg_buffer {
-                    text = format!("{} reorg_buffer={}", text, reorg_buffer);
+                    text = format!("{text} reorg_buffer={reorg_buffer}");
                 };
                 print_bullet_indent(dim.plural_name(), text, 4)
             }
@@ -394,7 +394,7 @@ fn print_schema(name: &Datatype, schema: &Table) {
         name.column_types().keys().copied().filter(|x| !schema.has_column(x)).collect::<Vec<_>>();
     let other_columns =
         if other_columns.is_empty() { "[none]".to_string() } else { other_columns.join(", ") };
-    println!("\nother available columns: {}", other_columns);
+    println!("\nother available columns: {other_columns}");
 }
 
 pub(crate) fn print_cryo_conclusion(
@@ -430,7 +430,7 @@ pub(crate) fn print_cryo_conclusion(
             *error_counts.entry(error.to_string()).or_insert(0) += 1;
         }
         for (error, count) in error_counts.iter().take(10) {
-            println!("- {} ({}x)", error, count);
+            println!("- {error} ({count}x)");
         }
         if error_counts.len() > 10 {
             println!("...")
@@ -449,7 +449,7 @@ pub(crate) fn print_cryo_conclusion(
     let seconds = duration.as_secs();
     let millis = duration.subsec_millis();
     let total_time = (seconds as f64) + (duration.subsec_nanos() as f64) / 1e9;
-    let duration_string = format!("{}.{:03} seconds", seconds, millis);
+    let duration_string = format!("{seconds}.{millis:03} seconds");
 
     print_header("collection summary");
     print_bullet("total duration", duration_string);
@@ -579,8 +579,7 @@ fn format_float(number: f64) -> String {
         return format!("{}.0", int_part.separate_with_commas())
     }
 
-    let frac_str =
-        format!("{:0>width$}", frac_part, width = decimal_places).trim_end_matches('0').to_string();
+    let frac_str = format!("{frac_part:0>decimal_places$}").trim_end_matches('0').to_string();
 
     format!("{}.{}", int_part.separate_with_commas(), frac_str)
 }

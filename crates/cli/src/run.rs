@@ -114,7 +114,7 @@ fn print_syntax_help() {
                                      (default column name is <white><bold>transaction_hash</bold></white>)
 - can use multiple parquet files     <white><bold>--txs ./path/to/ethereum__logs*.parquet</bold></white>"#
     );
-    println!("{}", content);
+    println!("{content}");
 }
 
 /// Handle detailed help by parsing schemas and printing dataset information.
@@ -129,7 +129,7 @@ fn handle_detailed_help(args: args::Args) -> Result<(), CollectError> {
         if let Some(schema) = schemas.get(&datatype) {
             cryo_freeze::print_dataset_info(datatype, schema);
         } else {
-            return Err(err(format!("missing schema for datatype: {:?}", datatype).as_str()));
+            return Err(err(format!("missing schema for datatype: {datatype:?}").as_str()));
         }
     }
 

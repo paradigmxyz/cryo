@@ -114,7 +114,7 @@ impl CollectByTransaction for AddressAppearances {
 fn name(log: &Log) -> Option<&'static str> {
     let event = log.topic0().unwrap();
     if event == *ERC20::Transfer::SIGNATURE_HASH {
-        if log.data().data.len() > 0 {
+        if !log.data().data.is_empty() {
             Some("erc20_transfer")
         } else if log.topics().len() == 4 {
             Some("erc721_transfer")

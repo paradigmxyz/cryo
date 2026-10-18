@@ -26,8 +26,8 @@ impl LogDecoder {
         match Event::parse(&event_signature) {
             Ok(event) => Ok(Self { event, raw: event_signature.clone() }),
             Err(e) => {
-                let err = format!("incorrectly formatted event {} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount) err: {}", event_signature, e);
-                eprintln!("{}", err);
+                let err = format!("incorrectly formatted event {event_signature} (expect something like event Transfer(address indexed from, address indexed to, uint256 amount) err: {e}");
+                eprintln!("{err}");
                 Err(err)
             }
         }
@@ -62,8 +62,7 @@ impl LogDecoder {
             .collect();
 
         for log in logs {
-            match self.event.decode_log_parts(log.topics().to_vec(), log.data().data.as_ref(), true)
-            {
+            match self.event.decode_log_parts(log.topics().to_vec(), log.data().data.as_ref()) {
                 Ok(decoded) => {
                     for (idx, param) in decoded.indexed.into_iter().enumerate() {
                         map.entry(indexed_keys[idx].clone()).or_default().push(param);
@@ -72,7 +71,7 @@ impl LogDecoder {
                         map.entry(body_keys[idx].clone()).or_default().push(param);
                     }
                 }
-                Err(e) => eprintln!("error parsing log: {:?}", e),
+                Err(e) => eprintln!("error parsing log: {e:?}"),
             }
         }
         map
@@ -102,7 +101,7 @@ impl LogDecoder {
             match token {
                 DynSolValue::Address(a) => match column_encoding {
                     ColumnEncoding::Binary => bytes.push(a.to_vec()),
-                    ColumnEncoding::Hex => hexes.push(format!("{:?}", a)),
+                    ColumnEncoding::Hex => hexes.push(format!("{a:?}")),
                 },
                 DynSolValue::FixedBytes(b, _) => match column_encoding {
                     ColumnEncoding::Binary => bytes.push(b.to_vec()),
@@ -133,12 +132,12 @@ impl LogDecoder {
                 DynSolValue::Function(_) => {}
             }
         }
-        let mixed_length_err = format!("could not parse column {}, mixed type", name);
+        let mixed_length_err = format!("could not parse column {name}, mixed type");
         let mixed_length_err = mixed_length_err.as_str();
 
         // check each vector, see if it contains any values, if it does, check if it's the same
         // length as the input data and map to a series
-        let name = format!("event__{}", name);
+        let name = format!("event__{name}");
         if !ints.is_empty() {
             Ok(vec![Series::new(name.as_str(), ints)])
         } else if !i256s.is_empty() {

@@ -4,7 +4,7 @@ fn main() {
     let git_description =
         get_git_description().unwrap_or_else(|_| env!("CARGO_PKG_VERSION").to_string());
 
-    println!("cargo:rustc-env=GIT_DESCRIPTION={}", git_description);
+    println!("cargo:rustc-env=GIT_DESCRIPTION={git_description}");
 }
 
 fn get_git_description() -> Result<String, std::io::Error> {
@@ -18,6 +18,6 @@ fn get_git_description() -> Result<String, std::io::Error> {
 
         Ok(description)
     } else {
-        Err(std::io::Error::new(std::io::ErrorKind::Other, "Git command failed"))
+        Err(std::io::Error::other("Git command failed"))
     }
 }

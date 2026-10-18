@@ -68,6 +68,6 @@ impl std::str::FromStr for Datatype {
     fn from_str(s: &str) -> Result<Datatype, ParseError> {
         let mut map = Datatype::alias_map()?;
         map.remove(s)
-            .ok_or_else(|| ParseError::ParseError(format!("no datatype matches input: {}", s)))
+            .ok_or_else(|| ParseError::ParseError(format!("no datatype matches input: {s}")))
     }
 }

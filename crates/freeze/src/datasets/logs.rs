@@ -136,7 +136,7 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
             if let (Some(decoder), Some(indexed_keys), Some(body_keys)) =
                 (&schema.log_decoder, &indexed_keys, &body_keys)
             {
-                match decoder.event.decode_log(&log.inner.data, true) {
+                match decoder.event.decode_log(&log.inner.data) {
                     Ok(log) => {
                         // for param in log.indexed {
                         //     if decode_keys.contains(param.name.as_str()) {

@@ -5,7 +5,7 @@ use alloy::{
     primitives::{Address, BlockNumber, Bytes, TxHash, B256, U256},
     providers::{
         ext::{DebugApi, TraceApi},
-        Provider, ProviderBuilder, RootProvider,
+        DynProvider, Provider, ProviderBuilder,
     },
     rpc::types::{
         trace::{
@@ -22,7 +22,7 @@ use alloy::{
         Block, BlockTransactions, BlockTransactionsKind, Filter, Log, Transaction,
         TransactionInput, TransactionReceipt, TransactionRequest,
     },
-    transports::{http::reqwest::Url, BoxTransport, RpcError, TransportErrorKind},
+    transports::{http::reqwest::Url, RpcError, TransportErrorKind},
 };
 use governor::{
     clock::DefaultClock,
@@ -43,7 +43,7 @@ pub type RateLimiter = governor::RateLimiter<NotKeyed, InMemoryState, DefaultClo
 #[derive(Clone, Debug)]
 pub struct Source {
     /// provider
-    pub provider: RootProvider<BoxTransport>,
+    pub provider: DynProvider,
     /// chain_id of network
     pub chain_id: u64,
     /// number of blocks per log request
@@ -119,7 +119,7 @@ impl Source {
     pub async fn init(rpc_url: Option<String>) -> Result<Source> {
         let rpc_url: String = parse_rpc_url(rpc_url);
         let parsed_rpc_url: Url = rpc_url.parse().expect("rpc url is not valid");
-        let provider = ProviderBuilder::new().on_http(parsed_rpc_url.clone());
+        let provider = ProviderBuilder::new().connect_http(parsed_rpc_url.clone());
         let chain_id = provider
             .get_chain_id()
             .await
@@ -128,10 +128,10 @@ impl Source {
         let rate_limiter = None;
         let semaphore = None;
 
-        let provider = ProviderBuilder::new().on_http(parsed_rpc_url);
+        let provider = ProviderBuilder::new().connect_http(parsed_rpc_url);
 
         let source = Source {
-            provider: provider.boxed(),
+            provider: provider.erased(),
             chain_id,
             inner_request_size: DEFAULT_INNER_REQUEST_SIZE,
             max_concurrent_chunks: Some(DEFAULT_MAX_CONCURRENT_CHUNKS),
@@ -210,17 +210,6 @@ pub struct SourceLabels {
     pub initial_backoff: Option<u64>,
 }
 
-/// Wrapper over `Provider<P>` that adds concurrency and rate limiting controls
-#[derive(Debug)]
-pub struct Fetcher<P> {
-    /// provider data source
-    pub provider: RootProvider<P>,
-    /// semaphore for controlling concurrency
-    pub semaphore: Option<Semaphore>,
-    /// rate limiter for controlling request rate
-    pub rate_limiter: Option<RateLimiter>,
-}
-
 type Result<T> = ::core::result::Result<T, CollectError>;
 
 // impl<P: JsonRpcClient> Fetcher<P> {
@@ -238,9 +227,12 @@ impl Source {
         trace_types: Vec<TraceType>,
     ) -> Result<Vec<TraceResultsWithTransactionHash>> {
         let _permit = self.permit_request().await;
-        Self::map_err(
-            self.provider.trace_replay_block_transactions(block.into(), &trace_types).await,
-        )
+        let trace_result = self
+            .provider
+            .trace_replay_block_transactions(block.into())
+            .trace_types(trace_types)
+            .await;
+        Self::map_err(trace_result)
     }
 
     /// Get state diff traces of block
@@ -298,7 +290,9 @@ impl Source {
         trace_types: Vec<TraceType>,
     ) -> Result<TraceResults> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.trace_replay_transaction(tx_hash, &trace_types).await)
+        let trace_result =
+            self.provider.trace_replay_transaction(tx_hash).trace_types(trace_types).await;
+        Self::map_err(trace_result)
     }
 
     /// Get state diff traces of transaction
@@ -348,7 +342,8 @@ impl Source {
         kind: BlockTransactionsKind,
     ) -> Result<Option<Block>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block(block_num.into(), kind).await)
+        let block_result = self.provider.get_block(block_num.into()).kind(kind).await;
+        Self::map_err(block_result)
     }
 
     /// Gets the block with `block_hash` (transaction hashes only)
@@ -358,7 +353,8 @@ impl Source {
         kind: BlockTransactionsKind,
     ) -> Result<Option<Block>> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.get_block(block_hash.into(), kind).await)
+        let block_result = self.provider.get_block(block_hash.into()).kind(kind).await;
+        Self::map_err(block_result)
     }
 
     /// Returns all receipts for a block.
@@ -398,7 +394,7 @@ impl Source {
         block_number: BlockNumber,
     ) -> Result<Bytes> {
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.call(&transaction).block(block_number.into()).await)
+        Self::map_err(self.provider.call(transaction).block(block_number.into()).await)
     }
 
     /// Returns traces for given call data
@@ -411,10 +407,14 @@ impl Source {
         let _permit = self.permit_request().await;
         if let Some(bn) = block_number {
             return Self::map_err(
-                self.provider.trace_call(&transaction, &trace_type).block_id(bn.into()).await,
+                self.provider
+                    .trace_call(&transaction)
+                    .trace_types(trace_type.clone())
+                    .block_id(bn.into())
+                    .await,
             );
         }
-        Self::map_err(self.provider.trace_call(&transaction, &trace_type).await)
+        Self::map_err(self.provider.trace_call(&transaction).trace_types(trace_type.clone()).await)
     }
 
     /// Get nonce of address
@@ -495,7 +495,7 @@ impl Source {
             ..Default::default()
         };
         let _permit = self.permit_request().await;
-        Self::map_err(self.provider.call(&transaction).block(block_number.into()).await)
+        Self::map_err(self.provider.call(transaction).block(block_number.into()).await)
     }
 
     /// Return output data of a contract call
@@ -512,15 +512,18 @@ impl Source {
             ..Default::default()
         };
         let _permit = self.permit_request().await;
-        if block_number.is_some() {
+        if let Some(bn) = block_number {
             Self::map_err(
                 self.provider
-                    .trace_call(&transaction, &trace_type)
-                    .block_id(block_number.unwrap().into())
+                    .trace_call(&transaction)
+                    .trace_types(trace_type.clone())
+                    .block_id(bn.into())
                     .await,
             )
         } else {
-            Self::map_err(self.provider.trace_call(&transaction, &trace_type).await)
+            Self::map_err(
+                self.provider.trace_call(&transaction).trace_types(trace_type.clone()).await,
+            )
         }
     }
 
@@ -584,15 +587,13 @@ impl Source {
                     GethTrace::JS(value) => calls.push(value),
                     _ => {
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )))
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "invalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "invalid trace result in tx {tx_hash:?}: {error}"
                     )))
                 }
             }
@@ -617,15 +618,13 @@ impl Source {
                     GethTrace::Default(frame) => calls.push(frame),
                     _ => {
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )))
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "inalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "inalid trace result in tx {tx_hash:?}: {error}"
                     )));
                 }
             }
@@ -657,15 +656,13 @@ impl Source {
                     GethTrace::NoopTracer(_) => {}
                     _ => {
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )))
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "invalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "invalid trace result in tx {tx_hash:?}: {error}"
                     )));
                 }
             }
@@ -695,15 +692,13 @@ impl Source {
                     GethTrace::PreStateTracer(PreStateFrame::Default(frame)) => calls.push(frame.0),
                     _ => {
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )))
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "invalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "invalid trace result in tx {tx_hash:?}: {error}"
                     )));
                 }
             }
@@ -738,15 +733,13 @@ impl Source {
                     GethTrace::CallTracer(frame) => calls.push(frame),
                     _ => {
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )))
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "invalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "invalid trace result in tx {tx_hash:?}: {error}"
                     )));
                 }
             }
@@ -784,17 +777,15 @@ impl Source {
                         diffs.push(diff);
                     }
                     _ => {
-                        println!("{:?}", result);
+                        println!("{result:?}");
                         return Err(CollectError::CollectError(format!(
-                            "invalid trace result in tx {:?}",
-                            tx_hash
+                            "invalid trace result in tx {tx_hash:?}"
                         )));
                     }
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "invalid trace result in tx {:?}: {}",
-                        tx_hash, error
+                        "invalid trace result in tx {tx_hash:?}: {error}"
                     )));
                 }
             }

@@ -12,7 +12,7 @@ pub(crate) fn parse_file_output(args: &Args, source: &Source) -> Result<FileOutp
     })?;
     match fs::create_dir_all(&output_dir) {
         Ok(_) => {}
-        Err(e) => return Err(ParseError::ParseError(format!("Error creating directory: {}", e))),
+        Err(e) => return Err(ParseError::ParseError(format!("Error creating directory: {e}"))),
     };
 
     let label = &args.label;

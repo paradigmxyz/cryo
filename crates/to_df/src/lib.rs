@@ -209,7 +209,7 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             let field_name_str = format!("{}", quote!(#name));
             column_types.push(quote! { (#field_name_str, #column_type) });
         } else if name != "n_rows" && name != "event_cols" {
-            println!("invalid column type for {name} in table {}", datatype_str);
+            println!("invalid column type for {name} in table {datatype_str}");
         }
     }
 

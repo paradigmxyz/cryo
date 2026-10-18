@@ -322,7 +322,7 @@ fn get_after_str() -> String {
       <white><bold>cryo help</bold></white>"#
     );
     let post_subcommands = " <DATASET(S)>         display info about a dataset";
-    format!("{}{}{}", header, subcommands, post_subcommands)
+    format!("{header}{subcommands}{post_subcommands}")
 }
 
 fn get_datatype_help() -> &'static str {

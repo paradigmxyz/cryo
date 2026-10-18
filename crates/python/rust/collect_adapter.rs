@@ -202,25 +202,25 @@ pub fn _collect(
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
+        Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
     }
 }
 
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
     let (query, source, _sink, _env) = match parse_args(&args).await {
         Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
+        Err(e) => panic!("error parsing opts {e:?}"),
     };
     match collect(query.into(), source.into()).await {
         Ok(df) => Ok(df),
-        Err(e) => panic!("error collecting {:?}", e),
+        Err(e) => panic!("error collecting {e:?}"),
     }
 }
 
 async fn run_execute(command: String) -> PolarsResult<DataFrame> {
     let args = match cryo_cli::parse_str(command.as_str()).await {
         Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
+        Err(e) => panic!("error parsing opts {e:?}"),
     };
     run_collect(args).await
 }

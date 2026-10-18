@@ -64,8 +64,7 @@ pub(crate) fn parse_schemas(
                 .map(|schema| (*datatype, schema))
                 .map_err(|e| {
                     ParseError::ParseError(format!(
-                        "Failed to get schema for datatype: {:?}, {:?}",
-                        datatype, e
+                        "Failed to get schema for datatype: {datatype:?}, {e:?}"
                     ))
                 })
         })
@@ -100,7 +99,7 @@ fn parse_u256_types(args: &Args) -> Result<Vec<U256Type>, ParseError> {
                         "u32" | "uint32" => Ok(U256Type::U32),
                         "u64" | "uint64" => Ok(U256Type::U64),
                         "decimal128" | "d128" => Ok(U256Type::Decimal128),
-                        _ => Err(ParseError::ParseError(format!("invalid u256 type: {}", raw))),
+                        _ => Err(ParseError::ParseError(format!("invalid u256 type: {raw}"))),
                     }
                 })
                 .collect()
@@ -129,8 +128,7 @@ fn ensure_included_columns(
     }
     if !unknown_columns.is_empty() {
         return Err(ParseError::ParseError(format!(
-            "datatypes do not support these columns: {:?}",
-            unknown_columns
+            "datatypes do not support these columns: {unknown_columns:?}"
         )))
     }
     Ok(())
@@ -157,8 +155,7 @@ fn ensure_excluded_columns(
     }
     if !unknown_columns.is_empty() {
         return Err(ParseError::ParseError(format!(
-            "datatypes do not support these columns: {:?}",
-            unknown_columns
+            "datatypes do not support these columns: {unknown_columns:?}"
         )))
     }
     Ok(())

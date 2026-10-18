@@ -105,7 +105,7 @@ pub(crate) async fn parse_partitions(
     };
     let mut partitions = chunk
         .partition_with_labels(labels, partition_by.clone())
-        .map_err(|e| ParseError::ParseError(format!("could not partition labels ({})", e)))?;
+        .map_err(|e| ParseError::ParseError(format!("could not partition labels ({e})")))?;
 
     match args.chunk_order.as_deref() {
         None => {}

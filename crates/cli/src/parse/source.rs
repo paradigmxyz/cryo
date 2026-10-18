@@ -1,14 +1,13 @@
-use std::env;
+use std::{env, sync::Arc};
 
 use crate::args::Args;
 use alloy::{
-    providers::{Provider, ProviderBuilder, RootProvider},
-    rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient},
-    transports::{layers::RetryBackoffLayer, BoxTransport},
+    providers::{Provider, ProviderBuilder},
+    rpc::client::ClientBuilder,
+    transports::layers::RetryBackoffLayer,
 };
 use cryo_freeze::{ParseError, Source, SourceLabels};
 use governor::{Quota, RateLimiter};
-use polars::prelude::*;
 use std::num::NonZeroU32;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
@@ -19,14 +18,12 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
         args.initial_backoff,
         args.compute_units_per_second,
     );
-    let connect: BuiltInConnectionString = rpc_url.parse().map_err(ParseError::ProviderError)?;
-    let client: RpcClient<BoxTransport> = ClientBuilder::default()
+    let client = ClientBuilder::default()
         .layer(retry_layer)
-        .connect_boxed(connect)
+        .connect(&rpc_url)
         .await
-        .map_err(ParseError::ProviderError)?
-        .boxed();
-    let provider: RootProvider<BoxTransport> = ProviderBuilder::default().on_client(client);
+        .map_err(ParseError::ProviderError)?;
+    let provider = ProviderBuilder::default().connect_client(client).erased();
     let chain_id = provider.get_chain_id().await.map_err(ParseError::ProviderError)?;
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match (NonZeroU32::new(1), NonZeroU32::new(rate_limit)) {
@@ -79,7 +76,7 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
         match endpoint {
             Ok(endpoint) => endpoint.map(|endpoint| endpoint.url),
             Err(e) => {
-                eprintln!("Could not load MESC data: {}", e);
+                eprintln!("Could not load MESC data: {e}");
                 None
             }
         }
