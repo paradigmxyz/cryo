@@ -624,7 +624,7 @@ impl Source {
                 },
                 TraceResult::Error { error, tx_hash } => {
                     return Err(CollectError::CollectError(format!(
-                        "inalid trace result in tx {:?}: {}",
+                        "invalid trace result in tx {:?}: {}",
                         tx_hash, error
                     )));
                 }

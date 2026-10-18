@@ -176,7 +176,7 @@ macro_rules! parametrize {
         for output in $outputs.into_iter() {
             let chunks = $self_chunks
                 .as_ref()
-                .ok_or(CollectError::CollectError("mising block ranges".to_string()))?;
+                .ok_or(CollectError::CollectError("missing block ranges".to_string()))?;
 
             for chunk in chunks.iter() {
                 for value in chunk.values().iter() {
