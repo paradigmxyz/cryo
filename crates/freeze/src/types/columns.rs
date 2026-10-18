@@ -66,6 +66,16 @@ pub trait ToDataFrames: Sized {
     ) -> Result<HashMap<Datatype, DataFrame>, CollectError>;
 }
 
+/// converts from dataframes
+pub trait FromDataFrames: Sized {
+    /// create struct from dataframe data
+    fn parse_dfs(
+        &mut self,
+        dfs: HashMap<Datatype, DataFrame>,
+        datatype: &HashMap<Datatype, Table>,
+    ) -> Result<&mut Self, CollectError>;
+}
+
 /// Dataset manages collection and management of a particular datatype
 pub trait Dataset: Sync + Send {
     /// alias of Dataset

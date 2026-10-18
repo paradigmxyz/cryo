@@ -1,13 +1,13 @@
-use cryo_freeze::ParseError;
+use cryo_freeze::{ParseError, RawBytes};
 use std::collections::HashMap;
 
-pub(crate) fn hex_string_to_binary(hex_string: &str) -> Result<Vec<u8>, ParseError> {
+pub(crate) fn hex_string_to_binary(hex_string: &str) -> Result<RawBytes, ParseError> {
     let hex_string = hex_string.strip_prefix("0x").unwrap_or(hex_string);
     hex::decode(hex_string)
         .map_err(|_| ParseError::ParseError("could not parse data as hex".to_string()))
 }
 
-pub(crate) fn hex_strings_to_binary(hex_strings: &[String]) -> Result<Vec<Vec<u8>>, ParseError> {
+pub(crate) fn hex_strings_to_binary(hex_strings: &[String]) -> Result<Vec<RawBytes>, ParseError> {
     hex_strings
         .iter()
         .map(|x| {
@@ -39,7 +39,7 @@ impl BinaryInputList {
     }
 }
 
-type ParsedBinaryArg = HashMap<BinaryInputList, Vec<Vec<u8>>>;
+type ParsedBinaryArg = HashMap<BinaryInputList, Vec<RawBytes>>;
 
 /// parse binary argument list
 /// each argument can be a hex string or a parquet column reference

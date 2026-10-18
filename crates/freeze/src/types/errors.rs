@@ -109,6 +109,10 @@ pub enum ParseError {
     /// Parse url error
     #[error("Parsing url error: {0}")]
     ParseUrlError(url::ParseError),
+
+    /// Parse jwt error
+    #[error("Parsing jwt error: {0}")]
+    ParseJwtError(String),
 }
 
 impl From<mesc::MescError> for ParseError {

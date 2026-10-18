@@ -6,23 +6,22 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::CodeDiffs)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct CodeDiffs {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) address: Vec<Vec<u8>>,
-    pub(crate) from_value: Vec<Vec<u8>>,
-    pub(crate) to_value: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) address: Vec<RawBytes>,
+    pub(crate) from_value: Vec<RawBytes>,
+    pub(crate) to_value: Vec<RawBytes>,
     pub(crate) chain_id: Vec<u64>,
 }
 
 #[async_trait::async_trait]
 impl Dataset for CodeDiffs {}
 
-type BlockTxTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
+type BlockTxTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<TraceResults>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for CodeDiffs {
@@ -76,7 +75,7 @@ pub(crate) fn process_code_diff(
     addr: &Address,
     diff: &Delta<Bytes>,
     block_number: &Option<u32>,
-    transaction_hash: &Option<Vec<u8>>,
+    transaction_hash: &Option<RawBytes>,
     transaction_index: usize,
     columns: &mut CodeDiffs,
     schema: &Table,

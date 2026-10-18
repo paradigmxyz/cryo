@@ -2,13 +2,12 @@ use crate::*;
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::JavascriptTraces)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct JavascriptTraces {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
     pub(crate) output: Vec<String>,
     pub(crate) chain_id: Vec<u64>,
 }
@@ -20,7 +19,7 @@ impl Dataset for JavascriptTraces {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<serde_json::Value>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<serde_json::Value>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for JavascriptTraces {

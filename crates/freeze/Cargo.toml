@@ -11,6 +11,7 @@ repository.workspace = true
 
 [dependencies]
 alloy = { workspace = true }
+alloy-transport-http = { workspace = true }
 async-trait = { workspace = true }
 chrono = { workspace = true }
 colored = { workspace = true }
@@ -18,15 +19,23 @@ cryo_to_df = { workspace = true }
 futures = { workspace = true }
 governor = { workspace = true }
 heck = { workspace = true }
+http-body-util = "0.1.3"
 indexmap = { workspace = true }
 indicatif = { workspace = true }
 mesc = { workspace = true }
 polars = { workspace = true }
-prefix-hex = { workspace = true }
 regex = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 thiserror = { workspace = true }
 thousands = { workspace = true }
 tokio = { workspace = true }
-url = "2.5.2"
+tower = "0.5.2"
+tracing = { workspace = true }
+url = "2.5.7"
+
+[features]
+default = ["reqwest-default-tls"]
+reqwest-default-tls = ["alloy/reqwest"]
+reqwest-native-tls = ["alloy/reqwest-native-tls"]
+reqwest-rustls-tls = ["alloy/reqwest-rustls-tls"]

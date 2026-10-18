@@ -2,16 +2,15 @@ use crate::*;
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::GethCodeDiffs)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct GethCodeDiffs {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u64>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) address: Vec<Vec<u8>>,
-    pub(crate) from_value: Vec<Vec<u8>>,
-    pub(crate) to_value: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) address: Vec<RawBytes>,
+    pub(crate) from_value: Vec<RawBytes>,
+    pub(crate) to_value: Vec<RawBytes>,
     pub(crate) chain_id: Vec<u64>,
 }
 

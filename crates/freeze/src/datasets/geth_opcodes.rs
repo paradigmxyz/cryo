@@ -5,12 +5,11 @@ use alloy::rpc::types::trace::geth::{
 use polars::prelude::*;
 
 /// columns for geth traces
-#[cryo_to_df::to_df(Datatype::GethOpcodes)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct GethOpcodes {
     n_rows: u64,
     block_number: Vec<Option<u32>>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
+    transaction_hash: Vec<Option<RawBytes>>,
     transaction_index: Vec<u32>,
     trace_address: Vec<String>,
     depth: Vec<u64>,
@@ -24,7 +23,7 @@ pub struct GethOpcodes {
     memory: Vec<Option<String>>,
     stack: Vec<Option<String>>,
     storage: Vec<Option<String>>,
-    return_data: Vec<Option<Vec<u8>>>,
+    return_data: Vec<Option<RawBytes>>,
     chain_id: Vec<u64>,
 }
 
@@ -38,7 +37,7 @@ impl Dataset for GethOpcodes {
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethOpcodes {
-    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<DefaultFrame>);
+    type Response = (Option<u32>, Vec<Option<RawBytes>>, Vec<DefaultFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethOpcodes)?;
@@ -69,7 +68,7 @@ impl CollectByBlock for GethOpcodes {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for GethOpcodes {
-    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<DefaultFrame>);
+    type Response = (Option<u32>, Vec<Option<RawBytes>>, Vec<DefaultFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethOpcodes)?;
@@ -97,7 +96,7 @@ impl CollectByTransaction for GethOpcodes {
 }
 
 fn process_geth_opcodes(
-    traces: (Option<u32>, Vec<Option<Vec<u8>>>, Vec<DefaultFrame>),
+    traces: (Option<u32>, Vec<Option<RawBytes>>, Vec<DefaultFrame>),
     columns: &mut GethOpcodes,
     schemas: &Schemas,
 ) -> R<()> {
@@ -115,7 +114,7 @@ fn process_trace(
     columns: &mut GethOpcodes,
     schema: &Table,
     block_number: &Option<u32>,
-    tx: &Option<Vec<u8>>,
+    tx: &Option<RawBytes>,
     tx_index: u32,
     trace_address: Vec<u32>,
 ) -> R<()> {
@@ -138,7 +137,7 @@ fn process_trace(
         store!(schema, columns, gas, struct_log.gas);
         store!(schema, columns, gas_cost, struct_log.gas_cost);
         store!(schema, columns, pc, struct_log.pc);
-        store!(schema, columns, op, struct_log.op);
+        store!(schema, columns, op, struct_log.op.to_string());
         store!(schema, columns, refund_counter, struct_log.refund_counter);
 
         if schema.has_column("memory") {

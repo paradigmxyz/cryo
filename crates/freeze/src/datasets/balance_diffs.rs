@@ -6,14 +6,13 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::BalanceDiffs)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct BalanceDiffs {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) address: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) address: Vec<RawBytes>,
     pub(crate) from_value: Vec<U256>,
     pub(crate) to_value: Vec<U256>,
     pub(crate) chain_id: Vec<u64>,
@@ -22,7 +21,7 @@ pub struct BalanceDiffs {
 #[async_trait::async_trait]
 impl Dataset for BalanceDiffs {}
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<TraceResults>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for BalanceDiffs {
@@ -77,7 +76,7 @@ pub(crate) fn process_balance_diff(
     addr: &Address,
     diff: &Delta<U256>,
     block_number: &Option<u32>,
-    transaction_hash: &Option<Vec<u8>>,
+    transaction_hash: &Option<RawBytes>,
     transaction_index: usize,
     columns: &mut BalanceDiffs,
     schema: &Table,

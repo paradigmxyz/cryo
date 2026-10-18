@@ -4,6 +4,7 @@ pub(crate) mod chunk_ops;
 pub(crate) mod number_chunk;
 pub(crate) mod subchunks;
 
+pub use binary_chunk::{BinaryChunk, RawBytes};
 pub use chunk::{
     AddressChunk, BlockChunk, CallDataChunk, Chunk, SlotChunk, TopicChunk, TransactionChunk,
 };

@@ -3,21 +3,20 @@ use alloy::{primitives::U256, rpc::types::trace::geth::CallFrame};
 use polars::prelude::*;
 
 /// columns for geth traces
-#[cryo_to_df::to_df(Datatype::GethCalls)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct GethCalls {
     n_rows: u64,
     typ: Vec<String>,
-    from_address: Vec<Vec<u8>>,
-    to_address: Vec<Option<Vec<u8>>>,
+    from_address: Vec<RawBytes>,
+    to_address: Vec<Option<RawBytes>>,
     value: Vec<Option<U256>>,
     gas: Vec<U256>,
     gas_used: Vec<U256>,
-    input: Vec<Vec<u8>>,
-    output: Vec<Option<Vec<u8>>>,
+    input: Vec<RawBytes>,
+    output: Vec<Option<RawBytes>>,
     error: Vec<Option<String>>,
     block_number: Vec<Option<u32>>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
+    transaction_hash: Vec<Option<RawBytes>>,
     transaction_index: Vec<u32>,
     trace_address: Vec<String>,
     chain_id: Vec<u64>,
@@ -28,7 +27,7 @@ impl Dataset for GethCalls {}
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethCalls {
-    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
+    type Response = (Option<u32>, Vec<Option<RawBytes>>, Vec<CallFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
@@ -44,7 +43,7 @@ impl CollectByBlock for GethCalls {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for GethCalls {
-    type Response = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>);
+    type Response = (Option<u32>, Vec<Option<RawBytes>>, Vec<CallFrame>);
 
     async fn extract(request: Params, source: Arc<Source>, query: Arc<Query>) -> R<Self::Response> {
         let schema = query.schemas.get_schema(&Datatype::GethCalls)?;
@@ -60,7 +59,7 @@ impl CollectByTransaction for GethCalls {
 }
 
 fn process_geth_traces(
-    traces: (Option<u32>, Vec<Option<Vec<u8>>>, Vec<CallFrame>),
+    traces: (Option<u32>, Vec<Option<RawBytes>>, Vec<CallFrame>),
     columns: &mut GethCalls,
     schemas: &Schemas,
 ) -> R<()> {
@@ -77,7 +76,7 @@ fn process_trace(
     columns: &mut GethCalls,
     schema: &Table,
     block_number: &Option<u32>,
-    tx: &Option<Vec<u8>>,
+    tx: &Option<RawBytes>,
     tx_index: u32,
     trace_address: Vec<u32>,
 ) -> R<()> {

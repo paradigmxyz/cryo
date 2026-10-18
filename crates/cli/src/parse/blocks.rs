@@ -20,7 +20,7 @@ pub(crate) async fn parse_blocks(
         for path in files {
             let column = if path.contains(':') {
                 path.split(':')
-                    .last()
+                    .next_back()
                     .ok_or(ParseError::ParseError("could not parse txs path column".to_string()))?
             } else {
                 "block_number"
@@ -395,8 +395,8 @@ mod tests {
     use std::path::PathBuf;
 
     use alloy::{
-        providers::{IpcConnect, ProviderBuilder},
-        transports::ipc::MockIpcServer,
+        providers::{Provider, ProviderBuilder},
+        transports::ipc::{IpcConnect, MockIpcServer},
     };
 
     use super::*;
@@ -412,7 +412,7 @@ mod tests {
         mock_ipc_path: PathBuf,
     ) {
         let ipc = IpcConnect::new(mock_ipc_path);
-        let provider = ProviderBuilder::new().on_ipc(ipc).await.unwrap().boxed();
+        let provider = ProviderBuilder::new().connect_ipc(ipc).await.unwrap().erased();
         let source = Source {
             provider,
             semaphore: Arc::new(None),
@@ -421,6 +421,7 @@ mod tests {
             inner_request_size: 1,
             max_concurrent_chunks: None,
             rpc_url: "".to_string(),
+            jwt: None,
             labels: cryo_freeze::SourceLabels::default(),
         };
         let source = Arc::new(source);
@@ -478,7 +479,7 @@ mod tests {
         mock_ipc_path: PathBuf,
     ) {
         let ipc = IpcConnect::new(mock_ipc_path);
-        let provider = ProviderBuilder::new().on_ipc(ipc).await.unwrap().boxed();
+        let provider = ProviderBuilder::new().connect_ipc(ipc).await.unwrap().erased();
         let source = Arc::new(Source {
             provider,
             chain_id: 1,
@@ -487,6 +488,7 @@ mod tests {
             semaphore: Arc::new(None),
             max_concurrent_chunks: Some(1),
             rate_limiter: Arc::new(None),
+            jwt: None,
             labels: cryo_freeze::SourceLabels::default(),
         });
         for (test, res) in tests {
@@ -498,11 +500,11 @@ mod tests {
                     );
                 }
                 BlockInputTest::WithoutMock((inputs, expected)) => {
-                    println!("RES {:?}", res);
-                    println!("inputs {:?}", inputs);
-                    println!("EXPECTED {:?}", expected);
+                    println!("RES {res:?}");
+                    println!("inputs {inputs:?}");
+                    println!("EXPECTED {expected:?}");
                     let actual = block_input_test_executor(inputs, expected, source.clone()).await;
-                    println!("ACTUAL {:?}", actual);
+                    println!("ACTUAL {actual:?}");
                     assert_eq!(actual, res);
                 }
             }
@@ -518,8 +520,8 @@ mod tests {
         assert_eq!(block_chunks.len(), expected.len());
         for (i, block_chunk) in block_chunks.iter().enumerate() {
             let expected_chunk = &expected[i];
-            println!("BLOCK_CHUNK {:?}", block_chunk);
-            println!("EXCPECTED_CHUNK {:?}", expected_chunk);
+            println!("BLOCK_CHUNK {block_chunk:?}");
+            println!("EXCPECTED_CHUNK {expected_chunk:?}");
             match expected_chunk {
                 BlockChunk::Numbers(expected_block_numbers) => {
                     assert!(matches!(block_chunk, BlockChunk::Numbers { .. }));
@@ -554,8 +556,11 @@ mod tests {
         tests: Vec<(BlockNumberTest<'_>, bool)>,
         mock_ipc_path: PathBuf,
     ) {
-        let provider =
-            ProviderBuilder::new().on_ipc(IpcConnect::new(mock_ipc_path)).await.unwrap().boxed();
+        let provider = ProviderBuilder::new()
+            .connect_ipc(IpcConnect::new(mock_ipc_path))
+            .await
+            .unwrap()
+            .erased();
         let source = Source {
             provider,
             semaphore: Arc::new(None),
@@ -564,6 +569,7 @@ mod tests {
             inner_request_size: 1,
             max_concurrent_chunks: Some(1),
             rpc_url: "".to_string(),
+            jwt: None,
             labels: cryo_freeze::SourceLabels::default(),
         };
         let source = Arc::new(source);

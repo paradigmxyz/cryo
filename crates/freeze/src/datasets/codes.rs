@@ -3,13 +3,12 @@ use alloy::primitives::Address;
 use polars::prelude::*;
 
 /// columns for balances
-#[cryo_to_df::to_df(Datatype::Codes)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Codes {
     n_rows: usize,
     block_number: Vec<u32>,
-    address: Vec<Vec<u8>>,
-    code: Vec<Vec<u8>>,
+    address: Vec<RawBytes>,
+    code: Vec<RawBytes>,
     chain_id: Vec<u64>,
 }
 
@@ -32,7 +31,7 @@ impl Dataset for Codes {
     }
 }
 
-type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>);
+type BlockTxAddressOutput = (u32, Option<RawBytes>, RawBytes, RawBytes);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Codes {

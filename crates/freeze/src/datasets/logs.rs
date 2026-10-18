@@ -1,27 +1,27 @@
 use crate::*;
 use alloy::{
-    dyn_abi::{DynSolType, DynSolValue, EventExt},
+    dyn_abi::{DynSolValue, EventExt},
     rpc::types::Log,
 };
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Logs)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Logs {
     n_rows: u64,
     block_number: Vec<u32>,
-    block_hash: Vec<Option<Vec<u8>>>,
+    block_hash: Vec<Option<RawBytes>>,
     transaction_index: Vec<u32>,
     log_index: Vec<u32>,
-    transaction_hash: Vec<Vec<u8>>,
-    address: Vec<Vec<u8>>,
-    topic0: Vec<Option<Vec<u8>>>,
-    topic1: Vec<Option<Vec<u8>>>,
-    topic2: Vec<Option<Vec<u8>>>,
-    topic3: Vec<Option<Vec<u8>>>,
-    data: Vec<Vec<u8>>,
+    transaction_hash: Vec<RawBytes>,
+    address: Vec<RawBytes>,
+    topic0: Vec<Option<RawBytes>>,
+    topic1: Vec<Option<RawBytes>>,
+    topic2: Vec<Option<RawBytes>>,
+    topic3: Vec<Option<RawBytes>>,
+    data: Vec<RawBytes>,
     n_data_bytes: Vec<u32>,
+    #[to_df(flatten = "extract_event_cols")]
     event_cols: indexmap::IndexMap<String, Vec<DynSolValue>>,
     chain_id: Vec<u64>,
 }
@@ -110,20 +110,8 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
     let (indexed_keys, body_keys) = match &schema.log_decoder {
         None => (None, None),
         Some(decoder) => {
-            let indexed: Vec<String> = decoder
-                .event
-                .inputs
-                .clone()
-                .into_iter()
-                .filter_map(|x| if x.indexed { Some(x.name) } else { None })
-                .collect();
-            let body: Vec<String> = decoder
-                .event
-                .inputs
-                .clone()
-                .into_iter()
-                .filter_map(|x| if x.indexed { None } else { Some(x.name) })
-                .collect();
+            let indexed = decoder.indexed_names();
+            let body = decoder.body_names();
             (Some(indexed), Some(body))
         }
     };
@@ -136,26 +124,30 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
             if let (Some(decoder), Some(indexed_keys), Some(body_keys)) =
                 (&schema.log_decoder, &indexed_keys, &body_keys)
             {
-                match decoder.event.decode_log(&log.inner.data, true) {
+                match decoder.event.decode_log(&log.inner.data) {
                     Ok(log) => {
                         // for param in log.indexed {
                         //     if decode_keys.contains(param.name.as_str()) {
                         //         columns.event_cols.entry(param.name).or_default().push(param.
                         // value);     }
                         // }
-                        for (idx, indexed_param) in log.indexed.into_iter().enumerate() {
-                            columns
-                                .event_cols
-                                .entry(indexed_keys[idx].clone())
-                                .or_default()
-                                .push(indexed_param);
+                        for (indexed_param, name) in log.indexed.into_iter().zip(indexed_keys) {
+                            if schema.has_column(&format!("event__{name}")) {
+                                columns
+                                    .event_cols
+                                    .entry(name.clone())
+                                    .or_default()
+                                    .push(indexed_param);
+                            }
                         }
-                        for (idx, body_param) in log.body.into_iter().enumerate() {
-                            columns
-                                .event_cols
-                                .entry(body_keys[idx].clone())
-                                .or_default()
-                                .push(body_param);
+                        for (body_param, name) in log.body.into_iter().zip(body_keys) {
+                            if schema.has_column(&format!("event__{name}")) {
+                                columns
+                                    .event_cols
+                                    .entry(name.clone())
+                                    .or_default()
+                                    .push(body_param);
+                            }
                         }
                     }
                     Err(_) => continue,
@@ -187,5 +179,40 @@ fn process_logs(logs: Vec<Log>, columns: &mut Logs, schema: &Table) -> R<()> {
         }
     }
 
+    Ok(())
+}
+
+fn extract_event_cols(
+    cols: &mut Vec<Column>,
+    _field_name: &str,
+    values: indexmap::IndexMap<String, Vec<DynSolValue>>,
+    chunk_len: usize,
+    schema: &Table,
+) -> Result<(), CollectError> {
+    if let Some(decoder) = &schema.log_decoder {
+        // Write columns even if there are no values decoded - indicates empty dataframe
+        if values.is_empty() {
+            for name in decoder.field_names() {
+                let name = format!("event__{name}");
+                let name = PlSmallStr::from_string(name);
+                if let Some(col_type) = schema.column_type(&name) {
+                    cols.extend(col_type.create_empty_columns(&name, &schema.config));
+                }
+            }
+        } else {
+            for (name, data) in values {
+                let name = format!("event__{name}");
+                if let Some(col_type) = schema.column_type(&name) {
+                    let series_vec = col_type.create_column_from_values(
+                        name,
+                        data,
+                        chunk_len,
+                        &schema.config,
+                    )?;
+                    cols.extend(series_vec);
+                }
+            }
+        }
+    }
     Ok(())
 }

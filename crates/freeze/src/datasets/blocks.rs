@@ -6,30 +6,29 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Blocks)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Blocks {
     n_rows: u64,
-    block_hash: Vec<Option<Vec<u8>>>,
-    parent_hash: Vec<Vec<u8>>,
-    uncles_hash: Vec<Vec<u8>>,
-    author: Vec<Option<Vec<u8>>>,
-    state_root: Vec<Vec<u8>>,
-    transactions_root: Vec<Vec<u8>>,
-    receipts_root: Vec<Vec<u8>>,
+    block_hash: Vec<Option<RawBytes>>,
+    parent_hash: Vec<RawBytes>,
+    uncles_hash: Vec<RawBytes>,
+    author: Vec<Option<RawBytes>>,
+    state_root: Vec<RawBytes>,
+    transactions_root: Vec<RawBytes>,
+    receipts_root: Vec<RawBytes>,
     block_number: Vec<Option<u32>>,
     gas_used: Vec<u64>,
     gas_limit: Vec<u64>,
-    extra_data: Vec<Vec<u8>>,
-    logs_bloom: Vec<Option<Vec<u8>>>,
+    extra_data: Vec<RawBytes>,
+    logs_bloom: Vec<Option<RawBytes>>,
     timestamp: Vec<u32>,
     difficulty: Vec<u64>,
     total_difficulty: Vec<Option<U256>>,
     size: Vec<Option<u64>>,
-    mix_hash: Vec<Option<Vec<u8>>>,
-    nonce: Vec<Option<Vec<u8>>>,
+    mix_hash: Vec<Option<RawBytes>>,
+    nonce: Vec<Option<RawBytes>>,
     base_fee_per_gas: Vec<Option<u64>>,
-    withdrawals_root: Vec<Option<Vec<u8>>>,
+    withdrawals_root: Vec<Option<RawBytes>>,
     chain_id: Vec<u64>,
 }
 

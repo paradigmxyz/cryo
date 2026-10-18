@@ -3,173 +3,137 @@ extern crate proc_macro;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::quote;
-use syn::{parse_macro_input, ItemStruct};
+use syn::{parse_macro_input, parse_str, ItemStruct};
 
-/// implements ToDataFrames and ColumnData for struct
-#[proc_macro_attribute]
-pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
-    let input = parse_macro_input!(input as ItemStruct);
+struct ToDataFramesMetaParams {
+    flatten: Option<String>,
+}
 
-    // parse input args
-    let attrs = parse_macro_input!(attrs as syn::AttributeArgs);
-    let datatypes: Vec<_> = attrs
-        .into_iter()
-        .map(|arg| {
-            if let syn::NestedMeta::Meta(syn::Meta::Path(path)) = arg {
-                path
-            } else {
-                panic!("Expected Meta::Path");
-            }
-        })
-        .collect();
-    if datatypes.is_empty() {
-        panic!("At least one datatype must be specified");
+impl ToDataFramesMetaParams {
+    fn parse_attributes(attrs: &[syn::Attribute]) -> syn::Result<Self> {
+        let mut flatten = None;
+
+        for attr in attrs.iter().filter(|a| a.path().is_ident("to_df")) {
+            attr.parse_nested_meta(|meta| {
+                // get path from #[to_df(flatten = "<path>")]
+                if meta.path.is_ident("flatten") {
+                    let lit = meta.value()?.parse::<syn::LitStr>()?;
+                    flatten = Some(lit.value());
+                }
+                Ok(())
+            })?;
+        }
+
+        Ok(ToDataFramesMetaParams { flatten })
     }
+}
+
+/// Implements ToDataFrames and ColumnData for struct.
+///
+/// Usage:
+/// ```no_run
+/// # use cryo_to_df::ToDataFrames;
+/// # type DynSolValue = u64;
+/// # pub mod cryo_freeze {
+/// #     pub mod indexmap { pub use std::collections::BTreeMap as IndexMap; }
+/// #     pub mod polars {
+/// #         pub mod prelude {
+/// #             pub struct DataFrame; impl DataFrame { pub fn new<T>(_: T) -> Result<Self, ()> { Ok(Self) } }
+/// #             pub struct Column;
+/// #         }
+/// #     }
+/// #     use polars::prelude::*;
+/// #     use std::collections::HashMap;
+/// #     pub enum ColumnType { Boolean, UInt32, UInt64, UInt256, Int32, Int64, Float32, Float64, String, Binary }
+/// #     pub enum CollectError { PolarsError(()) }
+/// #     #[derive(Hash, PartialEq, Eq)]
+/// #     pub enum Datatype { MyStruct }
+/// #     pub struct Table; impl Table { pub fn columns(&self) -> Vec<&'static str> { vec![] } }
+/// #     pub trait SortableDataFrame { fn sort_by_schema(self, schema: &Table) -> Self; }
+/// #     impl SortableDataFrame for Result<DataFrame, CollectError> { fn sort_by_schema(self, schema: &Table) -> Self { self } }
+/// #     #[macro_export]
+/// #     macro_rules! with_column_impl { ($cols:expr, $name:expr, $value:expr, $schema:expr) => {let _: Vec<Column> = $cols;}; }
+/// #     pub use with_column_impl as with_column;
+/// #     pub use with_column_impl as with_column_primitive;
+/// #     pub trait ColumnData {
+/// #         fn column_types() -> indexmap::IndexMap<&'static str, ColumnType>;
+/// #     }
+/// #     pub trait ToDataFrames: Sized {
+/// #         fn create_dfs(self, schemas: &HashMap<Datatype, Table>, chain_id: u64) -> Result<HashMap<Datatype, DataFrame>, CollectError>;
+/// #     }
+/// # }
+/// use cryo_freeze::*;
+/// use polars::prelude::*;
+///
+/// #[derive(ToDataFrames)]
+/// struct MyStruct {
+///     n_rows: u64,
+///     field1: Vec<u32>,
+///     field2: Vec<String>,
+///     #[to_df(flatten = "extract_others")]
+///     others: indexmap::IndexMap<String, Vec<DynSolValue>>,
+///     chain_id: Vec<u64>,
+/// }
+///
+/// fn extract_others(
+///     cols: &mut Vec<Column>,
+///     name: &str,
+///     values: indexmap::IndexMap<String, Vec<DynSolValue>>,
+///     n_rows: usize,
+///     schema: &Table,
+/// ) -> Result<(), CollectError> {
+///     todo!()
+/// }
+/// ```
+#[proc_macro_derive(ToDataFrames, attributes(to_df))]
+pub fn to_data_frames(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
 
     let name = &input.ident;
 
+    let datatype = quote!(Datatype::#name);
+    let datatype_str = name.to_string();
+
     let field_names_and_types: Vec<_> =
-        input.clone().fields.into_iter().map(|f| (f.ident.unwrap(), f.ty)).collect();
+        input.fields.iter().map(|f| (f.ident.clone().unwrap(), f.ty.clone())).collect();
 
     let field_processing: Vec<_> = field_names_and_types
         .iter()
-        .filter(|(name, _)| format!("{}", quote!(#name)) != "n_rows")
-        .filter(|(_, value)| format!("{}", quote!(#value)).starts_with("Vec"))
+        .filter(|(name, _)| quote!(#name).to_string() != "n_rows")
+        .filter(|(_, value)| quote!(#value).to_string().starts_with("Vec"))
         .filter(|(name, _)| name != "chain_id")
         .map(|(name, ty)| {
             let macro_name = match quote!(#ty).to_string().as_str() {
-                "Vec < Vec < u8 > >" => syn::Ident::new("with_series_binary", Span::call_site()),
-                "Vec < Option < Vec < u8 > > >" => {
-                    syn::Ident::new("with_series_binary", Span::call_site())
-                }
-                "Vec < U256 >" => syn::Ident::new("with_series_u256", Span::call_site()),
-                "Vec < Option < U256 > >" => {
-                    syn::Ident::new("with_series_option_u256", Span::call_site())
-                }
-                _ => syn::Ident::new("with_series", Span::call_site()),
+                "Vec < u32 >" | "Vec < u64 >" => "with_column_primitive",
+                "Vec < i32 >" | "Vec < i64 >" => "with_column_primitive",
+                "Vec < f32 >" | "Vec < f64 >" => "with_column_primitive",
+                _ => "with_column",
             };
-            let field_name_str = format!("{}", quote!(#name));
+            let macro_name = syn::Ident::new(macro_name, Span::call_site());
+            let field_name_str = quote!(#name).to_string();
             quote! {
                 #macro_name!(cols, #field_name_str, self.#name, schema);
             }
         })
         .collect();
 
-    let has_event_cols = !field_names_and_types
+    let mut flatten_field = None;
+    let event_code = input
+        .fields
         .iter()
-        .filter(|(name, _)| name == "event_cols")
-        .collect::<Vec<_>>()
-        .is_empty();
-    let event_code = if has_event_cols {
-        // Generate the tokens for the event processing code
-        quote! {
-            let decoder = schema.log_decoder.clone();
-            let u256_types: Vec<_> = schema.u256_types.clone().into_iter().collect();
-            if let Some(decoder) = decoder {
-
-                fn create_empty_u256_columns(
-                    cols: &mut Vec<Series>,
-                    name: &str,
-                    u256_types: &[U256Type],
-                    column_encoding: &ColumnEncoding
-                ) {
-                    for u256_type in u256_types.iter() {
-                        let full_name = name.to_string() + u256_type.suffix().as_str();
-                        let full_name = full_name.as_str();
-
-                        match u256_type {
-                            U256Type::Binary => {
-                                match column_encoding {
-                                    ColumnEncoding::Binary => {
-                                        cols.push(Series::new(full_name, Vec::<Vec<u8>>::new()))
-                                    },
-                                    ColumnEncoding::Hex => {
-                                        cols.push(Series::new(full_name, Vec::<String>::new()))
-                                    },
-                                }
-                            },
-                            U256Type::String => cols.push(Series::new(full_name, Vec::<String>::new())),
-                            U256Type::F32 => cols.push(Series::new(full_name, Vec::<f32>::new())),
-                            U256Type::F64 => cols.push(Series::new(full_name, Vec::<f64>::new())),
-                            U256Type::U32 => cols.push(Series::new(full_name, Vec::<u32>::new())),
-                            U256Type::U64 => cols.push(Series::new(full_name, Vec::<u64>::new())),
-                            U256Type::Decimal128 => cols.push(Series::new(full_name, Vec::<Vec<u8>>::new())),
-                        }
-                    }
-                }
-
-                // Write columns even if there are no values decoded - indicates empty dataframe
-                let chunk_len = self.n_rows;
-                if self.event_cols.is_empty() {
-                    for param in decoder.event.inputs.iter() {
-                        let name = "event__".to_string() + param.name.as_str();
-                        let name = name.as_str();
-                        let ty = DynSolType::parse(&param.ty).unwrap();
-                        match ty {
-                            DynSolType::Address => {
-                                match schema.binary_type {
-                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
-                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
-                                }
-                            },
-                            DynSolType::Bytes => {
-                                match schema.binary_type {
-                                    ColumnEncoding::Binary => cols.push(Series::new(name, Vec::<Vec<u8>>::new())),
-                                    ColumnEncoding::Hex => cols.push(Series::new(name, Vec::<String>::new())),
-                                }
-                            },
-                            DynSolType::Int(bits) => {
-                                if bits <= 64 {
-                                    cols.push(Series::new(name, Vec::<i64>::new()))
-                                } else {
-                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
-                                }
-                            },
-                            DynSolType::Uint(bits) => {
-                                if bits <= 64 {
-                                    cols.push(Series::new(name, Vec::<u64>::new()))
-                                } else {
-                                    create_empty_u256_columns(&mut cols, name, &u256_types, &schema.binary_type)
-                                }
-                            },
-                            DynSolType::Bool => cols.push(Series::new(name, Vec::<bool>::new())),
-                            DynSolType::String => cols.push(Series::new(name, Vec::<String>::new())),
-                            DynSolType::Array(_) => return Err(err("could not generate Array column")),
-                            DynSolType::FixedBytes(_) => return Err(err("could not generate FixedBytes column")),
-                            DynSolType::FixedArray(_, _) => return Err(err("could not generate FixedArray column")),
-                            DynSolType::Tuple(_) => return Err(err("could not generate Tuple column")),
-                            DynSolType::Function => return Err(err("could not generate Function column")),
-                            _ => (),
-                        }
-                    }
-                } else {
-                    for (name, data) in self.event_cols {
-                        let series_vec = decoder.make_series(
-                            name,
-                            data,
-                            chunk_len as usize,
-                            &u256_types,
-                            &schema.binary_type,
-                        );
-                        match series_vec {
-                            Ok(s) => {
-                                cols.extend(s);
-                            }
-                            Err(e) => eprintln!("error creating frame: {}", e), /* TODO: see how best
-                                                                                 * to
-                                                                                 * bubble up error */
-                        }
-                    }
-                }
-
-                let drop_names = vec!["topic1".to_string(), "topic2".to_string(), "topic3".to_string(), "data".to_string()];
-                cols.retain(|c| !drop_names.contains(&c.name().to_string()));
+        .find_map(|f| {
+            let params = ToDataFramesMetaParams::parse_attributes(&f.attrs).unwrap();
+            params.flatten.map(|s| (f, s))
+        })
+        .map(|(field, flatten)| {
+            let expr = parse_str::<syn::Expr>(&flatten).unwrap();
+            let field_name = field.ident.as_ref().unwrap();
+            let field_name_str = field_name.to_string();
+            flatten_field = Some(field_name_str.clone());
+            quote! {
+                #expr(&mut cols, #field_name_str, self.#field_name, self.n_rows as usize, schema)?;
             }
-        }
-    } else {
-        // Generate an empty set of tokens if has_event_cols is false
-        quote! {}
-    };
+        });
 
     fn map_type_to_column_type(ty: &syn::Type) -> Option<proc_macro2::TokenStream> {
         match quote!(#ty).to_string().as_str() {
@@ -179,10 +143,12 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             "Vec < U256 >" => Some(quote! { ColumnType::UInt256 }),
             "Vec < i32 >" => Some(quote! { ColumnType::Int32 }),
             "Vec < i64 >" => Some(quote! { ColumnType::Int64 }),
+            "Vec < I256 >" => Some(quote! { ColumnType::Int256 }),
             "Vec < f32 >" => Some(quote! { ColumnType::Float32 }),
             "Vec < f64 >" => Some(quote! { ColumnType::Float64 }),
             "Vec < String >" => Some(quote! { ColumnType::String }),
             "Vec < Vec < u8 > >" => Some(quote! { ColumnType::Binary }),
+            "Vec < RawBytes >" => Some(quote! { ColumnType::Binary }),
 
             "Vec < Option < bool > >" => Some(quote! { ColumnType::Boolean }),
             "Vec < Option < u32 > >" => Some(quote! { ColumnType::UInt32 }),
@@ -190,54 +156,47 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
             "Vec < Option < U256 > >" => Some(quote! { ColumnType::UInt256 }),
             "Vec < Option < i32 > >" => Some(quote! { ColumnType::Int32 }),
             "Vec < Option < i64 > >" => Some(quote! { ColumnType::Int64 }),
+            "Vec < Option < I256 > >" => Some(quote! { ColumnType::Int256 }),
             "Vec < Option < f32 > >" => Some(quote! { ColumnType::Float32 }),
             "Vec < Option < f64 > >" => Some(quote! { ColumnType::Float64 }),
             "Vec < Option < String > >" => Some(quote! { ColumnType::String }),
             "Vec < Option < Vec < u8 > > >" => Some(quote! { ColumnType::Binary }),
+            "Vec < Option < RawBytes > >" => Some(quote! { ColumnType::Binary }),
             _ => None,
             // _ => quote! {ColumnType::Binary},
         }
     }
-
-    let datatype_str =
-        datatypes[0].segments.iter().map(|seg| seg.ident.to_string()).collect::<Vec<_>>();
-    let datatype_str = datatype_str.iter().last().unwrap();
 
     let mut column_types = Vec::new();
     for (name, ty) in field_names_and_types.iter() {
         if let Some(column_type) = map_type_to_column_type(ty) {
             let field_name_str = format!("{}", quote!(#name));
             column_types.push(quote! { (#field_name_str, #column_type) });
-        } else if name != "n_rows" && name != "event_cols" {
-            println!("invalid column type for {name} in table {}", datatype_str);
+        } else if name != "n_rows" &&
+            (flatten_field.is_none() || name != flatten_field.as_deref().unwrap())
+        {
+            println!("invalid column type for {name} in table {datatype_str}");
         }
     }
 
     let expanded = quote! {
-        #input
-
         impl ToDataFrames for #name {
 
             fn create_dfs(
                 self,
                 schemas: &std::collections::HashMap<Datatype, Table>,
                 chain_id: u64,
-            ) -> R<std::collections::HashMap<Datatype, DataFrame>> {
-                let datatypes = vec![#(#datatypes),*];
-                let datatype = if datatypes.len() == 1 {
-                    datatypes[0]
-                } else {
-                    panic!("improper datatypes for single schema")
-                };
+            ) -> Result<std::collections::HashMap<Datatype, DataFrame>, CollectError> {
+                let datatype = #datatype;
                 let schema = schemas.get(&datatype).expect("schema not provided");
                 let mut cols = Vec::with_capacity(schema.columns().len());
 
                 #(#field_processing)*
 
                 if self.chain_id.len() == 0 {
-                    with_series!(cols, "chain_id", vec![chain_id; self.n_rows as usize], schema);
+                    with_column!(cols, "chain_id", vec![chain_id; self.n_rows as usize], schema);
                 } else {
-                    with_series!(cols, "chain_id", self.chain_id, schema);
+                    with_column!(cols, "chain_id", self.chain_id, schema);
                 }
 
                 #event_code
@@ -255,6 +214,140 @@ pub fn to_df(attrs: TokenStream, input: TokenStream) -> TokenStream {
                 indexmap::IndexMap::from_iter(vec![
                     #(#column_types),*
                 ])
+            }
+        }
+    };
+
+    expanded.into()
+}
+
+/// Implements FromDataFrames for struct.
+///
+/// Usage:
+/// ```no_run
+/// # use cryo_to_df::FromDataFrames;
+/// # pub mod cryo_freeze {
+/// #     pub mod polars {
+/// #         pub mod prelude {
+/// #             pub enum PolarsError { ColumnNotFound(String) }
+/// #             pub struct DataFrame;
+/// #             impl DataFrame {
+/// #                 pub fn column(&self, name: &str) -> Result<&Series, ()> { Ok(&Series) }
+/// #                 pub fn height(&self) -> usize { 0 }
+/// #             }
+/// #             pub struct Series;
+/// #             impl Series {
+/// #                 pub fn u32(&self) -> Result<Vec<Option<u32>>, ()> { Ok(vec![]) }
+/// #                 pub fn u64(&self) -> Result<Vec<Option<u64>>, ()> { Ok(vec![]) }
+/// #                 pub fn str(&self) -> Result<Vec<Option<&str>>, ()> { Ok(vec![]) }
+/// #             }
+/// #         }
+/// #     }
+/// #     use polars::prelude::*;
+/// #     use std::collections::HashMap;
+/// #     pub enum CollectError { PolarsError(PolarsError) }
+/// #     #[derive(Hash, PartialEq, Eq)]
+/// #     pub enum Datatype { MyStruct }
+/// #     pub struct Table; impl Table { pub fn columns(&self) -> Vec<&'static str> { vec![] } }
+/// #     #[macro_export]
+/// #     macro_rules! parse_column_impl { ($df:expr, $name:expr, $ty:ident, $value:expr, $schema:expr) => {}; }
+/// #     pub use parse_column_impl as parse_column;
+/// #     pub use parse_column_impl as parse_column_primitive;
+/// #     pub trait FromDataFrames: Sized {
+/// #         fn parse_dfs(&mut self, dfs: HashMap<Datatype, DataFrame>, schemas: &HashMap<Datatype, Table>) -> Result<&mut Self, CollectError>;
+/// #     }
+/// # }
+/// use cryo_freeze::*;
+/// use polars::prelude::*;
+///
+/// #[derive(FromDataFrames)]
+/// struct MyStruct {
+///     n_rows: u64,
+///     field1: Vec<u32>,
+///     field2: Vec<String>,
+///     chain_id: Vec<u64>,
+/// }
+/// ```
+#[proc_macro_derive(FromDataFrames, attributes(to_df))]
+pub fn from_data_frames(input: TokenStream) -> TokenStream {
+    let input = parse_macro_input!(input as ItemStruct);
+
+    let name = &input.ident;
+
+    let datatype = quote!(Datatype::#name);
+
+    let field_names_and_types: Vec<_> =
+        input.fields.iter().map(|f| (f.ident.clone().unwrap(), f.ty.clone())).collect();
+
+    // Generate field population code using the new parse_column macros
+    let field_population: Vec<_> = field_names_and_types
+        .iter()
+        .filter(|(name, _)| quote!(#name).to_string() != "n_rows")
+        .filter(|(_, value)| quote!(#value).to_string().starts_with("Vec"))
+        .map(|(name, ty)| {
+            let field_name_str = quote!(#name).to_string();
+            match quote!(#ty).to_string().as_str() {
+                "Vec < u32 >" | "Vec < Option < u32 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, u32, self.#name, schema);
+                },
+                "Vec < u64 >" | "Vec < Option < u64 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, u64, self.#name, schema);
+                },
+                "Vec < i32 >" | "Vec < Option < i32 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, i32, self.#name, schema);
+                },
+                "Vec < i64 >" | "Vec < Option < i64 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, i64, self.#name, schema);
+                },
+                "Vec < f32 >" | "Vec < Option < f32 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, f32, self.#name, schema);
+                },
+                "Vec < f64 >" | "Vec < Option < f64 > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, f64, self.#name, schema);
+                },
+                "Vec < String >" | "Vec < Option < String > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, str, self.#name, schema);
+                },
+                "Vec < bool >" | "Vec < Option < bool > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, bool, self.#name, schema);
+                },
+                // Handle U256/I256 types with binary column name fallback
+                "Vec < U256 >" | "Vec < Option < U256 > >" => quote! {
+                    parse_column!(df, #field_name_str, U256, self.#name, schema);
+                },
+                "Vec < I256 >" | "Vec < Option < I256 > >" => quote! {
+                    parse_column!(df, #field_name_str, I256, self.#name, schema);
+                },
+                "Vec < RawBytes >" | "Vec < Option < RawBytes > >" => quote! {
+                    parse_column_primitive!(df, #field_name_str, binary, self.#name, schema);
+                },
+                _ => quote! {
+                    // Handle unsupported types - for now, just set to default
+                    result.#name = vec![];
+                },
+            }
+        })
+        .collect();
+
+    let expanded = quote! {
+        impl FromDataFrames for #name {
+            fn parse_dfs(
+                &mut self,
+                dfs: std::collections::HashMap<Datatype, DataFrame>,
+                schemas: &std::collections::HashMap<Datatype, Table>,
+            ) -> Result<&mut Self, CollectError> {
+                let datatype = #datatype;
+                let schema = schemas.get(&datatype).expect("schema not provided");
+
+                let df = dfs.get(&datatype).ok_or_else(|| {
+                    CollectError::PolarsError(polars::prelude::PolarsError::ColumnNotFound("dataframe not found".into()))
+                })?;
+
+                self.n_rows = df.height() as u64;
+
+                #(#field_population)*
+
+                Ok(self)
             }
         }
     };

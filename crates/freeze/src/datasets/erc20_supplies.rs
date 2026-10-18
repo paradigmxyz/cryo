@@ -3,12 +3,11 @@ use alloy::{primitives::U256, sol_types::SolCall};
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Erc20Supplies)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Erc20Supplies {
     n_rows: u64,
     block_number: Vec<u32>,
-    erc20: Vec<Vec<u8>>,
+    erc20: Vec<RawBytes>,
     total_supply: Vec<Option<U256>>,
     chain_id: Vec<u64>,
 }
@@ -34,10 +33,10 @@ impl Dataset for Erc20Supplies {
 
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Supplies {
-    type Response = (u32, Vec<u8>, Option<U256>);
+    type Response = (u32, RawBytes, Option<U256>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
-        let signature: Vec<u8> = ERC20::totalSupplyCall::SELECTOR.to_vec();
+        let signature: RawBytes = ERC20::totalSupplyCall::SELECTOR.to_vec();
         let mut call_data = signature.clone();
         call_data.extend(request.address()?);
         let block_number = request.ethers_block_number()?;

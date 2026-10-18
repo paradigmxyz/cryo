@@ -1,33 +1,18 @@
 use std::env;
 
 use crate::args::Args;
-use alloy::{
-    providers::{Provider, ProviderBuilder, RootProvider},
-    rpc::client::{BuiltInConnectionString, ClientBuilder, RpcClient},
-    transports::{layers::RetryBackoffLayer, BoxTransport},
-};
 use cryo_freeze::{ParseError, Source, SourceLabels};
 use governor::{Quota, RateLimiter};
-use polars::prelude::*;
 use std::num::NonZeroU32;
 
 pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     // parse network info
     let rpc_url = parse_rpc_url(args)?;
-    let retry_layer = RetryBackoffLayer::new(
-        args.max_retries,
-        args.initial_backoff,
-        args.compute_units_per_second,
-    );
-    let connect: BuiltInConnectionString = rpc_url.parse().map_err(ParseError::ProviderError)?;
-    let client: RpcClient<BoxTransport> = ClientBuilder::default()
-        .layer(retry_layer)
-        .connect_boxed(connect)
-        .await
-        .map_err(ParseError::ProviderError)?
-        .boxed();
-    let provider: RootProvider<BoxTransport> = ProviderBuilder::default().on_client(client);
-    let chain_id = provider.get_chain_id().await.map_err(ParseError::ProviderError)?;
+    // capture jwt token from args or environment
+    let jwt = match &args.jwt {
+        Some(v) => Some(v.clone()),
+        None => std::env::var("ETH_RPC_JWT").ok(),
+    };
     let rate_limiter = match args.requests_per_second {
         Some(rate_limit) => match (NonZeroU32::new(1), NonZeroU32::new(rate_limit)) {
             (Some(one), Some(value)) => {
@@ -48,25 +33,28 @@ pub(crate) async fn parse_source(args: &Args) -> Result<Source, ParseError> {
     };
 
     let semaphore = tokio::sync::Semaphore::new(max_concurrent_requests as usize);
-    let semaphore = Arc::new(Some(semaphore));
 
-    let output = Source {
-        chain_id,
-        inner_request_size: args.inner_request_size,
-        max_concurrent_chunks,
-        semaphore,
-        rate_limiter: rate_limiter.into(),
-        rpc_url,
-        provider,
-        labels: SourceLabels {
-            max_concurrent_requests: args.max_concurrent_requests,
-            max_requests_per_second: args.requests_per_second.map(|x| x as u64),
-            max_retries: Some(args.max_retries),
-            initial_backoff: Some(args.initial_backoff),
-        },
+    let labels = SourceLabels {
+        max_concurrent_requests: args.max_concurrent_requests,
+        max_requests_per_second: args.requests_per_second.map(|x| x as u64),
+        max_retries: Some(args.max_retries),
+        initial_backoff: Some(args.initial_backoff),
     };
 
-    Ok(output)
+    let source = Source::builder()
+        .rpc_url(rpc_url.clone())
+        .inner_request_size(args.inner_request_size)
+        .max_concurrent_chunks(max_concurrent_chunks)
+        .semaphore(Some(semaphore))
+        .rate_limiter(rate_limiter)
+        .jwt(jwt)
+        .labels(labels)
+        .retry_policy(args.max_retries, args.initial_backoff, args.compute_units_per_second)
+        .build()
+        .await
+        .map_err(|e| ParseError::ParseError(format!("failed to build Source: {e}")))?;
+
+    Ok(source)
 }
 
 pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
@@ -79,7 +67,7 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
         match endpoint {
             Ok(endpoint) => endpoint.map(|endpoint| endpoint.url),
             Err(e) => {
-                eprintln!("Could not load MESC data: {}", e);
+                error!("Could not load MESC data: {e}");
                 None
             }
         }
@@ -100,9 +88,5 @@ pub(crate) fn parse_rpc_url(args: &Args) -> Result<String, ParseError> {
     };
 
     // prepend http or https if need be
-    if !url.starts_with("http") & !url.starts_with("ws") & !url.ends_with(".ipc") {
-        Ok("http://".to_string() + url.as_str())
-    } else {
-        Ok(url)
-    }
+    Ok(url)
 }

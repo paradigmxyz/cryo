@@ -8,29 +8,28 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Traces)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Traces {
     n_rows: u64,
-    action_from: Vec<Option<Vec<u8>>>,
-    action_to: Vec<Option<Vec<u8>>>,
+    action_from: Vec<Option<RawBytes>>,
+    action_to: Vec<Option<RawBytes>>,
     action_value: Vec<String>,
     action_gas: Vec<Option<u32>>,
-    action_input: Vec<Option<Vec<u8>>>,
+    action_input: Vec<Option<RawBytes>>,
     action_call_type: Vec<Option<String>>,
-    action_init: Vec<Option<Vec<u8>>>,
+    action_init: Vec<Option<RawBytes>>,
     action_reward_type: Vec<Option<String>>,
     action_type: Vec<String>,
     result_gas_used: Vec<Option<u32>>,
-    result_output: Vec<Option<Vec<u8>>>,
-    result_code: Vec<Option<Vec<u8>>>,
-    result_address: Vec<Option<Vec<u8>>>,
+    result_output: Vec<Option<RawBytes>>,
+    result_code: Vec<Option<RawBytes>>,
+    result_address: Vec<Option<RawBytes>>,
     trace_address: Vec<String>,
     subtraces: Vec<u32>,
     transaction_index: Vec<Option<u32>>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
+    transaction_hash: Vec<Option<RawBytes>>,
     block_number: Vec<u32>,
-    block_hash: Vec<Vec<u8>>,
+    block_hash: Vec<RawBytes>,
     error: Vec<Option<String>>,
     chain_id: Vec<u64>,
 }
@@ -76,8 +75,8 @@ impl CollectByTransaction for Traces {
 
 pub(crate) fn filter_traces_by_from_to_addresses(
     traces: Vec<LocalizedTransactionTrace>,
-    from_address: &Option<Vec<u8>>,
-    to_address: &Option<Vec<u8>>,
+    from_address: &Option<RawBytes>,
+    to_address: &Option<RawBytes>,
 ) -> Vec<LocalizedTransactionTrace> {
     // filter by from_address
     let from_filter: Box<dyn Fn(&LocalizedTransactionTrace) -> bool + Send> =

@@ -1,20 +1,22 @@
-use super::chunk_ops::ChunkData;
-use crate::ChunkError;
+use crate::{ChunkData, ChunkError};
+
+/// alias of `Vec<u8>`
+pub type RawBytes = Vec<u8>;
 
 /// Chunk of raw data entries
 #[derive(Debug, Clone)]
 pub enum BinaryChunk {
     /// Vec of values
-    Values(Vec<Vec<u8>>),
+    Values(Vec<RawBytes>),
     // /// Range of values (start_prefix, end_prefix)
-    // Range(Vec<u8>, Vec<u8>),
+    // Range(RawBytes, RawBytes),
 }
 
 impl ChunkData for BinaryChunk {
-    type Inner = Vec<u8>;
+    type Inner = RawBytes;
 
     fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
-        let hash = prefix_hex::encode(value);
+        let hash = alloy::hex::encode_prefixed(value);
         let eigth = match hash.char_indices().nth(8) {
             Some(x) => x,
             None => return Err(ChunkError::ChunkError("could not format chunk".to_string())),
@@ -52,7 +54,7 @@ impl ChunkData for BinaryChunk {
         }
     }
 
-    fn values(&self) -> Vec<Vec<u8>> {
+    fn values(&self) -> Vec<RawBytes> {
         match self {
             BinaryChunk::Values(values) => values.to_vec(),
             // BinaryChunk::Range(_start, _end) =>

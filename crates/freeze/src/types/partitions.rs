@@ -114,7 +114,7 @@ impl std::fmt::Display for Dim {
             Dim::Topic2 => "topic2",
             Dim::Topic3 => "topic3",
         };
-        write!(f, "{}", as_str)
+        write!(f, "{as_str}")
     }
 }
 

@@ -16,7 +16,7 @@ impl ChunkData for NumberChunk {
     type Inner = u64;
 
     fn format_item(value: Self::Inner) -> Result<String, ChunkError> {
-        Ok(format!("{:0>8}", value))
+        Ok(format!("{value:0>8}"))
     }
 
     fn size(&self) -> u64 {

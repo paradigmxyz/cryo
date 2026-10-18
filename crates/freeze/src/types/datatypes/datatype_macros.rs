@@ -97,7 +97,7 @@ macro_rules! define_datatypes {
                 }
             }
 
-            /// whether datatype can be collected by block
+            /// whether datatype can be collected by transaction
             pub fn can_collect_by_transaction(&self) -> bool {
                 match *self {
                     $(Datatype::$datatype => $datatype::can_collect_by_transaction(),)*

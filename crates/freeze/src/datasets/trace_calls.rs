@@ -4,30 +4,29 @@ use alloy::rpc::types::trace::parity::{Action, TraceOutput, TraceType, Transacti
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::TraceCalls)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct TraceCalls {
     n_rows: u64,
     block_number: Vec<u32>,
     transaction_index: Vec<u32>,
-    action_from: Vec<Option<Vec<u8>>>,
-    action_to: Vec<Option<Vec<u8>>>,
+    action_from: Vec<Option<RawBytes>>,
+    action_to: Vec<Option<RawBytes>>,
     action_value: Vec<String>,
     action_gas: Vec<Option<u32>>,
-    action_input: Vec<Option<Vec<u8>>>,
+    action_input: Vec<Option<RawBytes>>,
     action_call_type: Vec<Option<String>>,
-    action_init: Vec<Option<Vec<u8>>>,
+    action_init: Vec<Option<RawBytes>>,
     action_reward_type: Vec<Option<String>>,
     action_type: Vec<String>,
     result_gas_used: Vec<Option<u32>>,
-    result_output: Vec<Option<Vec<u8>>>,
-    result_code: Vec<Option<Vec<u8>>>,
-    result_address: Vec<Option<Vec<u8>>>,
+    result_output: Vec<Option<RawBytes>>,
+    result_code: Vec<Option<RawBytes>>,
+    result_address: Vec<Option<RawBytes>>,
     trace_address: Vec<String>,
     subtraces: Vec<u32>,
     error: Vec<Option<String>>,
-    tx_to_address: Vec<Vec<u8>>,
-    tx_call_data: Vec<Vec<u8>>,
+    tx_to_address: Vec<RawBytes>,
+    tx_call_data: Vec<RawBytes>,
     chain_id: Vec<u64>,
 }
 
@@ -47,7 +46,7 @@ impl Dataset for TraceCalls {
 
 #[async_trait::async_trait]
 impl CollectByBlock for TraceCalls {
-    type Response = (u32, Vec<u8>, Vec<u8>, Vec<TransactionTrace>);
+    type Response = (u32, RawBytes, RawBytes, Vec<TransactionTrace>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let traces: Vec<TransactionTrace> = source
@@ -74,7 +73,7 @@ impl CollectByTransaction for TraceCalls {
 }
 
 fn process_transaction_traces(
-    response: (u32, Vec<u8>, Vec<u8>, Vec<TransactionTrace>),
+    response: (u32, RawBytes, RawBytes, Vec<TransactionTrace>),
     columns: &mut TraceCalls,
     schema: &Table,
 ) {

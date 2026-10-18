@@ -10,7 +10,7 @@ pub mod sources;
 
 /// column data specification
 pub mod columns;
-pub use columns::{ColumnData, Dataset, ToDataFrames};
+pub use columns::{ColumnData, Dataset, FromDataFrames, ToDataFrames};
 
 /// partitions
 pub mod partitions;
@@ -50,16 +50,16 @@ pub mod schemas;
 pub mod summaries;
 
 pub use chunks::{
-    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, ChunkStats, SlotChunk, Subchunk,
-    TopicChunk, TransactionChunk,
+    AddressChunk, BlockChunk, CallDataChunk, Chunk, ChunkData, ChunkStats, RawBytes, SlotChunk,
+    Subchunk, TopicChunk, TransactionChunk,
 };
-pub use conversions::{bytes_to_u32, ToVecHex, ToVecU8};
+pub use conversions::{bytes_to_u32, FromBinaryVec, ToVecHex, ToVecU8};
 pub use dataframes::*;
 pub use datatypes::*;
 pub use files::{ColumnEncoding, FileFormat, FileOutput, SubDir};
 pub use queries::{Query, QueryLabels, TimeDimension};
-pub use schemas::{ColumnType, SchemaFunctions, Schemas, Table, U256Type};
-pub use sources::{Fetcher, RateLimiter, Source, SourceLabels};
+pub use schemas::{ColumnType, SchemaFunctions, Schemas, Table, TableConfig, U256Type};
+pub use sources::{RateLimiter, Source, SourceLabels};
 // pub(crate) use summaries::FreezeSummaryAgg;
 // pub use summaries::{FreezeChunkSummary, FreezeSummary};
 pub use summaries::{print_all_datasets, print_dataset_info, FreezeSummary};

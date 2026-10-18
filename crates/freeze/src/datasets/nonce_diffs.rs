@@ -6,14 +6,13 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::NonceDiffs)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct NonceDiffs {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) address: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) address: Vec<RawBytes>,
     pub(crate) from_value: Vec<u64>,
     pub(crate) to_value: Vec<u64>,
     pub(crate) chain_id: Vec<u64>,
@@ -22,7 +21,7 @@ pub struct NonceDiffs {
 #[async_trait::async_trait]
 impl Dataset for NonceDiffs {}
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<TraceResults>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for NonceDiffs {
@@ -75,7 +74,7 @@ pub(crate) fn process_nonce_diff(
     addr: &Address,
     diff: &Delta<U64>,
     block_number: &Option<u32>,
-    transaction_hash: &Option<Vec<u8>>,
+    transaction_hash: &Option<RawBytes>,
     transaction_index: usize,
     columns: &mut NonceDiffs,
     schema: &Table,

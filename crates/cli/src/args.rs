@@ -1,4 +1,4 @@
-use clap_cryo::Parser;
+use clap::Parser;
 use color_print::cstr;
 use colored::Colorize;
 use serde::{Deserialize, Serialize};
@@ -15,7 +15,6 @@ use std::{default::Default, path::PathBuf};
     long_about = None,
     styles=get_styles(),
     after_help=&get_after_str(),
-    allow_negative_numbers = true,
 )]
 pub struct Args {
     /// Datatype to collect
@@ -23,11 +22,11 @@ pub struct Args {
     pub datatype: Vec<String>,
 
     /// Block numbers, see syntax below
-    #[arg(short, long, allow_negative_numbers = true, help_heading = "Content Options", num_args(1..))]
+    #[arg(short, long, value_delimiter = ',', help_heading = "Content Options", num_args(1..))]
     pub blocks: Option<Vec<String>>,
 
     /// Timestamps in unix, see syntax below
-    #[arg(long, allow_negative_numbers = true, help_heading = "Content Options", num_args(0..))]
+    #[arg(long, value_delimiter = ',', help_heading = "Content Options", num_args(0..))]
     pub timestamps: Option<Vec<String>>,
 
     /// Transaction hashes, see syntax below
@@ -78,6 +77,10 @@ pub struct Args {
     #[arg(long, help_heading = "Content Options")]
     pub hex: bool,
 
+    /// Use hex string encoding without a prefix for binary columns
+    #[arg(long, help_heading = "Content Options")]
+    pub no_hex_prefix: bool,
+
     /// Columns(s) to sort by, `none` for unordered
     #[arg(short, long, num_args(0..), help_heading="Content Options")]
     pub sort: Option<Vec<String>>,
@@ -89,6 +92,10 @@ pub struct Args {
     /// RPC url [default: 1. MESC 2. ETH_RPC_URL]
     #[arg(short, long, help_heading = "Source Options")]
     pub rpc: Option<String>,
+
+    /// JWT auth token for RPC (Bearer), can also be provided via ETH_RPC_JWT env var
+    #[arg(long, help_heading = "Source Options")]
+    pub jwt: Option<String>,
 
     /// Network name [default: name of eth_getChainId]
     #[arg(long, help_heading = "Source Options")]
@@ -290,14 +297,14 @@ impl Args {
     }
 }
 
-pub(crate) fn get_styles() -> clap_cryo::builder::Styles {
+pub(crate) fn get_styles() -> clap::builder::Styles {
     let white = anstyle::Color::Rgb(anstyle::RgbColor(255, 255, 255));
     let green = anstyle::Color::Rgb(anstyle::RgbColor(0, 225, 0));
     let grey = anstyle::Color::Rgb(anstyle::RgbColor(170, 170, 170));
     let title = anstyle::Style::new().bold().fg_color(Some(green));
     let arg = anstyle::Style::new().bold().fg_color(Some(white));
     let comment = anstyle::Style::new().fg_color(Some(grey));
-    clap_cryo::builder::Styles::styled()
+    clap::builder::Styles::styled()
         .header(title)
         .error(comment)
         .usage(title)
@@ -322,11 +329,91 @@ fn get_after_str() -> String {
       <white><bold>cryo help</bold></white>"#
     );
     let post_subcommands = " <DATASET(S)>         display info about a dataset";
-    format!("{}{}{}", header, subcommands, post_subcommands)
+    format!("{header}{subcommands}{post_subcommands}")
 }
 
 fn get_datatype_help() -> &'static str {
     cstr!(
         r#"datatype(s) to collect, use <white><bold>cryo datasets</bold></white> to see all available"#
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    #[test]
+    fn test_merge_args() {
+        let args1 = Args {
+            datatype: vec!["blocks".to_string()],
+            rpc: Some("http://localhost:8545".to_string()),
+            chunk_size: 500,
+            ..Default::default()
+        };
+
+        let args2 = Args {
+            rpc: Some("http://example.com:8545".to_string()),
+            max_retries: 10,
+            ..Default::default()
+        };
+
+        let merged = args1.clone().merge_with_precedence(args2.clone());
+
+        assert_eq!(merged.datatype, args1.datatype);
+        assert_eq!(merged.rpc, args2.rpc);
+        assert_eq!(merged.chunk_size, args1.chunk_size);
+        assert_eq!(merged.max_retries, args2.max_retries);
+    }
+
+    #[test]
+    fn test_short_blocks() {
+        let args = Args::parse_from(["cryo", "--blocks", "1000", "2000"]);
+        assert_eq!(args.blocks, Some(vec!["1000".to_string(), "2000".to_string()]));
+
+        fn test_shortcut(value: &str) {
+            let result = value.split(",").map(|i| i.to_string()).collect::<Vec<_>>();
+            tracing::debug!("test_shortcut: {} {:?}", value, result);
+            let args = Args::parse_from(["cryo", "--blocks", value]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", "-b", value]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("--blocks={value}")]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("-b={value}")]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("-b{value}")]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", "--blocks", value, "-v"]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", "-b", value, "-v"]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("--blocks={value}"), "-v"]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("-b={value}"), "-v"]);
+            assert_eq!(args.blocks, Some(result.clone()));
+
+            let args = Args::parse_from(["cryo", &format!("-b{value}"), "-v"]);
+            assert_eq!(args.blocks, Some(result.clone()));
+        }
+
+        test_shortcut("1000");
+        test_shortcut("1000:2000");
+        test_shortcut("1_000:2_000");
+        test_shortcut("1k:2M");
+        test_shortcut(":2000");
+        test_shortcut("1000:");
+        test_shortcut("1000:latest");
+        test_shortcut("latest");
+        test_shortcut(":latest");
+
+        test_shortcut("1000,2000,3000");
+        test_shortcut("1000,2000,3000:latest");
+    }
 }

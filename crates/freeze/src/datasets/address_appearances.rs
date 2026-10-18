@@ -12,14 +12,13 @@ use polars::prelude::*;
 use std::collections::HashMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::AddressAppearances)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct AddressAppearances {
     n_rows: usize,
     block_number: Vec<u32>,
-    block_hash: Vec<Vec<u8>>,
-    transaction_hash: Vec<Vec<u8>>,
-    address: Vec<Vec<u8>>,
+    block_hash: Vec<RawBytes>,
+    transaction_hash: Vec<RawBytes>,
+    address: Vec<RawBytes>,
     relationship: Vec<String>,
     chain_id: Vec<u64>,
 }
@@ -114,7 +113,7 @@ impl CollectByTransaction for AddressAppearances {
 fn name(log: &Log) -> Option<&'static str> {
     let event = log.topic0().unwrap();
     if event == *ERC20::Transfer::SIGNATURE_HASH {
-        if log.data().data.len() > 0 {
+        if !log.data().data.is_empty() {
             Some("erc20_transfer")
         } else if log.topics().len() == 4 {
             Some("erc721_transfer")

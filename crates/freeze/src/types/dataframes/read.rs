@@ -1,8 +1,8 @@
-use crate::ParseError;
+use crate::{ParseError, RawBytes};
 use polars::prelude::*;
 
-/// read single binary column of parquet file as Vec<u8>
-pub fn read_binary_column(path: &str, column: &str) -> Result<Vec<Vec<u8>>, ParseError> {
+/// read single binary column of parquet file as RawBytes
+pub fn read_binary_column(path: &str, column: &str) -> Result<Vec<RawBytes>, ParseError> {
     let file = std::fs::File::open(path)
         .map_err(|_e| ParseError::ParseError("could not open file path".to_string()))?;
 

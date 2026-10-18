@@ -3,12 +3,11 @@ use alloy::primitives::Address;
 use polars::prelude::*;
 
 /// columns for balances
-#[cryo_to_df::to_df(Datatype::Nonces)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Nonces {
     n_rows: usize,
     block_number: Vec<u32>,
-    address: Vec<Vec<u8>>,
+    address: Vec<RawBytes>,
     nonce: Vec<u64>,
     chain_id: Vec<u64>,
 }
@@ -28,7 +27,7 @@ impl Dataset for Nonces {
     }
 }
 
-type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, u64);
+type BlockTxAddressOutput = (u32, Option<RawBytes>, RawBytes, u64);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Nonces {

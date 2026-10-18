@@ -12,7 +12,7 @@ pub struct StateDiffs(
     storage_diffs::StorageDiffs,
 );
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<TraceResults>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<TraceResults>);
 
 impl ToDataFrames for StateDiffs {
     fn create_dfs(

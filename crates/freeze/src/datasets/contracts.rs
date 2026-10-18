@@ -7,23 +7,22 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Contracts)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Contracts {
     n_rows: u64,
     block_number: Vec<u32>,
-    block_hash: Vec<Vec<u8>>,
+    block_hash: Vec<RawBytes>,
     create_index: Vec<u32>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
-    contract_address: Vec<Vec<u8>>,
-    deployer: Vec<Vec<u8>>,
-    factory: Vec<Vec<u8>>,
-    init_code: Vec<Vec<u8>>,
-    code: Vec<Vec<u8>>,
-    init_code_hash: Vec<Vec<u8>>,
+    transaction_hash: Vec<Option<RawBytes>>,
+    contract_address: Vec<RawBytes>,
+    deployer: Vec<RawBytes>,
+    factory: Vec<RawBytes>,
+    init_code: Vec<RawBytes>,
+    code: Vec<RawBytes>,
+    init_code_hash: Vec<RawBytes>,
     n_init_code_bytes: Vec<u32>,
     n_code_bytes: Vec<u32>,
-    code_hash: Vec<Vec<u8>>,
+    code_hash: Vec<RawBytes>,
     chain_id: Vec<u64>,
 }
 

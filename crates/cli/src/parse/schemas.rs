@@ -38,6 +38,11 @@ pub(crate) fn parse_schemas(
         true => ColumnEncoding::Hex,
         false => ColumnEncoding::Binary,
     };
+    let table_config = cryo_freeze::TableConfig {
+        binary_type: binary_column_format,
+        u256_types: u256_types.clone(),
+        hex_prefix: !args.no_hex_prefix,
+    };
 
     let log_decoder = match args.event_signature {
         Some(ref sig) => match LogDecoder::new(sig.clone()) {
@@ -53,8 +58,7 @@ pub(crate) fn parse_schemas(
         .map(|datatype| {
             datatype
                 .table_schema(
-                    &u256_types,
-                    &binary_column_format,
+                    table_config.clone(),
                     &args.include_columns,
                     &args.exclude_columns,
                     &args.columns,
@@ -64,8 +68,7 @@ pub(crate) fn parse_schemas(
                 .map(|schema| (*datatype, schema))
                 .map_err(|e| {
                     ParseError::ParseError(format!(
-                        "Failed to get schema for datatype: {:?}, {:?}",
-                        datatype, e
+                        "Failed to get schema for datatype: {datatype:?}, {e:?}"
                     ))
                 })
         })
@@ -86,21 +89,22 @@ pub(crate) fn parse_schemas(
 
 fn parse_u256_types(args: &Args) -> Result<Vec<U256Type>, ParseError> {
     args.u256_types.as_ref().map_or(
-        Ok(vec![U256Type::Binary, U256Type::String, U256Type::F64]),
+        Ok(vec![U256Type::NamedBinary, U256Type::String, U256Type::F64]),
         |raw_u256_types| {
             raw_u256_types
                 .iter()
                 .map(|raw| {
                     let lower_case = raw.to_lowercase();
                     match lower_case.as_str() {
-                        "binary" => Ok(U256Type::Binary),
+                        "binary" => Ok(U256Type::NamedBinary),
+                        "plain_binary" => Ok(U256Type::Binary),
                         "string" | "str" => Ok(U256Type::String),
                         "f32" | "float32" => Ok(U256Type::F32),
                         "f64" | "float64" | "float" => Ok(U256Type::F64),
                         "u32" | "uint32" => Ok(U256Type::U32),
                         "u64" | "uint64" => Ok(U256Type::U64),
                         "decimal128" | "d128" => Ok(U256Type::Decimal128),
-                        _ => Err(ParseError::ParseError(format!("invalid u256 type: {}", raw))),
+                        _ => Err(ParseError::ParseError(format!("invalid u256 type: {raw}"))),
                     }
                 })
                 .collect()
@@ -129,8 +133,7 @@ fn ensure_included_columns(
     }
     if !unknown_columns.is_empty() {
         return Err(ParseError::ParseError(format!(
-            "datatypes do not support these columns: {:?}",
-            unknown_columns
+            "datatypes do not support these columns: {unknown_columns:?}"
         )))
     }
     Ok(())
@@ -157,8 +160,7 @@ fn ensure_excluded_columns(
     }
     if !unknown_columns.is_empty() {
         return Err(ParseError::ParseError(format!(
-            "datatypes do not support these columns: {:?}",
-            unknown_columns
+            "datatypes do not support these columns: {unknown_columns:?}"
         )))
     }
     Ok(())

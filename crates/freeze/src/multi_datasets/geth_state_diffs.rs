@@ -49,7 +49,7 @@ impl ToDataFrames for GethStateDiffs {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<DiffMode>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<DiffMode>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for GethStateDiffs {
@@ -154,7 +154,7 @@ fn add_balances(
     post: Option<U256>,
     columns: &mut GethBalanceDiffs,
     schema: &Table,
-    index: &(Option<u32>, u32, Option<Vec<u8>>),
+    index: &(Option<u32>, u32, Option<RawBytes>),
 ) -> R<()> {
     let (from_value, to_value) = parse_pre_post(pre, post, U256::ZERO);
     let (block_number, transaction_index, transaction_hash) = index;
@@ -174,7 +174,7 @@ fn add_codes(
     post: &Option<Bytes>,
     columns: &mut GethCodeDiffs,
     schema: &Table,
-    index: &(Option<u32>, u32, Option<Vec<u8>>),
+    index: &(Option<u32>, u32, Option<RawBytes>),
 ) -> R<()> {
     let blank = Bytes::new();
     let (from_value, to_value) = match (pre, post) {
@@ -200,7 +200,7 @@ fn add_nonces(
     post: Option<u64>,
     columns: &mut GethNonceDiffs,
     schema: &Table,
-    index: &(Option<u32>, u32, Option<Vec<u8>>),
+    index: &(Option<u32>, u32, Option<RawBytes>),
 ) -> R<()> {
     let (from_value, to_value) = parse_pre_post(pre, post, 0_u64);
     let (block_number, transaction_index, transaction_hash) = index;
@@ -220,7 +220,7 @@ fn add_storages(
     post: &BTreeMap<B256, B256>,
     columns: &mut GethStorageDiffs,
     schema: &Table,
-    index: &(Option<u32>, u32, Option<Vec<u8>>),
+    index: &(Option<u32>, u32, Option<RawBytes>),
 ) -> R<()> {
     let (block_number, transaction_index, transaction_hash) = index;
     let slots: Vec<_> = pre

@@ -10,7 +10,7 @@ impl SortableDataFrame for Result<DataFrame, CollectError> {
     fn sort_by_schema(self, schema: &Table) -> Self {
         match (self, &schema.sort_columns) {
             (Ok(df), Some(sort_columns)) => {
-                df.sort(sort_columns, false, false).map_err(CollectError::PolarsError)
+                df.sort(sort_columns, SortMultipleOptions::new()).map_err(CollectError::PolarsError)
             }
             (df, _) => df,
         }

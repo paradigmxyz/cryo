@@ -19,7 +19,7 @@ path = "src/main.rs"
 [dependencies]
 alloy = { workspace = true }
 anstyle = { workspace = true }
-clap_cryo = { workspace = true }
+clap = { workspace = true }
 color-print = { workspace = true }
 colored = { workspace = true }
 cryo_freeze = { workspace = true }
@@ -32,3 +32,11 @@ rand = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 tokio = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = "0.3.20"
+
+[features]
+default = ["reqwest-default-tls"]
+reqwest-default-tls = ["alloy/reqwest", "cryo_freeze/reqwest-default-tls"]
+reqwest-native-tls = ["alloy/reqwest-native-tls", "cryo_freeze/reqwest-native-tls"]
+reqwest-rustls-tls = ["alloy/reqwest-rustls-tls", "cryo_freeze/reqwest-rustls-tls"]

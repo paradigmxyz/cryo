@@ -114,7 +114,7 @@ impl ValueToString for u64 {
 
 impl ValueToString for Vec<u8> {
     fn to_value_string(&self) -> String {
-        prefix_hex::encode(self.clone())
+        alloy::hex::encode_prefixed(self.clone())
     }
 }
 

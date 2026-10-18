@@ -4,14 +4,13 @@ use polars::prelude::*;
 use std::collections::BTreeMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::NonceReads)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct NonceReads {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) address: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) address: Vec<RawBytes>,
     pub(crate) nonce: Vec<u64>,
     pub(crate) chain_id: Vec<u64>,
 }
@@ -19,7 +18,7 @@ pub struct NonceReads {
 #[async_trait::async_trait]
 impl Dataset for NonceReads {}
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<Address, AccountState>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<BTreeMap<Address, AccountState>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for NonceReads {
@@ -71,7 +70,7 @@ pub(crate) fn process_nonce_read(
     addr: &Address,
     account_state: &AccountState,
     block_number: &Option<u32>,
-    transaction_hash: &Option<Vec<u8>>,
+    transaction_hash: &Option<RawBytes>,
     transaction_index: usize,
     columns: &mut NonceReads,
     schema: &Table,

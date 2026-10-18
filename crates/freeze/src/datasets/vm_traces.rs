@@ -3,20 +3,19 @@ use alloy::rpc::types::trace::parity::{TraceResults, VmTrace};
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::VmTraces)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct VmTraces {
     block_number: Vec<Option<u32>>,
-    transaction_hash: Vec<Option<Vec<u8>>>,
+    transaction_hash: Vec<Option<RawBytes>>,
     transaction_index: Vec<u32>,
     pc: Vec<u64>,
     cost: Vec<u64>,
     used: Vec<Option<u64>>,
-    push: Vec<Option<Vec<u8>>>,
+    push: Vec<Option<RawBytes>>,
     mem_off: Vec<Option<u32>>,
-    mem_data: Vec<Option<Vec<u8>>>,
-    storage_key: Vec<Option<Vec<u8>>>,
-    storage_val: Vec<Option<Vec<u8>>>,
+    mem_data: Vec<Option<RawBytes>>,
+    storage_key: Vec<Option<RawBytes>>,
+    storage_val: Vec<Option<RawBytes>>,
     op: Vec<Option<String>>,
     n_rows: usize,
     chain_id: Vec<u64>,
@@ -39,7 +38,7 @@ impl Dataset for VmTraces {
 
 #[async_trait::async_trait]
 impl CollectByBlock for VmTraces {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>);
+    type Response = (Option<u32>, Option<RawBytes>, Vec<TraceResults>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let (bn, txs, traces) =
@@ -55,7 +54,7 @@ impl CollectByBlock for VmTraces {
 
 #[async_trait::async_trait]
 impl CollectByTransaction for VmTraces {
-    type Response = (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>);
+    type Response = (Option<u32>, Option<RawBytes>, Vec<TraceResults>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         source.trace_transaction_vm_traces(request.transaction_hash()?).await
@@ -67,7 +66,7 @@ impl CollectByTransaction for VmTraces {
 }
 
 fn process_vm_traces(
-    response: (Option<u32>, Option<Vec<u8>>, Vec<TraceResults>),
+    response: (Option<u32>, Option<RawBytes>, Vec<TraceResults>),
     columns: &mut VmTraces,
     schemas: &Schemas,
 ) -> R<()> {
@@ -86,7 +85,7 @@ fn add_ops(
     schema: &Table,
     columns: &mut VmTraces,
     number: Option<u32>,
-    tx_hash: Option<Vec<u8>>,
+    tx_hash: Option<RawBytes>,
     tx_pos: usize,
 ) {
     for opcode in vm_trace.ops {

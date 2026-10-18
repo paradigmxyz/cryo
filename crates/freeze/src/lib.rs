@@ -7,6 +7,9 @@
     attr(deny(warnings, rust_2018_idioms), allow(dead_code, unused_variables))
 ))]
 
+#[macro_use]
+extern crate tracing;
+
 mod collect;
 mod datasets;
 mod freeze;

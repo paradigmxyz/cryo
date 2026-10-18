@@ -6,16 +6,15 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::EthCalls)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct EthCalls {
     n_rows: u64,
     block_number: Vec<u32>,
-    contract_address: Vec<Vec<u8>>,
-    call_data: Vec<Vec<u8>>,
-    call_data_hash: Vec<Vec<u8>>,
-    output_data: Vec<Option<Vec<u8>>>,
-    output_data_hash: Vec<Option<Vec<u8>>>,
+    contract_address: Vec<RawBytes>,
+    call_data: Vec<RawBytes>,
+    call_data_hash: Vec<RawBytes>,
+    output_data: Vec<Option<RawBytes>>,
+    output_data_hash: Vec<Option<RawBytes>>,
     chain_id: Vec<u64>,
 }
 
@@ -42,7 +41,7 @@ impl Dataset for EthCalls {
     }
 }
 
-type EthCallsResponse = (u32, Vec<u8>, Vec<u8>, Option<Vec<u8>>);
+type EthCallsResponse = (u32, RawBytes, RawBytes, Option<RawBytes>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for EthCalls {

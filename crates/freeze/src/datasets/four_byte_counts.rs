@@ -3,14 +3,13 @@ use polars::prelude::*;
 use std::collections::BTreeMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::FourByteCounts)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct FourByteCounts {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) signature: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) signature: Vec<RawBytes>,
     pub(crate) size: Vec<u64>,
     pub(crate) count: Vec<u64>,
     pub(crate) chain_id: Vec<u64>,
@@ -23,7 +22,7 @@ impl Dataset for FourByteCounts {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<String, u64>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<BTreeMap<String, u64>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for FourByteCounts {
@@ -82,7 +81,7 @@ pub(crate) fn process_storage_reads(
     Ok(())
 }
 
-fn parse_signature_size(signature_size: &str) -> R<(Vec<u8>, u64)> {
+fn parse_signature_size(signature_size: &str) -> R<(RawBytes, u64)> {
     let parts: Vec<&str> = signature_size.splitn(2, '-').collect();
     if parts.len() != 2 {
         return Err(err("could not parse 4byte-size pair"))
@@ -93,7 +92,7 @@ fn parse_signature_size(signature_size: &str) -> R<(Vec<u8>, u64)> {
     let bytes = (0..hex_part.len())
         .step_by(2)
         .map(|i| u8::from_str_radix(&hex_part[i..i + 2], 16))
-        .collect::<Result<Vec<u8>, _>>()
+        .collect::<Result<RawBytes, _>>()
         .map_err(|_| err("could not parse signature bytes"))?;
 
     // Parse the number as u64

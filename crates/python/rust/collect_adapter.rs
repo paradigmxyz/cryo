@@ -1,6 +1,6 @@
 use polars::prelude::*;
+use polars_python::PyDataFrame;
 use pyo3::{exceptions::PyTypeError, prelude::*};
-use pyo3_polars::PyDataFrame;
 
 use cryo_cli::{parse_args, Args};
 use cryo_freeze::collect;
@@ -21,9 +21,11 @@ use cryo_freeze::collect;
         columns = None,
         u256_types = None,
         hex = false,
+        hex_prefix = true,
         sort = None,
         exclude_failed = false,
         rpc = None,
+        jwt = None,
         network_name = None,
         requests_per_second = None,
         max_concurrent_requests = None,
@@ -83,9 +85,11 @@ pub fn _collect(
     columns: Option<Vec<String>>,
     u256_types: Option<Vec<String>>,
     hex: bool,
+    hex_prefix: bool,
     sort: Option<Vec<String>>,
     exclude_failed: bool,
     rpc: Option<String>,
+    jwt: Option<String>,
     network_name: Option<String>,
     requests_per_second: Option<u32>,
     max_concurrent_requests: Option<u64>,
@@ -127,11 +131,11 @@ pub fn _collect(
     verbose: bool,
     no_verbose: bool,
     event_signature: Option<String>,
-) -> PyResult<&PyAny> {
+) -> PyResult<Bound<'_, PyAny>> {
     if let Some(command) = command {
-        pyo3_asyncio::tokio::future_into_py(py, async move {
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
             match run_execute(command).await {
-                Ok(df) => Ok(PyDataFrame(df)),
+                Ok(df) => Ok(PyDataFrame { df: df.into() }),
                 Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
             }
         })
@@ -149,9 +153,11 @@ pub fn _collect(
             columns,
             u256_types,
             hex,
+            no_hex_prefix: !hex_prefix,
             sort,
             exclude_failed,
             rpc,
+            jwt,
             network_name,
             requests_per_second,
             max_concurrent_requests,
@@ -194,33 +200,33 @@ pub fn _collect(
             no_verbose,
             event_signature,
         };
-        pyo3_asyncio::tokio::future_into_py(py, async move {
+        pyo3_async_runtimes::tokio::future_into_py(py, async move {
             match run_collect(args).await {
                 // Ok(df) => Ok(Python::with_gil(|py| py.None())),
-                Ok(df) => Ok(PyDataFrame(df)),
+                Ok(df) => Ok(PyDataFrame { df: df.into() }),
                 Err(_e) => Err(PyErr::new::<PyTypeError, _>("failed")),
             }
         })
     } else {
-        return Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
+        Err(PyErr::new::<PyTypeError, _>("must specify datatype or command"))
     }
 }
 
 async fn run_collect(args: Args) -> PolarsResult<DataFrame> {
     let (query, source, _sink, _env) = match parse_args(&args).await {
         Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
+        Err(e) => panic!("error parsing opts {e:?}"),
     };
     match collect(query.into(), source.into()).await {
         Ok(df) => Ok(df),
-        Err(e) => panic!("error collecting {:?}", e),
+        Err(e) => panic!("error collecting {e:?}"),
     }
 }
 
 async fn run_execute(command: String) -> PolarsResult<DataFrame> {
     let args = match cryo_cli::parse_str(command.as_str()).await {
         Ok(opts) => opts,
-        Err(e) => panic!("error parsing opts {:?}", e),
+        Err(e) => panic!("error parsing opts {e:?}"),
     };
     run_collect(args).await
 }

@@ -7,18 +7,17 @@ use alloy::{
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Erc20Transfers)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Erc20Transfers {
     n_rows: u64,
     block_number: Vec<u32>,
-    block_hash: Vec<Option<Vec<u8>>>,
+    block_hash: Vec<Option<RawBytes>>,
     transaction_index: Vec<u32>,
     log_index: Vec<u32>,
-    transaction_hash: Vec<Vec<u8>>,
-    erc20: Vec<Vec<u8>>,
-    from_address: Vec<Vec<u8>>,
-    to_address: Vec<Vec<u8>>,
+    transaction_hash: Vec<RawBytes>,
+    erc20: Vec<RawBytes>,
+    from_address: Vec<RawBytes>,
+    to_address: Vec<RawBytes>,
     value: Vec<U256>,
     chain_id: Vec<u64>,
 }

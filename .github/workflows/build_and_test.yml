@@ -25,9 +25,11 @@ jobs:
           cache-on-failure: true
       - name: Build
         run: cargo build --workspace
+      # out of disk
+      # - name: Build with rustls
+      #   run: cargo build --workspace --features reqwest-rustls-tls --no-default-features
       - name: Run tests
-        run: cargo test --workspace
-
+        run: cargo test --workspace -j1
   clippy:
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -52,3 +54,86 @@ jobs:
         with:
           components: rustfmt
       - run: cargo fmt --all --check
+
+  package:
+    name: Upload artifacts
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 60
+    # run on PRs (workflow already triggers on pull_request)
+    needs: [build]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            arch: x86_64
+            target: x86_64-apple-darwin
+          - os: macos-latest
+            arch: aarch64
+            target: aarch64-apple-darwin
+          - os: ubuntu-latest
+            arch: x86_64
+            target: x86_64-unknown-linux-gnu
+          # - os: ubuntu-latest
+          #   arch: aarch64
+          #   target: aarch64-unknown-linux-gnu
+          - os: windows-latest
+            arch: x86_64
+            target: x86_64-pc-windows-msvc
+          # - os: windows-latest
+          #   arch: aarch64
+          #   target: aarch64-pc-windows-msvc
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          cache-on-failure: true
+
+      - name: Install rust target
+        run: rustup target add ${{ matrix.target }}
+
+      - name: Build CLI (release)
+        run: |
+          cargo build -p cryo_cli --release --target ${{ matrix.target }}
+
+      - name: Package CLI (unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir -p dist/${{ matrix.os }}-${{ matrix.arch }}
+          echo "Packaging CLI for runner.os=${{ runner.os }} matrix.arch=${{ matrix.arch }}"
+          # Prefer the target-specific release path if it exists (cross/target builds)
+          if [ -f "target/${{ matrix.target }}/release/cryo" ]; then
+            cp -f "target/${{ matrix.target }}/release/cryo" dist/${{ matrix.os }}-${{ matrix.arch }}/ || true
+          else
+            cp -f target/release/cryo dist/${{ matrix.os }}-${{ matrix.arch }}/ || true
+          fi
+          tar -czf dist/cryo-cli-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}.tar.gz -C dist/${{ matrix.os }}-${{ matrix.arch }} .
+
+      - name: Package CLI (windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force -Path "dist\${{ matrix.os }}-${{ matrix.arch }}" | Out-Null
+          Write-Host "Packaging CLI on Windows runner for matrix.arch=${{ matrix.arch }}"
+          if (Test-Path -Path "target\${{ matrix.target }}\release\cryo.exe") {
+            Copy-Item -Path "target\${{ matrix.target }}\release\cryo.exe" -Destination "dist\${{ matrix.os }}-${{ matrix.arch }}\" -Force
+          } elseif (Test-Path -Path "target\release\cryo.exe") {
+            Copy-Item -Path "target\release\cryo.exe" -Destination "dist\${{ matrix.os }}-${{ matrix.arch }}\" -Force
+          }
+          Compress-Archive -Path "dist\${{ matrix.os }}-${{ matrix.arch }}\*" -DestinationPath "dist\cryo-cli-${{ matrix.os }}-${{ matrix.arch }}-${{ github.sha }}.zip" -Force
+
+      - uses: PyO3/maturin-action@v1
+        with:
+          command: build
+          working-directory: crates/python
+          args: --release --strip -o ../../dist/
+          target: ${{ matrix.target }}
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: cryo-artifacts-${{ matrix.target }}-${{ github.run_id }}
+          path: |
+            dist/cryo-cli-${{ matrix.os }}-${{ matrix.arch }}-*
+            dist/*.whl

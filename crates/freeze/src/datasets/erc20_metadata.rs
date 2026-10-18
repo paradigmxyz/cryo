@@ -3,12 +3,11 @@ use alloy::sol_types::SolCall;
 use polars::prelude::*;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::Erc20Metadata)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Erc20Metadata {
     n_rows: u64,
     block_number: Vec<u32>,
-    erc20: Vec<Vec<u8>>,
+    erc20: Vec<RawBytes>,
     name: Vec<Option<String>>,
     symbol: Vec<Option<String>>,
     decimals: Vec<Option<u32>>,
@@ -41,7 +40,7 @@ pub(crate) fn remove_control_characters(s: &str) -> String {
 
 #[async_trait::async_trait]
 impl CollectByBlock for Erc20Metadata {
-    type Response = (u32, Vec<u8>, Option<String>, Option<String>, Option<u32>);
+    type Response = (u32, RawBytes, Option<String>, Option<String>, Option<u32>);
 
     async fn extract(request: Params, source: Arc<Source>, _: Arc<Query>) -> R<Self::Response> {
         let block_number = request.ethers_block_number()?;

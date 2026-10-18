@@ -3,14 +3,13 @@ use alloy::primitives::{Address, U256};
 use polars::prelude::*;
 
 /// columns for balances
-#[cryo_to_df::to_df(Datatype::Slots)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct Slots {
     n_rows: usize,
     block_number: Vec<u32>,
-    address: Vec<Vec<u8>>,
-    slot: Vec<Vec<u8>>,
-    value: Vec<Vec<u8>>,
+    address: Vec<RawBytes>,
+    slot: Vec<RawBytes>,
+    value: Vec<RawBytes>,
     chain_id: Vec<u64>,
 }
 
@@ -37,7 +36,7 @@ impl Dataset for Slots {
     }
 }
 
-type BlockTxAddressOutput = (u32, Option<Vec<u8>>, Vec<u8>, Vec<u8>, Vec<u8>);
+type BlockTxAddressOutput = (u32, Option<RawBytes>, RawBytes, RawBytes, RawBytes);
 
 #[async_trait::async_trait]
 impl CollectByBlock for Slots {

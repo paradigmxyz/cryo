@@ -4,16 +4,15 @@ use polars::prelude::*;
 use std::collections::BTreeMap;
 
 /// columns for transactions
-#[cryo_to_df::to_df(Datatype::StorageReads)]
-#[derive(Default)]
+#[derive(Default, cryo_to_df::ToDataFrames)]
 pub struct StorageReads {
     pub(crate) n_rows: u64,
     pub(crate) block_number: Vec<Option<u32>>,
     pub(crate) transaction_index: Vec<Option<u32>>,
-    pub(crate) transaction_hash: Vec<Option<Vec<u8>>>,
-    pub(crate) contract_address: Vec<Vec<u8>>,
-    pub(crate) slot: Vec<Vec<u8>>,
-    pub(crate) value: Vec<Vec<u8>>,
+    pub(crate) transaction_hash: Vec<Option<RawBytes>>,
+    pub(crate) contract_address: Vec<RawBytes>,
+    pub(crate) slot: Vec<RawBytes>,
+    pub(crate) value: Vec<RawBytes>,
     pub(crate) chain_id: Vec<u64>,
 }
 
@@ -24,7 +23,7 @@ impl Dataset for StorageReads {
     }
 }
 
-type BlockTxsTraces = (Option<u32>, Vec<Option<Vec<u8>>>, Vec<BTreeMap<Address, AccountState>>);
+type BlockTxsTraces = (Option<u32>, Vec<Option<RawBytes>>, Vec<BTreeMap<Address, AccountState>>);
 
 #[async_trait::async_trait]
 impl CollectByBlock for StorageReads {
@@ -78,7 +77,7 @@ pub(crate) fn process_storage_read(
     addr: &Address,
     account_state: &AccountState,
     block_number: &Option<u32>,
-    transaction_hash: &Option<Vec<u8>>,
+    transaction_hash: &Option<RawBytes>,
     transaction_index: usize,
     columns: &mut StorageReads,
     schema: &Table,
