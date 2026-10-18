@@ -101,7 +101,7 @@ impl CollectByTransaction for Erc20Transfers {
 fn is_erc20_transfer(log: &Log) -> bool {
     log.topics().len() == 3 &&
         log.data().data.len() == 32 &&
-        log.topics()[0] == ERC20::Approval::SIGNATURE_HASH
+        log.topics()[0] == ERC20::Transfer::SIGNATURE_HASH
 }
 
 /// process block into columns
