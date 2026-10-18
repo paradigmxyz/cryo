@@ -98,8 +98,8 @@ pub(crate) fn process_contracts(
             store!(schema, columns, factory, create.from.to_vec());
             store!(schema, columns, init_code, create.init.to_vec());
             store!(schema, columns, code, result.code.to_vec());
-            store!(schema, columns, init_code_hash, keccak256(result.code.clone()).to_vec());
-            store!(schema, columns, code_hash, keccak256(create.init.clone()).to_vec());
+            store!(schema, columns, init_code_hash, keccak256(create.init.clone()).to_vec());
+            store!(schema, columns, code_hash, keccak256(result.code.clone()).to_vec());
             store!(schema, columns, n_init_code_bytes, create.init.len() as u32);
             store!(schema, columns, n_code_bytes, result.code.len() as u32);
         }
