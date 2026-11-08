@@ -151,6 +151,7 @@ def find_row_differences(
             difference = (
                 name + ' and ' + other_name + ' have different number of rows'
             )
+            differences.append(difference)
             continue
 
         # row values
