@@ -3,6 +3,9 @@
 
 utility for performing comparisons between cryo environments
 
+Comparisons check column schemas, row counts, and row values. Outputs with
+different row counts are reported as differences, even when their schemas match.
+
 ```bash
 cryo_test is a cli tool for comparing cryo outputs across different conditions
 
